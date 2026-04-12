@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blink Comparator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 12px;
+      background: #111;
+      color: #ccc;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #controls {
+      background: #1e1e1e;
+      border-bottom: 1px solid #333;
+      padding: 5px 10px;
+      flex-shrink: 0;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding: 3px 0;
+    }
+
+    .sep { width: 1px; height: 16px; background: #444; margin: 0 4px; }
+
+    button {
+      padding: 3px 9px;
+      background: #2c2c2c;
+      border: 1px solid #484848;
+      color: #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    button:hover:not(:disabled) { background: #3a3a3a; border-color: #666; }
+    button:disabled { opacity: 0.35; cursor: default; }
+
+    #btn-blink {
+      background: #1b5e20;
+      border-color: #2e7d32;
+      color: #a5d6a7;
+      font-weight: bold;
+      font-size: 12px;
+      padding: 4px 14px;
+    }
+    #btn-blink:hover:not(:disabled) { background: #2e7d32; }
+    #btn-blink.stop { background: #7f0000; border-color: #b71c1c; color: #ef9a9a; }
+
+    .badge {
+      background: #2c2c2c;
+      border: 1px solid #444;
+      border-radius: 10px;
+      padding: 1px 8px;
+      font-size: 11px;
+      color: #888;
+    }
+
+    label { color: #999; font-size: 11px; }
+
+    input[type=range] {
+      width: 120px;
+      accent-color: #4fc3f7;
+      cursor: pointer;
+    }
+    input[type=number] {
+      width: 42px;
+      background: #2c2c2c;
+      border: 1px solid #484848;
+      color: #ccc;
+      border-radius: 3px;
+      padding: 2px 4px;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    #status-bar {
+      font-size: 11px;
+      color: #888;
+      padding: 2px 0;
+      min-height: 18px;
+    }
+
+    #canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .lbl-val { color: #4fc3f7; min-width: 30px; }
+    .lbl-off { color: #4fc3f7; }
+  </style>
+</head>
+<body>
+
+<div id="controls">
+
+  <!-- Row 1: Load -->
+  <div class="row">
+    <button onclick="pickFile(1)">Load Image 1</button>
+    <span id="lbl1" style="color:#555">— no image —</span>
+    <div class="sep"></div>
+    <button onclick="pickFile(2)">Load Image 2</button>
+    <span id="lbl2" style="color:#555">— no image —</span>
+  </div>
+
+  <!-- Row 2: Alignment -->
+  <div class="row">
+    <button id="btn-add"    onclick="addPair()"      disabled>Add Reference Point</button>
+    <button id="btn-remove" onclick="removeLast()"   disabled>Remove Last</button>
+    <button id="btn-apply"  onclick="applyAlign()"   disabled>Apply Alignment</button>
+    <button id="btn-reset"  onclick="resetAlignment()" disabled>Reset</button>
+    <span id="badge" class="badge">0 pairs</span>
+  </div>
+
+  <!-- Row 3: Nudge + timing + blink -->
+  <div class="row">
+    <label>Nudge img2:</label>
+    <button onclick="nudge(-1,0)">←</button>
+    <button onclick="nudge( 1,0)">→</button>
+    <button onclick="nudge( 0,-1)">↑</button>
+    <button onclick="nudge( 0, 1)">↓</button>
+    <label>step</label>
+    <input type="number" id="step" value="1" min="1" max="100">
+    <span id="lbl-off" class="lbl-off">dx=0 dy=0</span>
+
+    <div class="sep"></div>
+
+    <label>Img 1 (ms):</label>
+    <input type="range" id="t1" min="50" max="3000" step="50" value="500" oninput="syncTiming()">
+    <span id="v1" class="lbl-val">500</span>
+
+    <label>Img 2 (ms):</label>
+    <input type="range" id="t2" min="50" max="3000" step="50" value="500" oninput="syncTiming()">
+    <span id="v2" class="lbl-val">500</span>
+
+    <div class="sep"></div>
+    <button id="btn-blink" onclick="toggleBlink()" disabled>Start Blinking</button>
+  </div>
+
+  <!-- Status -->
+  <div id="status-bar">Load both images to begin.</div>
+
+</div>
+
+<div id="canvas-wrap">
+  <canvas id="cv"></canvas>
+</div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="fi1" accept="image/*" style="display:none" onchange="onFile(1)">
+<input type="file" id="fi2" accept="image/*" style="display:none" onchange="onFile(2)">
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+const S = {
+  img1: null, img2: null,       // HTMLImageElement originals
+  w1:0, h1:0, w2:0, h2:0,
+
+  img2Aligned: null,            // HTMLCanvasElement: affine-warped img2
+  img2Display: null,            // HTMLCanvasElement: aligned + nudge
+
+  points1: [], points2: [],     // [{x,y}] in original image coords
+  alignMode: null,              // null | 'pick1' | 'pick2'
+  sbsOn: false,                 // side-by-side mode active
+
+  L: null, R: null,             // {scale,ox,oy} display transforms per panel
+
+  nudgeDx: 0, nudgeDy: 0,
+
+  blinking: false,
+  cur: 1,
+  timer: null,
+  t1: 500, t2: 500,
+};
+
+const COLORS = [
+  '#FF5555','#55AAFF','#FFCC22','#55DD55',
+  '#FF55FF','#22CCCC','#FF8833','#AA55FF',
+  '#FFFF44','#44FFaa'
+];
+
+const cv   = document.getElementById('cv');
+const ctx  = cv.getContext('2d');
+const wrap = document.getElementById('canvas-wrap');
+
+// ─── Canvas sizing ────────────────────────────────────────────────────────────
+function fitCanvas() {
+  cv.width  = wrap.clientWidth;
+  cv.height = wrap.clientHeight;
+  redraw();
+}
+new ResizeObserver(fitCanvas).observe(wrap);
+
+// ─── File loading ─────────────────────────────────────────────────────────────
+function pickFile(n) { document.getElementById('fi' + n).click(); }
+
+function onFile(n) {
+  const inp  = document.getElementById('fi' + n);
+  const file = inp.files[0];
+  if (!file) return;
+  inp.value = '';                    // allow reloading same file
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    if (n === 1) {
+      S.img1 = img; S.w1 = img.naturalWidth; S.h1 = img.naturalHeight;
+      el('lbl1').textContent = file.name; el('lbl1').style.color = '#ccc';
+    } else {
+      S.img2 = img; S.w2 = img.naturalWidth; S.h2 = img.naturalHeight;
+      el('lbl2').textContent = file.name; el('lbl2').style.color = '#ccc';
+    }
+    resetState();
+    checkReady();
+    redraw();
+  };
+  img.src = url;
+}
+
+function checkReady() {
+  const ok = S.img1 && S.img2;
+  setDisabled('btn-add', !ok);
+  setDisabled('btn-blink', !ok);
+  if (ok) status('Add reference points (3+ recommended, spread across the image), then Apply Alignment.');
+}
+
+// ─── Alignment ────────────────────────────────────────────────────────────────
+function addPair() {
+  stopBlink();
+  S.sbsOn = true;
+  S.alignMode = 'pick1';
+  redraw();
+  const i = S.points1.length;
+  status(`Point ${i+1}  ●  Click landmark on  IMAGE 1  (left panel).`, COLORS[i % COLORS.length]);
+}
+
+function removeLast() {
+  if (S.points1.length) S.points1.pop();
+  if (S.points2.length) S.points2.pop();
+  updatePairUI();
+  if (S.sbsOn) redraw();
+}
+
+function resetAlignment() {
+  resetState();
+  status('Alignment reset.');
+  redraw();
+}
+
+function resetState() {
+  S.points1 = []; S.points2 = [];
+  S.alignMode = null; S.sbsOn = false;
+  S.img2Aligned = null; S.img2Display = null;
+  S.nudgeDx = 0; S.nudgeDy = 0;
+  el('lbl-off').textContent = 'dx=0 dy=0';
+  setDisabled('btn-apply', true);
+  setDisabled('btn-reset', true);
+  setDisabled('btn-remove', true);
+  el('badge').textContent = '0 pairs';
+}
+
+function updatePairUI() {
+  const n = S.points1.length, ok = S.points2.length === n;
+  el('badge').textContent = n + (n === 1 ? ' pair' : ' pairs');
+  setDisabled('btn-apply', !(n >= 1 && ok));
+  setDisabled('btn-reset', n === 0);
+  setDisabled('btn-remove', n === 0);
+}
+
+// Canvas click — pick points
+cv.addEventListener('click', e => {
+  if (!S.sbsOn || !S.alignMode || !S.L || !S.R) return;
+  const r  = cv.getBoundingClientRect();
+  const cx = (e.clientX - r.left) * (cv.width  / r.width);
+  const cy = (e.clientY - r.top)  * (cv.height / r.height);
+  const GAP = 6, hw = (cv.width - GAP) / 2;
+
+  if (S.alignMode === 'pick1' && cx < hw) {
+    const ix = (cx - S.L.ox) / S.L.sc;
+    const iy = (cy - S.L.oy) / S.L.sc;
+    S.points1.push({x: ix, y: iy});
+    S.alignMode = 'pick2';
+    redraw();
+    const i = S.points1.length - 1;
+    status(`Point ${i+1}  ●  Now click the SAME landmark on  IMAGE 2  (right panel).`,
+           COLORS[i % COLORS.length]);
+
+  } else if (S.alignMode === 'pick2' && cx > hw + GAP) {
+    const ix = (cx - S.R.ox) / S.R.sc;
+    const iy = (cy - S.R.oy) / S.R.sc;
+    S.points2.push({x: ix, y: iy});
+    S.alignMode = null;
+    updatePairUI();
+    redraw();
+    const n = S.points1.length, need = Math.max(0, 3 - n);
+    status(need > 0
+      ? `Pair ${n} added. ${need} more for affine — or Apply now for basic alignment.`
+      : `${n} pairs set.  Apply Alignment or add more.`);
+  }
+});
+
+// Apply alignment
+function applyAlign() {
+  const n = S.points1.length;
+  if (n === 0 || S.points2.length !== n) return;
+
+  // Collinearity check (first 3 points)
+  if (n >= 3) {
+    const p = S.points1;
+    const area = Math.abs(
+      (p[1].x - p[0].x) * (p[2].y - p[0].y) -
+      (p[2].x - p[0].x) * (p[1].y - p[0].y)) / 2;
+    if (area < 0.002 * S.w1 * S.h1) {
+      alert('The first 3 reference points are nearly collinear (in a straight line).\n' +
+            'Please remove and pick points that form a wide triangle across the image.');
+      return;
+    }
+  }
+
+  // Scale img2 coords if images differ in size
+  let p2 = S.points2;
+  if (S.w2 !== S.w1 || S.h2 !== S.h1) {
+    const sx = S.w1 / S.w2, sy = S.h1 / S.h2;
+    p2 = S.points2.map(p => ({x: p.x * sx, y: p.y * sy}));
+  }
+
+  const res = computeAffine(S.points1, p2);
+  if (!res) { status('Alignment failed: singular transform.', '#ef9a9a'); return; }
+  const [coeff, modeName] = res;
+
+  S.img2Aligned = warpImage(S.img2, coeff, S.w1, S.h1);
+  if (!S.img2Aligned) { status('Transform failed (degenerate).', '#ef9a9a'); return; }
+  S.img2Display = S.img2Aligned;
+  S.nudgeDx = 0; S.nudgeDy = 0;
+  el('lbl-off').textContent = 'dx=0 dy=0';
+  S.sbsOn = false; S.alignMode = null;
+
+  drawBlend();
+  status(`Aligned (${modeName}, ${n} pair${n!==1?'s':''}).  `+
+         `Blend preview shown — nudge or arrow keys to fine-tune, then Start Blinking.`);
+}
+
+// Warp img2 into img1 coordinate space using (a,b,c,d,e,f) backward-map coefficients
+function warpImage(srcImg, C, w1, h1) {
+  const [a, b, c, d, e, f] = C;
+  const det = a * e - b * d;
+  if (Math.abs(det) < 1e-10) return null;
+  // Inverse transform (forward: img2→img1 output)
+  // Canvas setTransform(A,B,C,D,E,F): maps (u,v) → (A*u+C*v+E, B*u+D*v+F)
+  const A = e/det,  B = -d/det;
+  const CC = -b/det, D =  a/det;
+  const E = (b*f - e*c)/det, F = (d*c - a*f)/det;
+  const oc = document.createElement('canvas');
+  oc.width = w1; oc.height = h1;
+  const ox = oc.getContext('2d');
+  ox.setTransform(A, B, CC, D, E, F);
+  ox.drawImage(srcImg, 0, 0, w1, h1);   // draw img2 scaled to img1 dimensions
+  return oc;
+}
+
+// ─── Nudge ────────────────────────────────────────────────────────────────────
+function nudge(dx, dy) {
+  if (!S.img1) return;
+  const step = parseInt(el('step').value) || 1;
+  S.nudgeDx += dx * step;
+  S.nudgeDy += dy * step;
+  el('lbl-off').textContent = `dx=${S.nudgeDx} dy=${S.nudgeDy}`;
+  const base = S.img2Aligned || S.img2;
+  const oc = document.createElement('canvas');
+  oc.width = S.w1; oc.height = S.h1;
+  const ox = oc.getContext('2d');
+  if (S.img2Aligned) {
+    ox.drawImage(S.img2Aligned, S.nudgeDx, S.nudgeDy);
+  } else {
+    ox.drawImage(S.img2, S.nudgeDx, S.nudgeDy, S.w1, S.h1);
+  }
+  S.img2Display = oc;
+  if (!S.blinking) drawSingle(S.img2Display);
+}
+
+// ─── Timing ───────────────────────────────────────────────────────────────────
+function syncTiming() {
+  S.t1 = +el('t1').value; el('v1').textContent = S.t1;
+  S.t2 = +el('t2').value; el('v2').textContent = S.t2;
+}
+
+// ─── Blinking ─────────────────────────────────────────────────────────────────
+function toggleBlink() { S.blinking ? stopBlink() : startBlink(); }
+
+function startBlink() {
+  if (!S.img1 || !S.img2) return;
+  S.sbsOn = false;
+  S.blinking = true; S.cur = 1;
+  el('btn-blink').textContent = 'Stop Blinking';
+  el('btn-blink').classList.add('stop');
+  blinkStep();
+}
+
+function stopBlink() {
+  if (!S.blinking) return;
+  S.blinking = false;
+  clearTimeout(S.timer); S.timer = null;
+  el('btn-blink').textContent = 'Start Blinking';
+  el('btn-blink').classList.remove('stop');
+  status('Blinking stopped.');
+}
+
+function blinkStep() {
+  if (!S.blinking) return;
+  if (S.cur === 1) {
+    drawSingle(S.img1, S.w1, S.h1);
+    status('▶ Image 1');
+    S.cur = 2;
+    S.timer = setTimeout(blinkStep, S.t1);
+  } else {
+    const src = S.img2Display || S.img2;
+    const w = src instanceof HTMLCanvasElement ? src.width  : S.w2;
+    const h = src instanceof HTMLCanvasElement ? src.height : S.h2;
+    drawSingle(src, w, h);
+    status('▶ Image 2');
+    S.cur = 1;
+    S.timer = setTimeout(blinkStep, S.t2);
+  }
+}
+
+// ─── Drawing ──────────────────────────────────────────────────────────────────
+function redraw() {
+  if (S.sbsOn && S.img1 && S.img2) drawSBS();
+  else if (S.img1) drawSingle(S.img1, S.w1, S.h1);
+  else { ctx.clearRect(0,0,cv.width,cv.height); }
+}
+
+function imgSize(src) {
+  return src instanceof HTMLCanvasElement
+    ? [src.width, src.height]
+    : [src.naturalWidth, src.naturalHeight];
+}
+
+function drawSingle(src, iw, ih) {
+  if (!src) return;
+  if (!iw || !ih) [iw, ih] = imgSize(src);
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  const sc = Math.min(W / iw, H / ih);
+  const nw = iw * sc, nh = ih * sc;
+  const ox = (W - nw) / 2, oy = (H - nh) / 2;
+  ctx.drawImage(src, ox, oy, nw, nh);
+}
+
+function drawBlend() {
+  if (!S.img1 || !S.img2Aligned) return;
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0, 0, W, H);
+  const sc = Math.min(W / S.w1, H / S.h1);
+  const nw = S.w1 * sc, nh = S.h1 * sc;
+  const ox = (W - nw) / 2, oy = (H - nh) / 2;
+  ctx.globalAlpha = 1;   ctx.drawImage(S.img1, ox, oy, nw, nh);
+  ctx.globalAlpha = 0.5; ctx.drawImage(S.img2Display || S.img2Aligned, ox, oy, nw, nh);
+  ctx.globalAlpha = 1;
+}
+
+function drawSBS() {
+  const W = cv.width, H = cv.height;
+  const GAP = 6, hw = (W - GAP) / 2;
+  ctx.clearRect(0, 0, W, H);
+
+  // Left panel — img1
+  const s1 = Math.min(hw / S.w1, H / S.h1);
+  const nw1 = S.w1 * s1, nh1 = S.h1 * s1;
+  const ox1 = (hw - nw1) / 2, oy1 = (H - nh1) / 2;
+  S.L = {sc: s1, ox: ox1, oy: oy1};
+  ctx.drawImage(S.img1, ox1, oy1, nw1, nh1);
+
+  // Right panel — img2
+  const s2 = Math.min(hw / S.w2, H / S.h2);
+  const nw2 = S.w2 * s2, nh2 = S.h2 * s2;
+  const ox2 = hw + GAP + (hw - nw2) / 2, oy2 = (H - nh2) / 2;
+  S.R = {sc: s2, ox: ox2, oy: oy2};
+  ctx.drawImage(S.img2, ox2, oy2, nw2, nh2);
+
+  // Divider
+  ctx.fillStyle = '#333'; ctx.fillRect(hw, 0, GAP, H);
+
+  // Panel labels
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 0, hw, 22); ctx.fillRect(hw+GAP, 0, hw, 22);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('IMAGE 1  — click here', hw / 2, 14);
+  ctx.fillText('IMAGE 2  — click here', hw + GAP + hw / 2, 14);
+  ctx.restore();
+
+  // Confirmed pairs
+  const n = Math.min(S.points1.length, S.points2.length);
+  for (let i = 0; i < n; i++) {
+    const col = COLORS[i % COLORS.length];
+    crosshair(...lToC(S.points1[i]), col, `P${i+1}`, 0,       hw,    H);
+    crosshair(...rToC(S.points2[i]), col, `P${i+1}`, hw+GAP,  W,     H);
+  }
+
+  // Pending img1 pick
+  if (S.alignMode === 'pick2' && S.points1.length > S.points2.length) {
+    const i   = S.points1.length - 1;
+    const col = COLORS[i % COLORS.length];
+    const [cx, cy] = lToC(S.points1[i]);
+    crosshair(cx, cy, col, `P${i+1}`, 0, hw, H);
+    // Faint horizontal hint into right panel
+    ctx.save();
+    ctx.strokeStyle = col; ctx.globalAlpha = 0.3;
+    ctx.setLineDash([4, 8]); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(hw, cy); ctx.lineTo(W, cy); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function lToC(p) { return [p.x * S.L.sc + S.L.ox, p.y * S.L.sc + S.L.oy]; }
+function rToC(p) { return [p.x * S.R.sc + S.R.ox, p.y * S.R.sc + S.R.oy]; }
+
+function crosshair(cx, cy, col, lbl, xmin, xmax, ch) {
+  ctx.save();
+  ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([7, 4]);
+  ctx.beginPath();
+  ctx.moveTo(xmin, cy); ctx.lineTo(xmax, cy);
+  ctx.moveTo(cx, 0);    ctx.lineTo(cx, ch);
+  ctx.stroke();
+  ctx.setLineDash([]); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.stroke();
+  if (lbl) {
+    ctx.fillStyle = col; ctx.font = 'bold 10px system-ui';
+    ctx.fillText(lbl, cx + 10, cy - 8);
+  }
+  ctx.restore();
+}
+
+// ─── Affine math ──────────────────────────────────────────────────────────────
+function computeAffine(p1, p2) {
+  const n = p1.length;
+
+  if (n === 1) {
+    return [[1, 0, p2[0].x - p1[0].x,  0, 1, p2[0].y - p1[0].y], 'translation'];
+  }
+
+  if (n === 2) {
+    const vx = p1[1].x-p1[0].x, vy = p1[1].y-p1[0].y;
+    const wx = p2[1].x-p2[0].x, wy = p2[1].y-p2[0].y;
+    const lv = Math.hypot(vx, vy), lw = Math.hypot(wx, wy);
+    if (lv < 1e-6) {
+      const dx = (p2[0].x-p1[0].x + p2[1].x-p1[1].x) / 2;
+      const dy = (p2[0].y-p1[0].y + p2[1].y-p1[1].y) / 2;
+      return [[1, 0, dx, 0, 1, dy], 'translation'];
+    }
+    const sc = lw / lv, ang = Math.atan2(wy, wx) - Math.atan2(vy, vx);
+    const a = sc * Math.cos(ang), b = sc * Math.sin(ang);
+    const cx1 = (p1[0].x+p1[1].x)/2, cy1 = (p1[0].y+p1[1].y)/2;
+    const cx2 = (p2[0].x+p2[1].x)/2, cy2 = (p2[0].y+p2[1].y)/2;
+    const c = cx2 - (a*cx1 - b*cy1);
+    const f = cy2 - (b*cx1 + a*cy1);
+    return [[a, -b, c, b, a, f], 'rotation + scale'];
+  }
+
+  // 3+ pairs — full affine via normal equations (least squares)
+  const ATA = [[0,0,0],[0,0,0],[0,0,0]];
+  const bx = [0,0,0], by = [0,0,0];
+  for (let i = 0; i < n; i++) {
+    const r = [p1[i].x, p1[i].y, 1];
+    for (let j = 0; j < 3; j++) {
+      bx[j] += r[j] * p2[i].x;
+      by[j] += r[j] * p2[i].y;
+      for (let k = 0; k < 3; k++) ATA[j][k] += r[j] * r[k];
+    }
+  }
+  const cx = gauss3(ATA, bx), cy = gauss3(ATA, by);
+  if (!cx || !cy) return null;
+  return [[cx[0], cx[1], cx[2], cy[0], cy[1], cy[2]], 'affine'];
+}
+
+function gauss3(A, b) {
+  const aug = A.map((row, i) => [...row, b[i]]);
+  for (let col = 0; col < 3; col++) {
+    let max = col;
+    for (let r = col+1; r < 3; r++)
+      if (Math.abs(aug[r][col]) > Math.abs(aug[max][col])) max = r;
+    [aug[col], aug[max]] = [aug[max], aug[col]];
+    if (Math.abs(aug[col][col]) < 1e-10) return null;
+    for (let r = 0; r < 3; r++) {
+      if (r === col) continue;
+      const f = aug[r][col] / aug[col][col];
+      for (let k = col; k <= 3; k++) aug[r][k] -= f * aug[col][k];
+    }
+  }
+  return aug.map((row, i) => row[3] / row[i]);
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function el(id) { return document.getElementById(id); }
+function setDisabled(id, v) { el(id).disabled = v; }
+function status(msg, col) {
+  const bar = el('status-bar');
+  bar.textContent = msg;
+  bar.style.color = col || '#888';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const map = { ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1] };
+  if (map[e.key]) { e.preventDefault(); nudge(...map[e.key]); }
+});
+
+fitCanvas();
+</script>
+</body>
+</html>

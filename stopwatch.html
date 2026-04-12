@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Interval Stopwatch</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── TOP BAR ── */
+    #top-bar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 18px 32px 10px;
+      flex-wrap: wrap;
+    }
+    #top-bar label { font-size: 1.1rem; color: #8b949e; white-space: nowrap; }
+
+    #interval-input {
+      width: 90px;
+      padding: 8px 12px;
+      font-size: 1.3rem;
+      font-weight: 700;
+      text-align: center;
+      background: #161b22;
+      border: 2px solid #30363d;
+      border-radius: 10px;
+      color: #58a6ff;
+      outline: none;
+      transition: border-color .2s;
+    }
+    #interval-input:focus { border-color: #58a6ff; }
+
+    /* ── CLOCK ── */
+    #clock-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 0 4px;
+    }
+
+    #clock {
+      font-size: clamp(5rem, 16vw, 11rem);
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      font-variant-numeric: tabular-nums;
+      color: #e6edf3;
+      line-height: 1;
+      text-shadow: 0 0 40px rgba(88,166,255,.25);
+      transition: color .1s;
+    }
+    #clock.flash { color: #58a6ff; }
+
+    #next-pip {
+      margin-top: 6px;
+      font-size: 1.15rem;
+      color: #8b949e;
+      min-height: 1.6rem;
+    }
+    #next-pip span { color: #58a6ff; font-weight: 700; }
+
+    #progress-track {
+      width: min(700px, 90vw);
+      height: 8px;
+      background: #21262d;
+      border-radius: 99px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #1f6feb, #58a6ff);
+      border-radius: 99px;
+      transition: width .05s linear;
+    }
+
+    /* ── BUTTONS ── */
+    #controls {
+      display: flex;
+      gap: 18px;
+      margin: 18px 0 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      padding: 12px 36px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform .1s, filter .15s;
+    }
+    button:active { transform: scale(.96); }
+
+    #btn-start  { background: #238636; color: #fff; }
+    #btn-start:hover { filter: brightness(1.15); }
+
+    #btn-stop   { background: #da3633; color: #fff; display: none; }
+    #btn-stop:hover  { filter: brightness(1.15); }
+
+    #btn-reset  { background: #21262d; color: #e6edf3; border: 2px solid #30363d; }
+    #btn-reset:hover { border-color: #58a6ff; }
+
+    #btn-export {
+      background: #21262d;
+      color: #3fb950;
+      border: 2px solid #3fb950;
+      display: none;
+    }
+    #btn-export:hover { background: #3fb950; color: #0d1117; }
+
+    /* ── PIPS LOG ── */
+    #pips-section {
+      width: min(700px, 92vw);
+      flex: 1;
+      overflow-y: auto;
+      border-radius: 14px;
+      background: #161b22;
+      border: 1px solid #21262d;
+    }
+    #pips-section::-webkit-scrollbar { width: 6px; }
+    #pips-section::-webkit-scrollbar-track { background: transparent; }
+    #pips-section::-webkit-scrollbar-thumb { background: #30363d; border-radius: 99px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 1.05rem; }
+
+    thead tr { background: #21262d; position: sticky; top: 0; z-index: 1; }
+
+    th, td { padding: 10px 20px; text-align: left; }
+    th { color: #8b949e; font-weight: 600; font-size: .95rem; letter-spacing: .04em; text-transform: uppercase; }
+
+    tbody tr { border-top: 1px solid #21262d; }
+
+    .pip-num  { color: #58a6ff; font-weight: 800; font-size: 1.2rem; width: 90px; }
+    .pip-time { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 1.1rem; width: 110px; }
+    .pip-laps { width: 100%; }
+
+    .laps-input {
+      width: 100%;
+      padding: 6px 10px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      background: #0d1117;
+      border: 2px solid #30363d;
+      border-radius: 8px;
+      color: #e6edf3;
+      outline: none;
+      transition: border-color .2s, background .2s;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    .laps-input:focus { border-color: #58a6ff; background: #161b22; }
+    .laps-input::placeholder { color: #484f58; font-weight: 400; }
+
+    @keyframes flash-row {
+      0%   { background: rgba(88,166,255,.3); }
+      100% { background: transparent; }
+    }
+    .new-pip { animation: flash-row .9s ease-out forwards; }
+
+    #empty-msg { text-align: center; color: #484f58; padding: 30px; font-size: 1rem; }
+  </style>
+</head>
+<body>
+
+  <div id="top-bar">
+    <label for="interval-input">Bip every</label>
+    <input id="interval-input" type="number" min="1" max="3600" value="1" />
+    <label for="interval-input">seconds</label>
+  </div>
+
+  <div id="clock-wrap">
+    <div id="clock">00:00.0</div>
+    <div id="next-pip">Set an interval and press Start</div>
+    <div id="progress-track"><div id="progress-fill"></div></div>
+  </div>
+
+  <div id="controls">
+    <button id="btn-start">Start</button>
+    <button id="btn-stop">Stop</button>
+    <button id="btn-reset">Reset</button>
+    <button id="btn-export">⬇ Export CSV</button>
+  </div>
+
+  <div id="pips-section">
+    <table>
+      <thead>
+        <tr><th>Bip #</th><th>Time</th><th>Laps</th></tr>
+      </thead>
+      <tbody id="pips-body">
+        <tr id="empty-row"><td colspan="3" id="empty-msg">No bips yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+<script>
+  // ── Audio ──────────────────────────────────────────────────────────────────
+  let audioCtx = null;
+  function getAudioCtx() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return audioCtx;
+    } catch(e) { return null; }
+  }
+  function playBip() {
+    try {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') ctx.resume();
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.6, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.35);
+    } catch(e) { /* audio not available — timer keeps running */ }
+  }
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let startTime = 0;
+  let elapsed   = 0;
+  let rafId     = null;
+  let running   = false;
+  let nextPipAt = 0;
+  let pipCount  = 0;
+  let lastPipMs = 0;
+
+  // ── Elements ───────────────────────────────────────────────────────────────
+  const clockEl    = document.getElementById('clock');
+  const nextPipEl  = document.getElementById('next-pip');
+  const fillEl     = document.getElementById('progress-fill');
+  const pipsBody   = document.getElementById('pips-body');
+  const btnStart   = document.getElementById('btn-start');
+  const btnStop    = document.getElementById('btn-stop');
+  const btnReset   = document.getElementById('btn-reset');
+  const btnExport  = document.getElementById('btn-export');
+  const intervalIn = document.getElementById('interval-input');
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function fmt(ms, tenths = true) {
+    const totalSec = Math.floor(ms / 1000);
+    const h  = Math.floor(totalSec / 3600);
+    const m  = Math.floor((totalSec % 3600) / 60);
+    const s  = totalSec % 60;
+    const t  = Math.floor((ms % 1000) / 100);
+    const mm = String(m).padStart(2, '0');
+    const ss = String(s).padStart(2, '0');
+    const base = h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+    return tenths ? `${base}.${t}` : base;
+  }
+
+  function intervalMs() {
+    const v = parseFloat(intervalIn.value);
+    return (isNaN(v) || v <= 0) ? 60000 : v * 1000;
+  }
+
+  function flashClock() {
+    clockEl.classList.add('flash');
+    setTimeout(() => clockEl.classList.remove('flash'), 200);
+  }
+
+  function addPip(ms) {
+    playBip();
+    flashClock();
+    pipCount++;
+    lastPipMs = ms;
+
+    const emptyRow = document.getElementById('empty-row');
+    if (emptyRow) emptyRow.remove();
+
+    const tr = document.createElement('tr');
+    tr.className    = 'new-pip';
+    tr.dataset.bip  = pipCount;
+    tr.dataset.time = fmt(ms, false);
+    tr.dataset.ms   = ms;
+
+    const tdNum  = document.createElement('td');
+    tdNum.className   = 'pip-num';
+    tdNum.textContent = `Bip ${pipCount}`;
+
+    const tdTime = document.createElement('td');
+    tdTime.className   = 'pip-time';
+    tdTime.textContent = fmt(ms, false);
+
+    const tdLaps = document.createElement('td');
+    tdLaps.className = 'pip-laps';
+
+    const inp = document.createElement('input');
+    inp.type        = 'number';
+    inp.className   = 'laps-input';
+    inp.placeholder = '—';
+    inp.min         = '0';
+    inp.addEventListener('wheel', e => e.preventDefault());
+    inp.addEventListener('keydown', e => {
+      // Space bar must not trigger Start/Stop
+      if (e.key === ' ') e.stopPropagation();
+      // Enter jumps to the next laps field
+      if (e.key === 'Enter') {
+        const inputs = Array.from(pipsBody.querySelectorAll('.laps-input'));
+        const idx = inputs.indexOf(e.target);
+        if (idx !== -1 && idx + 1 < inputs.length) inputs[idx + 1].focus();
+      }
+    });
+    tdLaps.appendChild(inp);
+
+    tr.appendChild(tdNum);
+    tr.appendChild(tdTime);
+    tr.appendChild(tdLaps);
+    pipsBody.appendChild(tr);
+    tr.scrollIntoView({ behavior: 'smooth', block: 'end' });
+
+    btnExport.style.display = 'block';
+  }
+
+  // ── Export ─────────────────────────────────────────────────────────────────
+  btnExport.addEventListener('click', () => {
+    const rows = pipsBody.querySelectorAll('tr[data-bip]');
+    if (!rows.length) return;
+    let csv = 'Bip,t(s),lap(unit)\n';
+    rows.forEach(tr => {
+      const seconds = (parseFloat(tr.dataset.ms) / 1000).toFixed(1);
+      csv += `${tr.dataset.bip},${seconds},${tr.querySelector('.laps-input').value}\n`;
+    });
+    const a = Object.assign(document.createElement('a'), {
+      href:     URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+      download: 'stopwatch_laps.csv'
+    });
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  // ── Render loop ────────────────────────────────────────────────────────────
+  function tick() {
+    const now = elapsed + (performance.now() - startTime);
+
+    while (now >= nextPipAt) {
+      addPip(nextPipAt);
+      nextPipAt += intervalMs();
+    }
+
+    clockEl.textContent = fmt(now);
+
+    const ivMs  = intervalMs();
+    const since = now - (nextPipAt - ivMs);
+    fillEl.style.width = Math.min(since / ivMs * 100, 100) + '%';
+
+    const remaining = nextPipAt - now;
+    nextPipEl.innerHTML = `Next bip <span>#${pipCount + 1}</span> in <span>${fmt(Math.max(remaining, 0))}</span>`;
+
+    if (running) rafId = requestAnimationFrame(tick);
+  }
+
+  // ── Start ──────────────────────────────────────────────────────────────────
+  function doStart() {
+    if (running) return;
+    if (elapsed === 0) {          // fresh start
+      nextPipAt = intervalMs();
+      lastPipMs = 0;
+      pipCount  = 0;
+    }
+    startTime = performance.now();
+    running   = true;
+    btnStart.style.display = 'none';
+    btnStop.style.display  = 'block';
+    intervalIn.disabled    = true;
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // ── Stop (freeze, keep data) ───────────────────────────────────────────────
+  function doStop() {
+    if (!running) return;
+    elapsed += performance.now() - startTime;
+    running  = false;
+    cancelAnimationFrame(rafId);
+    nextPipEl.innerHTML    = 'Stopped — press Start to resume';
+    btnStop.style.display  = 'none';
+    btnStart.style.display = '';
+    btnStart.textContent   = 'Start';
+    intervalIn.disabled    = false;
+  }
+
+  btnStart.addEventListener('click', doStart);
+  btnStop.addEventListener('click', doStop);
+
+  // ── Reset ──────────────────────────────────────────────────────────────────
+  btnReset.addEventListener('click', () => {
+    running = false;
+    cancelAnimationFrame(rafId);
+    elapsed   = 0; startTime = 0; nextPipAt = 0; pipCount = 0; lastPipMs = 0;
+    clockEl.textContent    = '00:00.0';
+    clockEl.classList.remove('flash');
+    nextPipEl.innerHTML    = 'Set an interval and press Start';
+    fillEl.style.width     = '0%';
+    pipsBody.innerHTML     = `<tr id="empty-row"><td colspan="3" id="empty-msg">No bips yet</td></tr>`;
+    btnStop.style.display  = 'none';
+    btnStart.style.display = '';
+    btnStart.textContent   = 'Start';
+    btnExport.style.display = 'none';
+    intervalIn.disabled    = false;
+  });
+
+  // ── Space bar ──────────────────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key !== ' ') return;
+    if (document.activeElement.tagName === 'INPUT') return;
+    e.preventDefault();
+    running ? doStop() : doStart();
+  });
+
+  intervalIn.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !running) doStart();
+  });
+</script>
+</body>
+</html>

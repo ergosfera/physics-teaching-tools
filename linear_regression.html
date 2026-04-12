@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linear Regression Visualizer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: #ecf0f1;
+    color: #2c3e50;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    background: #2c3e50;
+    color: #ecf0f1;
+    padding: 10px 20px;
+    font-size: 1.1em;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+
+  .main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Left Panel ── */
+  .left-panel {
+    width: 25%;
+    min-width: 200px;
+    background: #fff;
+    border-right: 2px solid #dde3e9;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 14px 12px;
+    gap: 14px;
+  }
+
+  .section-label {
+    font-size: 0.7em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #95a5a6;
+    margin-bottom: 4px;
+  }
+
+  .section-hint {
+    font-size: 0.72em;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #bbb;
+  }
+
+  /* Table */
+  #data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84em;
+  }
+
+  #data-table thead th {
+    background: #2c3e50;
+    color: #fff;
+    padding: 7px 4px;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  #data-table thead th[contenteditable="true"] {
+    cursor: text;
+    outline: none;
+    transition: background 0.12s;
+  }
+
+  #data-table thead th[contenteditable="true"]:hover { background: #3d5166; }
+
+  #data-table thead th[contenteditable="true"]:focus {
+    background: #3d5166;
+    box-shadow: inset 0 -2px 0 #3498db;
+  }
+
+  #data-table thead th.del-th { width: 24px; background: #2c3e50; }
+
+  #data-table tbody tr:nth-child(even) { background: #f8f9fa; }
+
+  #data-table tbody td {
+    padding: 2px 3px;
+    border-bottom: 1px solid #eaecee;
+  }
+
+  #data-table tbody td:first-child { border-right: 1px solid #eaecee; }
+
+  .del-cell { width: 24px; text-align: center; border-left: 1px solid #eaecee; }
+
+  #data-table tbody td input {
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 4px 5px;
+    font-size: 0.92em;
+    text-align: right;
+    background: transparent;
+    color: #2c3e50;
+    font-family: 'Courier New', monospace;
+  }
+
+  #data-table tbody td input:focus {
+    outline: none;
+    border-color: #3498db;
+    background: #eaf4fb;
+  }
+
+  #data-table tbody tr:hover td input { background: #f0f7fe; }
+
+  .del-btn {
+    background: none;
+    border: none;
+    color: #ccc;
+    font-size: 1em;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 3px;
+    line-height: 1;
+    transition: color 0.1s, background 0.1s;
+  }
+
+  .del-btn:hover { color: #e74c3c; background: #fef0ee; }
+
+  /* Below-table action row */
+  .table-actions {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+  }
+
+  .add-row-btn {
+    flex: 1;
+    padding: 6px;
+    background: #f8f9fa;
+    border: 1px dashed #bbb;
+    border-radius: 6px;
+    color: #888;
+    font-size: 0.82em;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .add-row-btn:hover { background: #eaf4fb; color: #2980b9; border-color: #2980b9; }
+
+  .csv-btn {
+    padding: 6px 9px;
+    background: #f8f9fa;
+    border: 1px dashed #bbb;
+    border-radius: 6px;
+    color: #888;
+    font-size: 0.82em;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .csv-btn:hover { background: #eafaf1; color: #27ae60; border-color: #27ae60; }
+
+  /* Units */
+  .units-grid { display: flex; flex-direction: column; gap: 5px; }
+
+  .units-row { display: flex; align-items: center; gap: 6px; font-size: 0.82em; }
+
+  .units-row label {
+    font-weight: 700;
+    color: #2c3e50;
+    min-width: 28px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.95em;
+  }
+
+  .unit-input {
+    flex: 1;
+    border: 1px solid #dde3e9;
+    border-radius: 4px;
+    padding: 4px 7px;
+    font-size: 0.9em;
+    color: #2c3e50;
+    background: #f8f9fa;
+    outline: none;
+    min-width: 0;
+    transition: border-color 0.12s, background 0.12s;
+  }
+
+  .unit-input:focus { border-color: #3498db; background: #eaf4fb; }
+
+  /* Toggle boxes (origin, pan) */
+  .toggle-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background: #f8f9fa;
+    border: 1px solid #dde3e9;
+    border-radius: 8px;
+    font-size: 0.83em;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.12s, border-color 0.12s;
+  }
+
+  .toggle-box:hover { background: #f0f4f8; }
+
+  .toggle-box.active {
+    background: #eaf4fb;
+    border-color: #2980b9;
+  }
+
+  .toggle-box input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    accent-color: #2980b9;
+    flex-shrink: 0;
+  }
+
+  /* Reset view link */
+  .reset-view {
+    font-size: 0.75em;
+    color: #aaa;
+    cursor: pointer;
+    text-align: right;
+    margin-top: 2px;
+    text-decoration: underline dotted;
+    transition: color 0.12s;
+  }
+
+  .reset-view:hover { color: #2980b9; }
+
+  /* Coefficients & Residuals */
+  .coeff-box {
+    background: #f8f9fa;
+    border: 1px solid #dde3e9;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .coeff-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 12px;
+    font-size: 0.88em;
+  }
+
+  .coeff-row:not(:last-child) { border-bottom: 1px solid #eaecee; }
+
+  .coeff-name { font-weight: 600; color: #555; }
+  .coeff-desc { font-size: 0.78em; color: #999; margin-left: 2px; }
+
+  .coeff-val {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    color: #c0392b;
+    font-size: 0.95em;
+  }
+
+  .coeff-val.pos { color: #27ae60; }
+  .coeff-val.neg { color: #e67e22; }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 7px; }
+
+  #adjust-btn {
+    flex: 1;
+    padding: 11px 8px;
+    background: #2980b9;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.97em;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.4px;
+    transition: background 0.15s, transform 0.1s;
+  }
+
+  #adjust-btn:hover  { background: #2471a3; }
+  #adjust-btn:active { background: #1a5276; transform: scale(0.98); }
+
+  #clear-btn, #export-btn {
+    padding: 11px 9px;
+    background: #ecf0f1;
+    border: 1px solid #bdc3c7;
+    border-radius: 8px;
+    font-size: 0.9em;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  #clear-btn  { color: #7f8c8d; }
+  #export-btn { color: #27ae60; }
+
+  #clear-btn:hover  { background: #fdecea; color: #e74c3c; border-color: #e74c3c; }
+  #export-btn:hover { background: #eafaf1; border-color: #27ae60; }
+
+  /* ── Right Panel ── */
+  .right-panel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+    overflow: hidden;
+  }
+
+  #plot {
+    display: block;
+    border-radius: 6px;
+    box-shadow: 0 3px 16px rgba(0,0,0,0.13);
+    background: #fff;
+    max-width: 100%;
+    max-height: 100%;
+  }
+</style>
+</head>
+<body>
+
+<header>Linear Regression Visualizer</header>
+
+<div class="main">
+
+  <!-- ── Left Panel ── -->
+  <div class="left-panel">
+
+    <!-- Data -->
+    <div>
+      <div class="section-label">Data <span class="section-hint">— click headers to rename</span></div>
+      <table id="data-table">
+        <thead>
+          <tr>
+            <th contenteditable="true" spellcheck="false" title="Click to rename">X</th>
+            <th contenteditable="true" spellcheck="false" title="Click to rename">Y</th>
+            <th class="del-th"></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="table-actions">
+        <button class="add-row-btn" id="add-row-btn">+ Add row</button>
+        <button class="csv-btn"     id="csv-btn">⬆ CSV</button>
+      </div>
+      <input type="file" id="csv-file" accept=".csv,.tsv,.txt" style="display:none">
+    </div>
+
+    <!-- Units -->
+    <div>
+      <div class="section-label">Units <span class="section-hint">— axis labels only</span></div>
+      <div class="units-grid">
+        <div class="units-row">
+          <label id="lbl-unit-x">X</label>
+          <input class="unit-input" id="unit-x" type="text" placeholder="e.g. cm" spellcheck="false">
+        </div>
+        <div class="units-row">
+          <label id="lbl-unit-y">Y</label>
+          <input class="unit-input" id="unit-y" type="text" placeholder="e.g. kg" spellcheck="false">
+        </div>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div>
+      <div class="section-label">Options</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label class="toggle-box" id="origin-box">
+          <input type="checkbox" id="through-origin">
+          <span>Best-fit line through origin (0, 0)</span>
+        </label>
+        <label class="toggle-box" id="pan-box">
+          <input type="checkbox" id="pan-mode-chk">
+          <span>🖐 Pan mode — drag to move the view <kbd style="font-size:0.8em;background:#dde3e9;border-radius:3px;padding:1px 4px;font-family:monospace;color:#555">P</kbd></span>
+        </label>
+        <div class="reset-view" id="reset-view">Reset view</div>
+      </div>
+    </div>
+
+    <!-- Coefficients -->
+    <div>
+      <div class="section-label">Coefficients</div>
+      <div class="coeff-box">
+        <div class="coeff-row">
+          <span><span class="coeff-name">a</span><span class="coeff-desc"> slope</span></span>
+          <span class="coeff-val" id="coeff-a">—</span>
+        </div>
+        <div class="coeff-row">
+          <span><span class="coeff-name">b</span><span class="coeff-desc"> intercept</span></span>
+          <span class="coeff-val" id="coeff-b">—</span>
+        </div>
+        <div class="coeff-row">
+          <span><span class="coeff-name">r</span><span class="coeff-desc"> correlation</span></span>
+          <span class="coeff-val" id="coeff-r">—</span>
+        </div>
+        <div class="coeff-row">
+          <span><span class="coeff-name">r²</span><span class="coeff-desc"> determination</span></span>
+          <span class="coeff-val" id="coeff-r2">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Residuals -->
+    <div>
+      <div class="section-label">Residuals</div>
+      <div class="coeff-box">
+        <div class="coeff-row">
+          <span><span class="coeff-name" style="color:#27ae60">Σ</span><span class="coeff-desc"> above BFL</span></span>
+          <span class="coeff-val pos" id="resid-pos">—</span>
+        </div>
+        <div class="coeff-row">
+          <span><span class="coeff-name" style="color:#e67e22">Σ</span><span class="coeff-desc"> below BFL</span></span>
+          <span class="coeff-val neg" id="resid-neg">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="btn-row">
+      <button id="adjust-btn">Adjust!</button>
+      <button id="clear-btn">Clear</button>
+      <button id="export-btn" title="Export chart as PNG">⬇ PNG</button>
+    </div>
+
+  </div>
+
+  <!-- ── Right Panel ── -->
+  <div class="right-panel">
+    <canvas id="plot"></canvas>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  State
+// ─────────────────────────────────────────────
+const NUM_INIT = 8;
+const POINT_R  = 7;
+const MARGIN   = { top: 36, right: 36, bottom: 58, left: 62 };
+
+let data          = [];
+let regression    = { a: null, b: null, r: null };
+let throughOrigin = false;
+let panMode       = false;
+let panOffsetX    = 0;      // data-unit offset applied to the view
+let panOffsetY    = 0;
+let dragState     = null;   // { index } — point being dragged
+let panDrag       = null;   // { startX, startY, startOffX, startOffY, xRange, yRange, W, H }
+let scale         = null;
+let hoverPos      = null;
+let hoverRAF      = null;
+
+const canvas = document.getElementById('plot');
+const ctx    = canvas.getContext('2d');
+
+// ─────────────────────────────────────────────
+//  Variable name / unit helpers
+// ─────────────────────────────────────────────
+function getVarName(col) {
+  const sel = col === 'x' ? '#data-table thead th:first-child'
+                          : '#data-table thead th:nth-child(2)';
+  return document.querySelector(sel)?.textContent.trim() || (col === 'x' ? 'X' : 'Y');
+}
+
+function getUnit(col) {
+  return document.getElementById(col === 'x' ? 'unit-x' : 'unit-y')?.value.trim() || '';
+}
+
+function getAxisLabel(col) {
+  const unit = getUnit(col);
+  return unit ? `${getVarName(col)} (${unit})` : getVarName(col);
+}
+
+function syncUnitLabels() {
+  document.getElementById('lbl-unit-x').textContent = getVarName('x');
+  document.getElementById('lbl-unit-y').textContent = getVarName('y');
+}
+
+// ─────────────────────────────────────────────
+//  Table
+// ─────────────────────────────────────────────
+function renderTable() {
+  const tbody = document.querySelector('#data-table tbody');
+  tbody.innerHTML = '';
+
+  data.forEach((d, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td><input type="number" step="any" inputmode="decimal"
+                  data-row="${i}" data-col="x" placeholder="—"
+                  value="${d.x !== null ? fmtNum(d.x) : ''}"></td>
+       <td><input type="number" step="any" inputmode="decimal"
+                  data-row="${i}" data-col="y" placeholder="—"
+                  value="${d.y !== null ? fmtNum(d.y) : ''}"></td>
+       <td class="del-cell">
+         <button class="del-btn" data-row="${i}" title="Remove row">×</button>
+       </td>`;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const val = parseFloat(inp.value);
+      data[+inp.dataset.row][inp.dataset.col] = isNaN(val) ? null : val;
+      draw();
+    });
+    inp.addEventListener('keydown', e => handleTableKey(e, inp));
+  });
+
+  tbody.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      data.splice(+btn.dataset.row, 1);
+      renderTable();
+      draw();
+    });
+  });
+}
+
+function handleTableKey(e, inp) {
+  const row = +inp.dataset.row;
+  const col =  inp.dataset.col;
+
+  switch (e.key) {
+    case 'Enter':
+      e.preventDefault();
+      if (row + 1 >= data.length) { data.push({ x: null, y: null }); renderTable(); }
+      focusCell(row + 1, col);
+      break;
+    case 'ArrowDown':
+      e.preventDefault();
+      if (row + 1 < data.length) focusCell(row + 1, col);
+      break;
+    case 'ArrowUp':
+      e.preventDefault();
+      if (row > 0) focusCell(row - 1, col);
+      break;
+    case 'ArrowRight':
+      if (col === 'x' && cursorAtEnd(inp))   { e.preventDefault(); focusCell(row, 'y'); }
+      break;
+    case 'ArrowLeft':
+      if (col === 'y' && cursorAtStart(inp)) { e.preventDefault(); focusCell(row, 'x'); }
+      break;
+  }
+}
+
+function cursorAtEnd(inp)   { try { return inp.selectionStart === inp.value.length; } catch (_) { return true; } }
+function cursorAtStart(inp) { try { return inp.selectionStart === 0;                } catch (_) { return true; } }
+
+function focusCell(row, col) {
+  document.querySelectorAll('#data-table tbody tr')[row]
+    ?.querySelector(`input[data-col="${col}"]`)?.focus();
+}
+
+function writeRow(i) {
+  const trs = document.querySelectorAll('#data-table tbody tr');
+  if (!trs[i]) return;
+  const xi = trs[i].querySelector('input[data-col="x"]');
+  const yi = trs[i].querySelector('input[data-col="y"]');
+  if (xi) xi.value = data[i].x !== null ? fmtNum(data[i].x) : '';
+  if (yi) yi.value = data[i].y !== null ? fmtNum(data[i].y) : '';
+}
+
+function fmtNum(v) { return String(parseFloat(v.toPrecision(5))); }
+
+// ─────────────────────────────────────────────
+//  CSV import
+// ─────────────────────────────────────────────
+function detectDelimiter(line) {
+  if (line.includes('\t')) return '\t';
+  if ((line.match(/;/g) || []).length >= (line.match(/,/g) || []).length) return ';';
+  return ',';
+}
+
+function parseCSVCell(s) {
+  return s.trim().replace(/^["']|["']$/g, '');
+}
+
+function importCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if (lines.length === 0) return;
+
+  const delim   = detectDelimiter(lines[0]);
+  const first   = lines[0].split(delim).map(parseCSVCell);
+  const isHeader = first.length >= 2 &&
+                   (isNaN(parseFloat(first[0])) || isNaN(parseFloat(first[1])));
+
+  if (isHeader && first.length >= 2) {
+    const xTh = document.querySelector('#data-table thead th:first-child');
+    const yTh = document.querySelector('#data-table thead th:nth-child(2)');
+    if (first[0]) xTh.textContent = first[0];
+    if (first[1]) yTh.textContent = first[1];
+    syncUnitLabels();
+  }
+
+  const startIdx = isHeader ? 1 : 0;
+  const newData  = [];
+
+  for (let i = startIdx; i < lines.length; i++) {
+    const cells = lines[i].split(delim).map(parseCSVCell);
+    if (cells.length < 2) continue;
+    const x = parseFloat(cells[0]);
+    const y = parseFloat(cells[1]);
+    if (!isNaN(x) && !isNaN(y)) newData.push({ x, y });
+  }
+
+  if (newData.length > 0) {
+    data = newData;
+    panOffsetX = 0; panOffsetY = 0;   // reset pan so data fits in view
+    renderTable();
+    draw();
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Regression
+// ─────────────────────────────────────────────
+function validPts() { return data.filter(d => d.x !== null && d.y !== null); }
+
+function computeRegression() {
+  const pts = validPts();
+  if (pts.length < 2) { regression = { a: null, b: null, r: null }; return; }
+
+  const n    = pts.length;
+  const sumX  = pts.reduce((s, p) => s + p.x, 0);
+  const sumY  = pts.reduce((s, p) => s + p.y, 0);
+  const sumXY = pts.reduce((s, p) => s + p.x * p.y, 0);
+  const sumX2 = pts.reduce((s, p) => s + p.x * p.x, 0);
+
+  let a, b;
+  if (throughOrigin) {
+    if (Math.abs(sumX2) < 1e-14) { regression = { a: null, b: null, r: null }; return; }
+    a = sumXY / sumX2; b = 0;
+  } else {
+    const D = n * sumX2 - sumX * sumX;
+    if (Math.abs(D) < 1e-14) { regression = { a: null, b: null, r: null }; return; }
+    a = (n * sumXY - sumX * sumY) / D;
+    b = (sumY - a * sumX) / n;
+  }
+
+  const mx = sumX / n, my = sumY / n;
+  const num = pts.reduce((s, p) => s + (p.x - mx) * (p.y - my), 0);
+  const dx2 = pts.reduce((s, p) => s + (p.x - mx) ** 2, 0);
+  const dy2 = pts.reduce((s, p) => s + (p.y - my) ** 2, 0);
+  const den = Math.sqrt(dx2 * dy2);
+
+  regression = { a, b, r: den < 1e-14 ? 0 : num / den };
+}
+
+function showCoeffs() {
+  const fmt5 = v => v !== null ? v.toFixed(5) : '—';
+  document.getElementById('coeff-a').textContent  = fmt5(regression.a);
+  document.getElementById('coeff-b').textContent  = fmt5(regression.b);
+  document.getElementById('coeff-r').textContent  = fmt5(regression.r);
+  document.getElementById('coeff-r2').textContent =
+    regression.r !== null ? (regression.r ** 2).toFixed(5) : '—';
+
+  if (regression.a !== null) {
+    let pos = 0, neg = 0;
+    validPts().forEach(d => {
+      const res = d.y - (regression.a * d.x + regression.b);
+      if (res > 0) pos += res; else neg += res;
+    });
+    document.getElementById('resid-pos').textContent = '+' + pos.toFixed(5);
+    document.getElementById('resid-neg').textContent = neg.toFixed(5);
+  } else {
+    document.getElementById('resid-pos').textContent = '—';
+    document.getElementById('resid-neg').textContent = '—';
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Canvas sizing
+// ─────────────────────────────────────────────
+function resizeCanvas() {
+  const panel = document.querySelector('.right-panel');
+  const size  = Math.min(panel.clientWidth - 28, panel.clientHeight - 28);
+  canvas.width  = size;
+  canvas.height = size;
+}
+
+// ─────────────────────────────────────────────
+//  Scale  (pan offset applied after padding)
+// ─────────────────────────────────────────────
+function buildScale() {
+  const pts = validPts();
+  let xMin, xMax, yMin, yMax;
+
+  if (pts.length === 0) {
+    xMin = -10; xMax = 10; yMin = -10; yMax = 10;
+  } else {
+    xMin = Math.min(...pts.map(p => p.x));
+    xMax = Math.max(...pts.map(p => p.x));
+    yMin = Math.min(...pts.map(p => p.y));
+    yMax = Math.max(...pts.map(p => p.y));
+
+    if (throughOrigin) {
+      xMin = Math.min(xMin, 0); xMax = Math.max(xMax, 0);
+      yMin = Math.min(yMin, 0); yMax = Math.max(yMax, 0);
+    }
+
+    if (regression.a !== null) {
+      const yL = regression.a * xMin + regression.b;
+      const yR = regression.a * xMax + regression.b;
+      yMin = Math.min(yMin, yL, yR);
+      yMax = Math.max(yMax, yL, yR);
+    }
+
+    const xPad = (xMax - xMin || 1) * 0.22;
+    const yPad = (yMax - yMin || 1) * 0.22;
+    xMin -= xPad; xMax += xPad;
+    yMin -= yPad; yMax += yPad;
+  }
+
+  // Apply pan offset (shifts the visible window without changing zoom)
+  xMin += panOffsetX; xMax += panOffsetX;
+  yMin += panOffsetY; yMax += panOffsetY;
+
+  const W = canvas.width  - MARGIN.left - MARGIN.right;
+  const H = canvas.height - MARGIN.top  - MARGIN.bottom;
+
+  return {
+    xMin, xMax, yMin, yMax, W, H,
+    cx:  x  => MARGIN.left + (x  - xMin) / (xMax - xMin) * W,
+    cy:  y  => MARGIN.top  + H - (y  - yMin) / (yMax - yMin) * H,
+    dx: cx  => xMin + (cx - MARGIN.left) / W * (xMax - xMin),
+    dy: cy  => yMin + (MARGIN.top + H - cy) / H * (yMax - yMin),
+  };
+}
+
+// ─────────────────────────────────────────────
+//  Draw helpers
+// ─────────────────────────────────────────────
+function niceStep(range, n) {
+  const rough = range / n;
+  const pow   = Math.pow(10, Math.floor(Math.log10(rough)));
+  return [1, 2, 2.5, 5, 10].find(f => f * pow >= rough - 1e-9) * pow;
+}
+
+function trimNum(v) {
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e5 || (a < 0.01 && a > 0)) return v.toExponential(1);
+  return parseFloat(v.toPrecision(4)).toString();
+}
+
+function drawGrid(s) {
+  ctx.save();
+
+  // White background for PNG export
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#fdfdfd';
+  ctx.fillRect(MARGIN.left, MARGIN.top, s.W, s.H);
+
+  const xStep = niceStep(s.xMax - s.xMin, 7);
+  const yStep = niceStep(s.yMax - s.yMin, 7);
+
+  ctx.font = '11px "Segoe UI", Tahoma, sans-serif';
+  ctx.strokeStyle = '#e2e6ea'; ctx.lineWidth = 1;
+
+  ctx.textAlign = 'center'; ctx.fillStyle = '#999';
+  for (let x = Math.ceil(s.xMin / xStep) * xStep; x <= s.xMax + 1e-9; x += xStep) {
+    const cx = s.cx(x);
+    ctx.beginPath(); ctx.moveTo(cx, MARGIN.top); ctx.lineTo(cx, MARGIN.top + s.H); ctx.stroke();
+    ctx.fillText(trimNum(x), cx, MARGIN.top + s.H + 16);
+  }
+
+  ctx.textAlign = 'right';
+  for (let y = Math.ceil(s.yMin / yStep) * yStep; y <= s.yMax + 1e-9; y += yStep) {
+    const cy = s.cy(y);
+    ctx.beginPath(); ctx.moveTo(MARGIN.left, cy); ctx.lineTo(MARGIN.left + s.W, cy); ctx.stroke();
+    ctx.fillText(trimNum(y), MARGIN.left - 6, cy + 4);
+  }
+
+  ctx.strokeStyle = '#aab'; ctx.lineWidth = 1.5;
+  if (s.xMin <= 0 && 0 <= s.xMax) {
+    const cx = s.cx(0);
+    ctx.beginPath(); ctx.moveTo(cx, MARGIN.top); ctx.lineTo(cx, MARGIN.top + s.H); ctx.stroke();
+  }
+  if (s.yMin <= 0 && 0 <= s.yMax) {
+    const cy = s.cy(0);
+    ctx.beginPath(); ctx.moveTo(MARGIN.left, cy); ctx.lineTo(MARGIN.left + s.W, cy); ctx.stroke();
+  }
+
+  ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1;
+  ctx.strokeRect(MARGIN.left, MARGIN.top, s.W, s.H);
+  ctx.restore();
+}
+
+function drawResiduals(s) {
+  if (regression.a === null) return;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(MARGIN.left, MARGIN.top, s.W, s.H); ctx.clip();
+  ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+
+  data.forEach(d => {
+    if (d.x === null || d.y === null) return;
+    const yHat = regression.a * d.x + regression.b;
+    const res  = d.y - yHat;
+    if (Math.abs(res) < 1e-10) return;
+    ctx.strokeStyle = res > 0 ? 'rgba(39,174,96,0.8)' : 'rgba(230,126,34,0.8)';
+    ctx.beginPath();
+    ctx.moveTo(s.cx(d.x), s.cy(d.y));
+    ctx.lineTo(s.cx(d.x), s.cy(yHat));
+    ctx.stroke();
+  });
+  ctx.restore();
+}
+
+function drawBFL(s) {
+  if (regression.a === null) return;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(MARGIN.left, MARGIN.top, s.W, s.H); ctx.clip();
+  ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2.5; ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(s.cx(s.xMin), s.cy(regression.a * s.xMin + regression.b));
+  ctx.lineTo(s.cx(s.xMax), s.cy(regression.a * s.xMax + regression.b));
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawEquation(s) {
+  if (regression.a === null) return;
+  const fmtC  = v => String(parseFloat(v.toPrecision(4)));
+  const xName = getVarName('x'), yName = getVarName('y');
+  const a = regression.a, b = regression.b;
+
+  let eq;
+  if (throughOrigin || Math.abs(b) < 1e-10) {
+    eq = `${yName} = ${fmtC(a)}\u00B7${xName}`;
+  } else {
+    const sign = b >= 0 ? '+' : '\u2212';
+    eq = `${yName} = ${fmtC(a)}\u00B7${xName} ${sign} ${fmtC(Math.abs(b))}`;
+  }
+
+  ctx.save();
+  ctx.font = 'bold 12px "Segoe UI", Tahoma, sans-serif';
+  const tw = ctx.measureText(eq).width;
+  const px = MARGIN.left + s.W - 10, py = MARGIN.top + 24, pad = 7;
+
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.beginPath(); ctx.roundRect(px - tw - pad * 2, py - 15, tw + pad * 2 + 2, 22, 5); ctx.fill();
+  ctx.strokeStyle = 'rgba(231,76,60,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = '#c0392b'; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(eq, px, py);
+  ctx.restore();
+}
+
+function drawPoints(s) {
+  data.forEach((d, i) => {
+    if (d.x === null || d.y === null) return;
+    const cx = s.cx(d.x), cy = s.cy(d.y);
+    const dragging = dragState?.index === i;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.18)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, POINT_R, 0, Math.PI * 2);
+    ctx.fillStyle = dragging ? '#e67e22' : '#2980b9';
+    ctx.fill();
+    ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.restore();
+
+    ctx.font = 'bold 8px "Segoe UI", Tahoma, sans-serif';
+    ctx.fillStyle = 'white'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(i + 1, cx, cy);
+  });
+}
+
+function drawAxisLabels() {
+  const cx = MARGIN.left + scale.W / 2;
+  const cy = MARGIN.top  + scale.H / 2;
+
+  ctx.font = 'bold 13px "Segoe UI", Tahoma, sans-serif';
+  ctx.fillStyle = '#555'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(getAxisLabel('x'), cx, canvas.height - 10);
+
+  ctx.save();
+  ctx.translate(15, cy); ctx.rotate(-Math.PI / 2); ctx.textBaseline = 'middle';
+  ctx.fillText(getAxisLabel('y'), 0, 0);
+  ctx.restore();
+}
+
+function drawCrosshair(s) {
+  if (!hoverPos || panMode || regression.a === null || dragState || panDrag) return;
+  if (hoverPos.x < MARGIN.left || hoverPos.x > MARGIN.left + s.W) return;
+  if (hoverPos.y < MARGIN.top  || hoverPos.y > MARGIN.top  + s.H) return;
+
+  const x     = s.dx(hoverPos.x);
+  const yHat  = regression.a * x + regression.b;
+  const cyBFL = s.cy(yHat);
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(MARGIN.left, MARGIN.top, s.W, s.H); ctx.clip();
+
+  ctx.strokeStyle = 'rgba(80,80,80,0.3)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(hoverPos.x, MARGIN.top); ctx.lineTo(hoverPos.x, MARGIN.top + s.H); ctx.stroke();
+
+  if (cyBFL >= MARGIN.top && cyBFL <= MARGIN.top + s.H) {
+    ctx.beginPath(); ctx.moveTo(MARGIN.left, cyBFL); ctx.lineTo(MARGIN.left + s.W, cyBFL); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(hoverPos.x, cyBFL, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#e74c3c'; ctx.fill();
+    ctx.strokeStyle = 'white'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+
+  ctx.restore();
+
+  // Tooltip
+  const line1 = `${getVarName('x')}: ${trimNum(x)}`;
+  const line2 = `${getVarName('y')}: ${trimNum(yHat)}`;
+  ctx.save();
+  ctx.font = '11px "Segoe UI", Tahoma, sans-serif';
+  const tw = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width);
+  const pad = 6, bW = tw + pad * 2, bH = 34;
+
+  let tx = hoverPos.x + 10;
+  let ty = (cyBFL >= MARGIN.top && cyBFL <= MARGIN.top + s.H)
+         ? cyBFL - bH - 6 : hoverPos.y - bH - 6;
+  if (tx + bW > MARGIN.left + s.W) tx = hoverPos.x - bW - 10;
+  if (ty < MARGIN.top) ty += bH + 14;
+
+  ctx.fillStyle = 'rgba(44,62,80,0.88)';
+  ctx.beginPath(); ctx.roundRect(tx, ty, bW, bH, 4); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText(line1, tx + pad, ty + 5);
+  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.fillText(line2, tx + pad, ty + 18);
+  ctx.restore();
+}
+
+// ─────────────────────────────────────────────
+//  Main draw
+// ─────────────────────────────────────────────
+function draw() {
+  if (!canvas.width || !canvas.height) return;
+  computeRegression();
+  showCoeffs();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  scale = buildScale();
+  drawGrid(scale);
+  drawResiduals(scale);
+  drawBFL(scale);
+  drawEquation(scale);
+  drawPoints(scale);
+  drawAxisLabels();
+  drawCrosshair(scale);
+}
+
+// ─────────────────────────────────────────────
+//  Interaction helpers
+// ─────────────────────────────────────────────
+function canvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+  const src = e.touches ? e.touches[0] : e;
+  return { x: (src.clientX - rect.left) * sx, y: (src.clientY - rect.top) * sy };
+}
+
+function hitTest(cx, cy) {
+  if (!scale) return -1;
+  for (let i = 0; i < data.length; i++) {
+    const d = data[i];
+    if (d.x === null || d.y === null) continue;
+    if (Math.hypot(cx - scale.cx(d.x), cy - scale.cy(d.y)) <= POINT_R + 5) return i;
+  }
+  return -1;
+}
+
+function isInPlotArea(pos) {
+  return scale &&
+    pos.x >= MARGIN.left && pos.x <= MARGIN.left + scale.W &&
+    pos.y >= MARGIN.top  && pos.y <= MARGIN.top  + scale.H;
+}
+
+function updateCursor(pos) {
+  if (panMode) {
+    canvas.style.cursor = isInPlotArea(pos) ? (panDrag ? 'grabbing' : 'grab') : 'default';
+  } else {
+    canvas.style.cursor = hitTest(pos.x, pos.y) !== -1 ? 'grab' : 'crosshair';
+  }
+}
+
+function movePoint(pos) {
+  if (!dragState || !scale) return;
+  const idx = dragState.index;
+  const cx  = Math.max(MARGIN.left, Math.min(MARGIN.left + scale.W, pos.x));
+  const cy  = Math.max(MARGIN.top,  Math.min(MARGIN.top  + scale.H, pos.y));
+  data[idx].x = scale.dx(cx);
+  data[idx].y = scale.dy(cy);
+  writeRow(idx);
+  draw();
+}
+
+function addPointAt(pos) {
+  if (!scale || !isInPlotArea(pos)) return -1;
+  const x = scale.dx(pos.x), y = scale.dy(pos.y);
+  const emptyIdx = data.findIndex(d => d.x === null && d.y === null);
+  let newIdx;
+  if (emptyIdx !== -1) { data[emptyIdx] = { x, y }; newIdx = emptyIdx; }
+  else                 { data.push({ x, y });         newIdx = data.length - 1; }
+  renderTable();
+  draw();
+  return newIdx;
+}
+
+// ─────────────────────────────────────────────
+//  Mouse events
+// ─────────────────────────────────────────────
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  hoverPos = null;
+  const pos = canvasPos(e);
+
+  if (panMode) {
+    if (isInPlotArea(pos) && scale) {
+      panDrag = {
+        startX: pos.x, startY: pos.y,
+        startOffX: panOffsetX, startOffY: panOffsetY,
+        xRange: scale.xMax - scale.xMin,
+        yRange: scale.yMax - scale.yMin,
+        W: scale.W, H: scale.H,
+      };
+      canvas.style.cursor = 'grabbing';
+    }
+  } else {
+    const idx = hitTest(pos.x, pos.y);
+    if (idx !== -1) {
+      dragState = { index: idx };
+      canvas.style.cursor = 'grabbing';
+    } else {
+      const newIdx = addPointAt(pos);
+      if (newIdx !== -1) { dragState = { index: newIdx }; canvas.style.cursor = 'grabbing'; }
+    }
+  }
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', e => {
+  // Panning
+  if (panDrag) {
+    const pos = canvasPos(e);
+    panOffsetX = panDrag.startOffX - (pos.x - panDrag.startX) / panDrag.W * panDrag.xRange;
+    panOffsetY = panDrag.startOffY + (pos.y - panDrag.startY) / panDrag.H * panDrag.yRange;
+    draw();
+    return;
+  }
+
+  // Point dragging
+  if (dragState) { movePoint(canvasPos(e)); return; }
+
+  // Hover
+  const pos      = canvasPos(e);
+  const onCanvas = canvas.contains(e.target) || e.target === canvas;
+
+  if (onCanvas) {
+    updateCursor(pos);
+    hoverPos = (!panMode && isInPlotArea(pos)) ? pos : null;
+  } else {
+    hoverPos = null;
+  }
+
+  if (!hoverRAF) {
+    hoverRAF = requestAnimationFrame(() => { draw(); hoverRAF = null; });
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if (panDrag) {
+    panDrag = null;
+    canvas.style.cursor = panMode ? 'grab' : 'crosshair';
+    draw();
+    return;
+  }
+  if (dragState) { dragState = null; canvas.style.cursor = panMode ? 'grab' : 'crosshair'; draw(); }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  if (!dragState && !panDrag && hoverPos) { hoverPos = null; draw(); }
+});
+
+// ─────────────────────────────────────────────
+//  Touch events
+// ─────────────────────────────────────────────
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  hoverPos = null;
+  const pos = canvasPos(e);
+
+  if (panMode) {
+    if (isInPlotArea(pos) && scale) {
+      panDrag = {
+        startX: pos.x, startY: pos.y,
+        startOffX: panOffsetX, startOffY: panOffsetY,
+        xRange: scale.xMax - scale.xMin,
+        yRange: scale.yMax - scale.yMin,
+        W: scale.W, H: scale.H,
+      };
+    }
+  } else {
+    const idx = hitTest(pos.x, pos.y);
+    if (idx !== -1) { dragState = { index: idx }; }
+    else { const ni = addPointAt(pos); if (ni !== -1) dragState = { index: ni }; }
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const pos = canvasPos(e);
+  if (panDrag) {
+    panOffsetX = panDrag.startOffX - (pos.x - panDrag.startX) / panDrag.W * panDrag.xRange;
+    panOffsetY = panDrag.startOffY + (pos.y - panDrag.startY) / panDrag.H * panDrag.yRange;
+    draw();
+  } else if (dragState) {
+    movePoint(pos);
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => {
+  panDrag = null; dragState = null;
+}, { passive: false });
+
+// ─────────────────────────────────────────────
+//  Controls
+// ─────────────────────────────────────────────
+document.getElementById('through-origin').addEventListener('change', e => {
+  throughOrigin = e.target.checked;
+  document.getElementById('origin-box').classList.toggle('active', throughOrigin);
+  draw();
+});
+
+document.getElementById('pan-mode-chk').addEventListener('change', e => {
+  panMode = e.target.checked;
+  document.getElementById('pan-box').classList.toggle('active', panMode);
+  hoverPos = null;
+  canvas.style.cursor = panMode ? 'grab' : 'crosshair';
+  draw();
+});
+
+function togglePanMode() {
+  const chk = document.getElementById('pan-mode-chk');
+  chk.checked = !chk.checked;
+  chk.dispatchEvent(new Event('change'));
+}
+
+document.addEventListener('keydown', e => {
+  // Ignore if the user is typing in an input or contenteditable element
+  const tag = document.activeElement?.tagName;
+  const editable = document.activeElement?.isContentEditable;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || editable) return;
+  if (e.key === 'p' || e.key === 'P') togglePanMode();
+});
+
+document.getElementById('reset-view').addEventListener('click', () => {
+  panOffsetX = 0; panOffsetY = 0; draw();
+});
+
+document.getElementById('adjust-btn').addEventListener('click', draw);
+
+document.getElementById('clear-btn').addEventListener('click', () => {
+  data = Array.from({ length: NUM_INIT }, () => ({ x: null, y: null }));
+  panOffsetX = 0; panOffsetY = 0;
+  renderTable(); draw();
+});
+
+document.getElementById('add-row-btn').addEventListener('click', () => {
+  data.push({ x: null, y: null });
+  renderTable();
+  document.querySelectorAll('#data-table tbody input[data-col="x"]')[data.length - 1]?.focus();
+});
+
+document.getElementById('csv-btn').addEventListener('click', () => {
+  document.getElementById('csv-file').click();
+});
+
+document.getElementById('csv-file').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => { importCSV(ev.target.result); };
+  reader.readAsText(file);
+  e.target.value = '';  // reset so the same file can be re-imported
+});
+
+document.getElementById('export-btn').addEventListener('click', () => {
+  hoverPos = null;
+  draw();
+  const link = document.createElement('a');
+  link.download = `regression_${getVarName('x')}_vs_${getVarName('y')}.png`
+                    .replace(/\s+/g, '_');
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+document.querySelectorAll('#data-table thead th[contenteditable]').forEach(th => {
+  th.addEventListener('input', () => { syncUnitLabels(); draw(); });
+});
+
+document.getElementById('unit-x').addEventListener('input', draw);
+document.getElementById('unit-y').addEventListener('input', draw);
+
+// ─────────────────────────────────────────────
+//  Init
+// ─────────────────────────────────────────────
+window.addEventListener('resize', () => { resizeCanvas(); draw(); });
+
+data = Array.from({ length: NUM_INIT }, () => ({ x: null, y: null }));
+renderTable();
+resizeCanvas();
+draw();
+</script>
+</body>
+</html>
