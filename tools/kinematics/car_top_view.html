@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car — Top View</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent: #58a6ff;
+}
+body.light {
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --border: #c8d4e0;
+  --text: #1a2234;
+  --muted: #607080;
+  --accent: #1858a8;
+}
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+canvas { display: block; }
+
+/* ── Controls bar ── */
+#controls {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 12px; align-items: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 24px; padding: 8px 20px; z-index: 10;
+}
+#controls label { font-size: 0.75rem; color: var(--muted); }
+#controls input[type=range] { accent-color: var(--accent); width: 110px; }
+#controls input[type=checkbox] { accent-color: var(--accent); cursor: pointer; width: 14px; height: 14px; }
+button {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 4px 14px; cursor: pointer;
+  font-size: 0.75rem; font-weight: 600; color: var(--muted);
+  transition: border-color .2s, color .2s;
+}
+button:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Theme toggle ── */
+#theme-toggle {
+  position: fixed; top: 10px; right: 10px; z-index: 99;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 12px; cursor: pointer;
+  font-size: 0.75rem; font-weight: 600; color: var(--muted);
+}
+#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Vector legend ── */
+#legend {
+  position: fixed; top: 40px; left: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 14px;
+  font-size: 0.72rem; line-height: 1.9;
+  pointer-events: none; z-index: 10; color: var(--text);
+}
+
+/* ── Score panel ── */
+#score-panel {
+  position: fixed; top: 44px; right: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 16px;
+  z-index: 10; min-width: 180px;
+}
+.sp-label { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+#sp-score { font-size: 2.2rem; font-weight: 700; color: var(--accent); line-height: 1.0; }
+#sp-lap-bar-bg { background: var(--border); border-radius: 4px; height: 6px; margin-top: 4px; overflow: hidden; }
+#sp-lap-bar-fill { background: var(--accent); height: 100%; width: 0%; transition: width .15s; border-radius: 4px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- Score panel -->
+<div id="score-panel">
+  <div class="sp-label">Score</div>
+  <div id="sp-score">—</div>
+  <div id="sp-base" style="font-size:0.65rem;color:var(--muted)">Base: —</div>
+  <div style="height:6px"></div>
+  <div id="sp-status" style="font-size:0.78rem;font-weight:600;color:var(--accent)">▶ Drive to start!</div>
+  <div style="height:5px"></div>
+  <div id="sp-lap" style="font-size:0.65rem;color:var(--muted)">Lap: 0%</div>
+  <div id="sp-lap-bar-bg"><div id="sp-lap-bar-fill"></div></div>
+  <div style="height:5px"></div>
+  <div id="sp-wheels" style="font-size:0.7rem;color:#39d353">✓ On track</div>
+  <div id="sp-race-time" style="font-size:0.65rem;color:var(--muted);margin-top:4px"></div>
+</div>
+
+<!-- Controls bar -->
+<div id="controls">
+  <span id="speed-display" style="color:var(--accent);min-width:68px;font-size:0.8rem;font-weight:600">0 km/h</span>
+  <span style="color:var(--border)">|</span>
+  <span id="timer" style="font-size:0.75rem;color:var(--muted)">0:00</span>
+  <button id="pause-btn">Pause</button>
+  <button id="new-road-btn">New Road</button>
+  <span style="color:var(--border)">|</span>
+  <label for="map-slider">Speed map</label>
+  <input type="range" id="map-slider" min="0.25" max="2" step="0.05" value="1">
+  <span id="map-val" style="font-size:0.75rem;color:var(--accent);min-width:32px">1.0×</span>
+  <span style="color:var(--border)">|</span>
+  <label for="accel-slider">Accel scale</label>
+  <input type="range" id="accel-slider" min="0.1" max="4" step="0.1" value="1">
+  <span id="accel-val" style="font-size:0.75rem;color:var(--accent);min-width:32px">1.0×</span>
+  <span style="color:var(--border)">|</span>
+  <input type="checkbox" id="uniform-chk">
+  <label for="uniform-chk" style="cursor:pointer">Uniform speed</label>
+</div>
+
+<div id="hint" style="position:fixed;top:14px;left:50%;transform:translateX(-50%);font-size:0.7rem;color:var(--muted);pointer-events:none;letter-spacing:.04em">
+  ↑ Gas &nbsp; ↓ Brake &nbsp; ← → Steer
+</div>
+<div id="legend">
+  <div><span style="color:#00e5ff;font-weight:700">→</span> &nbsp;Velocity <i>v</i></div>
+  <div><span style="color:#39d353;font-weight:700">→</span> &nbsp;Longitudinal accel <i>a</i><sub>L</sub></div>
+  <div><span style="color:#ff9500;font-weight:700">→</span> &nbsp;Transversal accel <i>a</i><sub>T</sub></div>
+  <div><span style="color:#ff4466;font-weight:700">→</span> &nbsp;Net accel <i>a</i></div>
+</div>
+<button id="theme-toggle">Light</button>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+const ROAD_WIDTH    = 160;
+const STEPS_PER_SEG = 300;
+
+// ── Catmull-Rom ──────────────────────────────────────────────────────────────
+function catmullRom(P0, P1, P2, P3, t) {
+  const t2 = t*t, t3 = t2*t;
+  return {
+    x: 0.5*(2*P1.x+(-P0.x+P2.x)*t+(2*P0.x-5*P1.x+4*P2.x-P3.x)*t2+(-P0.x+3*P1.x-3*P2.x+P3.x)*t3),
+    y: 0.5*(2*P1.y+(-P0.y+P2.y)*t+(2*P0.y-5*P1.y+4*P2.y-P3.y)*t2+(-P0.y+3*P1.y-3*P2.y+P3.y)*t3),
+  };
+}
+
+// ── Road generation ───────────────────────────────────────────────────────────
+function generateRoad() {
+  const N = 9 + Math.floor(Math.random() * 5);
+  const baseR = 900 + Math.random() * 500;
+  const pts = [];
+  for (let i = 0; i < N; i++) {
+    const angle = (2*Math.PI*i/N) + (Math.random()-0.5)*(Math.PI/N)*0.8;
+    const r = baseR * (0.45 + Math.random()*0.7);
+    pts.push({ x: Math.cos(angle)*r, y: Math.sin(angle)*r });
+  }
+  const wps = [];
+  for (let i = 0; i < N; i++) {
+    const P0 = pts[(i-1+N)%N], P1 = pts[i];
+    const P2 = pts[(i+1)%N],   P3 = pts[(i+2)%N];
+    for (let j = 0; j < STEPS_PER_SEG; j++)
+      wps.push(catmullRom(P0, P1, P2, P3, j/STEPS_PER_SEG));
+  }
+  const al = [0];
+  for (let i = 1; i < wps.length; i++)
+    al.push(al[i-1] + Math.hypot(wps[i].x-wps[i-1].x, wps[i].y-wps[i-1].y));
+  return { wps, al, totalLen: al[al.length-1] };
+}
+
+let road = generateRoad();
+
+function posAtDist(d) {
+  const { wps, al, totalLen } = road;
+  d = ((d % totalLen) + totalLen) % totalLen;
+  let lo = 0, hi = al.length-1;
+  while (lo+1 < hi) { const mid = (lo+hi)>>1; if (al[mid]<=d) lo=mid; else hi=mid; }
+  const t = (d-al[lo])/(al[hi]-al[lo]);
+  return { x: wps[lo].x+t*(wps[hi].x-wps[lo].x), y: wps[lo].y+t*(wps[hi].y-wps[lo].y) };
+}
+function headingAtDist(d) {
+  const a = posAtDist(d-2), b = posAtDist(d+2);
+  return Math.atan2(b.y-a.y, b.x-a.x);
+}
+
+// ── Physics constants ────────────────────────────────────────────────────────
+const MAX_SPEED = 310;   // px/s
+const ACCEL     = 100;   // px/s²
+const BRAKE_F   = 210;   // px/s²
+const DRAG      = 28;    // px/s²
+const TURN_RATE = 1.55;  // rad/s at full steer & full speed
+
+// Wheel positions in car-local draw space (car faces -Y = forward)
+const WHEEL_POS = [
+  { lx: -20, ly: -22 },  // front-left
+  { lx:  20, ly: -22 },  // front-right
+  { lx: -22, ly:  20 },  // rear-left
+  { lx:  22, ly:  20 },  // rear-right
+];
+
+// ── State ────────────────────────────────────────────────────────────────────
+let mapScale     = 1.0;
+let accelScale   = 1.0;
+let uniformSpeed = false;
+let aLong = 0, aTrans = 0;
+let carPos, carHeading, carSpeed, treadDist, steerAngle;
+let elapsed = 0, paused = false, lastTime = null;
+
+// Race
+let raceState     = 'ready';   // 'ready' | 'racing' | 'finished'
+let score         = 0;
+let baseScore     = 0;
+let raceTime      = 0;
+let carTrackIdx   = 0;
+let totalWpPassed = 0;
+let wheelsOffCount = 0;
+const OFF_TRACK_PENALTY = 30;  // pts/s with ≥3 wheels off
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+function initCar() {
+  carPos     = posAtDist(0);
+  carHeading = headingAtDist(0);
+  carSpeed   = 0;
+  treadDist  = 0;
+  steerAngle = 0;
+}
+
+function initRace() {
+  raceState     = 'ready';
+  baseScore     = Math.max(100, Math.round(mapScale * 1000));
+  score         = baseScore;
+  raceTime      = 0;
+  carTrackIdx   = 0;
+  totalWpPassed = 0;
+  wheelsOffCount = 0;
+  updateScorePanel();
+}
+
+initCar();
+initRace();
+
+// ── Keyboard ─────────────────────────────────────────────────────────────────
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+  keys[e.key] = true;
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// ── UI wiring ─────────────────────────────────────────────────────────────────
+const timerEl = document.getElementById('timer');
+const speedEl = document.getElementById('speed-display');
+const hintEl  = document.getElementById('hint');
+
+document.getElementById('pause-btn').addEventListener('click', function() {
+  paused = !paused;
+  this.textContent = paused ? 'Resume' : 'Pause';
+  if (!paused) { lastTime = null; requestAnimationFrame(loop); }
+});
+
+const mapSlider = document.getElementById('map-slider');
+const mapValEl  = document.getElementById('map-val');
+mapSlider.addEventListener('input', () => {
+  mapScale = parseFloat(mapSlider.value);
+  mapValEl.textContent = mapScale.toFixed(2) + '×';
+});
+
+const accelSlider = document.getElementById('accel-slider');
+const accelValEl  = document.getElementById('accel-val');
+accelSlider.addEventListener('input', () => {
+  accelScale = parseFloat(accelSlider.value);
+  accelValEl.textContent = accelScale.toFixed(1) + '×';
+});
+
+document.getElementById('uniform-chk').addEventListener('change', function() {
+  uniformSpeed = this.checked;
+  hintEl.textContent = uniformSpeed
+    ? '← → Steer   (constant speed)'
+    : '↑ Gas   ↓ Brake   ← → Steer';
+});
+
+document.getElementById('new-road-btn').addEventListener('click', () => {
+  road = generateRoad();
+  elapsed = 0; lastTime = null;
+  initCar();
+  initRace();
+});
+
+const themeBtn = document.getElementById('theme-toggle');
+themeBtn.addEventListener('click', () => {
+  document.body.classList.toggle('light');
+  themeBtn.textContent = document.body.classList.contains('light') ? 'Dark' : 'Light';
+});
+
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize);
+resize();
+
+// ── Colors ────────────────────────────────────────────────────────────────────
+function getColors() {
+  const L = document.body.classList.contains('light');
+  return {
+    roadFill:   L ? '#c0c8d8' : '#1e2530',
+    roadEdge:   L ? '#888fa0' : '#2e3a4a',
+    grass:      L ? '#7dba7d' : '#1a2818',
+    carBody:    L ? '#cc0010' : '#e8001c',
+    carWing:    L ? '#aa0008' : '#bb0015',
+    carHelmet:  L ? '#ffffff' : '#f0f0f0',
+    carVisor:   L ? '#40aaee' : '#2288cc',
+    carTire:    L ? '#333333' : '#222222',
+    centerLine: L ? '#e8e020' : '#d4b800',
+    edgeLine:   L ? '#f0f0f0' : '#cccccc',
+  };
+}
+
+// ── Draw road + start/finish line ─────────────────────────────────────────────
+function drawRoad(carX, carY, carAngle) {
+  const C = getColors();
+  const { wps } = road;
+  ctx.save();
+  ctx.translate(canvas.width/2, canvas.height/2);
+  ctx.rotate(-carAngle - Math.PI/2);
+  ctx.translate(-carX, -carY);
+
+  // Grass
+  ctx.fillStyle = C.grass;
+  ctx.fillRect(carX-5000, carY-5000, 10000, 10000);
+
+  function pathWps() {
+    ctx.beginPath();
+    ctx.moveTo(wps[0].x, wps[0].y);
+    for (let i = 1; i < wps.length; i++) ctx.lineTo(wps[i].x, wps[i].y);
+    ctx.closePath();
+  }
+
+  ctx.strokeStyle = C.roadEdge;  ctx.lineWidth = ROAD_WIDTH+8;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round'; pathWps(); ctx.stroke();
+
+  ctx.strokeStyle = C.roadFill;  ctx.lineWidth = ROAD_WIDTH;
+  pathWps(); ctx.stroke();
+
+  ctx.strokeStyle = C.edgeLine;  ctx.lineWidth = 4; ctx.setLineDash([]);
+  pathWps(); ctx.stroke();
+
+  ctx.strokeStyle = C.roadFill;  ctx.lineWidth = ROAD_WIDTH-10;
+  pathWps(); ctx.stroke();
+
+  ctx.strokeStyle = C.centerLine; ctx.lineWidth = 4;
+  ctx.setLineDash([40,35]); pathWps(); ctx.stroke(); ctx.setLineDash([]);
+
+  // ── Start / Finish line ──────────────────────────────────────────────────
+  {
+    const p0   = wps[0];
+    const p1   = wps[Math.min(6, wps.length-1)];
+    const tang = Math.atan2(p1.y-p0.y, p1.x-p0.x);
+    const hw    = ROAD_WIDTH / 2;
+    const sq    = 12;                        // checker square size (px)
+    const thick = sq * 2;                    // stripe thickness along track
+    const nRows = Math.ceil(hw * 2 / sq);   // squares across the road (transversal)
+    ctx.save();
+    ctx.translate(p0.x, p0.y);
+    ctx.rotate(tang);
+    // After rotate(tang): x = along track, y = transversal (across road).
+    // Stripe spans y from -hw to +hw and is `thick` px wide in x.
+    for (let row = 0; row < nRows; row++) {
+      for (let col = 0; col < 2; col++) {
+        ctx.fillStyle = (row + col) % 2 === 0 ? '#ffffff' : '#111111';
+        ctx.fillRect(-thick/2 + col*sq, -hw + row*sq, sq, sq);
+      }
+    }
+    // Label: rotate +90° so text reads along the transversal direction
+    ctx.save();
+    ctx.rotate(Math.PI / 2);
+    ctx.fillStyle = '#ffdd00';
+    ctx.font = 'bold 12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('START / FINISH', 0, -thick/2 - 4);
+    ctx.restore();
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// ── Wheel world position ──────────────────────────────────────────────────────
+// Car draw space: forward = -Y. World transform = rotate by (carHeading + π/2).
+function wheelWorldPos(lx, ly) {
+  const a = carHeading + Math.PI/2;
+  return {
+    x: carPos.x + lx*Math.cos(a) - ly*Math.sin(a),
+    y: carPos.y + lx*Math.sin(a) + ly*Math.cos(a),
+  };
+}
+
+// Minimum distance from world pos to track centerline (local search around refIdx)
+function distToTrack(pos, refIdx, R = 100) {
+  const { wps } = road;
+  const n = wps.length;
+  let best = Infinity;
+  for (let di = -R; di <= R; di++) {
+    const idx = ((refIdx+di)%n+n)%n;
+    const d = Math.hypot(wps[idx].x-pos.x, wps[idx].y-pos.y);
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+function countWheelsOff() {
+  let n = 0;
+  for (const {lx, ly} of WHEEL_POS)
+    if (distToTrack(wheelWorldPos(lx, ly), carTrackIdx) > ROAD_WIDTH/2) n++;
+  return n;
+}
+
+// ── Lap tracking ──────────────────────────────────────────────────────────────
+function updateLapProgress() {
+  const { wps } = road;
+  const n = wps.length, R = 120;
+  let bestDist = Infinity, bestI = carTrackIdx;
+  for (let di = -R; di <= R; di++) {
+    const idx = ((carTrackIdx+di)%n+n)%n;
+    const d = Math.hypot(wps[idx].x-carPos.x, wps[idx].y-carPos.y);
+    if (d < bestDist) { bestDist = d; bestI = idx; }
+  }
+  let fwd = ((bestI - carTrackIdx) % n + n) % n;
+  if (fwd > n/2) fwd = 0;   // backward movement – ignore
+  totalWpPassed += fwd;
+  carTrackIdx    = bestI;
+}
+
+function getLapFraction() { return Math.min(totalWpPassed / road.wps.length, 1); }
+
+// ── Score panel update ────────────────────────────────────────────────────────
+function updateScorePanel() {
+  document.getElementById('sp-score').textContent = Math.max(0, Math.round(score));
+  document.getElementById('sp-base').textContent  =
+    `Base: ${baseScore} pts  (map ${mapScale.toFixed(2)}×)`;
+
+  const lapPct = Math.round(getLapFraction()*100);
+  document.getElementById('sp-lap').textContent = `Lap: ${lapPct}%`;
+  document.getElementById('sp-lap-bar-fill').style.width = lapPct + '%';
+
+  let txt = '▶ Drive forward to start!', col = 'var(--accent)';
+  if (raceState === 'racing')   { txt = '🏁 Racing…';   col = '#39d353'; }
+  if (raceState === 'finished') { txt = '✅ Finished!'; col = '#ffcc00'; }
+  const stEl = document.getElementById('sp-status');
+  stEl.textContent = txt; stEl.style.color = col;
+
+  const wEl = document.getElementById('sp-wheels');
+  if (wheelsOffCount >= 2) {
+    wEl.textContent = `⚠ ${wheelsOffCount} wheels off! −${OFF_TRACK_PENALTY} pts/s`;
+    wEl.style.color = '#ff4466';
+  } else {
+    wEl.textContent = wheelsOffCount === 1 ? '1 wheel off' : '✓ On track';
+    wEl.style.color = wheelsOffCount > 0 ? '#ff9500' : '#39d353';
+  }
+
+  const rtEl = document.getElementById('sp-race-time');
+  rtEl.textContent = (raceState === 'racing' || raceState === 'finished')
+    ? `Time: ${raceTime.toFixed(1)} s`
+    : '';
+}
+
+// ── Draw car (F1 top-down) ────────────────────────────────────────────────────
+function drawWheel(ctx, w, h, C, tr) {
+  ctx.fillStyle = C.carTire;
+  ctx.beginPath(); ctx.roundRect(-w/2,-h/2,w,h,3); ctx.fill();
+  ctx.fillStyle = '#666';
+  ctx.beginPath(); ctx.roundRect(-w/2+2,-h/2+3,w-4,h-6,2); ctx.fill();
+  ctx.fillStyle = '#aaa';
+  ctx.beginPath(); ctx.arc(0,0,w*0.22,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2.5;
+  ctx.setLineDash([3,5]); ctx.lineDashOffset = tr%8;
+  ctx.beginPath(); ctx.moveTo(0,-h/2+3); ctx.lineTo(0,h/2-3); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawCar(sa, tr) {
+  const C  = getColors();
+  const cx = canvas.width/2, cy = canvas.height/2;
+  const FRONT=-46, REAR=42, FT=20, RT=22;
+  const WFW=11, WFH=18, WRW=13, WRH=20;
+  const FWING=-42, RWING=38;
+
+  ctx.save(); ctx.translate(cx, cy);
+
+  // Rear wing
+  ctx.fillStyle = C.carWing;
+  ctx.fillRect(-26,RWING-8,4,16); ctx.fillRect(22,RWING-8,4,16);
+  ctx.beginPath(); ctx.roundRect(-22,RWING-2,44,6,2); ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(-29,RWING+4); ctx.lineTo(29,RWING+4); ctx.stroke();
+
+  // Rear wheels
+  for (const sx of [-1,1]) {
+    ctx.save(); ctx.translate(sx*RT,20);
+    drawWheel(ctx,WRW,WRH,C,tr); ctx.restore();
+  }
+
+  // Body
+  ctx.fillStyle = C.carBody; ctx.beginPath();
+  ctx.moveTo(-10,REAR);
+  ctx.bezierCurveTo(-10,REAR-6,-13,5,-13,-2);
+  ctx.bezierCurveTo(-13,-10,-11,-18,-8,-26);
+  ctx.bezierCurveTo(-7,-30,-5,-34,-3,-40);
+  ctx.lineTo(0,FRONT); ctx.lineTo(3,-40);
+  ctx.bezierCurveTo(5,-34,7,-30,8,-26);
+  ctx.bezierCurveTo(11,-18,13,-10,13,-2);
+  ctx.bezierCurveTo(13,5,10,REAR-6,10,REAR);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = C.carWing;
+  ctx.beginPath(); ctx.roundRect(-3,-18,6,36,2); ctx.fill();
+
+  // Front wing
+  ctx.fillStyle = C.carWing;
+  ctx.beginPath(); ctx.roundRect(-26,FWING,52,5,2); ctx.fill();
+  ctx.fillRect(-26,FWING,4,9); ctx.fillRect(22,FWING,4,9);
+  ctx.fillRect(-4,FWING+5,8,6);
+
+  // Front wheels
+  for (const sx of [-1,1]) {
+    ctx.save(); ctx.translate(sx*FT,-22); ctx.rotate(sa);
+    drawWheel(ctx,WFW,WFH,C,tr); ctx.restore();
+  }
+
+  // Cockpit
+  ctx.fillStyle='#0a0a0a';
+  ctx.beginPath(); ctx.ellipse(0,-6,7,11,0,0,Math.PI*2); ctx.fill();
+
+  // Helmet + visor
+  ctx.fillStyle = C.carHelmet;
+  ctx.beginPath(); ctx.arc(0,-9,6,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = C.carVisor; ctx.globalAlpha = 0.9;
+  ctx.beginPath(); ctx.ellipse(0,-11,4.5,2.8,0,0,Math.PI); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+}
+
+// ── Arrow helper ──────────────────────────────────────────────────────────────
+function drawArrow(x0, y0, ex, ey, color, label) {
+  const len = Math.hypot(ex, ey);
+  if (len < 3) return;
+  ctx.save();
+  ctx.translate(x0, y0);
+  ctx.strokeStyle = color; ctx.fillStyle = color;
+  ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(ex,ey); ctx.stroke();
+  const ang = Math.atan2(ey,ex);
+  const hl  = Math.min(14, Math.max(7, len*0.22));
+  const sp  = Math.PI/6;
+  ctx.beginPath();
+  ctx.moveTo(ex,ey);
+  ctx.lineTo(ex-hl*Math.cos(ang-sp), ey-hl*Math.sin(ang-sp));
+  ctx.lineTo(ex-hl*Math.cos(ang+sp), ey-hl*Math.sin(ang+sp));
+  ctx.closePath(); ctx.fill();
+  if (label) { ctx.font='bold 11px system-ui'; ctx.fillText(label, ex+5, ey-5); }
+  ctx.restore();
+}
+
+function drawVelocityVector() {
+  if (carSpeed < 2) return;
+  drawArrow(canvas.width/2, canvas.height/2,
+            0, -(carSpeed/MAX_SPEED)*100*mapScale, '#00e5ff', 'v');
+}
+
+function drawAccelerationVectors() {
+  const cx = canvas.width/2, cy = canvas.height/2;
+  const s  = accelScale * 0.3;
+  const ly = -aLong * s,  tx = aTrans * s;
+  drawArrow(cx, cy,  0, ly, '#39d353', 'aL');
+  drawArrow(cx, cy, tx,  0, '#ff9500', 'aT');
+  drawArrow(cx, cy, tx, ly, '#ff4466', 'a');
+}
+
+// ── Timer ─────────────────────────────────────────────────────────────────────
+function formatTime(s) {
+  return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+}
+
+// ── Main loop ─────────────────────────────────────────────────────────────────
+function loop(ts) {
+  if (!paused) {
+    if (lastTime !== null) {
+      const dt = Math.min((ts - lastTime)/1000, 0.05);
+      elapsed += dt;
+
+      // Throttle / brake
+      const prevSpeed = carSpeed;
+      if (!uniformSpeed) {
+        if      (keys['ArrowUp'])   carSpeed = Math.min(carSpeed + ACCEL  * dt, MAX_SPEED);
+        else if (keys['ArrowDown']) carSpeed = Math.max(carSpeed - BRAKE_F * dt, 0);
+        else                        carSpeed = Math.max(carSpeed - DRAG    * dt, 0);
+      }
+      aLong = dt > 0 ? (carSpeed - prevSpeed)/dt : 0;
+
+      // Steering
+      const steerInput = (keys['ArrowRight']?1:0) - (keys['ArrowLeft']?1:0);
+      const omega = steerInput * TURN_RATE * (carSpeed/MAX_SPEED);
+      carHeading += omega * dt;
+      aTrans      = carSpeed * omega;
+      steerAngle += (steerInput*Math.PI/5 - steerAngle) * Math.min(dt*10, 1);
+
+      // Move
+      carPos.x  += Math.cos(carHeading) * carSpeed * mapScale * dt;
+      carPos.y  += Math.sin(carHeading) * carSpeed * mapScale * dt;
+      treadDist += carSpeed * dt;
+
+      // Race logic
+      if (raceState !== 'finished') {
+        updateLapProgress();
+        wheelsOffCount = countWheelsOff();
+
+        // ready → racing when car moves 20+ waypoints forward
+        if (raceState === 'ready' && totalWpPassed > 20) {
+          raceState = 'racing';
+          baseScore = Math.max(100, Math.round(mapScale * 1000));
+          score     = baseScore;
+          raceTime  = 0;
+        }
+
+        if (raceState === 'racing') {
+          raceTime += dt;
+          if (wheelsOffCount >= 2)
+            score = Math.max(0, score - OFF_TRACK_PENALTY * dt);
+          if (getLapFraction() >= 1)
+            raceState = 'finished';
+        }
+
+        updateScorePanel();
+      }
+    }
+    lastTime = ts;
+  }
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawRoad(carPos.x, carPos.y, carHeading);
+  drawCar(steerAngle, treadDist * 0.18);
+  drawVelocityVector();
+  drawAccelerationVectors();
+
+  timerEl.textContent = formatTime(elapsed);
+  speedEl.textContent = Math.round(carSpeed * 0.5) + ' km/h';
+
+  if (!paused) requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instantaneous Velocity</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --border:  #30363d;
+  --text:    #e6edf3;
+  --muted:   #8b949e;
+  --accent:  #58a6ff;
+  --surface: #161b22;
+  --bg:      #0d1117;
+  --green:   #3fb950;
+  --red:     #f85149;
+  --purple:  #a78bfa;
+  --orange:  #fb923c;
+}
+body.light {
+  --border:  #c8d4e0;
+  --text:    #1a2234;
+  --muted:   #607080;
+  --accent:  #1858a8;
+  --surface: #ffffff;
+  --bg:      #f0f4f8;
+  --green:   #16a34a;
+  --red:     #dc2626;
+  --purple:  #7c3aed;
+  --orange:  #ea580c;
+}
+#theme-toggle {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  z-index: 9999;
+  background: var(--surface, #161b22);
+  border: 1px solid var(--border, #30363d);
+  border-radius: 20px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted, #8b949e);
+  transition: border-color .2s, color .2s;
+  user-select: none;
+}
+#theme-toggle:hover { border-color: var(--accent, #58a6ff); color: var(--accent, #58a6ff); }
+html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text); background: var(--bg); }
+body { display: flex; flex-direction: column; }
+
+/* ── Top bar ── */
+#top-bar {
+  flex-shrink: 0; height: 38px;
+  display: flex; align-items: center; padding: 0 16px; gap: 10px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+}
+#top-bar h1 {
+  font-size: 0.95rem; font-weight: 800; color: var(--text);
+  letter-spacing: .03em; white-space: nowrap;
+}
+.step-flow {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 0.7rem; color: var(--muted); flex: 1;
+}
+.step-chip {
+  padding: 2px 8px; border-radius: 20px; font-weight: 700;
+  font-size: 0.65rem; letter-spacing: .04em; white-space: nowrap;
+}
+.step-chip.c1 { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.step-chip.c2 { background: color-mix(in srgb, var(--purple) 15%, transparent); color: var(--purple); }
+.step-chip.c3 { background: color-mix(in srgb, var(--green) 15%, transparent); color: var(--green); }
+.step-chip.c4 { background: color-mix(in srgb, var(--orange) 15%, transparent); color: var(--orange); }
+.step-arrow { color: var(--muted); font-size: 0.7rem; }
+
+#panels-row { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+
+/* ── Panels ── */
+.panel {
+  width: 25%; height: 100%;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
+.panel-header {
+  flex-shrink: 0; padding: 9px 12px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+  border-top: 3px solid var(--panel-color, var(--accent));
+}
+.panel-title {
+  font-size: 0.78rem; font-weight: 800; color: var(--panel-color, var(--accent));
+  letter-spacing: .05em; text-transform: uppercase; flex: 1;
+}
+.panel.p1 { --panel-color: var(--accent); }
+.panel.p2 { --panel-color: var(--purple); }
+.panel.p3 { --panel-color: var(--green); }
+.panel-footer {
+  flex-shrink: 0; padding: 7px 10px; border-top: 1px solid var(--border);
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  background: var(--surface);
+}
+
+/* ── Tables ── */
+.tbl-wrap { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 6px 8px; font-size: 0.78rem; font-weight: 700;
+  color: var(--muted); letter-spacing: .05em;
+  font-family: 'Courier New', monospace; text-align: right;
+  white-space: nowrap;
+}
+thead th:first-child { text-align: center; width: 30px; }
+tbody td {
+  padding: 5px 7px; border-bottom: 1px solid var(--border);
+  font-family: 'Courier New', monospace; font-size: 0.85rem;
+  text-align: right; color: var(--text);
+}
+tbody td:first-child { text-align: center; color: var(--muted); font-size: 0.7rem; }
+tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.td-del { width: 26px; padding: 2px 3px !important; }
+.btn-del {
+  background: none; border: none; color: #ccc; cursor: pointer;
+  font-size: 0.85rem; padding: 2px 5px; border-radius: 3px; line-height: 1;
+}
+.btn-del:hover { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+
+input.cell-in {
+  width: 100%; background: transparent; border: none; outline: none;
+  font-family: 'Courier New', monospace; font-size: 0.85rem;
+  color: var(--text); text-align: right; padding: 0;
+}
+input.cell-in:focus { background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 3px; padding: 0 3px; }
+input.cell-in.err { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); border-radius: 3px; }
+.cell-dt { color: var(--purple); }
+.cell-dx { color: var(--accent); }
+.cell-tm { color: var(--muted); }
+.cell-v  { color: var(--green); font-weight: 700; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--muted); font-size: 0.7rem; font-weight: 600;
+  cursor: pointer; font-family: inherit; letter-spacing: .04em;
+  transition: background .12s, color .12s, border-color .12s;
+  white-space: nowrap;
+}
+.btn:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); border-color: var(--accent); }
+
+/* ── Graph panel ── */
+#graph-panel {
+  width: 25%; height: 100%;
+  display: flex; flex-direction: column;
+  background: var(--bg); border-left: none;
+  --panel-color: var(--orange);
+}
+.graph-half {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+}
+.graph-half + .graph-half { border-top: 2px solid var(--border); }
+.graph-header {
+  flex-shrink: 0; padding: 7px 12px;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+  display: flex; align-items: center; gap: 8px;
+}
+.graph-half:first-child .graph-header { border-top: 3px solid var(--panel-color, var(--orange)); }
+.graph-half + .graph-half .graph-header { border-top: 2px solid var(--border); }
+.graph-title {
+  font-size: 0.78rem; font-weight: 800; color: var(--panel-color, var(--orange));
+  letter-spacing: .05em; text-transform: uppercase; flex: 1;
+}
+#fit-info, #fit-info-xt {
+  font-size: 0.7rem; color: var(--green);
+  font-family: 'Courier New', monospace; white-space: nowrap;
+  display: flex; flex-direction: row; gap: 10px; flex-shrink: 0;
+}
+.fit-label {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 0.68rem; color: var(--muted); cursor: pointer;
+  white-space: nowrap; flex-shrink: 0;
+}
+.graph-wrap {
+  flex: 1; min-height: 0; position: relative; background: var(--surface); padding: 4px;
+}
+canvas.chart { display: block; width: 100%; height: 100%; }
+
+/* ── CSV hint ── */
+.hint { font-size: 0.63rem; color: var(--muted); font-family: 'Courier New', monospace; margin-left: auto; }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+  <h1>⚡ Instantaneous Velocity</h1>
+  <div class="step-flow">
+    <span class="step-chip c1">① Record data</span>
+    <span class="step-arrow">→</span>
+    <span class="step-chip c2">② Differences</span>
+    <span class="step-arrow">→</span>
+    <span class="step-chip c3">③ Velocity</span>
+    <span class="step-arrow">→</span>
+    <span class="step-chip c4">④ Graphs</span>
+  </div>
+</div>
+
+<div id="panels-row">
+
+<!-- Panel 1 — raw data (t, x) -->
+<div class="panel p1">
+  <div class="panel-header">
+    <span class="panel-title">📍 Position vs Time</span>
+    <span class="hint">CSV: col1 = t, col2 = x</span>
+    <label class="btn" title="Import CSV">
+      📂
+      <input type="file" id="csv-input" accept=".csv,.txt" style="display:none">
+    </label>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>t</th>
+          <th>x</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="raw-body"></tbody>
+    </table>
+  </div>
+  <div class="panel-footer">
+    <button class="btn" id="btn-add">+ Row</button>
+    <button class="btn" id="btn-clear">Clear</button>
+  </div>
+</div>
+
+<!-- Panel 2 — differences -->
+<div class="panel p2">
+  <div class="panel-header">
+    <span class="panel-title">📐 Differences</span>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Δt</th>
+          <th>Δx</th>
+        </tr>
+      </thead>
+      <tbody id="diff-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Panel 3 — velocity -->
+<div class="panel p3">
+  <div class="panel-header">
+    <span class="panel-title">🚀 Velocity</span>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>t<sub style="font-size:0.7em">mid</sub></th>
+          <th>v = Δx/Δt</th>
+        </tr>
+      </thead>
+      <tbody id="vel-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Panel 4 — graphs -->
+<div id="graph-panel">
+  <!-- x vs t -->
+  <div class="graph-half">
+    <div class="graph-header">
+      <span class="graph-title">📈 x vs t</span>
+      <label class="fit-label">
+        <input type="checkbox" id="fit-toggle-xt"> best fit
+      </label>
+      <span id="fit-info-xt"></span>
+    </div>
+    <div class="graph-wrap" id="xt-wrap">
+      <canvas id="xt-cv" class="chart"></canvas>
+    </div>
+  </div>
+  <!-- v vs t -->
+  <div class="graph-half">
+    <div class="graph-header">
+      <span class="graph-title">🚀 v vs t</span>
+      <label class="fit-label">
+        <input type="checkbox" id="fit-toggle"> best fit
+      </label>
+      <span id="fit-info"></span>
+    </div>
+    <div class="graph-wrap" id="vt-wrap">
+      <canvas id="vt-cv" class="chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Data ────────────────────────────────────────────────────
+let rawData = []; // [{t, x}]
+let diffs   = []; // [{dt, dx}]
+let vels    = []; // [{t, v}]
+let showFit = false, showFitXt = false;
+
+// ── Compute ─────────────────────────────────────────────────
+function recompute() {
+  diffs = []; vels = [];
+  for (let i = 0; i < rawData.length - 1; i++) {
+    const dt = rawData[i+1].t - rawData[i].t;
+    const dx = rawData[i+1].x - rawData[i].x;
+    diffs.push({ dt, dx });
+    vels.push({ t: (rawData[i].t + rawData[i+1].t) / 2, v: dt !== 0 ? dx / dt : NaN });
+  }
+  renderDiff();
+  renderVel();
+  drawCharts();
+}
+
+// ── Format ──────────────────────────────────────────────────
+function fmt(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  if (!isFinite(v)) return v > 0 ? '+∞' : '−∞';
+  return parseFloat(v.toPrecision(6)).toString();
+}
+
+// ── Panel 1 ─────────────────────────────────────────────────
+function renderRaw() {
+  const tb = document.getElementById('raw-body');
+  tb.innerHTML = '';
+  rawData.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td><input class="cell-in" data-i="${i}" data-c="t" value="${row.t}" inputmode="decimal"></td>
+      <td><input class="cell-in" data-i="${i}" data-c="x" value="${row.x}" inputmode="decimal"></td>
+      <td class="td-del"><button class="btn-del" data-del="${i}">✕</button></td>
+    `;
+    tb.appendChild(tr);
+  });
+
+  tb.querySelectorAll('.cell-in').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const i = +e.target.dataset.i, c = e.target.dataset.c;
+      const v = parseFloat(e.target.value);
+      if (isNaN(v)) { e.target.classList.add('err'); return; }
+      e.target.classList.remove('err');
+      rawData[i][c] = v;
+      recompute();
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== 'Tab') return;
+      if (e.key === 'Enter') e.preventDefault();
+      const all = Array.from(tb.querySelectorAll('.cell-in'));
+      const idx = all.indexOf(e.target);
+      // Enter: move down by 2 (next row, same column); Tab: move right
+      const step = e.key === 'Enter' ? 2 : 1;
+      const next = all[idx + step];
+      if (next) { next.focus(); next.select(); }
+      else if (e.key === 'Enter') addRow();
+    });
+  });
+
+  tb.querySelectorAll('.btn-del').forEach(b => {
+    b.addEventListener('click', e => {
+      rawData.splice(+e.target.dataset.del, 1);
+      renderRaw(); recompute();
+    });
+  });
+}
+
+function addRow() {
+  const last = rawData[rawData.length - 1];
+  rawData.push({ t: last ? last.t + 1 : 0, x: 0 });
+  renderRaw();
+  const ins = document.querySelectorAll('#raw-body .cell-in');
+  if (ins.length >= 2) { ins[ins.length - 2].focus(); ins[ins.length - 2].select(); }
+}
+
+document.getElementById('btn-add').addEventListener('click', addRow);
+document.getElementById('btn-clear').addEventListener('click', () => {
+  if (!rawData.length || confirm('Clear all data?')) {
+    rawData = []; renderRaw(); recompute();
+  }
+});
+
+// ── Panel 2 ─────────────────────────────────────────────────
+function renderDiff() {
+  const tb = document.getElementById('diff-body');
+  tb.innerHTML = '';
+  diffs.forEach((d, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td class="cell-dt">${fmt(d.dt)}</td>
+      <td class="cell-dx">${fmt(d.dx)}</td>
+    `;
+    tb.appendChild(tr);
+  });
+}
+
+// ── Panel 3 ─────────────────────────────────────────────────
+function renderVel() {
+  const tb = document.getElementById('vel-body');
+  tb.innerHTML = '';
+  vels.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td class="cell-tm">${fmt(row.t)}</td>
+      <td class="cell-v">${fmt(row.v)}</td>
+    `;
+    tb.appendChild(tr);
+  });
+}
+
+// ── CSV ─────────────────────────────────────────────────────
+document.getElementById('csv-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const lines = ev.target.result.trim().split(/\r?\n/);
+    const delim = /;/.test(lines[0]) ? ';' : /\t/.test(lines[0]) ? '\t' : ',';
+    let start = 0;
+    if (isNaN(parseFloat(lines[0].split(delim)[0]))) start = 1;
+    const parsed = [];
+    for (let i = start; i < lines.length; i++) {
+      const cols = lines[i].split(delim).map(s => s.trim().replace(',', '.'));
+      if (cols.length < 2) continue;
+      const t = parseFloat(cols[0]), x = parseFloat(cols[1]);
+      if (isNaN(t) || isNaN(x)) continue;
+      parsed.push({ t, x });
+    }
+    if (parsed.length) { rawData = parsed; renderRaw(); recompute(); }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+// ── Charts ──────────────────────────────────────────────────
+const xtCv = document.getElementById('xt-cv');
+const vtCv = document.getElementById('vt-cv');
+
+function sizeCv(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.parentElement.clientWidth;
+  const H = cv.parentElement.clientHeight;
+  cv.width  = W * dpr; cv.height = H * dpr;
+  cv.style.width  = W + 'px'; cv.style.height = H + 'px';
+}
+
+function niceAxis(vals) {
+  if (!vals.length) return { min: -1, max: 1, step: 0.5 };
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (lo === hi) { lo -= 1; hi += 1; }
+  const span = hi - lo;
+  const raw = span / 5;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const nice = [1, 2, 2.5, 5, 10].find(f => f * mag >= raw) * mag;
+  return {
+    min: Math.floor(lo / nice) * nice,
+    max: Math.ceil(hi  / nice) * nice,
+    step: nice
+  };
+}
+
+function cssVar(name) {
+  return getComputedStyle(document.body).getPropertyValue(name).trim();
+}
+
+function drawChart(cv, xs, ys, xLbl, yLbl, ptColor, fitLine) {
+  const dpr = window.devicePixelRatio || 1;
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = cv.width / dpr, H = cv.height / dpr;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = cssVar('--surface');
+  ctx.fillRect(0, 0, W, H);
+
+  const pad = { l: 52, r: 14, t: 14, b: 40 };
+  const pw = W - pad.l - pad.r;
+  const ph = H - pad.t - pad.b;
+
+  if (!xs.length) {
+    ctx.fillStyle = cssVar('--muted');
+    ctx.font = '12px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.fillText('No data yet', W / 2, H / 2);
+    return;
+  }
+
+  const xR = niceAxis(xs), yR = niceAxis(ys);
+  const toX = v => pad.l + (v - xR.min) / (xR.max - xR.min) * pw;
+  const toY = v => pad.t + ph - (v - yR.min) / (yR.max - yR.min) * ph;
+
+  // grid
+  ctx.strokeStyle = cssVar('--border'); ctx.lineWidth = 0.8;
+  for (let v = xR.min; v <= xR.max + xR.step * 0.01; v += xR.step) {
+    const px = toX(v);
+    ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, pad.t + ph); ctx.stroke();
+  }
+  for (let v = yR.min; v <= yR.max + yR.step * 0.01; v += yR.step) {
+    const py = toY(v);
+    ctx.beginPath(); ctx.moveTo(pad.l, py); ctx.lineTo(pad.l + pw, py); ctx.stroke();
+  }
+
+  // axes
+  ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t + ph);
+  ctx.moveTo(pad.l, pad.t + ph); ctx.lineTo(pad.l + pw, pad.t + ph);
+  ctx.stroke();
+
+  // tick labels
+  ctx.fillStyle = cssVar('--muted'); ctx.font = '10px Courier New';
+  ctx.textAlign = 'center';
+  for (let v = xR.min; v <= xR.max + xR.step * 0.01; v += xR.step)
+    ctx.fillText(parseFloat(v.toPrecision(4)), toX(v), pad.t + ph + 14);
+  ctx.textAlign = 'right';
+  for (let v = yR.min; v <= yR.max + yR.step * 0.01; v += yR.step)
+    ctx.fillText(parseFloat(v.toPrecision(4)), pad.l - 5, toY(v) + 4);
+
+  // axis labels
+  ctx.fillStyle = cssVar('--text'); ctx.font = 'bold 12px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText(xLbl, pad.l + pw / 2, H - 6);
+  ctx.save();
+  ctx.translate(13, pad.t + ph / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(yLbl, 0, 0);
+  ctx.restore();
+
+  // scatter points
+  ctx.fillStyle = ptColor;
+  xs.forEach((x, i) => {
+    ctx.beginPath();
+    ctx.arc(toX(x), toY(ys[i]), 5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // best fit line (drawn on top of points)
+  if (fitLine) {
+    const { a, b } = fitLine;
+    ctx.strokeStyle = cssVar('--green'); ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(toX(xR.min), toY(a * xR.min + b));
+    ctx.lineTo(toX(xR.max), toY(a * xR.max + b));
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function linFit(ts, xs) {
+  const n = ts.length;
+  if (n < 2) return null;
+  let sumT = 0, sumX = 0, sumTT = 0, sumTX = 0;
+  for (let i = 0; i < n; i++) {
+    sumT  += ts[i];
+    sumX  += xs[i];
+    sumTT += ts[i] * ts[i];
+    sumTX += ts[i] * xs[i];
+  }
+  const det = n * sumTT - sumT * sumT;
+  if (!det) return null;
+  const a = (n * sumTX - sumT * sumX) / det;   // slope
+  const b = (sumX - a * sumT) / n;             // intercept
+  return { a, b };
+}
+
+function drawCharts() {
+  sizeCv(xtCv); sizeCv(vtCv);
+
+  const fitXt = showFitXt && rawData.length >= 2
+    ? linFit(rawData.map(d => d.t), rawData.map(d => d.x))
+    : null;
+
+  drawChart(
+    xtCv,
+    rawData.map(d => d.t),
+    rawData.map(d => d.x),
+    't', 'x',
+    cssVar('--accent'),
+    fitXt
+  );
+
+  const fiXt = document.getElementById('fit-info-xt');
+  if (fitXt) {
+    fiXt.innerHTML = `<span>a = ${parseFloat(fitXt.a.toPrecision(4))}</span><span>b = ${parseFloat(fitXt.b.toPrecision(4))}</span>`;
+  } else {
+    fiXt.innerHTML = '';
+  }
+
+  const fit = showFit && vels.length >= 2
+    ? linFit(vels.map(v => v.t), vels.map(v => v.v))
+    : null;
+
+  drawChart(
+    vtCv,
+    vels.map(v => v.t),
+    vels.map(v => v.v),
+    't', 'v',
+    cssVar('--green'),
+    fit
+  );
+
+  const fi = document.getElementById('fit-info');
+  if (fit) {
+    fi.innerHTML = `<span>a = ${parseFloat(fit.a.toPrecision(4))}</span><span>b = ${parseFloat(fit.b.toPrecision(4))}</span>`;
+  } else {
+    fi.innerHTML = '';
+  }
+}
+
+document.getElementById('fit-toggle-xt').addEventListener('change', e => {
+  showFitXt = e.target.checked;
+  drawCharts();
+});
+document.getElementById('fit-toggle').addEventListener('change', e => {
+  showFit = e.target.checked;
+  drawCharts();
+});
+
+window.addEventListener('resize', drawCharts);
+
+renderRaw();
+recompute();
+</script>
+</div><!-- /panels-row -->
+<button id="theme-toggle">☀</button>
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') { document.body.classList.add('light'); btn.textContent = '☽'; }
+  btn.addEventListener('click', () => {
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '☽' : '☀';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    drawCharts();
+  });
+})();
+</script>
+</body>
+</html>

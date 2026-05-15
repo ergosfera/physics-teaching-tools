@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notebook &amp; Calculator</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --border:  #30363d;
+  --text:    #e6edf3;
+  --muted:   #8b949e;
+  --accent:  #58a6ff;
+  --surface: #161b22;
+  --bg:      #0d1117;
+  --calc-bg: #1c2128;
+}
+body.light {
+  --border:  #c8d4e0;
+  --text:    #1a2234;
+  --muted:   #607080;
+  --accent:  #1858a8;
+  --surface: #ffffff;
+  --bg:      #f6f8fa;
+  --calc-bg: #eef2f7;
+}
+#theme-toggle {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 20px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  transition: border-color .2s, color .2s;
+  user-select: none;
+  flex-shrink: 0;
+}
+#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text); background: var(--bg); }
+body { display: flex; }
+
+/* ── Notebook (left 70%) ── */
+#nb-panel {
+  width: 70%; height: 100vh;
+  display: flex; flex-direction: column;
+  border-right: 2px solid var(--border);
+}
+
+#nb-toolbar {
+  flex-shrink: 0; display: flex; align-items: center; gap: 7px;
+  padding: 6px 12px; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.nb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
+.tb-btn {
+  width: 30px; height: 30px; border-radius: 6px; border: 1px solid transparent;
+  background: none; cursor: pointer; font-size: 1rem; color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s, border-color .12s, color .12s; flex-shrink: 0;
+}
+.tb-btn:hover  { background: #e4edf8; color: var(--accent); border-color: var(--border); }
+.tb-btn.active { background: #dbeafe; color: var(--accent); border-color: var(--accent); }
+#color-picker  { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; padding: 1px; background: none; flex-shrink: 0; }
+#size-slider   { width: 82px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+.tb-label      { font-size: 0.68rem; color: var(--muted); letter-spacing: .07em; text-transform: uppercase; }
+.nb-title      { font-size: 0.78rem; font-weight: 700; color: var(--muted); letter-spacing: .06em; margin-right: auto; }
+
+#canvas-wrap { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+#grid-canvas, #draw-canvas { position: absolute; top: 0; left: 0; display: block; }
+#draw-canvas { cursor: crosshair; }
+
+/* ── Calculator (right 30%) ── */
+#calc-panel {
+  width: 30%; height: 100vh;
+  display: flex; flex-direction: column;
+  background: var(--calc-bg); overflow: hidden;
+}
+
+#calc-header {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 12px; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.calc-title { font-size: 0.72rem; font-weight: 700; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+.mode-wrap  { display: flex; background: var(--calc-bg); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; }
+.mode-btn   {
+  background: none; border: none; font-size: 0.67rem; font-weight: 700; letter-spacing: .06em;
+  color: var(--muted); padding: 3px 12px; cursor: pointer; font-family: inherit;
+  transition: background .12s, color .12s;
+}
+.mode-btn.active { background: var(--accent); color: #fff; border-radius: 20px; }
+
+#calc-display {
+  flex-shrink: 0; background: var(--surface);
+  border-bottom: 1px solid var(--border); padding: 10px 14px 8px;
+}
+#calc-expr {
+  width: 100%; background: transparent; border: none; outline: none;
+  font-family: 'Courier New', monospace; font-size: 2rem; font-weight: 600;
+  color: var(--text); text-align: right; caret-color: var(--accent);
+}
+#calc-expr::placeholder { color: #c0c8d8; font-weight: 400; font-size: 1.1rem; }
+#calc-result {
+  text-align: right; font-family: 'Courier New', monospace;
+  font-size: 3.2rem; font-weight: 300; color: var(--accent);
+  min-height: 3rem; margin-top: 3px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#calc-result.err   { color: #c0392b; font-size: 1.1rem; padding-top: 6px; }
+#calc-result.empty { color: #ccd4e0; }
+#calc-ans   { text-align: right; font-size: 0.9rem; color: var(--muted); margin-top: 3px; font-family: 'Courier New', monospace; }
+#calc-opts  { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.opt-label  { font-size: 0.67rem; color: var(--muted); letter-spacing: .06em; }
+#dec-sel    { background: var(--calc-bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-size: 0.68rem; padding: 2px 5px; outline: none; cursor: pointer; }
+.opt-btn    { background: var(--calc-bg); border: 1px solid var(--border); border-radius: 4px; color: var(--muted); font-size: 0.68rem; font-weight: 600; padding: 2px 8px; cursor: pointer; font-family: 'Courier New', monospace; transition: background .12s, color .12s; }
+.opt-btn.active { background: #fef3c7; color: #92400e; border-color: #d97706; }
+
+/* Buttons */
+#calc-btns {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(10, 1fr);
+  gap: 4px; padding: 8px;
+}
+.cb {
+  border: 1px solid rgba(0,0,0,0.25); border-radius: 7px;
+  font-family: inherit; font-size: clamp(1rem, 1.8vw, 1.3rem); font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  line-height: 1.2; user-select: none; padding: 0;
+  transition: filter .08s, transform .06s;
+}
+.cb:hover  { filter: brightness(1.18); }
+.cb:active { transform: scale(0.93); filter: brightness(0.84); }
+.cb-num  { background: #2d3748;  color: #ffffff; }
+.cb-op   { background: #1e3a5f;  color: #ffffff; }
+.cb-fn   { background: #1a4731;  color: #ffffff; }
+.cb-spec { background: #6b3500;  color: #ffffff; }
+.cb-ctrl { background: #7f1d1d;  color: #ffffff; }
+.cb-eq   { background: var(--accent); color: #fff; border-color: var(--accent); font-size: clamp(1rem,1.8vw,1.3rem); grid-column: span 4; }
+.cb-eq:hover { filter: brightness(1.1); }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ── Notebook Panel ── -->
+<div id="nb-panel">
+  <div id="nb-toolbar">
+    <span class="nb-title">Notebook</span>
+    <div class="nb-sep"></div>
+    <button class="tb-btn active" id="btn-pen"    title="Pen (P)">✏</button>
+    <button class="tb-btn"        id="btn-eraser" title="Eraser (E)">⬜</button>
+    <div class="nb-sep"></div>
+    <input type="color" id="color-picker" value="#1a2234" title="Color">
+    <span class="tb-label">size</span>
+    <input type="range"  id="size-slider" min="1" max="14" value="2" title="Size">
+    <div class="nb-sep"></div>
+    <button class="tb-btn" id="btn-undo"  title="Undo (Ctrl+Z)">↩</button>
+    <button class="tb-btn" id="btn-clear" title="Clear">🗑</button>
+    <button class="tb-btn" id="btn-save"  title="Save PNG">💾</button>
+    <div class="nb-sep"></div>
+    <button id="theme-toggle">☀</button>
+  </div>
+  <div id="canvas-wrap">
+    <canvas id="grid-canvas"></canvas>
+    <canvas id="draw-canvas"></canvas>
+  </div>
+</div>
+
+<!-- ── Calculator Panel ── -->
+<div id="calc-panel">
+  <div id="calc-header">
+    <span class="calc-title">Calculator</span>
+    <div class="mode-wrap">
+      <button class="mode-btn active" data-mode="deg">DEG</button>
+      <button class="mode-btn"        data-mode="rad">RAD</button>
+    </div>
+  </div>
+
+  <div id="calc-display">
+    <input id="calc-expr" type="text" placeholder="type or click an expression…" autocomplete="off" spellcheck="false">
+    <div id="calc-result" class="empty">—</div>
+    <div id="calc-ans">ANS = 0</div>
+    <div id="calc-opts">
+      <span class="opt-label">Dec</span>
+      <select id="dec-sel">
+        <option value="auto">auto</option>
+        <option value="0">0</option><option value="1">1</option>
+        <option value="2">2</option><option value="3">3</option>
+        <option value="4">4</option><option value="5">5</option>
+        <option value="6">6</option><option value="7">7</option>
+        <option value="8">8</option><option value="9">9</option>
+        <option value="10">10</option>
+      </select>
+      <button class="opt-btn" id="btn-pow10" title="Toggle ×10^ notation">×10^</button>
+    </div>
+  </div>
+
+  <div id="calc-btns">
+    <!-- trig -->
+    <button class="cb cb-fn"   data-ins="sin(">sin</button>
+    <button class="cb cb-fn"   data-ins="cos(">cos</button>
+    <button class="cb cb-fn"   data-ins="tan(">tan</button>
+    <button class="cb cb-ctrl" data-act="back">⌫</button>
+    <!-- inv trig -->
+    <button class="cb cb-fn"   data-ins="asin(">sin⁻¹</button>
+    <button class="cb cb-fn"   data-ins="acos(">cos⁻¹</button>
+    <button class="cb cb-fn"   data-ins="atan(">tan⁻¹</button>
+    <button class="cb cb-ctrl" data-act="clear">AC</button>
+    <!-- log / root -->
+    <button class="cb cb-fn"   data-ins="log(">log</button>
+    <button class="cb cb-fn"   data-ins="ln(">ln</button>
+    <button class="cb cb-fn"   data-ins="sqrt(">√</button>
+    <button class="cb cb-fn"   data-ins="^2">x²</button>
+    <!-- constants / power -->
+    <button class="cb cb-spec" data-ins="π">π</button>
+    <button class="cb cb-spec" data-ins="e">e</button>
+    <button class="cb cb-spec" data-ins="*10^">×10^</button>
+    <button class="cb cb-op"   data-ins="^">xʸ</button>
+    <!-- brackets / ANS -->
+    <button class="cb cb-op"   data-ins="(">(</button>
+    <button class="cb cb-op"   data-ins=")">)</button>
+    <button class="cb cb-op"   data-ins=",">,</button>
+    <button class="cb cb-spec" data-ins="ANS">ANS</button>
+    <!-- digits + ops -->
+    <button class="cb cb-num"  data-ins="7">7</button>
+    <button class="cb cb-num"  data-ins="8">8</button>
+    <button class="cb cb-num"  data-ins="9">9</button>
+    <button class="cb cb-op"   data-ins="÷">÷</button>
+
+    <button class="cb cb-num"  data-ins="4">4</button>
+    <button class="cb cb-num"  data-ins="5">5</button>
+    <button class="cb cb-num"  data-ins="6">6</button>
+    <button class="cb cb-op"   data-ins="×">×</button>
+
+    <button class="cb cb-num"  data-ins="1">1</button>
+    <button class="cb cb-num"  data-ins="2">2</button>
+    <button class="cb cb-num"  data-ins="3">3</button>
+    <button class="cb cb-op"   data-ins="−">−</button>
+
+    <button class="cb cb-op"   data-act="negate">±</button>
+    <button class="cb cb-num"  data-ins="0">0</button>
+    <button class="cb cb-num"  data-ins=".">.</button>
+    <button class="cb cb-op"   data-ins="+">+</button>
+    <!-- equals full-width -->
+    <button class="cb cb-eq"   data-act="eq">=</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════ NOTEBOOK ═══════════ */
+const gridCv = document.getElementById('grid-canvas');
+const drawCv = document.getElementById('draw-canvas');
+const gCtx   = gridCv.getContext('2d');
+const dCtx   = drawCv.getContext('2d');
+const wrap   = document.getElementById('canvas-wrap');
+
+const CELL = 22, MAJOR = 5;
+
+let paths = [], curPath = null, drawing = false;
+let nbTool = 'pen', penColor = '#1a2234', penWidth = 2;
+
+function resizeCv() {
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  gridCv.width = drawCv.width  = W;
+  gridCv.height = drawCv.height = H;
+  drawGrid(); redrawPaths();
+}
+
+function drawGrid() {
+  const W = gridCv.width, H = gridCv.height;
+  const dark = document.body.classList.contains('light') === false;
+  gCtx.fillStyle = dark ? '#0f1923' : '#fdfeff';
+  gCtx.fillRect(0, 0, W, H);
+  // minor
+  gCtx.strokeStyle = dark ? 'rgba(100,160,255,0.08)' : 'rgba(80,120,200,0.10)';
+  gCtx.lineWidth = 0.5;
+  gCtx.beginPath();
+  for (let x = 0; x <= W; x += CELL) { gCtx.moveTo(x, 0); gCtx.lineTo(x, H); }
+  for (let y = 0; y <= H; y += CELL) { gCtx.moveTo(0, y); gCtx.lineTo(W, y); }
+  gCtx.stroke();
+  // major
+  gCtx.strokeStyle = dark ? 'rgba(100,160,255,0.20)' : 'rgba(80,120,200,0.24)';
+  gCtx.lineWidth = 0.9;
+  gCtx.beginPath();
+  for (let x = 0; x <= W; x += CELL * MAJOR) { gCtx.moveTo(x, 0); gCtx.lineTo(x, H); }
+  for (let y = 0; y <= H; y += CELL * MAJOR) { gCtx.moveTo(0, y); gCtx.lineTo(W, y); }
+  gCtx.stroke();
+}
+
+function redrawPaths() {
+  dCtx.clearRect(0, 0, drawCv.width, drawCv.height);
+  paths.forEach(p => strokePath(dCtx, p));
+}
+
+function strokePath(ctx, p) {
+  if (!p.pts.length) return;
+  ctx.save();
+  ctx.globalCompositeOperation = p.eraser ? 'destination-out' : 'source-over';
+  ctx.strokeStyle = p.color; ctx.lineWidth = p.w;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  if (p.pts.length === 1) {
+    ctx.arc(p.pts[0].x, p.pts[0].y, p.w / 2, 0, Math.PI * 2);
+    ctx.fillStyle = p.color; ctx.fill();
+  } else {
+    ctx.moveTo(p.pts[0].x, p.pts[0].y);
+    p.pts.slice(1).forEach(pt => ctx.lineTo(pt.x, pt.y));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function cvPos(e) {
+  const r = drawCv.getBoundingClientRect();
+  const s = e.touches ? e.touches[0] : e;
+  return { x: s.clientX - r.left, y: s.clientY - r.top };
+}
+
+function startPath(e) {
+  drawing = true;
+  curPath = { eraser: nbTool === 'eraser', color: penColor, w: nbTool === 'eraser' ? penWidth * 6 : penWidth, pts: [cvPos(e)] };
+}
+function extendPath(e) {
+  if (!drawing || !curPath) return;
+  const pt = cvPos(e);
+  curPath.pts.push(pt);
+  const pts = curPath.pts;
+  if (pts.length >= 2) {
+    dCtx.save();
+    dCtx.globalCompositeOperation = curPath.eraser ? 'destination-out' : 'source-over';
+    dCtx.strokeStyle = curPath.color; dCtx.lineWidth = curPath.w;
+    dCtx.lineCap = 'round'; dCtx.lineJoin = 'round';
+    dCtx.beginPath();
+    dCtx.moveTo(pts[pts.length-2].x, pts[pts.length-2].y);
+    dCtx.lineTo(pts[pts.length-1].x, pts[pts.length-1].y);
+    dCtx.stroke(); dCtx.restore();
+  }
+}
+function endPath() { if (drawing && curPath) { paths.push(curPath); curPath = null; } drawing = false; }
+
+drawCv.addEventListener('mousedown',  e => { if (e.button === 0) { startPath(e); e.preventDefault(); } });
+document.addEventListener('mousemove', e => extendPath(e));
+document.addEventListener('mouseup',   () => endPath());
+drawCv.addEventListener('touchstart',  e => { e.preventDefault(); startPath(e); }, { passive: false });
+drawCv.addEventListener('touchmove',   e => { e.preventDefault(); extendPath(e); }, { passive: false });
+drawCv.addEventListener('touchend',    e => { e.preventDefault(); endPath(); }, { passive: false });
+
+function setTool(t) {
+  nbTool = t;
+  document.getElementById('btn-pen').classList.toggle('active', t === 'pen');
+  document.getElementById('btn-eraser').classList.toggle('active', t === 'eraser');
+  drawCv.style.cursor = t === 'eraser' ? 'cell' : 'crosshair';
+}
+
+document.getElementById('btn-pen').addEventListener('click',    () => setTool('pen'));
+document.getElementById('btn-eraser').addEventListener('click', () => setTool('eraser'));
+document.getElementById('color-picker').addEventListener('input', e => { penColor = e.target.value; setTool('pen'); });
+document.getElementById('size-slider').addEventListener('input',  e => { penWidth = +e.target.value; });
+document.getElementById('btn-undo').addEventListener('click',  () => { if (paths.length) { paths.pop(); redrawPaths(); } });
+document.getElementById('btn-clear').addEventListener('click', () => { if (confirm('Clear the notebook?')) { paths = []; redrawPaths(); } });
+document.getElementById('btn-save').addEventListener('click',  () => {
+  const m = document.createElement('canvas');
+  m.width = gridCv.width; m.height = gridCv.height;
+  const mc = m.getContext('2d');
+  mc.drawImage(gridCv, 0, 0); mc.drawImage(drawCv, 0, 0);
+  const a = document.createElement('a');
+  a.download = `notebook_${new Date().toISOString().slice(0,10)}.png`;
+  a.href = m.toDataURL(); a.click();
+});
+
+window.addEventListener('resize', resizeCv);
+resizeCv();
+
+
+/* ═══════════ CALCULATOR ═══════════ */
+let angleMode = 'deg', lastAns = 0;
+let decPlaces = null;   // null = auto
+let pow10 = false;      // false = e notation, true = ×10^
+const exprEl = document.getElementById('calc-expr');
+const resEl  = document.getElementById('calc-result');
+const ansEl  = document.getElementById('calc-ans');
+
+function mathCtx() {
+  const DEG = angleMode === 'deg';
+  const toR = v => DEG ? v * Math.PI / 180 : v;
+  const frR = v => DEG ? v * 180 / Math.PI : v;
+  return {
+    sin: v => Math.sin(toR(v)), cos: v => Math.cos(toR(v)), tan: v => Math.tan(toR(v)),
+    asin: v => frR(Math.asin(v)), acos: v => frR(Math.acos(v)), atan: v => frR(Math.atan(v)),
+    atan2: (y,x) => frR(Math.atan2(y,x)),
+    sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
+    sqrt: Math.sqrt, cbrt: Math.cbrt,
+    log: Math.log10, ln: Math.log, log2: Math.log2, exp: Math.exp,
+    abs: Math.abs, floor: Math.floor, ceil: Math.ceil, round: Math.round,
+    max: Math.max, min: Math.min,
+    PI: Math.PI, pi: Math.PI,
+    E: Math.E,
+    ANS: lastAns, Ans: lastAns, ans: lastAns,
+  };
+}
+
+function withCommas(numStr) {
+  const neg = numStr.startsWith('-');
+  const s = neg ? numStr.slice(1) : numStr;
+  const [int, dec] = s.split('.');
+  const intFmt = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return (neg ? '−' : '') + intFmt + (dec !== undefined ? '.' + dec : '');
+}
+
+function fmtVal(v) {
+  if (!isFinite(v)) return isNaN(v) ? 'undefined' : (v > 0 ? '∞' : '−∞');
+  if (Object.is(v, -0)) return '0';
+  const abs = Math.abs(v);
+  const autoSci = abs !== 0 && (abs >= 1e10 || abs < 1e-4);
+  const useSci = decPlaces === null ? autoSci : false;
+  if (useSci) {
+    const parts = v.toExponential(10).split('e');
+    const exp = parseInt(parts[1]);
+    const mStr = String(parseFloat(parseFloat(parts[0]).toPrecision(9)));
+    return pow10 ? withCommas(mStr) + ' ×10^' + exp : withCommas(mStr) + 'e' + exp;
+  }
+  const str = decPlaces === null ? String(parseFloat(v.toPrecision(12))) : v.toFixed(decPlaces);
+  return withCommas(str);
+}
+
+function calcEval(raw) {
+  let e = raw.trim();
+  if (!e) return null;
+  e = e.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-')
+        .replace(/\^/g,'**').replace(/π/g,'PI').replace(/\bpi\b/gi,'PI')
+        .replace(/\be\b/g,'E');
+  const ctx   = mathCtx();
+  const names = Object.keys(ctx).join('|');
+  const check = e.replace(new RegExp(`\\b(${names})\\b`,'g'), '');
+  if (/[a-zA-Z_$]/.test(check)) return { err: 'unknown symbol' };
+  try {
+    const fn  = new Function(...Object.keys(ctx), `"use strict"; return (${e});`);
+    const val = fn(...Object.values(ctx));
+    if (typeof val !== 'number') return { err: 'non-numeric' };
+    return { val };
+  } catch(ex) { return { err: ex.message }; }
+}
+
+function liveUpdate() {
+  const raw = exprEl.value;
+  if (!raw.trim()) { resEl.textContent = '—'; resEl.className = 'empty'; return; }
+  const r = calcEval(raw);
+  if (!r || r.err) { resEl.textContent = ''; resEl.className = ''; return; }
+  resEl.textContent = '= ' + fmtVal(r.val); resEl.className = '';
+}
+
+function commit() {
+  const raw = exprEl.value;
+  if (!raw.trim()) return;
+  const r = calcEval(raw);
+  if (!r || r.err) { resEl.textContent = '⚠ ' + (r?.err || 'error'); resEl.className = 'err'; return; }
+  lastAns = r.val;
+  ansEl.textContent = 'ANS = ' + fmtVal(lastAns);
+  resEl.textContent = '= ' + fmtVal(r.val); resEl.className = '';
+  exprEl.value = '';
+}
+
+exprEl.addEventListener('input', liveUpdate);
+exprEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+  if (e.key === 'Escape') { exprEl.value = ''; liveUpdate(); }
+});
+
+document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => {
+  angleMode = b.dataset.mode;
+  document.querySelectorAll('.mode-btn').forEach(x => x.classList.toggle('active', x === b));
+  liveUpdate();
+}));
+
+function insertAt(text) {
+  const s = exprEl.selectionStart ?? exprEl.value.length;
+  const f = exprEl.selectionEnd   ?? exprEl.value.length;
+  exprEl.value = exprEl.value.slice(0, s) + text + exprEl.value.slice(f);
+  exprEl.setSelectionRange(s + text.length, s + text.length);
+  exprEl.focus(); liveUpdate();
+}
+
+document.querySelectorAll('.cb').forEach(btn => btn.addEventListener('click', () => {
+  const ins = btn.dataset.ins, act = btn.dataset.act;
+  if (ins !== undefined) { insertAt(ins); return; }
+  if (act === 'back') {
+    const s = exprEl.selectionStart, f = exprEl.selectionEnd;
+    if (s !== f) { exprEl.value = exprEl.value.slice(0,s) + exprEl.value.slice(f); exprEl.setSelectionRange(s,s); }
+    else if (s > 0) { exprEl.value = exprEl.value.slice(0,s-1) + exprEl.value.slice(s); exprEl.setSelectionRange(s-1,s-1); }
+    exprEl.focus(); liveUpdate();
+  } else if (act === 'clear')  { exprEl.value = ''; exprEl.focus(); liveUpdate(); }
+  else if (act === 'eq')    { commit(); exprEl.focus(); }
+  else if (act === 'negate') {
+    const v = exprEl.value.trim();
+    exprEl.value = v.startsWith('-') ? v.slice(1) : (v ? '-(' + v + ')' : '');
+    exprEl.focus(); liveUpdate();
+  }
+}));
+
+document.getElementById('dec-sel').addEventListener('change', e => {
+  decPlaces = e.target.value === 'auto' ? null : parseInt(e.target.value);
+  liveUpdate();
+});
+document.getElementById('btn-pow10').addEventListener('click', () => {
+  pow10 = !pow10;
+  document.getElementById('btn-pow10').classList.toggle('active', pow10);
+  liveUpdate();
+});
+
+/* Keyboard shortcuts for notebook (when calc input NOT focused) */
+document.addEventListener('keydown', e => {
+  if (document.activeElement === exprEl) return;
+  if (e.ctrlKey && e.key === 'z') { e.preventDefault(); document.getElementById('btn-undo').click(); }
+  if (!e.ctrlKey) {
+    if (e.key === 'p') document.getElementById('btn-pen').click();
+    if (e.key === 'e') document.getElementById('btn-eraser').click();
+  }
+});
+</script>
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') { document.body.classList.add('light'); btn.textContent = '☽'; }
+  btn.addEventListener('click', () => {
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '☽' : '☀';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    drawGrid(); redrawPaths();
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Two-Gate Timer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --surface2:#1c2128;
+      --border:  #30363d;
+      --text:    #e6edf3;
+      --muted:   #8b949e;
+      --accent:  #58a6ff;
+      --green:   #3fb950;
+      --yellow:  #d29922;
+      --red:     #f85149;
+      --radius:  10px;
+    }
+    body.light {
+      --bg:      #f6f8fa;
+      --surface: #ffffff;
+      --surface2:#f0f4f8;
+      --border:  #d0d7de;
+      --text:    #1f2328;
+      --muted:   #656d76;
+      --accent:  #0969da;
+      --green:   #1a7f37;
+      --yellow:  #9a6700;
+      --red:     #cf222e;
+    }
+    #theme-toggle {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      transition: border-color .2s, color .2s;
+      user-select: none;
+      flex-shrink: 0;
+      margin-left: 12px;
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* ── HEADER ── */
+    header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    header h1 { font-size: 0.97rem; font-weight: 700; letter-spacing: -0.3px; }
+    header h1 span { color: var(--accent); }
+    .hints {
+      display: flex; gap: 14px;
+      font-size: 0.71rem; color: var(--muted); align-items: center;
+    }
+    kbd {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: inherit;
+      font-size: 0.68rem;
+      color: var(--text);
+    }
+
+    /* ── MAIN ── */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    /* ── GATES ROW ── */
+    .gates-row {
+      display: flex;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gate {
+      flex: 1;
+      padding: 18px 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: background .2s;
+      position: relative;
+    }
+    .gate:first-child { border-right: 1px solid var(--border); }
+
+    /* gate states */
+    .gate.state-idle   { background: var(--bg); }
+    .gate.state-open   { background: rgba(210,153,34,0.06); }
+    .gate.state-closed { background: rgba(63,185,80,0.05); }
+
+    /* ── Gate top row: status + key ── */
+    .gate-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .gate-name {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .gate-key {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+    .gate-key kbd { font-size: 0.75rem; padding: 3px 9px; }
+
+    /* ── Status badge ── */
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .state-idle   .status-dot { background: var(--border); }
+    .state-open   .status-dot { background: var(--yellow); animation: pulse 1s infinite; }
+    .state-closed .status-dot { background: var(--green); }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(210,153,34,.5); }
+      50%       { box-shadow: 0 0 0 5px rgba(210,153,34,0); }
+    }
+
+    .status-word {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .state-idle   .status-word { color: var(--border); }
+    .state-open   .status-word { color: var(--yellow); }
+    .state-closed .status-word { color: var(--green); }
+
+    /* ── Live / final time ── */
+    .gate-time {
+      font-size: 2.4rem;
+      font-weight: 200;
+      letter-spacing: 2px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      color: var(--muted);
+      transition: color .2s;
+    }
+    .state-open   .gate-time { color: var(--yellow); }
+    .state-closed .gate-time { color: var(--text); }
+
+    /* ── Derived values ── */
+    .gate-derived {
+      display: flex;
+      gap: 20px;
+    }
+    .derived-item { display: flex; flex-direction: column; gap: 2px; }
+    .derived-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .derived-value {
+      font-size: 1.3rem;
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+    }
+    .state-closed .derived-value.v-val { color: var(--green); font-weight: 600; }
+
+    /* ── Width input ── */
+    .width-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: auto;
+    }
+    .width-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .width-input {
+      width: 80px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 0.8rem;
+      color: var(--accent);
+      text-align: right;
+      outline: none;
+    }
+    .width-input:focus { border-color: var(--accent); }
+
+    /* ── BETWEEN ROW ── */
+    .between-row {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      padding: 0;
+      flex-wrap: wrap;
+    }
+
+    .between-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 10px 20px;
+      border-right: 1px solid var(--border);
+    }
+    .between-cell:last-child { border-right: none; margin-left: auto; }
+
+    .between-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .between-value {
+      font-size: 1.1rem;
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .between-value.accel { color: var(--yellow); font-weight: 600; }
+    .between-value.ready { color: var(--green); font-weight: 600; }
+
+    .dist-input {
+      width: 80px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 7px;
+      font-size: 0.8rem;
+      color: var(--accent);
+      text-align: right;
+      outline: none;
+      margin-top: 2px;
+    }
+    .dist-input:focus { border-color: var(--accent); }
+
+    /* ── BUTTONS ── */
+    .actions {
+      display: flex;
+      gap: 8px;
+      padding: 10px 20px;
+      align-items: center;
+      flex-shrink: 0;
+      border-right: none;
+      margin-left: auto;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .12s, border-color .12s;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { border-color: var(--accent); background: var(--surface); }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn.save {
+      background: #1f6a2e;
+      color: #fff;
+      border-color: #2ea043;
+    }
+    .btn.save:hover:not(:disabled) { background: #238636; }
+    .btn.clear { color: var(--red); border-color: rgba(248,81,73,.35); }
+    .btn.clear:hover:not(:disabled) { background: rgba(248,81,73,.08); border-color: var(--red); }
+
+    /* ── TRIALS TABLE ── */
+    .trials-wrap {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+    .trials-wrap::-webkit-scrollbar { width: 4px; }
+    .trials-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .trials-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px 5px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .section-label {
+      font-size: 0.63rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .sm-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 3px 12px;
+      color: var(--muted);
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: border-color .12s, color .12s;
+    }
+    .sm-btn:hover { border-color: var(--green); color: var(--green); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.79rem; }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 14px;
+      text-align: right;
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 0.66rem;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+    thead th:first-child { text-align: left; }
+    thead th:last-child  { text-align: center; }
+
+    tbody tr { transition: background .1s; }
+    tbody tr:hover { background: var(--surface); }
+    tbody tr.flash-row { animation: rowFlash .6s ease-out; }
+    @keyframes rowFlash {
+      0%   { background: rgba(63,185,80,.18); }
+      100% { background: transparent; }
+    }
+
+    tbody td {
+      padding: 5px 14px;
+      border-bottom: 1px solid rgba(48,54,61,.55);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    tbody td:first-child { text-align: left; color: var(--muted); font-size: 0.73rem; }
+    tbody td:last-child  { text-align: center; }
+    tbody tr:last-child td { border-bottom: none; }
+
+    .val-v { color: var(--green);  font-weight: 600; }
+    .val-a { color: var(--yellow); font-weight: 600; }
+    .val-t { color: var(--accent); }
+
+    tfoot td {
+      padding: 6px 14px;
+      border-top: 2px solid var(--border);
+      text-align: right;
+      font-size: 0.73rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      background: var(--surface2);
+    }
+    tfoot td:first-child { text-align: left; font-weight: 700; color: var(--text); }
+
+    .del-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--border);
+      font-size: 0.9rem;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color .12s;
+    }
+    .del-btn:hover { color: var(--red); }
+
+    /* ── EMPTY STATE ── */
+    .empty-msg {
+      text-align: center;
+      color: var(--border);
+      padding: 32px 20px;
+      font-size: 0.88rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Two-Gate <span>Timer</span></h1>
+  <div class="hints">
+    <span><kbd>Q</kbd> Gate A</span>
+    <span><kbd>P</kbd> Gate B</span>
+    <span><kbd>S</kbd> Save &amp; New</span>
+    <span><kbd>C</kbd> Clear</span>
+    <span><kbd>E</kbd> Export CSV</span>
+  </div>
+  <button id="theme-toggle">☀</button>
+</header>
+
+<main>
+
+  <!-- ── GATES ── -->
+  <div class="gates-row">
+
+    <!-- GATE A -->
+    <div class="gate state-idle" id="gate-a">
+      <div class="gate-top">
+        <span class="gate-name">Gate A</span>
+        <span class="gate-key">Press <kbd>Q</kbd></span>
+      </div>
+      <div class="status-row">
+        <div class="status-dot"></div>
+        <span class="status-word" id="a-status-word">Idle</span>
+      </div>
+      <div class="gate-time" id="a-time">—</div>
+      <div class="gate-derived">
+        <div class="derived-item">
+          <span class="derived-label">Δt</span>
+          <span class="derived-value" id="a-dt">—</span>
+        </div>
+        <div class="derived-item">
+          <span class="derived-label">v₁ &nbsp;(m/s)</span>
+          <span class="derived-value v-val" id="a-v">—</span>
+        </div>
+      </div>
+      <div class="width-row">
+        <span class="width-label">Flag width</span>
+        <input class="width-input" id="a-width" type="number" step="0.001" min="0.001"
+          value="0.020" placeholder="m">
+        <span style="font-size:0.7rem;color:var(--muted)">m</span>
+      </div>
+    </div>
+
+    <!-- GATE B -->
+    <div class="gate state-idle" id="gate-b">
+      <div class="gate-top">
+        <span class="gate-name">Gate B</span>
+        <span class="gate-key">Press <kbd>P</kbd></span>
+      </div>
+      <div class="status-row">
+        <div class="status-dot"></div>
+        <span class="status-word" id="b-status-word">Idle</span>
+      </div>
+      <div class="gate-time" id="b-time">—</div>
+      <div class="gate-derived">
+        <div class="derived-item">
+          <span class="derived-label">Δt</span>
+          <span class="derived-value" id="b-dt">—</span>
+        </div>
+        <div class="derived-item">
+          <span class="derived-label">v₂ &nbsp;(m/s)</span>
+          <span class="derived-value v-val" id="b-v">—</span>
+        </div>
+      </div>
+      <div class="width-row">
+        <span class="width-label">Flag width</span>
+        <input class="width-input" id="b-width" type="number" step="0.001" min="0.001"
+          value="0.020" placeholder="m">
+        <span style="font-size:0.7rem;color:var(--muted)">m</span>
+      </div>
+    </div>
+
+  </div><!-- /gates-row -->
+
+  <!-- ── BETWEEN-GATE ROW ── -->
+  <div class="between-row">
+
+    <div class="between-cell">
+      <span class="between-label">t_flight (A→B)</span>
+      <span class="between-value" id="t-flight">—</span>
+    </div>
+
+    <div class="between-cell">
+      <span class="between-label">Δv &nbsp;(m/s)</span>
+      <span class="between-value" id="delta-v">—</span>
+    </div>
+
+    <div class="between-cell">
+      <span class="between-label">Acceleration — midpoint method</span>
+      <span class="between-value accel" id="accel-mid">—</span>
+    </div>
+
+    <div class="between-cell">
+      <span class="between-label">Distance A→B &nbsp;(optional)</span>
+      <input class="dist-input" id="dist-ab" type="number" step="0.01" min="0"
+        placeholder="m" oninput="renderDerived()">
+    </div>
+
+    <div class="between-cell">
+      <span class="between-label">Acceleration — kinematic</span>
+      <span class="between-value accel" id="accel-kin">—</span>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="actions">
+      <button class="btn save"  id="btn-save"  onclick="saveAndNew()" disabled>Save &amp; New</button>
+      <button class="btn clear" id="btn-clear" onclick="clearGates()" disabled>Clear</button>
+    </div>
+
+  </div><!-- /between-row -->
+
+  <!-- ── TRIALS TABLE ── -->
+  <div class="trials-header">
+    <span class="section-label">Trials</span>
+    <button class="sm-btn" onclick="exportCSV()">↓ Export CSV</button>
+  </div>
+
+  <div class="trials-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Δt₁ (ms)</th>
+          <th>v₁ (m/s)</th>
+          <th>Δt₂ (ms)</th>
+          <th>v₂ (m/s)</th>
+          <th>t_flight (s)</th>
+          <th>a_mid (m/s²)</th>
+          <th>a_kin (m/s²)</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="trials-body"></tbody>
+      <tfoot id="trials-foot"></tfoot>
+    </table>
+    <div class="empty-msg" id="empty-msg">
+      No trials yet — press <kbd>Q</kbd> and <kbd>P</kbd> to time an object through the gates
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+//  GATE STATE
+// ─────────────────────────────────────────────────────────────
+const G = {
+  a: { state: 'idle', openT: null, closeT: null },
+  b: { state: 'idle', openT: null, closeT: null },
+};
+
+let trials  = [];  // saved trial records
+let rafId   = null;
+
+// ─────────────────────────────────────────────────────────────
+//  HELPERS
+// ─────────────────────────────────────────────────────────────
+function fmt(v, d = 3) {
+  if (v === null || v === undefined || isNaN(v) || !isFinite(v)) return '—';
+  return Number(v).toFixed(d);
+}
+
+function fmtMs(ms, d = 2) {
+  if (ms === null || ms === undefined) return '—';
+  return fmt(ms, d);
+}
+
+function fmtTime(ms) {
+  if (ms === null) return '—';
+  ms = Math.max(0, ms);
+  const s   = Math.floor(ms / 1000);
+  const ms3 = Math.floor(ms % 1000);
+  return `${s}.${String(ms3).padStart(3,'0')}`;
+}
+
+function width(id) {
+  const v = parseFloat(document.getElementById(`${id}-width`).value);
+  return isNaN(v) || v <= 0 ? null : v;
+}
+
+function distAB() {
+  const v = parseFloat(document.getElementById('dist-ab').value);
+  return isNaN(v) || v <= 0 ? null : v;
+}
+
+function dtSec(g) {
+  if (g.closeT === null) return null;
+  return (g.closeT - g.openT) / 1000;
+}
+
+function velocity(id) {
+  const g  = G[id];
+  const dt = dtSec(g);
+  const w  = width(id);
+  if (dt === null || w === null || dt <= 0) return null;
+  return w / dt;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  GATE TOGGLE
+// ─────────────────────────────────────────────────────────────
+function toggleGate(id) {
+  const g = G[id];
+
+  if (g.state === 'idle') {
+    g.state  = 'open';
+    g.openT  = performance.now();
+    g.closeT = null;
+  } else if (g.state === 'open') {
+    g.state  = 'closed';
+    g.closeT = performance.now();
+  } else {
+    // Already closed — ignore, user must use Save & New or Clear
+    flashClosed(id);
+    return;
+  }
+
+  renderGate(id);
+  renderDerived();
+  updateButtons();
+}
+
+function flashClosed(id) {
+  const el = document.getElementById(`gate-${id}`);
+  el.style.transition = 'none';
+  el.style.background = 'rgba(248,81,73,.08)';
+  setTimeout(() => {
+    el.style.transition = '';
+    el.style.background = '';
+  }, 300);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RENDER GATES
+// ─────────────────────────────────────────────────────────────
+function renderGate(id) {
+  const g      = G[id];
+  const el     = document.getElementById(`gate-${id}`);
+  const sw     = document.getElementById(`${id}-status-word`);
+  const timeEl = document.getElementById(`${id}-time`);
+  const dtEl   = document.getElementById(`${id}-dt`);
+  const vEl    = document.getElementById(`${id}-v`);
+
+  // CSS class
+  el.className = `gate state-${g.state}`;
+
+  // Status word
+  const words = { idle: 'Idle', open: 'Open', closed: 'Closed' };
+  sw.textContent = words[g.state];
+
+  // Time display
+  if (g.state === 'idle') {
+    timeEl.textContent = '—';
+    dtEl.textContent   = '—';
+    vEl.textContent    = '—';
+  } else if (g.state === 'closed') {
+    const ms = g.closeT - g.openT;
+    timeEl.textContent = fmtTime(ms);
+    dtEl.textContent   = fmt(ms, 1) + ' ms';
+    const v = velocity(id);
+    vEl.textContent    = v !== null ? fmt(v, 4) : '—';
+  }
+  // open state: live update handled by animation loop
+}
+
+function renderAllGates() {
+  renderGate('a');
+  renderGate('b');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  LIVE TIMER (while gates open)
+// ─────────────────────────────────────────────────────────────
+function animLoop() {
+  const now = performance.now();
+
+  ['a', 'b'].forEach(id => {
+    const g = G[id];
+    if (g.state !== 'open') return;
+    const ms = now - g.openT;
+    document.getElementById(`${id}-time`).textContent = fmtTime(ms);
+    document.getElementById(`${id}-dt`).textContent   = fmt(ms, 1) + ' ms';
+  });
+
+  rafId = requestAnimationFrame(animLoop);
+}
+rafId = requestAnimationFrame(animLoop);
+
+// ─────────────────────────────────────────────────────────────
+//  DERIVED (between-gate)
+// ─────────────────────────────────────────────────────────────
+function renderDerived() {
+  const vA = velocity('a');
+  const vB = velocity('b');
+
+  // t_flight: from gate A closing to gate B opening
+  let tFlight = null;
+  if (G.a.closeT !== null && G.b.openT !== null) {
+    tFlight = (G.b.openT - G.a.closeT) / 1000;  // seconds
+  }
+
+  // Δv
+  const dv = (vA !== null && vB !== null) ? vB - vA : null;
+
+  // Acceleration — midpoint method
+  // v_A is at t_mid_A = (openA + closeA) / 2
+  // v_B is at t_mid_B = (openB + closeB) / 2
+  let aMid = null;
+  if (vA !== null && vB !== null &&
+      G.a.openT !== null && G.a.closeT !== null &&
+      G.b.openT !== null && G.b.closeT !== null) {
+    const tMidA = (G.a.openT + G.a.closeT) / 2;
+    const tMidB = (G.b.openT + G.b.closeT) / 2;
+    const span  = (tMidB - tMidA) / 1000;  // seconds
+    if (span > 0) aMid = dv / span;
+  }
+
+  // Acceleration — kinematic method: (v₂² - v₁²) / (2 * d)
+  let aKin = null;
+  const d = distAB();
+  if (vA !== null && vB !== null && d !== null) {
+    aKin = (vB * vB - vA * vA) / (2 * d);
+  }
+
+  // Render
+  document.getElementById('t-flight').textContent  = tFlight !== null ? fmt(tFlight, 4) + ' s' : '—';
+  document.getElementById('delta-v').textContent   = dv      !== null ? fmt(dv, 4)      : '—';
+
+  const aMidEl = document.getElementById('accel-mid');
+  aMidEl.textContent = aMid !== null ? fmt(aMid, 4) + ' m/s²' : '—';
+  aMidEl.className   = 'between-value' + (aMid !== null ? ' accel' : '');
+
+  const aKinEl = document.getElementById('accel-kin');
+  aKinEl.textContent = aKin !== null ? fmt(aKin, 4) + ' m/s²' : '—';
+  aKinEl.className   = 'between-value' + (aKin !== null ? ' accel' : '');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  BUTTONS STATE
+// ─────────────────────────────────────────────────────────────
+function updateButtons() {
+  const anyData = G.a.state !== 'idle' || G.b.state !== 'idle';
+  const bothClosed = G.a.state === 'closed' && G.b.state === 'closed';
+
+  document.getElementById('btn-save').disabled  = !bothClosed;
+  document.getElementById('btn-clear').disabled = !anyData;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  SAVE TRIAL
+// ─────────────────────────────────────────────────────────────
+function saveAndNew() {
+  const vA     = velocity('a');
+  const vB     = velocity('b');
+  const dtA_ms = G.a.closeT !== null ? G.a.closeT - G.a.openT : null;
+  const dtB_ms = G.b.closeT !== null ? G.b.closeT - G.b.openT : null;
+
+  let tFlight = null;
+  if (G.a.closeT !== null && G.b.openT !== null) {
+    tFlight = (G.b.openT - G.a.closeT) / 1000;
+  }
+
+  const dv = (vA !== null && vB !== null) ? vB - vA : null;
+
+  let aMid = null;
+  if (vA !== null && vB !== null &&
+      G.a.openT && G.a.closeT && G.b.openT && G.b.closeT) {
+    const tMidA = (G.a.openT + G.a.closeT) / 2;
+    const tMidB = (G.b.openT + G.b.closeT) / 2;
+    const span  = (tMidB - tMidA) / 1000;
+    if (span > 0) aMid = dv / span;
+  }
+
+  let aKin = null;
+  const d = distAB();
+  if (vA !== null && vB !== null && d !== null) {
+    aKin = (vB * vB - vA * vA) / (2 * d);
+  }
+
+  trials.push({
+    n:       trials.length + 1,
+    dtA_ms,  vA,
+    dtB_ms,  vB,
+    tFlight, aMid, aKin,
+  });
+
+  renderTrials();
+  clearGates(false);  // clear without re-rendering buttons (renderTrials does it)
+}
+
+// ─────────────────────────────────────────────────────────────
+//  CLEAR GATES
+// ─────────────────────────────────────────────────────────────
+function clearGates(updateBtns = true) {
+  G.a = { state: 'idle', openT: null, closeT: null };
+  G.b = { state: 'idle', openT: null, closeT: null };
+
+  renderAllGates();
+  renderDerived();
+  if (updateBtns) updateButtons();
+  else {
+    document.getElementById('btn-save').disabled  = true;
+    document.getElementById('btn-clear').disabled = true;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RENDER TRIALS TABLE
+// ─────────────────────────────────────────────────────────────
+function deleteTrial(i) {
+  trials.splice(i, 1);
+  trials.forEach((t, j) => { t.n = j + 1; });
+  renderTrials();
+}
+
+function renderTrials() {
+  const tbody   = document.getElementById('trials-body');
+  const tfoot   = document.getElementById('trials-foot');
+  const emptyEl = document.getElementById('empty-msg');
+
+  emptyEl.style.display = trials.length ? 'none' : 'block';
+  tbody.innerHTML = '';
+
+  trials.forEach((t, i) => {
+    const tr = document.createElement('tr');
+    if (i === trials.length - 1) tr.classList.add('flash-row');
+    tr.innerHTML = `
+      <td>${t.n}</td>
+      <td class="val-t">${fmt(t.dtA_ms, 2)}</td>
+      <td class="val-v">${fmt(t.vA, 4)}</td>
+      <td class="val-t">${fmt(t.dtB_ms, 2)}</td>
+      <td class="val-v">${fmt(t.vB, 4)}</td>
+      <td>${fmt(t.tFlight, 4)}</td>
+      <td class="val-a">${fmt(t.aMid, 4)}</td>
+      <td class="val-a">${fmt(t.aKin, 4)}</td>
+      <td><button class="del-btn" onclick="deleteTrial(${i})">×</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Stats row (mean ± std)
+  if (trials.length >= 2) {
+    const cols = ['dtA_ms','vA','dtB_ms','vB','tFlight','aMid','aKin'];
+    const stats = cols.map(k => {
+      const vals = trials.map(t => t[k]).filter(v => v !== null && !isNaN(v));
+      if (vals.length < 2) return { mean: vals[0] ?? null, std: null };
+      const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
+      const std  = Math.sqrt(vals.reduce((s, v) => s + (v - mean) ** 2, 0) / (vals.length - 1));
+      return { mean, std };
+    });
+
+    tfoot.innerHTML = `
+      <tr>
+        <td>Mean</td>
+        ${stats.map(s => `<td>${s.mean !== null ? fmt(s.mean, 3) : '—'}</td>`).join('')}
+        <td></td>
+      </tr>
+      <tr>
+        <td>± σ</td>
+        ${stats.map(s => `<td>${s.std !== null ? fmt(s.std, 3) : '—'}</td>`).join('')}
+        <td></td>
+      </tr>
+    `;
+  } else {
+    tfoot.innerHTML = '';
+  }
+
+  // Scroll to bottom
+  const wrap = document.querySelector('.trials-wrap');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  CSV EXPORT
+// ─────────────────────────────────────────────────────────────
+function exportCSV() {
+  if (!trials.length) return;
+  const header = 'trial,dt_A_ms,v_A_ms,dt_B_ms,v_B_ms,t_flight_s,a_mid_ms2,a_kin_ms2';
+  const rows   = trials.map(t =>
+    [t.n, t.dtA_ms??'', t.vA??'', t.dtB_ms??'', t.vB??'',
+     t.tFlight??'', t.aMid??'', t.aKin??''].join(',')
+  );
+  const link = Object.assign(document.createElement('a'), {
+    href:     URL.createObjectURL(new Blob([[header,...rows].join('\n')], {type:'text/csv'})),
+    download: 'two_gate_trials.csv',
+  });
+  link.click();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  KEYBOARD
+// ─────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+  switch (e.code) {
+    case 'KeyQ': e.preventDefault(); toggleGate('a'); break;
+    case 'KeyP': e.preventDefault(); toggleGate('b'); break;
+    case 'KeyS': e.preventDefault();
+      if (!document.getElementById('btn-save').disabled) saveAndNew();
+      break;
+    case 'KeyC': e.preventDefault();
+      if (!document.getElementById('btn-clear').disabled) clearGates();
+      break;
+    case 'KeyE': e.preventDefault(); exportCSV(); break;
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+//  WIDTH CHANGE → re-render velocity
+// ─────────────────────────────────────────────────────────────
+['a-width','b-width'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    renderAllGates();
+    renderDerived();
+  });
+});
+
+// Initial render
+renderAllGates();
+renderDerived();
+renderTrials();
+</script>
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') { document.body.classList.add('light'); btn.textContent = '☽'; }
+  btn.addEventListener('click', () => {
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '☽' : '☀';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  });
+})();
+</script>
+</body>
+</html>

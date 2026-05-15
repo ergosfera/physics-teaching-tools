@@ -1,0 +1,1144 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Class Timer</title>
+
+  <style>
+    /* ---- Design tokens ---- */
+    :root {
+      --bg:           #f1f5f9;
+      --surface:      #ffffff;
+      --surface-alt:  #f8fafc;
+      --border:       #e2e8f0;
+      --text:         #0f172a;
+      --muted:        #64748b;
+      --subtle:       #94a3b8;
+
+      --green:        #059669;
+      --yellow:       #eab308;
+      --red:          #dc2626;
+      --accent:       #4f46e5;
+      --accent-bg:    #eef2ff;
+
+      --radius-sm:    10px;
+      --radius:       16px;
+      --radius-lg:    24px;
+
+      --shadow:       0 1px 4px rgba(0,0,0,.07), 0 0 1px rgba(0,0,0,.05);
+      --shadow-lg:    0 6px 24px rgba(0,0,0,.08), 0 0 1px rgba(0,0,0,.04);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:          #0f172a;
+        --surface:     #1e293b;
+        --surface-alt: #293548;
+        --border:      #334155;
+        --text:        #f1f5f9;
+        --muted:       #94a3b8;
+        --subtle:      #64748b;
+        --shadow:      0 1px 4px rgba(0,0,0,.3), 0 0 1px rgba(0,0,0,.2);
+        --shadow-lg:   0 6px 24px rgba(0,0,0,.35), 0 0 1px rgba(0,0,0,.2);
+      }
+    }
+
+    :root.theme-light {
+      --bg:           #f1f5f9;
+      --surface:      #ffffff;
+      --surface-alt:  #f8fafc;
+      --border:       #e2e8f0;
+      --text:         #0f172a;
+      --muted:        #64748b;
+      --subtle:       #94a3b8;
+      --shadow:       0 1px 4px rgba(0,0,0,.07), 0 0 1px rgba(0,0,0,.05);
+      --shadow-lg:    0 6px 24px rgba(0,0,0,.08), 0 0 1px rgba(0,0,0,.04);
+    }
+
+    :root.theme-dark {
+      --bg:          #0f172a;
+      --surface:     #1e293b;
+      --surface-alt: #293548;
+      --border:      #334155;
+      --text:        #f1f5f9;
+      --muted:       #94a3b8;
+      --subtle:      #64748b;
+      --shadow:      0 1px 4px rgba(0,0,0,.3), 0 0 1px rgba(0,0,0,.2);
+      --shadow-lg:   0 6px 24px rgba(0,0,0,.35), 0 0 1px rgba(0,0,0,.2);
+    }
+
+    /* ---- Reset ---- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    /* ---- App shell ---- */
+    .app {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      gap: 16px;
+    }
+
+    /* ---- Timer card ---- */
+    .timer-card {
+      width: min(900px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+
+    /* Header strip */
+    .timer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .timer-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .header-logo img {
+      max-height: 48px;
+      width: auto;
+      display: block;
+      object-fit: contain;
+    }
+
+    .hidden-img { display: none !important; }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-clock {
+      font-family: ui-monospace, 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      text-align: right;
+      white-space: pre-line;
+      flex: 0 0 auto;
+    }
+
+    /* Timer body */
+    .timer-body {
+      padding: 36px 24px 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* Digits */
+    .digits {
+      font-family: ui-monospace, 'SF Mono', 'Fira Code', monospace;
+      font-size: min(15vw, 150px);
+      line-height: 1;
+      letter-spacing: -0.03em;
+      user-select: none;
+      text-align: center;
+      color: var(--text);
+      transition: color 0.4s ease;
+    }
+
+    .digits.phase-yellow { color: var(--yellow); }
+    .digits.phase-red    { color: var(--red); }
+
+    @keyframes blinkFade {
+      0%,  49% { opacity: 1;    }
+      50%, 100% { opacity: 0.1; }
+    }
+
+    .blink { animation: blinkFade 1s steps(1, end) infinite; }
+
+    /* Progress bar */
+    .progress-wrap {
+      width: 100%;
+      height: 7px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 100%;
+      background: var(--green);
+      border-radius: 999px;
+      transition: width 0.25s linear, background 0.4s ease;
+    }
+
+    /* ---- Controls card ---- */
+    .controls {
+      width: min(900px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--subtle);
+      margin-bottom: 10px;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 16px 0;
+    }
+
+    .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+
+    /* Preset pills */
+    .preset-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .preset-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      cursor: pointer;
+      user-select: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .preset-item:has(input:checked) {
+      border-color: var(--accent);
+      background: var(--accent-bg);
+    }
+
+    .preset-item input { display: none; }
+
+    .preset-item span {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .preset-item:has(input:checked) span { color: var(--accent); }
+
+    /* Inputs */
+    .input-field { display: flex; flex-direction: column; gap: 6px; }
+
+    .input-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    input[type="number"],
+    input[type="text"],
+    input[type="file"] {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="number"] {
+      font-family: ui-monospace, 'SF Mono', 'Fira Code', monospace;
+      font-size: 28px;
+      text-align: center;
+    }
+
+    input[type="text"]  { font-size: 14px; font-weight: 600; }
+    input:focus         { border-color: var(--accent); }
+
+    /* Mode segmented toggle */
+    .mode-toggle {
+      display: inline-flex;
+      background: var(--surface-alt);
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .mode-option {
+      padding: 7px 18px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    }
+
+    .mode-option:has(input:checked) {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+
+    .mode-option input { display: none; }
+
+    /* Checkbox row */
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .checkbox-row input { width: auto; padding: 0; border-radius: 0; }
+
+    /* Logo row */
+    .logo-row { display: flex; gap: 8px; align-items: center; }
+    .logo-row input[type="file"] { flex: 1; }
+
+    /* Buttons */
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 10px 22px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--surface);
+      color: var(--text);
+      transition: background 0.1s, transform 0.08s;
+      white-space: nowrap;
+    }
+
+    button:hover:not(:disabled)  { background: var(--surface-alt); }
+    button:active:not(:disabled) { transform: scale(0.97); }
+    button:disabled               { opacity: 0.38; cursor: not-allowed; }
+
+    .btn-play    { background:#ecfdf5; border-color:#6ee7b7; color:#065f46; }
+    .btn-play:hover:not(:disabled)    { background:#d1fae5; }
+    .btn-pause   { background:#eff6ff; border-color:#93c5fd; color:#1e40af; }
+    .btn-pause:hover:not(:disabled)   { background:#dbeafe; }
+    .btn-stop    { background:#fff1f2; border-color:#fda4af; color:#9f1239; }
+    .btn-stop:hover:not(:disabled)    { background:#ffe4e6; }
+    .btn-set     { background:var(--surface-alt); }
+    .btn-present { background:#f5f3ff; border-color:#c4b5fd; color:#5b21b6; }
+    .btn-present:hover:not(:disabled) { background:#ede9fe; }
+
+    /* Keyboard hint */
+    .hint {
+      text-align: center;
+      font-size: 12px;
+      color: var(--subtle);
+      margin-top: 14px;
+    }
+
+    kbd {
+      display: inline-block;
+      padding: 1px 6px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface-alt);
+    }
+
+    /* Footer */
+    .footer {
+      padding: 10px 0 18px;
+      text-align: center;
+      color: var(--subtle);
+      font-size: 12px;
+    }
+
+    /* Presentation mode */
+    .presentation .controls,
+    .presentation .footer { display: none; }
+
+    .presentation .main { gap: 0; padding: 20px; }
+
+    .hidden { display: none !important; }
+
+    /* Toggle switch */
+    .toggle-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toggle-switch input {
+      display: none;
+    }
+
+    .toggle-switch-slider {
+      position: relative;
+      width: 50px;
+      height: 28px;
+      background: var(--border);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      border: 1.5px solid var(--border);
+    }
+
+    .toggle-switch input:checked + .toggle-switch-slider {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .toggle-switch-slider::after {
+      content: '';
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      background: var(--surface);
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: left 0.3s ease;
+    }
+
+    .toggle-switch input:checked + .toggle-switch-slider::after {
+      left: 26px;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .grid2, .grid3          { grid-template-columns: 1fr; }
+      .timer-header           { flex-direction: column; align-items: flex-start; }
+      .header-clock           { text-align: left; }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app" class="app">
+    <div class="main">
+
+      <!-- Timer display -->
+      <div class="timer-card">
+        <div class="timer-header">
+          <div class="timer-header-left">
+            <div class="header-logo">
+              <img id="logoImg" class="hidden-img" src="" alt="Logo" />
+            </div>
+            <div>
+              <div id="headerLine1" class="header-title">Evaluative Activity</div>
+              <div id="headerLine2" class="header-subtitle">7A</div>
+            </div>
+          </div>
+          <div id="headerRight" class="header-clock"></div>
+        </div>
+
+        <div class="timer-body">
+          <div id="digits" class="digits">00:10:00</div>
+          <div class="progress-wrap">
+            <div id="bar" class="progress-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls">
+
+        <!-- Activity & Class presets -->
+        <div class="section-label">Activity &amp; Class</div>
+        <div class="grid2" style="margin-bottom:16px;">
+          <div class="input-field">
+            <div class="input-label">Activity type</div>
+            <div id="line1PresetList" class="preset-list"></div>
+            <input id="line1Other" type="text" placeholder="Enter custom activity title…" class="hidden" />
+          </div>
+          <div class="input-field">
+            <div class="input-label">Class / Group</div>
+            <div id="line2PresetList" class="preset-list"></div>
+            <input id="line2Other" type="text" placeholder="Enter class or group name…" class="hidden" />
+          </div>
+        </div>
+
+        <!-- Logo + clock toggle -->
+        <div class="grid2" style="margin-bottom:16px;">
+          <div class="input-field">
+            <div class="input-label">Logo (optional)</div>
+            <div class="logo-row">
+              <input id="logoUpload" type="file" accept="image/*" />
+              <button id="clearLogo" type="button" class="btn-set" style="padding:8px 14px;font-size:13px;">Clear</button>
+            </div>
+          </div>
+          <div class="input-field">
+            <div class="input-label">Header clock (end time mode)</div>
+            <label class="checkbox-row">
+              <input id="showClockInfo" type="checkbox" checked />
+              Show "Now / Ends at"
+            </label>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Mode and Theme selectors -->
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:16px;flex:1;min-width:200px;">
+            <div class="section-label" style="margin:0;">Mode</div>
+            <div class="mode-toggle" role="group" aria-label="Timer mode">
+              <label class="mode-option">
+                <input type="radio" name="mode" id="modeDuration" value="duration" checked />
+                Duration
+              </label>
+              <label class="mode-option">
+                <input type="radio" name="mode" id="modeEndtime" value="endtime" />
+                End time
+              </label>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="section-label" style="margin:0;">Dark mode</div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="themeToggle" />
+              <span class="toggle-switch-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Duration inputs -->
+        <div id="durationInputs" class="grid3" style="margin-bottom:16px;">
+          <div class="input-field">
+            <div class="input-label">Hours</div>
+            <input id="h" type="number" min="0" max="99" value="0" />
+          </div>
+          <div class="input-field">
+            <div class="input-label">Minutes</div>
+            <input id="m" type="number" min="0" max="59" value="10" />
+          </div>
+          <div class="input-field">
+            <div class="input-label">Seconds</div>
+            <input id="s" type="number" min="0" max="59" value="0" />
+          </div>
+        </div>
+
+        <!-- End-time inputs -->
+        <div id="endtimeInputs" class="grid3 hidden" style="margin-bottom:16px;">
+          <div class="input-field">
+            <div class="input-label">End Hour (0–23)</div>
+            <input id="endH" type="number" min="0" max="23" value="10" />
+          </div>
+          <div class="input-field">
+            <div class="input-label">End Minute (0–59)</div>
+            <input id="endM" type="number" min="0" max="59" value="30" />
+          </div>
+          <div class="input-field">
+            <div class="input-label">End Second (0–59)</div>
+            <input id="endS" type="number" min="0" max="59" value="0" />
+          </div>
+        </div>
+
+        <!-- Thresholds -->
+        <div class="grid2" style="margin-bottom:16px;">
+          <div class="input-field">
+            <div class="input-label">Yellow when elapsed ≥ (%)</div>
+            <input id="yellowPct" type="number" min="1" max="99" value="80" />
+          </div>
+          <div class="input-field">
+            <div class="input-label">Red when remaining ≤ (%)</div>
+            <input id="redPct" type="number" min="1" max="99" value="10" />
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Control buttons -->
+        <div class="button-row">
+          <button id="play"          class="btn-play"   >▶ Play</button>
+          <button id="pause"         class="btn-pause"  disabled>⏸ Pause</button>
+          <button id="stop"          class="btn-stop"   disabled>⏹ Stop</button>
+          <button id="set"           class="btn-set"    >Set</button>
+          <button id="togglePresent" class="btn-present">⛶ Presentation</button>
+        </div>
+
+        <!-- Keyboard hint -->
+        <div class="hint">
+          <kbd>Space</kbd> Play/Pause &nbsp;·&nbsp;
+          <kbd>R</kbd> Stop &nbsp;·&nbsp;
+          <kbd>Esc</kbd> Toggle controls &nbsp;·&nbsp;
+          <kbd>F11</kbd> Full screen
+        </div>
+      </div>
+
+      <div class="footer">Tip: Press F11 for full screen before projecting.</div>
+    </div>
+  </div>
+
+  <script>
+    // ---- Configurable presets ----
+    // Edit these arrays to add/remove options without touching the HTML.
+    const LINE1_PRESETS = [
+      "Evaluative Activity",
+      "Quiz",
+      "Evaluation",
+      "Regular class",
+      "Classwork",
+      "Other",
+    ];
+
+    const LINE2_PRESETS = [
+      "7C",
+      "8C",
+      "9C",
+      "AP Physics 2",
+      "Other",
+    ];
+
+    // ---- Persist / restore settings ----
+    const saved = (() => {
+      try { return JSON.parse(localStorage.getItem("classTimerSettings") || "{}"); }
+      catch { return {}; }
+    })();
+
+    function saveSettings() {
+      try {
+        localStorage.setItem("classTimerSettings", JSON.stringify({
+          mode:         getMode(),
+          h:            elH.value,
+          m:            elM.value,
+          s:            elS.value,
+          endH:         elEndH.value,
+          endM:         elEndM.value,
+          endS:         elEndS.value,
+          yellowPct:    elYellowPct.value,
+          redPct:       elRedPct.value,
+          line1Preset:  getSelectedRadioValue(line1Radios),
+          line2Preset:  getSelectedRadioValue(line2Radios),
+          line1Other:   line1Other.value,
+          line2Other:   line2Other.value,
+          showClockInfo: showClockInfo.checked,
+          darkMode:     themeToggle.checked,
+        }));
+      } catch { /* storage unavailable */ }
+    }
+
+    // ---- Build preset pills dynamically ----
+    function buildPresets(listId, radioName, presets, defaultValue) {
+      const container = document.getElementById(listId);
+      let found = false;
+      presets.forEach(value => {
+        const label = document.createElement("label");
+        label.className = "preset-item";
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = radioName;
+        input.value = value;
+        if (value === defaultValue) { input.checked = true; found = true; }
+        const span = document.createElement("span");
+        span.textContent = value === "Other" ? "Other…" : value;
+        label.append(input, span);
+        container.appendChild(label);
+      });
+      // Fallback to first if saved value isn't in the list
+      if (!found) container.querySelector("input")?.setAttribute("checked", "");
+    }
+
+    buildPresets("line1PresetList", "line1Preset", LINE1_PRESETS, saved.line1Preset || LINE1_PRESETS[0]);
+    buildPresets("line2PresetList", "line2Preset", LINE2_PRESETS, saved.line2Preset || LINE2_PRESETS[0]);
+
+    // ---- DOM refs ----
+    const app            = document.getElementById("app");
+    const headerLine1    = document.getElementById("headerLine1");
+    const headerLine2    = document.getElementById("headerLine2");
+    const headerRight    = document.getElementById("headerRight");
+    const showClockInfo  = document.getElementById("showClockInfo");
+    const logoImg        = document.getElementById("logoImg");
+    const logoUpload     = document.getElementById("logoUpload");
+    const clearLogo      = document.getElementById("clearLogo");
+    const line1Other     = document.getElementById("line1Other");
+    const line2Other     = document.getElementById("line2Other");
+    const modeDuration   = document.getElementById("modeDuration");
+    const modeEndtime    = document.getElementById("modeEndtime");
+    const durationInputs = document.getElementById("durationInputs");
+    const endtimeInputs  = document.getElementById("endtimeInputs");
+    const elH            = document.getElementById("h");
+    const elM            = document.getElementById("m");
+    const elS            = document.getElementById("s");
+    const elEndH         = document.getElementById("endH");
+    const elEndM         = document.getElementById("endM");
+    const elEndS         = document.getElementById("endS");
+    const elYellowPct    = document.getElementById("yellowPct");
+    const elRedPct       = document.getElementById("redPct");
+    const digits         = document.getElementById("digits");
+    const bar            = document.getElementById("bar");
+    const btnPlay        = document.getElementById("play");
+    const btnPause       = document.getElementById("pause");
+    const btnStop        = document.getElementById("stop");
+    const btnSet         = document.getElementById("set");
+    const btnTogglePresent = document.getElementById("togglePresent");
+    const themeToggle    = document.getElementById("themeToggle");
+
+    // ---- Restore saved settings ----
+    if (saved.mode === "endtime") modeEndtime.checked = true;
+    if (saved.h    != null) elH.value    = saved.h;
+    if (saved.m    != null) elM.value    = saved.m;
+    if (saved.s    != null) elS.value    = saved.s;
+    if (saved.endH != null) elEndH.value = saved.endH;
+    if (saved.endM != null) elEndM.value = saved.endM;
+    if (saved.endS != null) elEndS.value = saved.endS;
+    if (saved.yellowPct != null) elYellowPct.value = saved.yellowPct;
+    if (saved.redPct    != null) elRedPct.value    = saved.redPct;
+    if (saved.line1Other) line1Other.value = saved.line1Other;
+    if (saved.line2Other) line2Other.value = saved.line2Other;
+    if (saved.showClockInfo === false) showClockInfo.checked = false;
+    if (saved.darkMode === true) themeToggle.checked = true;
+
+    // Radios are built after DOM insertion, grab them now
+    let line1Radios = Array.from(document.querySelectorAll('input[name="line1Preset"]'));
+    let line2Radios = Array.from(document.querySelectorAll('input[name="line2Preset"]'));
+
+    // ---- Cached threshold values (read on change, not every tick) ----
+    let yellowPct = clampPct(elYellowPct.value, 80);
+    let redPct    = clampPct(elRedPct.value,    10);
+
+    // ---- Timer state ----
+    let initial     = 0;       // total seconds for this run
+    let remaining   = 0;       // seconds left (frozen when paused)
+    let running     = false;
+    let timerId     = null;
+    let presentation = false;
+    let deadlineMs  = null;    // absolute end timestamp while running
+
+    // ---- Helpers ----
+    function clampInt(v, min, max) {
+      const n = parseInt(v, 10);
+      return Number.isNaN(n) ? min : Math.min(max, Math.max(min, n));
+    }
+
+    function clampPct(v, fallback) {
+      const n = parseInt(v, 10);
+      return Number.isNaN(n) ? fallback : Math.min(99, Math.max(1, n));
+    }
+
+    function pad2(n)  { return String(n).padStart(2, "0"); }
+
+    function formatHHMMSS(total) {
+      total = Math.max(0, Math.floor(total));
+      const hh = Math.floor(total / 3600);
+      const mm = Math.floor((total % 3600) / 60);
+      const ss = total % 60;
+      return `${pad2(hh)}:${pad2(mm)}:${pad2(ss)}`;
+    }
+
+    function formatClock(d) {
+      return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+    }
+
+    function getMode() { return modeEndtime.checked ? "endtime" : "duration"; }
+
+    function inputTotalSecondsDuration() {
+      const h = clampInt(elH.value, 0, 99);
+      const m = clampInt(elM.value, 0, 59);
+      const s = clampInt(elS.value, 0, 59);
+      elH.value = h; elM.value = m; elS.value = s;
+      return h * 3600 + m * 60 + s;
+    }
+
+    // Returns { seconds, rightText, deadlineMs }
+    // Called once per updateUI cycle — result is reused to avoid duplicate work.
+    function computeEndtimeInfo() {
+      const endH = clampInt(elEndH.value, 0, 23);
+      const endM = clampInt(elEndM.value, 0, 59);
+      const endS = clampInt(elEndS.value, 0, 59);
+      elEndH.value = endH; elEndM.value = endM; elEndS.value = endS;
+
+      const now = new Date();
+      const end = new Date(now);
+      end.setHours(endH, endM, endS, 0);
+      if (end <= now) end.setDate(end.getDate() + 1);
+
+      const dl      = end.getTime();
+      const seconds = Math.max(0, Math.ceil((dl - Date.now()) / 1000));
+      const dayLabel = end.toDateString() === now.toDateString() ? "today" : "tomorrow";
+      const rightText =
+        `Now:  ${formatClock(now)}\n` +
+        `Ends: ${pad2(end.getHours())}:${pad2(end.getMinutes())}:${pad2(end.getSeconds())} (${dayLabel})`;
+
+      return { seconds, rightText, deadlineMs: dl };
+    }
+
+    function secondsUntilDeadline() {
+      return deadlineMs ? Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000)) : remaining;
+    }
+
+    // ---- Header presets ----
+    function getSelectedRadioValue(radios) {
+      return radios.find(r => r.checked)?.value ?? "";
+    }
+
+    function updateOtherVisibility() {
+      line1Other.classList.toggle("hidden", getSelectedRadioValue(line1Radios) !== "Other");
+      line2Other.classList.toggle("hidden", getSelectedRadioValue(line2Radios) !== "Other");
+    }
+
+    function computeHeaderLine(radios, otherInput) {
+      const v = getSelectedRadioValue(radios);
+      if (v !== "Other") return v;
+      const typed = (otherInput.value || "").trim();
+      return typed || "Other";
+    }
+
+    function renderHeaderText() {
+      headerLine1.textContent = computeHeaderLine(line1Radios, line1Other);
+      headerLine2.textContent = computeHeaderLine(line2Radios, line2Other);
+    }
+
+    function updatePageTitle() {
+      const secs = initial > 0 ? remaining : (getMode() === "endtime" ? computeEndtimeInfo().seconds : inputTotalSecondsDuration());
+      document.title = `${formatHHMMSS(secs)} — Class Timer`;
+    }
+
+    // ---- Presentation ----
+    function setPresentation(on) {
+      presentation = !!on;
+      app.classList.toggle("presentation", presentation);
+      btnTogglePresent.textContent = presentation ? "⛶ Controls" : "⛶ Presentation";
+    }
+
+    // ---- Theme ----
+    function applyTheme(isDark) {
+      const root = document.documentElement;
+      if (isDark) {
+        root.classList.add("theme-dark");
+        root.classList.remove("theme-light");
+      } else {
+        root.classList.remove("theme-dark");
+        root.classList.remove("theme-light");
+      }
+    }
+
+    // ---- Timer internals ----
+    function clearTimerInterval() {
+      if (timerId) { clearInterval(timerId); timerId = null; }
+    }
+
+    // ---- Header clock (runs every second independently of the countdown) ----
+    function updateHeaderClock() {
+      if (!showClockInfo.checked) {
+        headerRight.textContent = "";
+        return;
+      }
+      const now  = new Date();
+      const mode = getMode();
+
+      if (mode === "endtime") {
+        const endH = clampInt(elEndH.value, 0, 23);
+        const endM = clampInt(elEndM.value, 0, 59);
+        const endS = clampInt(elEndS.value, 0, 59);
+        const end  = new Date(now);
+        end.setHours(endH, endM, endS, 0);
+        if (end <= now) end.setDate(end.getDate() + 1);
+        const dayLabel = end.toDateString() === now.toDateString() ? "today" : "tomorrow";
+        headerRight.textContent =
+          `Now:  ${formatClock(now)}\nEnds: ${pad2(end.getHours())}:${pad2(end.getMinutes())}:${pad2(end.getSeconds())} (${dayLabel})`;
+      } else {
+        // Duration mode — show current time, and projected end if timer is running
+        if (running && deadlineMs) {
+          const end      = new Date(deadlineMs);
+          const dayLabel = end.toDateString() === now.toDateString() ? "today" : "tomorrow";
+          headerRight.textContent =
+            `Now:  ${formatClock(now)}\nEnds: ${pad2(end.getHours())}:${pad2(end.getMinutes())}:${pad2(end.getSeconds())} (${dayLabel})`;
+        } else {
+          headerRight.textContent = `Now:  ${formatClock(now)}`;
+        }
+      }
+    }
+
+    // Tick the header clock every second regardless of whether the countdown is running
+    setInterval(updateHeaderClock, 1000);
+
+    function updateUI() {
+      const mode = getMode();
+
+      // Show correct input panel
+      durationInputs.classList.toggle("hidden", mode !== "duration");
+      endtimeInputs.classList.toggle("hidden",  mode !== "endtime");
+
+      // Compute endtime info once — used for header clock, display seconds, and button state
+      const endInfo = mode === "endtime" ? computeEndtimeInfo() : null;
+
+      // Header right — delegated to dedicated function
+      updateHeaderClock();
+
+      // Sleep-proof: recompute remaining from deadline while running
+      if (running && deadlineMs) {
+        remaining = secondsUntilDeadline();
+        if (remaining === 0) {
+          running = false;
+          clearTimerInterval();
+          deadlineMs = null;
+        }
+      }
+
+      // Display seconds
+      const displaySecs = initial > 0
+        ? remaining
+        : (endInfo ? endInfo.seconds : inputTotalSecondsDuration());
+      digits.textContent = formatHHMMSS(displaySecs);
+
+      updatePageTitle();
+
+      // Blink when done
+      const done = initial > 0 && remaining === 0;
+      digits.classList.toggle("blink", done);
+
+      // Color phase
+      let phase = "normal";
+      if (initial > 0) {
+        const elapsed   = (initial - remaining) / initial;
+        const leftRatio = remaining / initial;
+        if      (leftRatio <= redPct    / 100) phase = "red";
+        else if (elapsed   >= yellowPct / 100) phase = "yellow";
+      }
+      digits.classList.toggle("phase-yellow", phase === "yellow");
+      digits.classList.toggle("phase-red",    phase === "red");
+
+      // Progress bar
+      const ratio = initial > 0 ? Math.max(0, Math.min(1, remaining / initial)) : 1;
+      bar.style.width = (ratio * 100) + "%";
+      bar.style.background =
+        phase === "red"    ? "var(--red)"   :
+        phase === "yellow" ? "var(--yellow)" :
+                             "var(--green)";
+
+      // Button states — use already-computed endInfo to avoid third call
+      const candidate = endInfo ? endInfo.seconds : inputTotalSecondsDuration();
+      btnPause.disabled = !running;
+      btnStop.disabled  = !(running || initial > 0);
+      btnPlay.disabled  = candidate <= 0;
+      btnSet.disabled   = running || candidate <= 0;
+    }
+
+    function setFromInputs() {
+      const total = getMode() === "endtime" ? computeEndtimeInfo().seconds : inputTotalSecondsDuration();
+      if (total <= 0) return;
+      initial = total;
+      remaining = total;
+      running = false;
+      deadlineMs = null;
+      clearTimerInterval();
+      updateUI();
+    }
+
+    function play() {
+      const mode = getMode();
+      if (initial === 0 || remaining === 0) {
+        const total = mode === "endtime" ? computeEndtimeInfo().seconds : inputTotalSecondsDuration();
+        if (total <= 0) return;
+        initial = total;
+        remaining = total;
+      }
+      if (running) return;
+      running = true;
+
+      if (mode === "endtime") {
+        const info = computeEndtimeInfo();
+        deadlineMs = info.deadlineMs;
+        remaining  = info.seconds;
+        initial    = Math.max(1, remaining);
+      } else {
+        deadlineMs = Date.now() + remaining * 1000;
+      }
+
+      clearTimerInterval();
+      timerId = setInterval(() => {
+        remaining = secondsUntilDeadline();
+        if (remaining === 0) {
+          running = false;
+          clearTimerInterval();
+          deadlineMs = null;
+        }
+        updateUI();
+      }, 250);
+
+      updateUI();
+    }
+
+    function pause() {
+      if (!running) return;
+      remaining = secondsUntilDeadline();
+      running = false;
+      deadlineMs = null;
+      clearTimerInterval();
+      updateUI();
+    }
+
+    function stop() {
+      running = false;
+      clearTimerInterval();
+      initial = 0;
+      remaining = 0;
+      deadlineMs = null;
+      updateUI();
+    }
+
+    // ---- Logo ----
+    function setLogoSrc(src) {
+      logoImg.src = src || "";
+      logoImg.classList.toggle("hidden-img", !src);
+    }
+
+    logoUpload.addEventListener("change", () => {
+      const file = logoUpload.files?.[0];
+      if (!file) { setLogoSrc(""); return; }
+      const reader = new FileReader();
+      reader.onload = () => setLogoSrc(String(reader.result || ""));
+      reader.readAsDataURL(file);
+    });
+
+    clearLogo.addEventListener("click", () => { logoUpload.value = ""; setLogoSrc(""); });
+
+    // ---- Preset events ----
+    function attachPresetEvents() {
+      line1Radios = Array.from(document.querySelectorAll('input[name="line1Preset"]'));
+      line2Radios = Array.from(document.querySelectorAll('input[name="line2Preset"]'));
+
+      line1Radios.forEach(r => r.addEventListener("change", () => {
+        updateOtherVisibility(); renderHeaderText(); saveSettings();
+      }));
+      line2Radios.forEach(r => r.addEventListener("change", () => {
+        updateOtherVisibility(); renderHeaderText(); saveSettings();
+      }));
+    }
+    attachPresetEvents();
+
+    line1Other.addEventListener("input", () => { renderHeaderText(); saveSettings(); });
+    line2Other.addEventListener("input", () => { renderHeaderText(); saveSettings(); });
+    showClockInfo.addEventListener("change", () => { saveSettings(); updateUI(); });
+
+    // ---- Mode ----
+    function onModeChange() {
+      running = false; clearTimerInterval();
+      initial = 0; remaining = 0; deadlineMs = null;
+      saveSettings(); updateUI();
+    }
+    modeDuration.addEventListener("change", onModeChange);
+    modeEndtime.addEventListener("change",  onModeChange);
+
+    // ---- Theme ----
+    themeToggle.addEventListener("change", () => {
+      applyTheme(themeToggle.checked);
+      saveSettings();
+    });
+
+    // ---- Threshold inputs (update cached vars on change, not every tick) ----
+    elYellowPct.addEventListener("input", () => {
+      yellowPct = clampPct(elYellowPct.value, 80);
+      saveSettings();
+      if (!running) updateUI();
+    });
+    elRedPct.addEventListener("input", () => {
+      redPct = clampPct(elRedPct.value, 10);
+      saveSettings();
+      if (!running) updateUI();
+    });
+
+    // ---- Time inputs ----
+    [elH, elM, elS, elEndH, elEndM, elEndS].forEach(inp => inp.addEventListener("input", () => {
+      saveSettings();
+      if (!running) updateUI();
+    }));
+
+    // ---- Buttons ----
+    btnSet.addEventListener("click", setFromInputs);
+    btnPlay.addEventListener("click", play);
+    btnPause.addEventListener("click", pause);
+    btnStop.addEventListener("click", stop);
+    btnTogglePresent.addEventListener("click", () => setPresentation(!presentation));
+
+    // ---- Keyboard shortcuts ----
+    function isTypingTarget(el) {
+      return el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    }
+
+    window.addEventListener("keydown", e => {
+      if (isTypingTarget(document.activeElement)) return;
+      if (e.code === "Space")             { e.preventDefault(); running ? pause() : play(); }
+      if (e.key?.toLowerCase() === "r")   { e.preventDefault(); stop(); }
+      if (e.key === "Escape")             { e.preventDefault(); setPresentation(!presentation); }
+    });
+
+    // ---- Wake / tab-focus sync ----
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) updateUI(); });
+    window.addEventListener("focus", updateUI);
+
+    // ---- Init ----
+    updateOtherVisibility();
+    renderHeaderText();
+    setLogoSrc("");
+    applyTheme(themeToggle.checked);
+    updateUI();
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Distance from v-t Graph</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --surface2:#1c2128;
+      --border:  #30363d;
+      --text:    #e6edf3;
+      --muted:   #8b949e;
+      --accent:  #58a6ff;
+      --green:   #3fb950;
+      --yellow:  #d29922;
+      --red:     #f85149;
+      --radius:  8px;
+    }
+    body.light {
+      --bg:      #f6f8fa;
+      --surface: #ffffff;
+      --surface2:#f0f4f8;
+      --border:  #d0d7de;
+      --text:    #1f2328;
+      --muted:   #656d76;
+      --accent:  #0969da;
+      --green:   #1a7f37;
+      --yellow:  #9a6700;
+      --red:     #cf222e;
+    }
+    #theme-toggle {
+      background: var(--surface, #161b22);
+      border: 1px solid var(--border, #30363d);
+      border-radius: 20px;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted, #8b949e);
+      transition: border-color .2s, color .2s;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    #theme-toggle:hover { border-color: var(--accent, #58a6ff); color: var(--accent, #58a6ff); }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 10px 20px 9px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      gap: 16px;
+    }
+    .header-title h1 {
+      font-size: 0.97rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .header-title h1 span { color: var(--accent); }
+    .header-title p {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .sample-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 14px;
+      color: var(--muted);
+      font-size: 0.73rem;
+      cursor: pointer;
+      transition: border-color .12s, color .12s;
+    }
+    .sample-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── WORKSPACE ── */
+    .workspace { flex: 1; display: flex; min-height: 0; }
+
+    /* ── LEFT PANEL ── */
+    .left-panel {
+      width: 270px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-section {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .section-label {
+      font-size: 0.63rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 16px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      position: relative;
+    }
+    .drop-zone:hover,
+    .drop-zone.drag-over { border-color: var(--accent); background: rgba(88,166,255,.05); }
+    .drop-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-zone-icon { font-size: 1.6rem; margin-bottom: 4px; }
+    .drop-zone p { font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
+    .drop-zone p strong { color: var(--accent); }
+
+    .file-name {
+      font-size: 0.72rem;
+      color: var(--green);
+      margin-top: 6px;
+      text-align: center;
+      display: none;
+    }
+
+    /* Column pickers */
+    .col-pickers {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      display: none;
+    }
+    .col-group { display: flex; flex-direction: column; gap: 4px; }
+    .col-group label { font-size: 0.68rem; color: var(--muted); }
+    .col-group select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 4px 6px;
+      font-size: 0.75rem;
+      color: var(--text);
+      outline: none;
+      cursor: pointer;
+    }
+    .col-group select:focus { border-color: var(--accent); }
+
+    /* Data table */
+    .data-table-wrap {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      min-height: 0;
+    }
+    .data-table-wrap::-webkit-scrollbar { width: 4px; }
+    .data-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    #data-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+    #data-table thead th {
+      position: sticky; top: 0; z-index: 1;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: 6px 10px;
+      text-align: right;
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 0.66rem;
+      letter-spacing: 0.05em;
+    }
+    #data-table thead th:first-child { text-align: left; }
+    #data-table tbody td {
+      padding: 4px 10px;
+      border-bottom: 1px solid rgba(48,54,61,.4);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    #data-table tbody td:first-child { text-align: left; color: var(--muted); font-size: 0.7rem; }
+    #data-table tbody tr:last-child td { border-bottom: none; }
+    #data-table tbody tr:hover { background: var(--surface); }
+
+    .empty-hint {
+      text-align: center;
+      color: var(--border);
+      padding: 24px 16px;
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    /* Chart */
+    .chart-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    #chart {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .chart-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 8px;
+      color: var(--border);
+      font-size: 0.9rem;
+      pointer-events: none;
+    }
+    .chart-empty-icon { font-size: 2.5rem; }
+
+    /* Results bar */
+    .results-bar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: stretch;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .result-cell {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px;
+      border-right: 1px solid var(--border);
+      gap: 2px;
+    }
+    .result-cell:last-child { border-right: none; }
+    .result-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .result-value {
+      font-size: 1.25rem;
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+    .result-value.pos  { color: var(--green); font-weight: 500; }
+    .result-value.neg  { color: var(--red);   font-weight: 500; }
+    .result-value.dist { color: var(--accent); font-weight: 500; }
+
+    /* Breakdown table */
+    .breakdown-wrap {
+      height: 36%;
+      overflow-y: auto;
+      min-height: 0;
+      flex-shrink: 0;
+    }
+    .breakdown-wrap::-webkit-scrollbar { width: 4px; }
+    .breakdown-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    #bk-table { width: 100%; border-collapse: collapse; font-size: 0.77rem; }
+    #bk-table thead th {
+      position: sticky; top: 0; z-index: 1;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: 6px 12px;
+      text-align: right;
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 0.65rem;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+    #bk-table thead th:nth-child(1),
+    #bk-table thead th:nth-child(2),
+    #bk-table thead th:nth-child(3) { text-align: left; }
+
+    #bk-table tbody td {
+      padding: 5px 12px;
+      border-bottom: 1px solid rgba(48,54,61,.45);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    #bk-table tbody td:nth-child(1) { width: 10px; padding-right: 0; }
+    #bk-table tbody td:nth-child(2) { text-align: left; color: var(--muted); font-size: 0.72rem; }
+    #bk-table tbody td:nth-child(3) { text-align: left; }
+    #bk-table tbody tr:last-child td { border-bottom: none; }
+    #bk-table tbody tr:hover { background: var(--surface); }
+
+    #bk-table tfoot td {
+      padding: 7px 12px;
+      border-top: 2px solid var(--border);
+      background: var(--surface2);
+      font-weight: 700;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    #bk-table tfoot td:nth-child(1),
+    #bk-table tfoot td:nth-child(2),
+    #bk-table tfoot td:nth-child(3) { text-align: left; }
+
+    .color-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .shape-badge {
+      display: inline-block;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+    .shape-rect { background: rgba(88,166,255,.15); color: var(--accent); }
+    .shape-tri  { background: rgba(63,185,80,.15);  color: var(--green); }
+    .shape-below .shape-tri  { background: rgba(248,81,73,.12); color: var(--red); }
+
+    .area-pos  { color: var(--green); }
+    .area-neg  { color: var(--red); }
+    .area-zero { color: var(--muted); }
+
+    .formula-cell { color: var(--muted); font-size: 0.72rem; }
+
+    /* Below-axis row tint */
+    .row-below td:not(:nth-child(1)) { opacity: 0.85; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <h1>Distance from <span>v-t Graph</span></h1>
+    <p>Area under the curve decomposed into rectangles and triangles — import a CSV with (t, v) data</p>
+  </div>
+  <div class="header-right">
+    <button class="sample-btn" onclick="loadSample()">Load sample data</button>
+    <button id="theme-toggle">☀</button>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- LEFT: import + data table -->
+  <div class="left-panel">
+
+    <div class="panel-section">
+      <div class="section-label">Import CSV</div>
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="file-input" accept=".csv,.txt,.tsv">
+        <div class="drop-zone-icon">📂</div>
+        <p>Drop a <strong>.csv</strong> file here<br>or click to browse</p>
+      </div>
+      <div class="file-name" id="file-name"></div>
+    </div>
+
+    <div class="panel-section" id="col-section" style="display:none">
+      <div class="section-label">Columns</div>
+      <div class="col-pickers" id="col-pickers">
+        <div class="col-group">
+          <label>Time (t)</label>
+          <select id="t-col" onchange="rebuildFromCols()"></select>
+        </div>
+        <div class="col-group">
+          <label>Velocity (v)</label>
+          <select id="v-col" onchange="rebuildFromCols()"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="data-table-wrap">
+      <div class="empty-hint" id="data-empty">
+        Import a CSV to see<br>the data here
+      </div>
+      <table id="data-table" style="display:none">
+        <thead><tr id="data-thead"></tr></thead>
+        <tbody id="data-tbody"></tbody>
+      </table>
+    </div>
+
+  </div><!-- /left-panel -->
+
+  <!-- RIGHT: chart + results + breakdown -->
+  <div class="right-panel">
+
+    <div class="chart-wrap">
+      <canvas id="chart"></canvas>
+      <div class="chart-empty" id="chart-empty">
+        <span class="chart-empty-icon">📈</span>
+        <span>Import a CSV to see the v-t graph</span>
+      </div>
+    </div>
+
+    <div class="results-bar" id="results-bar" style="display:none">
+      <div class="result-cell">
+        <span class="result-label">Segments</span>
+        <span class="result-value" id="res-n">—</span>
+      </div>
+      <div class="result-cell">
+        <span class="result-label">Total shapes</span>
+        <span class="result-value" id="res-shapes">—</span>
+      </div>
+      <div class="result-cell">
+        <span class="result-label">Distance (total path)</span>
+        <span class="result-value dist" id="res-dist">—</span>
+      </div>
+      <div class="result-cell">
+        <span class="result-label">Displacement (signed Δx)</span>
+        <span class="result-value" id="res-disp">—</span>
+      </div>
+    </div>
+
+    <div class="breakdown-wrap" id="breakdown-wrap" style="display:none">
+      <table id="bk-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Interval</th>
+            <th>Shape</th>
+            <th>Formula</th>
+            <th>Area (m)</th>
+          </tr>
+        </thead>
+        <tbody id="bk-tbody"></tbody>
+        <tfoot id="bk-tfoot"></tfoot>
+      </table>
+    </div>
+
+  </div><!-- /right-panel -->
+
+</div><!-- /workspace -->
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  COLOUR PALETTE  (stroke colour — fill = same + opacity)
+// ═══════════════════════════════════════════════════════════
+const PALETTE = [
+  [88,  166, 255],   // blue
+  [63,  185, 80 ],   // green
+  [210, 153, 34 ],   // yellow
+  [188, 140, 255],   // purple
+  [255, 123, 114],   // salmon
+  [86,  211, 100],   // lime
+  [121, 192, 255],   // sky
+  [232, 179, 65 ],   // amber
+  [248, 81,  73 ],   // red
+  [164, 220, 255],   // ice
+];
+
+function rgb(i)        { return PALETTE[i % PALETTE.length]; }
+function stroke(i, a)  { const [r,g,b] = rgb(i); return `rgba(${r},${g},${b},${a})`; }
+function fill(i, a)    { return stroke(i, a); }
+function hexColor(i)   { const [r,g,b] = rgb(i); return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`; }
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+let rawParsed = null;   // { headers:[], rows:[[...]] }
+let points    = [];     // [{ t, v }]
+let segments  = [];     // computed segment objects
+
+// ═══════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════
+function fmt(v, d = 3) {
+  if (v === null || v === undefined || isNaN(v) || !isFinite(v)) return '—';
+  return Number(v).toFixed(d);
+}
+
+function fmtSigned(v, d = 3) {
+  if (v === null || isNaN(v)) return '—';
+  return (v >= 0 ? '+' : '') + fmt(v, d);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CSV PARSING
+// ═══════════════════════════════════════════════════════════
+function detectSep(line) {
+  if (line.includes('\t')) return '\t';
+  if (line.includes(';'))  return ';';
+  return ',';
+}
+
+function parseCSVText(text) {
+  const lines = text
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith('#'));
+  if (!lines.length) return null;
+
+  const sep  = detectSep(lines[0]);
+  const rows  = lines.map(l => l.split(sep).map(c => c.trim().replace(/^"|"$/g, '')));
+  const ncols = Math.max(...rows.map(r => r.length));
+
+  // Detect header row: first row has any non-numeric value
+  const firstNumeric = rows[0].every(c => !isNaN(parseFloat(c)) && c !== '');
+  let headers, data;
+  if (firstNumeric) {
+    headers = rows[0].map((_, i) => `col${i + 1}`);
+    data    = rows;
+  } else {
+    headers = rows[0].map((h, i) => h || `col${i + 1}`);
+    data    = rows.slice(1);
+  }
+
+  // Keep only rows that have at least 2 numeric values
+  data = data.filter(r =>
+    r.length >= 2 && r.filter(c => !isNaN(parseFloat(c)) && c !== '').length >= 2
+  );
+
+  return { headers, rows: data };
+}
+
+function autoDetectCols(headers) {
+  const hh = headers.map(h => h.toLowerCase());
+  const tIdx = hh.findIndex(h => /^t$|time|tiempo|sec|s$/.test(h));
+  const vIdx = hh.findIndex(h => /^v$|veloc|speed|vel|m\/s/.test(h));
+  return {
+    tCol: tIdx >= 0 ? tIdx : 0,
+    vCol: vIdx >= 0 ? vIdx : (tIdx === 0 ? 1 : 0),
+  };
+}
+
+function populateColSelects(headers) {
+  const tSel = document.getElementById('t-col');
+  const vSel = document.getElementById('v-col');
+  tSel.innerHTML = '';
+  vSel.innerHTML = '';
+  headers.forEach((h, i) => {
+    tSel.appendChild(new Option(h, i));
+    vSel.appendChild(new Option(h, i));
+  });
+  const { tCol, vCol } = autoDetectCols(headers);
+  tSel.value = tCol;
+  vSel.value = vCol;
+}
+
+function extractPoints(rows, tCol, vCol) {
+  const pts = rows
+    .map(r => ({ t: parseFloat(r[tCol]), v: parseFloat(r[vCol]) }))
+    .filter(p => !isNaN(p.t) && !isNaN(p.v));
+  pts.sort((a, b) => a.t - b.t);
+  return pts;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SEGMENT + SHAPE COMPUTATION
+// ═══════════════════════════════════════════════════════════
+function computeSegments(pts) {
+  const segs = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const { t: t1, v: v1 } = pts[i];
+    const { t: t2, v: v2 } = pts[i + 1];
+    const dt  = t2 - t1;
+    if (dt <= 0) continue;
+
+    const seg = { idx: i, t1, v1, t2, v2, dt, shapes: [], area: 0, absArea: 0 };
+
+    // ── Zero crossing: two triangles ──────────────────────
+    if ((v1 > 0 && v2 < 0) || (v1 < 0 && v2 > 0)) {
+      const t0  = t1 + dt * Math.abs(v1) / (Math.abs(v1) + Math.abs(v2));
+      const dt1 = t0 - t1;
+      const dt2 = t2 - t0;
+
+      seg.shapes.push({
+        kind:     'triangle',
+        below:    v1 < 0,
+        formula:  `½ × ${fmt(dt1)} × ${fmt(Math.abs(v1))}`,
+        area:     0.5 * dt1 * v1,
+        absArea:  0.5 * dt1 * Math.abs(v1),
+        poly:     [{ t: t1, v: 0 }, { t: t1, v: v1 }, { t: t0, v: 0 }],
+      });
+      seg.shapes.push({
+        kind:     'triangle',
+        below:    v2 < 0,
+        formula:  `½ × ${fmt(dt2)} × ${fmt(Math.abs(v2))}`,
+        area:     0.5 * dt2 * v2,
+        absArea:  0.5 * dt2 * Math.abs(v2),
+        poly:     [{ t: t0, v: 0 }, { t: t2, v: v2 }, { t: t2, v: 0 }],
+      });
+
+    // ── Same sign (or one zero) ────────────────────────────
+    } else {
+      const sign = (v1 <= 0 && v2 <= 0) ? -1 : 1;
+      const a1   = Math.abs(v1);
+      const a2   = Math.abs(v2);
+      const vMin = Math.min(a1, a2);
+      const vMax = Math.max(a1, a2);
+      const below = sign < 0;
+
+      // Rectangle (only if both sides have height)
+      if (vMin > 1e-10) {
+        const rh = sign * vMin;  // signed height
+        seg.shapes.push({
+          kind:    'rectangle',
+          below,
+          formula: `${fmt(dt)} × ${fmt(vMin)}`,
+          area:    dt * rh,
+          absArea: dt * vMin,
+          poly: [
+            { t: t1, v: 0 },
+            { t: t1, v: rh },
+            { t: t2, v: rh },
+            { t: t2, v: 0 },
+          ],
+          divideV: rh,   // y-level of the dividing line (used for dashed separator)
+        });
+      }
+
+      // Triangle (only if the two heights differ)
+      if (vMax - vMin > 1e-10) {
+        const triH  = vMax - vMin;
+        const rBase = sign * vMin;  // top of the rectangle = base of triangle
+        // Right-angle at bottom of the taller side
+        let triPoly;
+        if (a1 >= a2) {
+          // taller on left → right angle at (t1, rBase)
+          triPoly = [
+            { t: t1, v: rBase },
+            { t: t2, v: rBase },
+            { t: t1, v: sign * vMax },
+          ];
+        } else {
+          // taller on right → right angle at (t2, rBase)
+          triPoly = [
+            { t: t1, v: rBase },
+            { t: t2, v: rBase },
+            { t: t2, v: sign * vMax },
+          ];
+        }
+        seg.shapes.push({
+          kind:    'triangle',
+          below,
+          formula: `½ × ${fmt(dt)} × ${fmt(triH)}`,
+          area:    0.5 * dt * triH * sign,
+          absArea: 0.5 * dt * triH,
+          poly:    triPoly,
+        });
+      }
+    }
+
+    seg.area    = seg.shapes.reduce((s, sh) => s + sh.area,    0);
+    seg.absArea = seg.shapes.reduce((s, sh) => s + sh.absArea, 0);
+    segs.push(seg);
+  }
+  return segs;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CHART DRAWING
+// ═══════════════════════════════════════════════════════════
+function niceStep(range, target = 5) {
+  if (range <= 0) return 1;
+  const raw  = range / target;
+  const mag  = Math.pow(10, Math.floor(Math.log10(raw)));
+  const norm = raw / mag;
+  const nice = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
+  return nice * mag;
+}
+
+function cssVar(name) {
+  return getComputedStyle(document.body).getPropertyValue(name).trim();
+}
+
+function drawChart() {
+  const canvas = document.getElementById('chart');
+  const wrap   = canvas.parentElement;
+  const rect   = wrap.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = rect.width  * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const W = rect.width, H = rect.height;
+  const P = { t: 20, r: 20, b: 44, l: 62 };
+  const pw = W - P.l - P.r;
+  const ph = H - P.t - P.b;
+
+  const cBg     = cssVar('--bg');
+  const cMuted  = cssVar('--muted');
+  const cText   = cssVar('--text');
+  const cBorder = cssVar('--border');
+
+  // Axis ranges
+  const ts = points.map(p => p.t);
+  const vs = points.map(p => p.v);
+  let tMin = Math.min(...ts), tMax = Math.max(...ts);
+  let vMin = Math.min(0, ...vs), vMax = Math.max(0, ...vs);
+
+  const tStep = niceStep(tMax - tMin);
+  const vStep = niceStep(vMax - vMin);
+
+  tMin = Math.floor(tMin / tStep) * tStep;
+  tMax = Math.ceil(tMax  / tStep) * tStep + tStep * 0.05;
+  vMin = Math.floor(vMin / vStep) * vStep - vStep * 0.15;
+  vMax = Math.ceil(vMax  / vStep) * vStep + vStep * 0.15;
+
+  const tx = t => P.l + (t - tMin) / (tMax - tMin) * pw;
+  const ty = v => P.t + (1 - (v - vMin) / (vMax - vMin)) * ph;
+  const ty0 = ty(0);   // y-canvas coordinate of v=0
+
+  // ── Background ───────────────────────────────────────────
+  ctx.fillStyle = cBg;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Grid ─────────────────────────────────────────────────
+  ctx.strokeStyle = cBorder;
+  ctx.lineWidth   = 1;
+  ctx.setLineDash([]);
+
+  // vertical (t) grid lines
+  for (let t = tMin; t <= tMax + tStep * 0.01; t += tStep) {
+    const x = tx(t);
+    ctx.beginPath(); ctx.moveTo(x, P.t); ctx.lineTo(x, P.t + ph); ctx.stroke();
+  }
+  // horizontal (v) grid lines
+  for (let v = vMin; v <= vMax + vStep * 0.01; v += vStep) {
+    const y = ty(v);
+    ctx.beginPath(); ctx.moveTo(P.l, y); ctx.lineTo(P.l + pw, y); ctx.stroke();
+  }
+
+  // ── Shaded areas ─────────────────────────────────────────
+  function polyPath(poly) {
+    ctx.beginPath();
+    ctx.moveTo(tx(poly[0].t), ty(poly[0].v));
+    for (let k = 1; k < poly.length; k++) ctx.lineTo(tx(poly[k].t), ty(poly[k].v));
+    ctx.closePath();
+  }
+
+  segments.forEach((seg, si) => {
+    seg.shapes.forEach((sh, shi) => {
+      const isRect = sh.kind === 'rectangle';
+      const alpha  = isRect ? 0.32 : 0.62;
+
+      ctx.fillStyle = fill(si, alpha);
+      polyPath(sh.poly);
+      ctx.fill();
+
+      ctx.strokeStyle = stroke(si, 0.75);
+      ctx.lineWidth   = 1.2;
+      ctx.setLineDash([]);
+      polyPath(sh.poly);
+      ctx.stroke();
+    });
+
+    // ── Dashed dividing line between rect and triangle ────
+    const rectShape = seg.shapes.find(s => s.kind === 'rectangle');
+    const triShape  = seg.shapes.find(s => s.kind === 'triangle');
+    if (rectShape && triShape && rectShape.divideV !== undefined) {
+      ctx.strokeStyle = stroke(si, 0.9);
+      ctx.lineWidth   = 1.5;
+      ctx.setLineDash([5, 4]);
+      const yDiv = ty(rectShape.divideV);
+      ctx.beginPath();
+      ctx.moveTo(tx(seg.t1), yDiv);
+      ctx.lineTo(tx(seg.t2), yDiv);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // ── Area labels inside shapes ─────────────────────────
+    seg.shapes.forEach(sh => {
+      const centT = sh.poly.reduce((s, p) => s + p.t, 0) / sh.poly.length;
+      const centV = sh.poly.reduce((s, p) => s + p.v, 0) / sh.poly.length;
+      const cx = tx(centT), cy = ty(centV);
+
+      // Estimate shape canvas height
+      const ys  = sh.poly.map(p => ty(p.v));
+      const xs  = sh.poly.map(p => tx(p.t));
+      const shH = Math.max(...ys) - Math.min(...ys);
+      const shW = Math.max(...xs) - Math.min(...xs);
+      if (shH < 14 || shW < 32) return;   // too small to label
+
+      const areaText = fmt(sh.absArea, 2) + ' m';
+
+      ctx.font      = 'bold 11px Segoe UI, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Text shadow for legibility
+      ctx.shadowColor   = cBg;
+      ctx.shadowBlur    = 4;
+      ctx.fillStyle     = cText;
+      ctx.fillText(areaText, cx, cy);
+      ctx.shadowBlur    = 0;
+
+      // Also show small formula if there's enough room
+      if (shH > 32 && shW > 72) {
+        ctx.font        = '9px Segoe UI, system-ui, sans-serif';
+        ctx.fillStyle   = cMuted;
+        ctx.shadowColor = cBg; ctx.shadowBlur = 3;
+        ctx.fillText(sh.formula, cx, cy + 14);
+        ctx.shadowBlur  = 0;
+      }
+    });
+  });
+
+  // ── v = 0 axis line ───────────────────────────────────────
+  ctx.strokeStyle = cMuted;
+  ctx.lineWidth   = 1.5;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(P.l, ty0);
+  ctx.lineTo(P.l + pw, ty0);
+  ctx.stroke();
+
+  // ── Tick labels ───────────────────────────────────────────
+  ctx.fillStyle    = cMuted;
+  ctx.font         = '10px Segoe UI, system-ui, sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.textAlign    = 'center';
+  for (let t = tMin; t <= tMax + tStep * 0.01; t += tStep) {
+    ctx.fillText(fmt(t, 1), tx(t), P.t + ph + 6);
+  }
+
+  ctx.textBaseline = 'middle';
+  ctx.textAlign    = 'right';
+  for (let v = vMin; v <= vMax + vStep * 0.01; v += vStep) {
+    ctx.fillText(fmt(v, 1), P.l - 6, ty(v));
+  }
+
+  // Axis name labels
+  ctx.fillStyle    = cMuted;
+  ctx.font         = 'bold 10px Segoe UI, system-ui, sans-serif';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('t  (s)', P.l + pw / 2, H - 2);
+
+  ctx.save();
+  ctx.translate(14, P.t + ph / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('v  (m/s)', 0, 0);
+  ctx.restore();
+
+  // ── v-t Curve ─────────────────────────────────────────────
+  ctx.strokeStyle = cText;
+  ctx.lineWidth   = 2;
+  ctx.lineJoin    = 'round';
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  points.forEach((p, i) => {
+    i === 0 ? ctx.moveTo(tx(p.t), ty(p.v)) : ctx.lineTo(tx(p.t), ty(p.v));
+  });
+  ctx.stroke();
+
+  // ── Data points ───────────────────────────────────────────
+  points.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(tx(p.t), ty(p.v), 4, 0, Math.PI * 2);
+    ctx.fillStyle   = cText;
+    ctx.strokeStyle = cBg;
+    ctx.lineWidth   = 1.5;
+    ctx.fill();
+    ctx.stroke();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DATA TABLE (left panel)
+// ═══════════════════════════════════════════════════════════
+function renderDataTable() {
+  if (!rawParsed) return;
+  const { headers, rows } = rawParsed;
+  const tCol = parseInt(document.getElementById('t-col').value);
+  const vCol = parseInt(document.getElementById('v-col').value);
+
+  const thead = document.getElementById('data-thead');
+  const tbody = document.getElementById('data-tbody');
+
+  thead.innerHTML = headers.map((h, i) =>
+    `<th style="${i===tCol||i===vCol ? 'color:var(--accent)' : ''}">${h}</th>`
+  ).join('');
+
+  tbody.innerHTML = rows.map((r, ri) => `
+    <tr>
+      <td style="color:var(--border);font-size:.65rem">${ri + 1}</td>
+      ${headers.map((_, i) => {
+        const active = i === tCol || i === vCol;
+        return `<td style="${active ? 'color:var(--text)' : ''}">${r[i] ?? ''}</td>`;
+      }).join('')}
+    </tr>
+  `).join('');
+
+  // Adjust thead to include row number
+  thead.innerHTML = `<th style="color:var(--border)">#</th>` + thead.innerHTML;
+
+  document.getElementById('data-empty').style.display  = 'none';
+  document.getElementById('data-table').style.display  = 'table';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BREAKDOWN TABLE + RESULTS
+// ═══════════════════════════════════════════════════════════
+function renderBreakdown() {
+  const tbody = document.getElementById('bk-tbody');
+  const tfoot = document.getElementById('bk-tfoot');
+
+  if (!segments.length) {
+    tbody.innerHTML = '';
+    tfoot.innerHTML = '';
+    return;
+  }
+
+  let totalDist = 0, totalDisp = 0, shapeCount = 0;
+  const rows = [];
+
+  segments.forEach((seg, si) => {
+    const color   = hexColor(si);
+    const iLabel  = `${fmt(seg.t1, 2)}–${fmt(seg.t2, 2)} s`;
+
+    seg.shapes.forEach((sh, shi) => {
+      const isRect  = sh.kind === 'rectangle';
+      const isBelow = sh.below;
+      const aClass  = isBelow ? 'area-neg' : 'area-pos';
+      const aSign   = sh.area >= 0 ? '+' : '';
+      const badge   = isRect
+        ? `<span class="shape-badge shape-rect">rect</span>`
+        : `<span class="shape-badge shape-tri${isBelow ? ' shape-below' : ''}">tri</span>`;
+
+      rows.push(`
+        <tr class="${isBelow ? 'row-below' : ''}">
+          <td>${shi === 0 ? `<span class="color-dot" style="background:${color}"></span>` : ''}</td>
+          <td style="color:var(--muted)">${shi === 0 ? iLabel : ''}</td>
+          <td>${badge}</td>
+          <td class="formula-cell">${sh.formula}</td>
+          <td class="${aClass}">${aSign}${fmt(sh.area, 4)}</td>
+        </tr>
+      `);
+      shapeCount++;
+      totalDist += sh.absArea;
+      totalDisp += sh.area;
+    });
+
+    // Subtotal row for segments with more than one shape
+    if (seg.shapes.length > 1) {
+      const subSign = seg.area >= 0 ? '+' : '';
+      rows.push(`
+        <tr style="background:rgba(255,255,255,.02)">
+          <td></td>
+          <td colspan="2" style="color:var(--muted);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase">Segment total</td>
+          <td></td>
+          <td style="font-weight:700;color:${seg.area < 0 ? 'var(--red)' : 'var(--text)'}">${subSign}${fmt(seg.area, 4)}</td>
+        </tr>
+      `);
+    }
+  });
+
+  tbody.innerHTML = rows.join('');
+
+  const dispSign  = totalDisp >= 0 ? '+' : '';
+  const dispColor = totalDisp >= 0 ? 'var(--green)' : 'var(--red)';
+
+  tfoot.innerHTML = `
+    <tr>
+      <td></td>
+      <td colspan="3">Distance &nbsp;(total path length)</td>
+      <td style="color:var(--accent);font-size:1rem">${fmt(totalDist, 4)} m</td>
+    </tr>
+    <tr>
+      <td></td>
+      <td colspan="3">Displacement &nbsp;(net Δx)</td>
+      <td style="color:${dispColor};font-size:1rem">${dispSign}${fmt(totalDisp, 4)} m</td>
+    </tr>
+  `;
+
+  // Results bar
+  document.getElementById('res-n').textContent      = segments.length;
+  document.getElementById('res-shapes').textContent = shapeCount;
+  document.getElementById('res-dist').textContent   = fmt(totalDist, 3) + ' m';
+
+  const dispEl = document.getElementById('res-disp');
+  dispEl.textContent = dispSign + fmt(totalDisp, 3) + ' m';
+  dispEl.className   = 'result-value ' + (totalDisp >= 0 ? 'pos' : 'neg');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FULL REBUILD
+// ═══════════════════════════════════════════════════════════
+function rebuildAll() {
+  if (!rawParsed || !rawParsed.rows.length) return;
+
+  const tCol = parseInt(document.getElementById('t-col').value);
+  const vCol = parseInt(document.getElementById('v-col').value);
+
+  points   = extractPoints(rawParsed.rows, tCol, vCol);
+  segments = computeSegments(points);
+
+  renderDataTable();
+
+  if (points.length >= 2) {
+    document.getElementById('chart-empty').style.display   = 'none';
+    document.getElementById('results-bar').style.display   = 'flex';
+    document.getElementById('breakdown-wrap').style.display = 'block';
+    drawChart();
+    renderBreakdown();
+  } else {
+    document.getElementById('chart-empty').style.display   = 'flex';
+    document.getElementById('results-bar').style.display   = 'none';
+    document.getElementById('breakdown-wrap').style.display = 'none';
+  }
+}
+
+function rebuildFromCols() { rebuildAll(); }
+
+// ═══════════════════════════════════════════════════════════
+//  FILE LOADING
+// ═══════════════════════════════════════════════════════════
+function loadCSVText(text, name) {
+  const parsed = parseCSVText(text);
+  if (!parsed || !parsed.rows.length) {
+    alert('Could not parse the CSV. Make sure it has at least two numeric columns.');
+    return;
+  }
+  rawParsed = parsed;
+
+  // Show column section
+  document.getElementById('col-section').style.display  = 'block';
+  document.getElementById('col-pickers').style.display  = 'grid';
+
+  populateColSelects(parsed.headers);
+
+  if (name) {
+    const el = document.getElementById('file-name');
+    el.textContent = '✓ ' + name;
+    el.style.display = 'block';
+  }
+
+  rebuildAll();
+}
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => loadCSVText(e.target.result, file.name);
+  reader.readAsText(file);
+}
+
+document.getElementById('file-input').addEventListener('change', e => {
+  handleFile(e.target.files[0]);
+});
+
+// Drag & drop
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('drag-over');
+  handleFile(e.dataTransfer.files[0]);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  SAMPLE DATA
+// ═══════════════════════════════════════════════════════════
+const SAMPLE_CSV = `t,v
+0,0
+4,8
+8,8
+12,4
+14,0
+16,-4
+18,0`;
+
+function loadSample() {
+  loadCSVText(SAMPLE_CSV, 'sample_data.csv');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RESIZE
+// ═══════════════════════════════════════════════════════════
+const ro = new ResizeObserver(() => {
+  if (points.length >= 2) drawChart();
+});
+ro.observe(document.querySelector('.chart-wrap'));
+</script>
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') { document.body.classList.add('light'); btn.textContent = '☽'; }
+  btn.addEventListener('click', () => {
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '☽' : '☀';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    if (points.length >= 2) drawChart();
+  });
+})();
+</script>
+</body>
+</html>

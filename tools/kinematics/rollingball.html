@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rolling Ball — Inclined Plane</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Cormorant+Garamond:wght@500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d1117;
+    --bg2:       #161b22;
+    --border:    #30363d;
+    --ball:      #e05030;
+    --mark:      #3fb950;
+    --mark-glow: #56d364;
+    --amber:     #d29922;
+    --text:      #e6edf3;
+    --text-dim:  #8b949e;
+    --btn-start-bg:  #1e1a0e;
+    --btn-start-hov: #251f10;
+    --row-active-bg: #1e1a0e;
+    --graph-grid:    #21272e;
+    --graph-major:   #404850;
+    --graph-axis:    #606870;
+    --graph-label:   #8b949e;
+  }
+  body.light {
+    --bg:        #f4f1ec;
+    --bg2:       #edeae3;
+    --border:    #d0c9bc;
+    --ball:      #c94820;
+    --mark:      #1a8a60;
+    --mark-glow: #22b87a;
+    --amber:     #b07818;
+    --text:      #2a2420;
+    --text-dim:  #8a8278;
+    --btn-start-bg:  #fff8ee;
+    --btn-start-hov: #fff0d8;
+    --row-active-bg: #fff8ee;
+    --graph-grid:    #d8d4cc;
+    --graph-major:   #a8a49c;
+    --graph-axis:    #706c64;
+    --graph-label:   #8a8278;
+  }
+  #theme-toggle {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 9999;
+    background: var(--bg2, #161b22);
+    border: 1px solid var(--border, #30363d);
+    border-radius: 20px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-dim, #8b949e);
+    transition: border-color .2s, color .2s;
+    user-select: none;
+  }
+  #theme-toggle:hover { border-color: var(--amber, #d29922); color: var(--amber, #d29922); }
+
+  html, body {
+    height: 100%; background: var(--bg); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; overflow: hidden;
+  }
+  body { display: flex; }
+
+  /* ── Left: simulation + buttons ── */
+  #left {
+    width: 65%; height: 100vh;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  #sim-wrap {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg); overflow: hidden;
+  }
+  #canvas { display: block; }
+
+  /* Buttons sit at the bottom of the left panel */
+  #left-controls {
+    flex-shrink: 0;
+    display: flex; gap: 0;
+    border-top: 1px solid var(--border);
+  }
+  #left-controls button {
+    flex: 1; padding: 11px 0;
+    border: none;
+    border-right: 1px solid var(--border);
+    background: var(--bg2); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  #left-controls button:last-child { border-right: none; }
+  #left-controls button:hover { background: var(--border); }
+  #btn-start {
+    color: var(--amber) !important;
+    font-weight: 600 !important;
+    background: var(--btn-start-bg) !important;
+  }
+  #btn-start:hover { background: var(--btn-start-hov) !important; }
+  #btn-start:disabled { opacity: 0.38; cursor: default; }
+  #status-bar {
+    font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--text-dim); text-align: center;
+    padding: 5px 0 6px;
+    background: var(--bg); border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #status-bar.running { color: var(--mark); }
+  #status-bar.done    { color: var(--amber); }
+
+  /* ── Right: 100vh, rigid proportions ── */
+  #right {
+    width: 35%; height: 100vh;
+    display: flex; flex-direction: column;
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  /* Title strip */
+  #panel-title {
+    flex-shrink: 0;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-weight: 600; font-size: 20px; letter-spacing: 0.04em;
+    color: var(--amber);
+    padding: 10px 18px 9px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Stopwatch — 10% of remaining height after title */
+  #stopwatch {
+    flex: 10;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  #sw-label {
+    font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 2px;
+  }
+  #sw-display {
+    font-size: 46px; font-weight: 300; color: var(--amber);
+    line-height: 1; transition: color 0.08s;
+    font-variant-numeric: tabular-nums;
+  }
+  #sw-display.beep { color: var(--ball); }
+  #sw-sub {
+    font-size: 10px; color: var(--text-dim);
+    margin-top: 2px; letter-spacing: 0.1em;
+  }
+
+  /* Table — 30% */
+  #table-section {
+    flex: 30;
+    display: flex; flex-direction: column;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .section-label {
+    font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--text-dim); padding: 7px 14px 5px;
+    background: var(--bg2); border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #table-scroll { flex: 1; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th {
+    color: var(--text-dim); font-weight: 400; font-size: 9px;
+    letter-spacing: 0.12em; text-transform: lowercase;
+    padding: 6px 10px; border-bottom: 1px solid var(--border);
+    text-align: left; background: var(--bg2);
+    position: sticky; top: 0;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody td {
+    padding: 8px 10px; color: var(--text-dim);
+    transition: color 0.3s, background 0.3s;
+  }
+  tbody tr.filled td { color: var(--text); }
+  tbody tr.active { background: var(--row-active-bg); }
+  tbody tr.filled td.mark-cell { color: var(--mark); font-weight: 600; }
+  .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--border); vertical-align: middle;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .dot.lit { background: var(--mark-glow); box-shadow: 0 0 5px var(--mark-glow); }
+
+  /* Graph — 55% */
+  #graph-section {
+    flex: 55;
+    display: flex; flex-direction: column;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    background: var(--bg2);
+  }
+  .graph-label {
+    font-size: 9px; letter-spacing: 0.18em; text-transform: lowercase;
+    color: var(--text-dim); padding: 6px 14px 4px;
+    background: var(--bg2); border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #graph-canvas { flex: 1; width: 100%; display: block; min-height: 0; }
+
+  /* Slider — 5% */
+  #slider-section {
+    flex: 5;
+    display: flex; align-items: center;
+    padding: 0 14px;
+    background: var(--bg);
+    min-height: 28px;
+  }
+  #accel-slider {
+    width: 100%; height: 3px; cursor: pointer;
+    -webkit-appearance: none; appearance: none;
+    background: var(--border); border-radius: 2px; outline: none;
+  }
+  #accel-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 15px; height: 15px; border-radius: 50%;
+    background: var(--amber); cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  #accel-slider::-moz-range-thumb {
+    width: 15px; height: 15px; border-radius: 50%;
+    background: var(--amber); cursor: pointer; border: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ LEFT ═══ -->
+<div id="left">
+  <div id="sim-wrap"><canvas id="canvas"></canvas></div>
+  <div id="left-controls">
+    <button id="btn-start">▶ start</button>
+    <button id="btn-reset">↺ reset</button>
+  </div>
+  <div id="status-bar">ready</div>
+</div>
+
+<!-- ═══ RIGHT ═══ -->
+<div id="right">
+
+  <div id="panel-title">Inclined Plane</div>
+
+  <!-- 10% stopwatch -->
+  <div id="stopwatch">
+    <div id="sw-label">stopwatch</div>
+    <div id="sw-display">0.00</div>
+    <div id="sw-sub">seconds</div>
+  </div>
+
+  <!-- 30% table -->
+  <div id="table-section">
+    <div class="section-label">position at each second</div>
+    <div id="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>t (s)</th>
+            <th>x (cm)</th>
+            <th>x (m)</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 55% graph -->
+  <div id="graph-section">
+    <div class="graph-label">position vs. time</div>
+    <canvas id="graph-canvas"></canvas>
+  </div>
+
+  <!-- 5% slider -->
+  <div id="slider-section">
+    <input type="range" id="accel-slider" min="0.04" max="0.48" step="0.02" value="0.12">
+  </div>
+
+</div>
+
+<script>
+// ── Theme helper ─────────────────────────────────────────────────────────────
+function cssVar(n) { return getComputedStyle(document.body).getPropertyValue(n).trim(); }
+
+// ── Physics ───────────────────────────────────────────────────────────────────
+const TRACK_LEN = 1.50;
+const DURATION  = 5.0;
+const MARKS     = [1, 2, 3, 4, 5];
+
+let accel = 0.12;
+function xAtT(t)    { return 0.5 * accel * t * t; }
+function thetaRad() { return Math.asin(Math.min(accel * 7 / (5 * 9.8), 0.999)); }
+
+// ── Canvases ──────────────────────────────────────────────────────────────────
+const simWrap = document.getElementById('sim-wrap');
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+const gCanvas = document.getElementById('graph-canvas');
+const gCtx    = gCanvas.getContext('2d');
+
+function sizeCanvases() {
+  canvas.width  = simWrap.clientWidth;
+  canvas.height = simWrap.clientHeight;
+  gCanvas.width  = gCanvas.parentElement.clientWidth;
+  gCanvas.height = gCanvas.parentElement.clientHeight
+                   - gCanvas.previousElementSibling.offsetHeight;
+}
+sizeCanvases();
+window.addEventListener('resize', () => { sizeCanvases(); if (!running) { drawSim(0); drawGraph(); } });
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+function layout() {
+  const W = canvas.width, H = canvas.height;
+  const marginX = W * 0.10;
+  const trackPx = W - 2 * marginX;
+  const th  = thetaRad();
+  const dY  = trackPx * Math.sin(th);
+  const ballR = Math.max(9, Math.min(16, W * 0.022));
+  const x0 = marginX,     y0 = H / 2 - dY / 2;
+  const x1 = W - marginX, y1 = H / 2 + dY / 2;
+  return { W, H, x0, y0, x1, y1, ballR };
+}
+
+function trackPoint(dist, lo) {
+  const frac = dist / TRACK_LEN;
+  return {
+    x: lo.x0 + frac * (lo.x1 - lo.x0),
+    y: lo.y0 + frac * (lo.y1 - lo.y0)
+  };
+}
+
+// ── Simulation draw ───────────────────────────────────────────────────────────
+let marks = [];
+
+function drawSim(elapsed) {
+  const lo = layout();
+  const { W, H, x0, y0, x1, y1, ballR } = lo;
+  const th    = thetaRad();
+  const perpX = -Math.sin(th);
+  const perpY = -Math.cos(th);
+  const thick = 7;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = cssVar('--bg'); ctx.fillRect(0, 0, W, H);
+
+  // Ramp body
+  ctx.beginPath();
+  ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+  ctx.lineTo(x1 - perpX * thick, y1 - perpY * thick);
+  ctx.lineTo(x0 - perpX * thick, y0 - perpY * thick);
+  ctx.closePath();
+  const rg = ctx.createLinearGradient(x0, y0, x0 - perpX * thick, y0 - perpY * thick);
+  rg.addColorStop(0, '#c8b898'); rg.addColorStop(1, '#8a7050');
+  ctx.fillStyle = rg; ctx.fill();
+
+  // Edges
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+  ctx.strokeStyle = '#d8c8a8'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x0 - perpX * thick, y0 - perpY * thick);
+  ctx.lineTo(x1 - perpX * thick, y1 - perpY * thick);
+  ctx.strokeStyle = '#7a6040'; ctx.lineWidth = 1; ctx.stroke();
+
+  // Legs
+  [0, TRACK_LEN * 0.5, TRACK_LEN].forEach(d => {
+    const p = trackPoint(d, lo);
+    const baseY = y1 + ballR + 6;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y + thick); ctx.lineTo(p.x, baseY);
+    ctx.strokeStyle = '#9a8060'; ctx.lineWidth = 4;
+    ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
+    ctx.beginPath();
+    ctx.moveTo(p.x - 10, baseY); ctx.lineTo(p.x + 10, baseY);
+    ctx.strokeStyle = '#7a6040'; ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round'; ctx.stroke(); ctx.lineCap = 'butt';
+  });
+
+  // 1.50 m label
+  const midX = (x0 + x1) * 0.5 + perpX * 18;
+  const midY = (y0 + y1) * 0.5 + perpY * 18;
+  ctx.save();
+  ctx.translate(midX, midY); ctx.rotate(-th);
+  ctx.fillStyle = 'rgba(120,100,70,0.5)';
+  ctx.font = '11px JetBrains Mono, monospace';
+  ctx.textAlign = 'center'; ctx.fillText('1.50 m', 0, 0);
+  ctx.restore();
+
+  // Second marks
+  marks.forEach(m => {
+    const p  = trackPoint(m.dist, lo);
+    const bx = p.x + perpX * ballR;
+    ctx.beginPath();
+    ctx.moveTo(bx, p.y - perpY * thick + 2); ctx.lineTo(bx, y1 + ballR + 14);
+    ctx.strokeStyle = 'rgba(26,138,96,0.22)'; ctx.lineWidth = 1;
+    ctx.setLineDash([3, 4]); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#22b87a';
+    ctx.shadowColor = '#22b87a'; ctx.shadowBlur = 6;
+    ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = '#1a8a60';
+    ctx.font = 'bold 10px JetBrains Mono, monospace';
+    ctx.fillText('t=' + m.t + 's', p.x + 6, p.y - 7);
+  });
+
+  // Ball
+  const dist   = Math.min(xAtT(elapsed), TRACK_LEN);
+  const surfPt = trackPoint(dist, lo);
+  const bx = surfPt.x + perpX * ballR;
+  const by = surfPt.y + perpY * ballR;
+
+  ctx.beginPath();
+  ctx.ellipse(surfPt.x + 3, surfPt.y + 2, ballR * 0.8, ballR * 0.3, -th, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fill();
+
+  const bg = ctx.createRadialGradient(
+    bx - ballR * 0.3, by - ballR * 0.35, ballR * 0.05, bx, by, ballR
+  );
+  bg.addColorStop(0, '#f09060');
+  bg.addColorStop(0.45, '#c94820');
+  bg.addColorStop(1, '#601808');
+  ctx.beginPath(); ctx.arc(bx, by, ballR, 0, Math.PI * 2);
+  ctx.fillStyle = bg;
+  ctx.shadowColor = 'rgba(201,72,32,0.28)'; ctx.shadowBlur = 8;
+  ctx.fill(); ctx.shadowBlur = 0;
+
+  if (elapsed > 0.05) {
+    ctx.fillStyle = 'rgba(100,80,50,0.60)';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.fillText('x = ' + (dist * 100).toFixed(1) + ' cm', bx + ballR + 5, by + 3);
+  }
+}
+
+// ── Graph draw — dots only ────────────────────────────────────────────────────
+function drawGraph() {
+  const W = gCanvas.width, H = gCanvas.height;
+  if (W <= 0 || H <= 0) return;
+  gCtx.clearRect(0, 0, W, H);
+  gCtx.fillStyle = cssVar('--bg2'); gCtx.fillRect(0, 0, W, H);
+
+  const padL = 36, padR = 8, padT = 8, padB = 22;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+  const tMax = 5.0, xMax = 150;
+
+  function tx(t) { return padL + (t / tMax) * plotW; }
+  function ty(x) { return padT + plotH - (x / xMax) * plotH; }
+
+  // Minor grid — t every 0.1 s, x every 10 cm
+  gCtx.strokeStyle = cssVar('--graph-grid'); gCtx.lineWidth = 0.8;
+  for (let t = 0; t <= tMax + 0.001; t += 0.1) {
+    gCtx.beginPath(); gCtx.moveTo(tx(t), padT); gCtx.lineTo(tx(t), padT + plotH); gCtx.stroke();
+  }
+  for (let x = 0; x <= xMax; x += 10) {
+    gCtx.beginPath(); gCtx.moveTo(padL, ty(x)); gCtx.lineTo(padL + plotW, ty(x)); gCtx.stroke();
+  }
+
+  // Major grid — t every 1 s, x every 50 cm
+  gCtx.strokeStyle = cssVar('--graph-major'); gCtx.lineWidth = 1.5;
+  for (let t = 0; t <= tMax; t++) {
+    gCtx.beginPath(); gCtx.moveTo(tx(t), padT); gCtx.lineTo(tx(t), padT + plotH); gCtx.stroke();
+  }
+  for (let x = 0; x <= xMax; x += 50) {
+    gCtx.beginPath(); gCtx.moveTo(padL, ty(x)); gCtx.lineTo(padL + plotW, ty(x)); gCtx.stroke();
+  }
+
+  // Axes
+  gCtx.strokeStyle = cssVar('--graph-axis'); gCtx.lineWidth = 1.8;
+  gCtx.beginPath();
+  gCtx.moveTo(padL, padT); gCtx.lineTo(padL, padT + plotH);
+  gCtx.lineTo(padL + plotW, padT + plotH);
+  gCtx.stroke();
+
+  // Tick labels — lowercase
+  gCtx.fillStyle = cssVar('--graph-label'); gCtx.font = '9px JetBrains Mono, monospace';
+  gCtx.textAlign = 'center';
+  for (let t = 0; t <= tMax; t++) gCtx.fillText(t, tx(t), padT + plotH + 11);
+  gCtx.textAlign = 'right';
+  for (let x = 0; x <= xMax; x += 50) gCtx.fillText(x, padL - 4, ty(x) + 3);
+  // axis titles — lowercase
+  gCtx.textAlign = 'center';
+  gCtx.fillText('t (s)', padL + plotW / 2, padT + plotH + 19);
+  gCtx.save();
+  gCtx.translate(9, padT + plotH / 2); gCtx.rotate(-Math.PI / 2);
+  gCtx.fillText('x (cm)', 0, 0);
+  gCtx.restore();
+  gCtx.textAlign = 'left';
+
+  // Dots only
+  marks.forEach(m => {
+    const px = tx(m.t), py = ty(m.dist * 100);
+    gCtx.beginPath(); gCtx.arc(px, py, 5, 0, Math.PI * 2);
+    gCtx.fillStyle = '#22b87a';
+    gCtx.shadowColor = '#22b87a'; gCtx.shadowBlur = 6;
+    gCtx.fill(); gCtx.shadowBlur = 0;
+  });
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+const tbody = document.getElementById('table-body');
+MARKS.forEach(t => {
+  const tr = document.createElement('tr');
+  tr.id = 'row-' + t;
+  tr.innerHTML = `<td><span class="dot" id="dot-${t}"></span></td>
+    <td>${t}</td>
+    <td class="mark-cell" id="xcm-${t}">—</td>
+    <td id="xm-${t}" style="color:var(--text-dim)">—</td>`;
+  tbody.appendChild(tr);
+});
+
+// ── Audio ─────────────────────────────────────────────────────────────────────
+let audioCtx = null;
+function unlockAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function beep(freq = 880, dur = 0.09, vol = 0.4) {
+  try {
+    const ac = audioCtx, osc = ac.createOscillator(), gain = ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.frequency.value = freq; osc.type = 'sine';
+    gain.gain.setValueAtTime(vol, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + dur);
+    osc.start(); osc.stop(ac.currentTime + dur);
+  } catch(e) {}
+}
+const swDisplay = document.getElementById('sw-display');
+function flashSW() {
+  swDisplay.classList.add('beep');
+  setTimeout(() => swDisplay.classList.remove('beep'), 120);
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let running = false, startTime = null, animId = null, nextMark = 1;
+
+function placeMark(t) {
+  const dist = xAtT(t);
+  marks.push({ dist, t });
+  beep(t === 5 ? 1200 : 880); flashSW();
+  const row = document.getElementById('row-' + t);
+  row.classList.add('filled', 'active');
+  document.getElementById('xcm-' + t).textContent = (dist * 100).toFixed(1);
+  document.getElementById('xm-' + t).textContent  = dist.toFixed(3);
+  document.getElementById('dot-' + t).classList.add('lit');
+  setTimeout(() => row.classList.remove('active'), 500);
+  drawGraph();
+}
+
+const statusBar = document.getElementById('status-bar');
+
+function loop(ts) {
+  if (!startTime) startTime = ts;
+  const elapsed = (ts - startTime) / 1000;
+  swDisplay.textContent = Math.min(elapsed, DURATION).toFixed(2);
+  while (nextMark <= 5 && elapsed >= nextMark) { placeMark(nextMark); nextMark++; }
+  drawSim(elapsed);
+  if (elapsed < DURATION) {
+    animId = requestAnimationFrame(loop);
+  } else {
+    drawSim(DURATION);
+    swDisplay.textContent = '5.00';
+    running = false;
+    document.getElementById('btn-start').disabled = false;
+    statusBar.textContent = 'complete';
+    statusBar.className = 'done';
+  }
+}
+
+function doReset() {
+  if (animId) cancelAnimationFrame(animId);
+  running = false; startTime = null; nextMark = 1; marks = [];
+  swDisplay.textContent = '0.00'; swDisplay.classList.remove('beep');
+  MARKS.forEach(t => {
+    document.getElementById('row-' + t).classList.remove('filled', 'active');
+    document.getElementById('xcm-' + t).textContent = '—';
+    document.getElementById('xm-' + t).textContent  = '—';
+    document.getElementById('dot-' + t).classList.remove('lit');
+  });
+  document.getElementById('btn-start').disabled = false;
+  statusBar.textContent = 'ready';
+  statusBar.className = '';
+  drawSim(0); drawGraph();
+}
+
+document.getElementById('btn-start').addEventListener('click', () => {
+  if (running) return;
+  unlockAudio(); running = true; startTime = null;
+  document.getElementById('btn-start').disabled = true;
+  statusBar.textContent = 'running';
+  statusBar.className = 'running';
+  animId = requestAnimationFrame(loop);
+});
+
+document.getElementById('btn-reset').addEventListener('click', doReset);
+
+document.getElementById('accel-slider').addEventListener('input', e => {
+  accel = parseFloat(e.target.value);
+  doReset();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+drawSim(0); drawGraph();
+</script>
+<button id="theme-toggle">☀</button>
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') { document.body.classList.add('light'); btn.textContent = '☽'; drawGraph(); drawSim(0); }
+  btn.addEventListener('click', () => {
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '☽' : '☀';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    drawGraph();
+    if (!running) drawSim(0);
+  });
+})();
+</script>
+</body>
+</html>

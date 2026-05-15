@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vector Components Calculator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --canvas-bg1: #161b22;
+      --canvas-bg2: #0d1117;
+      --grid-color:  #21272e;
+      --axis-color:  #7788bb;
+      --axis-label:  #5588dd;
+      --tag-bg:      rgba(22,27,34,0.95);
+    }
+    body.light {
+      --bg: #eef0f6;
+      --surface: #ffffff;
+      --border: #dde2ec;
+      --text: #334;
+      --muted: #8899aa;
+      --accent: #4455aa;
+      --canvas-bg1: #f9fafd;
+      --canvas-bg2: #f2f4fa;
+      --grid-color:  #dde2ec;
+      --axis-color:  #2a2a44;
+      --axis-label:  #4455aa;
+      --tag-bg:      rgba(255,255,255,0.95);
+    }
+    #theme-toggle {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 9999;
+      background: var(--surface, #161b22);
+      border: 1px solid var(--border, #30363d);
+      border-radius: 20px;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted, #8b949e);
+      transition: border-color .2s, color .2s;
+      user-select: none;
+    }
+    #theme-toggle:hover { border-color: var(--accent, #58a6ff); color: var(--accent, #58a6ff); }
+
+    body {
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 14px 28px;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: var(--text);
+      user-select: none;
+      min-height: 100vh;
+    }
+    h1 {
+      font-size: 1.12rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--text);
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      text-align: center;
+    }
+    p.sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    canvas {
+      border-radius: 10px;
+      touch-action: none;
+      max-width: 100%;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.10);
+    }
+    #mag-row {
+      display: none;
+      align-items: center;
+      gap: 7px;
+      margin-top: 10px;
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+    #mag-row label { font-weight: 600; color: #e03000; }
+    #mag-in {
+      width: 72px;
+      padding: 5px 8px;
+      border: 1.5px solid #e03000;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #e03000;
+      text-align: center;
+      outline: none;
+      background: var(--surface);
+    }
+    #mag-in:focus { box-shadow: 0 0 0 3px rgba(224,48,0,0.18); }
+    #mag-row span { color: #e03000; font-weight: 600; }
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 10px;
+    }
+    .btn {
+      padding: 9px 22px;
+      border: none;
+      border-radius: 7px;
+      font-size: 0.87rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.4px;
+      transition: filter 0.15s, transform 0.1s;
+    }
+    .btn:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+    .btn:active:not(:disabled) { transform: translateY(0); filter: brightness(0.9); }
+    .btn:disabled { opacity: 0.25; cursor: default; transform: none !important; }
+    #btn-dash { background: #e8a800; color: #fff; }
+    #btn-comp { background: #0088bb; color: #fff; }
+    #btn-tri  { background: #7755cc; color: #fff; }
+    #btn-reset { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    .hint {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 8px;
+      text-align: center;
+      line-height: 1.85;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Vector Decomposition into Rectangular Components</h1>
+<p class="sub">Resolving a force into its F&#x2093; and F&#x1D67; components</p>
+
+<canvas id="c" width="700" height="560"></canvas>
+
+<div id="mag-row">
+  <label for="mag-in">|F| =</label>
+  <input type="number" id="mag-in" min="0.1" step="0.1">
+  <span>N</span>
+</div>
+
+<div id="controls">
+  <button class="btn" id="btn-dash" disabled>① Show Projection Lines</button>
+  <button class="btn" id="btn-comp" disabled>② Show Components</button>
+  <button class="btn" id="btn-tri"  style="display:none">③ Triangle</button>
+  <button class="btn" id="btn-reset">↺ Reset</button>
+</div>
+
+<p class="hint">
+  <span style="color:#4466dd;font-weight:600">●</span> Drag handle on x-axis tip to rotate frame &nbsp;·&nbsp;
+  Drag from <span style="font-weight:600;color:#556">origin</span> to draw force &nbsp;·&nbsp;
+  Drag <span style="color:#e03000;font-weight:600">vector tip</span> to reposition &nbsp;·&nbsp;
+  Drag any <span style="font-weight:600;color:#666">label</span> to move it
+</p>
+
+<script>
+// ─── Canvas ────────────────────────────────────────────────────────────────────
+const C   = document.getElementById('c');
+const ctx = C.getContext('2d');
+const W = C.width, H = C.height;
+const OX = W / 2, OY = H / 2;
+
+const PX_N    = 35;    // pixels per Newton (used for grid/ticks only)
+const AXIS    = 245;   // half-axis length px
+const VIS_LEN = 160;   // fixed visual arrow length px (decoupled from magnitude)
+
+// ─── Theme helper ──────────────────────────────────────────────────────────────
+function cssVar(n) { return getComputedStyle(document.body).getPropertyValue(n).trim(); }
+
+// ─── Colours ───────────────────────────────────────────────────────────────────
+const COL = {
+  get grid() { return cssVar('--grid-color'); },
+  get axis() { return cssVar('--axis-color'); },
+  get albl() { return cssVar('--axis-label'); },
+  hdl:  '#4466dd',
+  vec:  '#e03000',
+  xc:   '#0088bb',
+  yc:   '#1e9e1e',
+  dash: '#cc8800',
+  arc:  '#cc5500',
+  ram:  '#996600',
+};
+
+// ─── State ─────────────────────────────────────────────────────────────────────
+let axAngle  = 0;       // CCW positive (math convention)
+let tip      = null;    // {x,y} screen-delta from origin
+let forceMag = 1.0;     // actual force magnitude in N (independent of visual length)
+let showD    = false;
+let showC    = false;
+let compMode = 'rect';  // 'rect' | 'tri'
+
+// Drag state
+let drag          = null;   // 'axis' | 'vec' | 'tip' | 'tag'
+let dragTag       = null;   // key of tag being dragged
+let tagDragStart  = null;   // {mx, my, ox, oy}
+
+// Tag offsets from natural positions (user-dragged)
+let tagOff = { F:{x:0,y:0}, theta:{x:0,y:0}, Fx:{x:0,y:0}, Fy:{x:0,y:0} };
+// Last-drawn tag bounding boxes for hit-testing { key: {x,y,w,h} }
+let tagCtr = {};
+
+// Prevent circular update between input and tip
+let inputBusy = false;
+
+// ─── UI elements ───────────────────────────────────────────────────────────────
+const btnD   = document.getElementById('btn-dash');
+const btnC   = document.getElementById('btn-comp');
+const btnTri = document.getElementById('btn-tri');
+const btnR   = document.getElementById('btn-reset');
+const magIn  = document.getElementById('mag-in');
+const magRow = document.getElementById('mag-row');
+
+// ─── Math ──────────────────────────────────────────────────────────────────────
+function exS() { return { x:  Math.cos(axAngle), y: -Math.sin(axAngle) }; }
+function eyS() { return { x: -Math.sin(axAngle), y: -Math.cos(axAngle) }; }
+function dot2(a,b) { return a.x*b.x + a.y*b.y; }
+
+function decompose(vx,vy) {
+  return { cx: dot2({x:vx,y:vy}, exS()), cy: dot2({x:vx,y:vy}, eyS()) };
+}
+function mag(vx,vy) { return Math.sqrt(vx*vx+vy*vy); }
+function sgn(v)     { return v >= 0 ? 1 : -1; }
+
+function clampVec(vx,vy) {
+  const m = mag(vx,vy);
+  if (m < 1) return {x:0,y:0};
+  const cap = AXIS - 20;   // keep tip within the axis area
+  if (m > cap) return {x:vx/m*cap, y:vy/m*cap};
+  return {x:vx,y:vy};
+}
+
+// ─── Draw primitives ───────────────────────────────────────────────────────────
+function arrow(x1,y1,x2,y2,col,lw,hs) {
+  const dx=x2-x1, dy=y2-y1;
+  if (dx*dx+dy*dy<9) return;
+  const a = Math.atan2(dy,dx);
+  ctx.save();
+  ctx.strokeStyle=col; ctx.fillStyle=col;
+  ctx.lineWidth=lw; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.beginPath();
+  ctx.moveTo(x1,y1);
+  ctx.lineTo(x2-hs*0.75*Math.cos(a), y2-hs*0.75*Math.sin(a));
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-hs*Math.cos(a-0.42), y2-hs*Math.sin(a-0.42));
+  ctx.lineTo(x2-hs*Math.cos(a+0.42), y2-hs*Math.sin(a+0.42));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function dashedLine(x1,y1,x2,y2,col,lw) {
+  ctx.save();
+  ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.lineCap='round';
+  ctx.setLineDash([7,5]);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function rr(x,y,w,h,r) {
+  r = Math.min(r,w/2,h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+// Draw a tag at (nx+off, ny+off), record its bounding box, return drawn center
+function placeTag(key, text, nx, ny, col) {
+  const fx = nx + tagOff[key].x;
+  const fy = ny + tagOff[key].y;
+  ctx.save();
+  ctx.font = 'bold 13px "Courier New", monospace';
+  const tw = ctx.measureText(text).width;
+  const th=14, px=7, py=5;
+  const bw=tw+px*2, bh=th+py*2;
+  const bx=fx-bw/2, by=fy-bh/2;
+
+  ctx.fillStyle = cssVar('--tag-bg');
+  rr(bx,by,bw,bh,5); ctx.fill();
+
+  const active = dragTag === key;
+  ctx.strokeStyle = active ? col : col+'bb';
+  ctx.lineWidth   = active ? 2 : 1.5;
+  rr(bx,by,bw,bh,5); ctx.stroke();
+
+  ctx.fillStyle=col; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(text,fx,fy);
+  ctx.restore();
+
+  tagCtr[key] = {x:fx, y:fy, w:bw, h:bh};
+}
+
+function rightAngleMark(px,py,d1,d2,sz) {
+  const p1x=px+sz*d1.x, p1y=py+sz*d1.y;
+  const p2x=p1x+sz*d2.x, p2y=p1y+sz*d2.y;
+  const p3x=px+sz*d2.x, p3y=py+sz*d2.y;
+  ctx.save();
+  ctx.strokeStyle=COL.ram; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.moveTo(p1x,p1y); ctx.lineTo(p2x,p2y); ctx.lineTo(p3x,p3y); ctx.stroke();
+  ctx.restore();
+}
+
+// ─── Scene ─────────────────────────────────────────────────────────────────────
+function drawBg() {
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0, cssVar('--canvas-bg1')); g.addColorStop(1, cssVar('--canvas-bg2'));
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+}
+
+function drawGrid() {
+  ctx.save();
+  ctx.strokeStyle=COL.grid; ctx.lineWidth=1;
+  for (let x=OX%PX_N; x<W; x+=PX_N) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y=OY%PX_N; y<H; y+=PX_N) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  ctx.restore();
+}
+
+function drawAxes() {
+  const ex=exS(), ey=eyS();
+
+  // Tick marks
+  ctx.save();
+  ctx.strokeStyle='rgba(80,90,140,0.22)'; ctx.lineWidth=1;
+  for (let i=1; i*PX_N<AXIS; i++) {
+    for (const s of [-1,1]) {
+      const tx=OX+s*i*PX_N*ex.x, ty=OY+s*i*PX_N*ex.y;
+      ctx.beginPath(); ctx.moveTo(tx+5*ey.x,ty+5*ey.y); ctx.lineTo(tx-5*ey.x,ty-5*ey.y); ctx.stroke();
+      const ux=OX+s*i*PX_N*ey.x, uy=OY+s*i*PX_N*ey.y;
+      ctx.beginPath(); ctx.moveTo(ux+5*ex.x,uy+5*ex.y); ctx.lineTo(ux-5*ex.x,uy-5*ex.y); ctx.stroke();
+    }
+  }
+  ctx.restore();
+
+  arrow(OX-AXIS*ex.x,OY-AXIS*ex.y, OX+AXIS*ex.x,OY+AXIS*ex.y, COL.axis,1.8,9);
+  arrow(OX-AXIS*ey.x,OY-AXIS*ey.y, OX+AXIS*ey.x,OY+AXIS*ey.y, COL.axis,1.8,9);
+
+  ctx.save();
+  ctx.font='italic bold 18px Georgia,serif'; ctx.fillStyle=COL.albl;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('x', OX+(AXIS+20)*ex.x, OY+(AXIS+20)*ex.y);
+  ctx.fillText('y', OX+(AXIS+20)*ey.x, OY+(AXIS+20)*ey.y);
+  ctx.restore();
+
+  // Origin
+  ctx.save(); ctx.fillStyle=COL.axis;
+  ctx.beginPath(); ctx.arc(OX,OY,4,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // Rotation handle
+  const hx=OX+(AXIS-14)*ex.x, hy=OY+(AXIS-14)*ex.y;
+  ctx.save();
+  ctx.fillStyle=COL.hdl; ctx.strokeStyle='#fff'; ctx.lineWidth=2;
+  ctx.shadowColor='rgba(60,100,220,0.28)'; ctx.shadowBlur=8;
+  ctx.beginPath(); ctx.arc(hx,hy,9,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(hx,hy,4,0.3,Math.PI*1.6); ctx.stroke();
+  const ea=Math.PI*1.6;
+  ctx.fillStyle='rgba(255,255,255,0.85)';
+  ctx.beginPath();
+  ctx.moveTo(hx+4*Math.cos(ea),hy+4*Math.sin(ea));
+  ctx.lineTo(hx+4*Math.cos(ea)-3*Math.cos(ea-1.2),hy+4*Math.sin(ea)-3*Math.sin(ea-1.2));
+  ctx.lineTo(hx+4*Math.cos(ea)-3*Math.cos(ea+1.2),hy+4*Math.sin(ea)-3*Math.sin(ea+1.2));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function drawProjectionLines(vx,vy) {
+  const ex=exS(), ey=eyS();
+  const {cx,cy}=decompose(vx,vy);
+  const tx=OX+vx, ty=OY+vy;
+  const fxx=OX+cx*ex.x, fxy=OY+cx*ex.y;
+  const fyx=OX+cy*ey.x, fyy=OY+cy*ey.y;
+  dashedLine(tx,ty,fxx,fxy,COL.dash,1.8);
+  dashedLine(tx,ty,fyx,fyy,COL.dash,1.8);
+  const SZ=9;
+  if (Math.abs(cx)>14 && Math.abs(cy)>14) {
+    rightAngleMark(fxx,fxy,{x:-sgn(cx)*ex.x,y:-sgn(cx)*ex.y},{x:sgn(cy)*ey.x,y:sgn(cy)*ey.y},SZ);
+    rightAngleMark(fyx,fyy,{x:-sgn(cy)*ey.x,y:-sgn(cy)*ey.y},{x:sgn(cx)*ex.x,y:sgn(cx)*ex.y},SZ);
+  }
+}
+
+function drawComponentArrows(vx,vy) {
+  const ex=exS(), ey=eyS();
+  const {cx,cy}=decompose(vx,vy);
+  const L   = mag(vx,vy);
+  const lw  = 4.5, hs = 13;
+  const off = 26;
+  const SZ  = 9;
+  const fxSign = -sgn(cy||1), fySign = sgn(cx||1);
+
+  if (compMode === 'rect') {
+    // ── Both arrows from origin ────────────────────────────────────────────────
+    const fxx=OX+cx*ex.x, fxy=OY+cx*ex.y;
+    const fyx=OX+cy*ey.x, fyy=OY+cy*ey.y;
+    arrow(OX,OY,fxx,fxy,COL.xc,lw,hs);
+    arrow(OX,OY,fyx,fyy,COL.yc,lw,hs);
+
+    const nFxX = OX+cx*0.5*ex.x + fxSign*off*ey.x;
+    const nFxY = OY+cx*0.5*ex.y + fxSign*off*ey.y;
+    const nFyX = OX+cy*0.5*ey.x + fySign*off*ex.x;
+    const nFyY = OY+cy*0.5*ey.y + fySign*off*ex.y;
+    placeTag('Fx', 'Fx = '+(cx/L*forceMag).toFixed(2)+' N', nFxX, nFxY, COL.xc);
+    placeTag('Fy', 'Fy = '+(cy/L*forceMag).toFixed(2)+' N', nFyX, nFyY, COL.yc);
+
+  } else {
+    // ── Triangle: Fx origin→foot, Fy foot→tip ─────────────────────────────────
+    const ftx=OX+cx*ex.x, fty=OY+cx*ex.y;   // foot of x-component on x-axis
+    const tx=OX+vx,       ty=OY+vy;           // tip of F
+    arrow(OX,OY,ftx,fty,COL.xc,lw,hs);       // Fx
+    arrow(ftx,fty,tx,ty, COL.yc,lw,hs);       // Fy
+
+    // Right-angle mark at the corner (foot)
+    if (Math.abs(cx)>14 && Math.abs(cy)>14) {
+      rightAngleMark(ftx,fty,
+        {x:-sgn(cx)*ex.x, y:-sgn(cx)*ex.y},
+        {x: sgn(cy)*ey.x, y: sgn(cy)*ey.y}, SZ);
+    }
+
+    // Fx label: midpoint of origin→foot, offset along ey
+    const nFxX = OX+cx*0.5*ex.x + fxSign*off*ey.x;
+    const nFxY = OY+cx*0.5*ex.y + fxSign*off*ey.y;
+    // Fy label: midpoint of foot→tip, offset along ex
+    const nFyX = ftx+cy*0.5*ey.x + fySign*off*ex.x;
+    const nFyY = fty+cy*0.5*ey.y + fySign*off*ex.y;
+    placeTag('Fx', 'Fx = '+(cx/L*forceMag).toFixed(2)+' N', nFxX, nFxY, COL.xc);
+    placeTag('Fy', 'Fy = '+(cy/L*forceMag).toFixed(2)+' N', nFyX, nFyY, COL.yc);
+  }
+}
+
+function drawVector(vx,vy) {
+  const tx=OX+vx, ty=OY+vy;
+  const {cx,cy}=decompose(vx,vy);
+
+  // ── Acute angle arc ─────────────────────────────────────────────────────────
+  // refAngle is always in [0°,90°]: angle between F and nearest x half-axis
+  const refAngle    = Math.atan2(Math.abs(cy), Math.abs(cx));
+  const refAngleDeg = refAngle * 180/Math.PI;
+
+  // Start from the nearest x half-axis
+  const startA = cx >= 0 ? -axAngle : -axAngle + Math.PI;
+
+  // Arc direction: must sweep the SHORT way (refAngle) to reach the vector.
+  // The correct anticlockwise flag depends on both cx and cy quadrant.
+  // Derived from canvas geometry: acw iff (cx≥0)===(cy≥0)
+  const acw  = (cx >= 0) === (cy >= 0);
+  const endA = acw ? startA - refAngle : startA + refAngle;
+  const midA = acw ? startA - refAngle/2 : startA + refAngle/2;
+
+  const arcR = 38;
+  if (refAngleDeg > 2) {
+    ctx.save();
+    ctx.strokeStyle=COL.arc; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(OX,OY,arcR,startA,endA,acw); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Vector arrow ─────────────────────────────────────────────────────────────
+  arrow(OX,OY,tx,ty,COL.vec,3.8,14);
+
+  // Tip handle (small ring so user knows it's draggable)
+  ctx.save();
+  ctx.strokeStyle=COL.vec; ctx.fillStyle='#fff'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(tx,ty,5,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.restore();
+
+  // ── |F| tag — at 50% of shaft, perp offset, never on the tip ────────────────
+  const va  = Math.atan2(vy,vx);
+  const pLx = -Math.sin(va), pLy = Math.cos(va);   // left of shaft
+  const pRx =  Math.sin(va), pRy = -Math.cos(va);  // right of shaft
+  // Pick side that is more "upward" on screen (lower canvas y = more visible)
+  const useLeft = pLy <= pRy;
+  const off = 30;
+  const nFX = OX+vx*0.5 + (useLeft ? pLx : pRx)*off;
+  const nFY = OY+vy*0.5 + (useLeft ? pLy : pRy)*off;
+  placeTag('F', '|F| = '+forceMag.toFixed(2)+' N', nFX, nFY, COL.vec);
+
+  // ── θ tag — on the arc bisector ──────────────────────────────────────────────
+  if (refAngleDeg > 4) {
+    const ar = arcR + 26;
+    const nTX = OX + ar*Math.cos(midA);
+    const nTY = OY + ar*Math.sin(midA);
+    placeTag('theta', '\u03b8 = '+refAngleDeg.toFixed(1)+'\u00b0', nTX, nTY, COL.arc);
+  }
+}
+
+function drawOriginHint() {
+  ctx.save();
+  ctx.fillStyle='rgba(80,110,200,0.06)';
+  ctx.strokeStyle='rgba(80,110,200,0.28)';
+  ctx.lineWidth=1.4; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.arc(OX,OY,24,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+// ─── Main draw ─────────────────────────────────────────────────────────────────
+function draw() {
+  tagCtr = {};   // reset hit boxes before re-drawing tags
+  drawBg();
+  drawGrid();
+  if (tip) {
+    if (showD && compMode==='rect') drawProjectionLines(tip.x,tip.y);
+    if (showC) drawComponentArrows(tip.x,tip.y);
+    drawVector(tip.x,tip.y);
+  } else {
+    drawOriginHint();
+  }
+  drawAxes();
+}
+
+// ─── Input helpers ─────────────────────────────────────────────────────────────
+function handlePos() {
+  const ex=exS();
+  return {x:OX+(AXIS-14)*ex.x, y:OY+(AXIS-14)*ex.y};
+}
+function dist2(x1,y1,x2,y2) { return (x2-x1)**2+(y2-y1)**2; }
+
+function hitTag(mx,my) {
+  for (const [key,b] of Object.entries(tagCtr)) {
+    if (Math.abs(mx-b.x) < b.w/2+6 && Math.abs(my-b.y) < b.h/2+6) return key;
+  }
+  return null;
+}
+
+function updateCursor(mx,my) {
+  if (drag) return;
+  const h=handlePos();
+  if (dist2(mx,my,h.x,h.y)<22*22)                              { C.style.cursor='grab'; return; }
+  if (tip && dist2(mx,my,OX+tip.x,OY+tip.y)<22*22)            { C.style.cursor='move'; return; }
+  if (hitTag(mx,my))                                            { C.style.cursor='grab'; return; }
+  if (dist2(mx,my,OX,OY)<30*30)                                { C.style.cursor='crosshair'; return; }
+  C.style.cursor='default';
+}
+
+function onDown(mx,my) {
+  const h=handlePos();
+  if (dist2(mx,my,h.x,h.y)<22*22) {
+    drag='axis'; C.style.cursor='grabbing'; return;
+  }
+  // Tip drag (before origin check)
+  if (tip && dist2(mx,my,OX+tip.x,OY+tip.y)<22*22) {
+    drag='tip'; C.style.cursor='grabbing'; return;
+  }
+  // Tag drag
+  const key = hitTag(mx,my);
+  if (key) {
+    drag='tag'; dragTag=key; C.style.cursor='grabbing';
+    tagDragStart={mx,my,ox:tagOff[key].x,oy:tagOff[key].y};
+    return;
+  }
+  // New vector from origin
+  if (dist2(mx,my,OX,OY)<30*30) {
+    drag='vec';
+    tip=clampVec(mx-OX,my-OY);
+    showD=false; showC=false;
+    forceMag=1.0; compMode='rect';
+    // Reset tag offsets for fresh vector
+    tagOff={F:{x:0,y:0},theta:{x:0,y:0},Fx:{x:0,y:0},Fy:{x:0,y:0}};
+    C.style.cursor='crosshair';
+    updateBtns(); updateMagInput(); draw();
+  }
+}
+
+function onMove(mx,my) {
+  updateCursor(mx,my);
+  if (!drag) return;
+  if (drag==='axis') {
+    axAngle=Math.atan2(-(my-OY),mx-OX);
+  } else if (drag==='tip') {
+    tip=clampVec(mx-OX,my-OY);
+    if (!inputBusy) updateMagInput();
+  } else if (drag==='vec') {
+    tip=clampVec(mx-OX,my-OY);
+    if (!inputBusy) updateMagInput();
+  } else if (drag==='tag') {
+    tagOff[dragTag].x=tagDragStart.ox+(mx-tagDragStart.mx);
+    tagOff[dragTag].y=tagDragStart.oy+(my-tagDragStart.my);
+  }
+  draw();
+}
+
+function onUp() {
+  if (drag==='vec' && tip && mag(tip.x,tip.y)<10) { tip=null; updateBtns(); updateMagInput(); }
+  drag=null; dragTag=null; tagDragStart=null;
+  draw();
+}
+
+function canvasXY(e,isTouch) {
+  const r=C.getBoundingClientRect();
+  const src=isTouch?(e.touches[0]||e.changedTouches[0]):e;
+  return {x:(src.clientX-r.left)*(W/r.width), y:(src.clientY-r.top)*(H/r.height)};
+}
+
+C.addEventListener('mousedown',  e=>{ const p=canvasXY(e); onDown(p.x,p.y); });
+C.addEventListener('mousemove',  e=>{ const p=canvasXY(e); onMove(p.x,p.y); });
+C.addEventListener('mouseup',    ()=> onUp());
+C.addEventListener('mouseleave', ()=>{ if(drag==='vec'){ drag=null; draw(); } });
+
+C.addEventListener('touchstart', e=>{e.preventDefault();const p=canvasXY(e,1);onDown(p.x,p.y);},{passive:false});
+C.addEventListener('touchmove',  e=>{e.preventDefault();const p=canvasXY(e,1);onMove(p.x,p.y);},{passive:false});
+C.addEventListener('touchend',   e=>{e.preventDefault();onUp();},{passive:false});
+
+// ─── Magnitude input ───────────────────────────────────────────────────────────
+function updateMagInput() {
+  if (!tip) { magRow.style.display='none'; return; }
+  magRow.style.display='flex';
+  if (document.activeElement!==magIn) {
+    magIn.value=forceMag.toFixed(2);
+  }
+}
+
+magIn.addEventListener('input', ()=>{
+  if (!tip) return;
+  const val=parseFloat(magIn.value);
+  if (isNaN(val)||val<=0) return;
+  forceMag=val;
+  draw();
+});
+
+// ─── Buttons ───────────────────────────────────────────────────────────────────
+function updateBtns() {
+  btnD.disabled = !tip || showD || compMode==='tri';
+  btnC.disabled = !tip || (!showD && compMode==='rect') || showC;
+  btnTri.style.display   = showC ? '' : 'none';
+  btnTri.textContent     = compMode==='rect' ? '③ Triangle' : '③ Rectangle';
+}
+
+btnD.addEventListener('click',()=>{ if(tip){ showD=true; updateBtns(); draw(); } });
+btnC.addEventListener('click',()=>{ if(tip){ showC=true; updateBtns(); draw(); } });
+btnTri.addEventListener('click',()=>{
+  compMode = compMode==='rect' ? 'tri' : 'rect';
+  // Reset component label offsets so they land at the new natural positions
+  tagOff.Fx={x:0,y:0}; tagOff.Fy={x:0,y:0};
+  updateBtns(); draw();
+});
+btnR.addEventListener('click',()=>{
+  tip=null; showD=false; showC=false; forceMag=1.0; compMode='rect';
+  tagOff={F:{x:0,y:0},theta:{x:0,y:0},Fx:{x:0,y:0},Fy:{x:0,y:0}};
+  tagCtr={};
+  updateBtns(); updateMagInput(); draw();
+});
+
+// ─── Init ──────────────────────────────────────────────────────────────────────
+updateBtns();
+updateMagInput();
+draw();
+</script>
+<button id="theme-toggle">☀</button>
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') { document.body.classList.add('light'); btn.textContent = '☽'; draw(); }
+  btn.addEventListener('click', () => {
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '☽' : '☀';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    draw();
+  });
+})();
+</script>
+</body>
+</html>

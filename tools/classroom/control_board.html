@@ -248,6 +248,38 @@
       margin-top: 2px; letter-spacing: 0.04em;
     }
 
+    /* type chips */
+    .ti-type-bar { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 7px; }
+    .ti-type-chip {
+      background: none; border: 1px solid var(--border); border-radius: 20px;
+      color: var(--muted); font-size: 0.63rem; padding: 2px 8px;
+      cursor: pointer; font-family: inherit; white-space: nowrap;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+    .ti-type-chip:hover {
+      border-color: var(--chip-color, var(--accent));
+      color: var(--chip-color, var(--accent));
+    }
+    .ti-type-chip.active {
+      background: color-mix(in srgb, var(--chip-color, var(--accent)) 18%, transparent);
+      border-color: var(--chip-color, var(--accent));
+      color: var(--chip-color, var(--accent));
+      font-weight: 600;
+    }
+
+    /* duration row */
+    .ti-dur-row {
+      align-items: center; gap: 6px; margin-bottom: 6px;
+      font-size: 0.7rem; color: var(--muted); letter-spacing: 0.06em;
+    }
+    .ti-dur-input {
+      width: 52px; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 4px; color: var(--text); font-size: 0.78rem;
+      padding: 2px 5px; text-align: right;
+      font-family: 'Courier New', monospace; outline: none;
+    }
+    .ti-dur-input:focus { border-color: var(--accent); }
+
     /* progress bar */
     .ti-bar-track {
       height: 6px;
@@ -593,128 +625,190 @@ document.getElementById('btn-cal-today').addEventListener('click', () => {
 
 
 /* ══════════════ COUNTDOWN TIMERS ══════════════ */
+const TIMER_TYPES = {
+  other:    { emoji: '📅', name: 'Event',    color: '#58a6ff' },
+  personal: { emoji: '💛', name: 'Personal', color: '#e11d48' },
+  class:    { emoji: '🏫', name: 'Class',    color: '#0d9488', hasDuration: true },
+  meeting:  { emoji: '📋', name: 'Meeting',  color: '#7c3aed' },
+  deadline: { emoji: '⏰', name: 'Deadline', color: '#d97706' },
+};
+
 function uid() { return Math.random().toString(36).slice(2,9); }
-function loadTimers() { try { return JSON.parse(localStorage.getItem('cb_timers')||'[]'); } catch { return []; } }
+function loadTimers() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('cb_timers') || '[]');
+    return raw.map(t => ({
+      id:       t.id       || uid(),
+      name:     t.name     || '',
+      datetime: t.datetime || '',
+      type:     t.type     || 'other',
+      duration: t.duration || 60,
+    }));
+  } catch { return []; }
+}
 function saveTimers() { localStorage.setItem('cb_timers', JSON.stringify(timerData)); }
 
 let timerData = loadTimers();
 if (!timerData.length) {
-  timerData = Array.from({length:3}, () => ({id:uid(), name:'', datetime:'', startedAt:null}));
+  timerData = Array.from({length: 3}, () => ({id: uid(), name: '', datetime: '', type: 'other', duration: 60}));
   saveTimers();
 }
-// back-fill startedAt for existing timers that have a datetime but no startedAt
-timerData.forEach(t => { if (t.datetime && !t.startedAt) { t.startedAt = Date.now(); } });
-saveTimers();
 
-function fmtCountdown(ms) {
-  const s=Math.floor(ms/1000), D=Math.floor(s/86400),
-        H=Math.floor((s%86400)/3600), M=Math.floor((s%3600)/60), S=s%60;
-  const p = n => String(n).padStart(2,'0');
-  if (D>0) return { text:`${D}d ${p(H)}:${p(M)}:${p(S)}`, label:'days · hh:mm:ss',
-                    level: D<3?'warning':'ok' };
-  return   { text:`${p(H)}:${p(M)}:${p(S)}`, label:'hh : mm : ss',
-             level: H<1?'urgent': H<6?'warning':'ok' };
+function fmtRemaining(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const D = Math.floor(s / 86400), H = Math.floor((s % 86400) / 3600);
+  const M = Math.floor((s % 3600) / 60), S = s % 60;
+  const p = n => String(n).padStart(2, '0');
+  if (D > 0) return `${D}d ${p(H)}:${p(M)}:${p(S)}`;
+  if (H > 0) return `${p(H)}:${p(M)}:${p(S)}`;
+  return `${p(M)}:${p(S)}`;
+}
+
+function agoStr(ms) {
+  const m = Math.floor(ms / 60000);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60), rm = m % 60;
+  return rm ? `${h}h ${rm}m ago` : `${h}h ago`;
 }
 
 function refreshCountdown(wrap, t) {
-  const cEl  = wrap.querySelector('.ti-countdown');
-  const lEl  = wrap.querySelector('.ti-label');
-  const fill = wrap.querySelector('.ti-bar-fill');
-  const track= wrap.querySelector('.ti-bar-track');
+  const cEl   = wrap.querySelector('.ti-countdown');
+  const lEl   = wrap.querySelector('.ti-label');
+  const fill  = wrap.querySelector('.ti-bar-fill');
+  const track = wrap.querySelector('.ti-bar-track');
 
   if (!t.datetime) {
     cEl.className = 'ti-countdown empty'; cEl.textContent = '— : — : —';
-    lEl.textContent = 'set a date & time above';
-    track.style.visibility = 'hidden';
-    return;
+    cEl.style.color = ''; lEl.textContent = 'set a date & time above';
+    track.style.visibility = 'hidden'; return;
   }
   track.style.visibility = 'visible';
 
-  const target = new Date(t.datetime).getTime();
-  const now    = Date.now();
-  const diff   = target - now;
+  const typeInfo  = TIMER_TYPES[t.type] || TIMER_TYPES.other;
+  const typeColor = typeInfo.color;
+  const now   = Date.now();
+  const start = new Date(t.datetime).getTime();
 
-  if (diff <= 0) {
-    cEl.className = 'ti-countdown done'; cEl.textContent = 'Done!';
-    lEl.textContent = new Date(t.datetime).toLocaleString();
-    fill.style.width = '0%'; fill.style.background = 'var(--red)';
+  // Progress bar: urgency kicks in only in the last 4 hours before the event
+  function applyUrgencyBar(remaining) {
+    const WINDOW = 4 * 3600 * 1000;
+    if (remaining > WINDOW) {
+      fill.style.width = '100%'; fill.style.background = 'var(--green)';
+    } else {
+      fill.style.width = (remaining / WINDOW * 100) + '%';
+      fill.style.background = remaining < 3600000 ? 'var(--red)' : 'var(--yellow)';
+    }
+  }
+
+  // ── CLASS: before → during → ended ───────────────────────────────────────
+  if (t.type === 'class') {
+    const durMs = (t.duration || 60) * 60 * 1000;
+    const endMs = start + durMs;
+    if (now < start) {
+      const diff = start - now;
+      cEl.textContent = fmtRemaining(diff); cEl.className = 'ti-countdown';
+      cEl.style.color = diff < 3600000 ? 'var(--red)' : diff < 4*3600000 ? 'var(--yellow)' : typeColor;
+      lEl.textContent = `until class · ${new Date(start).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+      applyUrgencyBar(diff);
+    } else if (now < endMs) {
+      const remaining = endMs - now;
+      cEl.textContent = fmtRemaining(remaining); cEl.className = 'ti-countdown';
+      cEl.style.color = typeColor;
+      fill.style.width = (remaining / durMs * 100) + '%'; fill.style.background = typeColor;
+      lEl.textContent = `in class · ends ${new Date(endMs).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+    } else {
+      cEl.className = 'ti-countdown done'; cEl.textContent = 'Ended'; cEl.style.color = '';
+      lEl.textContent = agoStr(now - endMs);
+      fill.style.width = '0%'; fill.style.background = 'var(--border)';
+    }
     return;
   }
 
-  const fmt = fmtCountdown(diff);
-  cEl.textContent = fmt.text;
-  lEl.textContent = new Date(t.datetime).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
-
-  // progress bar: shrinks left-to-right from 100% → 0%
-  const startedAt = t.startedAt || now;
-  const total     = target - startedAt;
-  const pct       = total > 0 ? Math.max(0, Math.min(100, (diff / total) * 100)) : 100;
-  fill.style.width = pct + '%';
-
-  // bar and countdown text share the same color
-  const barColor = pct <= 7 ? 'var(--red)' : pct <= 25 ? 'var(--yellow)' : 'var(--green)';
-  fill.style.background = barColor;
-  const colorClass = pct <= 7 ? 'urgent' : pct <= 25 ? 'warning' : '';
-  cEl.className = `ti-countdown ${colorClass}`;
-  cEl.style.color = barColor;
+  // ── ALL OTHER TYPES: upcoming → started ──────────────────────────────────
+  if (now < start) {
+    const diff = start - now;
+    cEl.textContent = fmtRemaining(diff); cEl.className = 'ti-countdown';
+    cEl.style.color = diff < 3600000 ? 'var(--red)' : diff < 4*3600000 ? 'var(--yellow)' : typeColor;
+    applyUrgencyBar(diff);
+    lEl.textContent = new Date(start).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  } else {
+    cEl.className = 'ti-countdown done'; cEl.textContent = 'Started'; cEl.style.color = '';
+    lEl.textContent = agoStr(now - start);
+    fill.style.width = '0%'; fill.style.background = 'var(--border)';
+  }
 }
 
 function sortedTimers() {
   const now = Date.now();
-  return timerData
-    .map((t, i) => ({ t, i }))
-    .sort((a, b) => {
-      const rank = t => {
-        if (!t.datetime) return 3e15;           // empty → last
-        const diff = new Date(t.datetime).getTime() - now;
-        if (diff <= 0) return 2e15 + Math.abs(diff); // done → second-to-last (most recent done first)
-        return diff;                             // active → ascending remaining time
-      };
-      return rank(a.t) - rank(b.t);
-    });
+  return timerData.map((t, i) => ({ t, i })).sort((a, b) => {
+    const rank = t => {
+      if (!t.datetime) return 3e15;
+      const start = new Date(t.datetime).getTime();
+      if (t.type === 'class') {
+        const end = start + (t.duration || 60) * 60000;
+        if (now >= start && now < end) return -1e15; // active class → top
+        if (now >= end) return 2e15 + (now - end);
+      }
+      const diff = start - now;
+      return diff <= 0 ? 2e15 + (-diff) : diff;
+    };
+    return rank(a.t) - rank(b.t);
+  });
 }
 
 function renderTimers() {
   const list = document.getElementById('timers-list');
   list.innerHTML = '';
   sortedTimers().forEach(({ t, i }) => {
-    const wrap = document.createElement('div'); wrap.className = 'timer-instance';
-    wrap.dataset.timerIdx = i; // store original index for tick
+    const typeInfo = TIMER_TYPES[t.type] || TIMER_TYPES.other;
+    const wrap = document.createElement('div');
+    wrap.className = 'timer-instance'; wrap.dataset.timerIdx = i;
 
+    // Type chips
+    const typeBar = document.createElement('div'); typeBar.className = 'ti-type-bar';
+    Object.entries(TIMER_TYPES).forEach(([key, info]) => {
+      const chip = document.createElement('button');
+      chip.className = 'ti-type-chip' + (t.type === key ? ' active' : '');
+      chip.textContent = `${info.emoji} ${info.name}`;
+      chip.style.setProperty('--chip-color', info.color);
+      chip.addEventListener('click', () => { timerData[i].type = key; saveTimers(); renderTimers(); });
+      typeBar.appendChild(chip);
+    });
+
+    // Top row
     const top = document.createElement('div'); top.className = 'ti-top';
-
     const nameIn = document.createElement('input');
     nameIn.className = 'ti-name'; nameIn.type = 'text';
-    nameIn.placeholder = `Event ${i+1}`; nameIn.value = t.name;
+    nameIn.placeholder = 'Event name'; nameIn.value = t.name;
     nameIn.addEventListener('input', () => { timerData[i].name = nameIn.value; saveTimers(); });
 
     const dtIn = document.createElement('input');
     dtIn.className = 'ti-datetime'; dtIn.type = 'datetime-local';
-    if (t.datetime) {
-      dtIn.value = t.datetime;
-    } else {
-      const d = new Date(); d.setSeconds(0,0);
-      dtIn.value = d.toISOString().slice(0,16);
-    }
-    dtIn.addEventListener('change', () => {
-      timerData[i].datetime  = dtIn.value;
-      timerData[i].startedAt = dtIn.value ? Date.now() : null;
-      saveTimers(); renderTimers();
-    });
+    dtIn.value = t.datetime || new Date(new Date().setSeconds(0,0)).toISOString().slice(0,16);
+    dtIn.addEventListener('change', () => { timerData[i].datetime = dtIn.value; saveTimers(); renderTimers(); });
 
     const del = document.createElement('button'); del.className = 'ti-del'; del.textContent = '×';
-    del.addEventListener('click', () => { timerData.splice(i,1); saveTimers(); renderTimers(); });
-
+    del.addEventListener('click', () => { timerData.splice(i, 1); saveTimers(); renderTimers(); });
     top.append(nameIn, dtIn, del);
 
-    const cEl = document.createElement('div'); cEl.className = 'ti-countdown empty'; cEl.textContent = '— : — : —';
-    const lEl = document.createElement('div'); lEl.className = 'ti-label'; lEl.textContent = 'set a date & time above';
+    // Duration row (class only)
+    const durRow = document.createElement('div'); durRow.className = 'ti-dur-row';
+    durRow.style.display = typeInfo.hasDuration ? 'flex' : 'none';
+    const durLbl = document.createElement('span'); durLbl.textContent = 'Duration';
+    const durIn  = document.createElement('input');
+    durIn.className = 'ti-dur-input'; durIn.type = 'number';
+    durIn.min = 1; durIn.max = 600; durIn.value = t.duration || 60;
+    durIn.addEventListener('input', () => { timerData[i].duration = parseInt(durIn.value) || 60; saveTimers(); });
+    const durUnit = document.createElement('span'); durUnit.textContent = 'min';
+    durRow.append(durLbl, durIn, durUnit);
 
-    const track = document.createElement('div'); track.className = 'ti-bar-track'; track.style.visibility = 'hidden';
-    const fill  = document.createElement('div'); fill.className = 'ti-bar-fill';
+    const cEl  = document.createElement('div'); cEl.className = 'ti-countdown empty'; cEl.textContent = '— : — : —';
+    const lEl  = document.createElement('div'); lEl.className = 'ti-label';
+    const track= document.createElement('div'); track.className = 'ti-bar-track'; track.style.visibility = 'hidden';
+    const fill = document.createElement('div'); fill.className = 'ti-bar-fill';
     track.appendChild(fill);
 
-    wrap.append(top, cEl, lEl, track);
+    wrap.append(typeBar, top, durRow, cEl, lEl, track);
     list.appendChild(wrap);
     refreshCountdown(wrap, t);
   });
@@ -728,12 +822,7 @@ function updateTabTitle() {
     const diff = new Date(t.datetime).getTime() - now;
     if (diff > 0 && diff < minDiff) { minDiff = diff; nearest = t; }
   });
-  if (nearest) {
-    const fmt = fmtCountdown(minDiff);
-    document.title = `${nearest.name || 'Timer'} · ${fmt.text}`;
-  } else {
-    document.title = 'Control Board';
-  }
+  document.title = nearest ? `${nearest.name || 'Timer'} · ${fmtRemaining(minDiff)}` : 'Control Board';
 }
 
 renderTimers();
@@ -747,7 +836,7 @@ setInterval(() => {
 updateTabTitle();
 
 document.getElementById('btn-add-timer').addEventListener('click', () => {
-  timerData.push({id:uid(), name:'', datetime:'', startedAt:null});
+  timerData.push({ id: uid(), name: '', datetime: '', type: 'other', duration: 60 });
   saveTimers(); renderTimers();
 });
 

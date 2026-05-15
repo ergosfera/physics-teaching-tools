@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vector Addition — Net Force</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --table-head-bg: #1c2128;
+      --canvas-bg1:    #161b22;
+      --canvas-bg2:    #0d1117;
+      --grid-color:    #21272e;
+      --axis-color:    #7788bb;
+      --axis-label:    #5588dd;
+      --fnet-bg1:      #1c2128;
+      --fnet-bg2:      #161b22;
+      --fnet-arrow:    #a8b8e8;
+      --fnet-text:     #c8d8f8;
+      --hint-text:     #3a4a5a;
+    }
+    body.light {
+      --bg: #eef0f6;
+      --surface: #ffffff;
+      --border: #dde2ec;
+      --text: #334;
+      --muted: #8899aa;
+      --accent: #4455aa;
+      --table-head-bg: #f0f2f9;
+      --canvas-bg1:    #f9fafd;
+      --canvas-bg2:    #f2f4fa;
+      --grid-color:    #d8dcea;
+      --axis-color:    #2a2a44;
+      --axis-label:    #4455aa;
+      --fnet-bg1:      #f4f5fb;
+      --fnet-bg2:      #eceef7;
+      --fnet-arrow:    #1a2a4a;
+      --fnet-text:     #1a2a4a;
+      --hint-text:     #aabbcc;
+    }
+    #theme-toggle {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 9999;
+      background: var(--surface, #161b22);
+      border: 1px solid var(--border, #30363d);
+      border-radius: 20px;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted, #8b949e);
+      transition: border-color .2s, color .2s;
+      user-select: none;
+    }
+    #theme-toggle:hover { border-color: var(--accent, #58a6ff); color: var(--accent, #58a6ff); }
+
+    body {
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 14px 20px;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: var(--text);
+      user-select: none;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: var(--text);
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    p.sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    /* ── Two-column layout ── */
+    #main-layout {
+      display: flex;
+      gap: 14px;
+      width: 100%;
+      max-width: 1200px;
+      align-items: flex-start;
+    }
+
+    /* ── LEFT COLUMN ── */
+    #left-col {
+      width: 30%;
+      min-width: 220px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Table card */
+    #table-card {
+      background: var(--surface);
+      border-radius: 10px;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.09);
+      overflow: hidden;
+    }
+
+    #vec-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+
+    #vec-table thead tr {
+      background: var(--table-head-bg);
+    }
+
+    #vec-table th {
+      padding: 7px 5px;
+      font-weight: 700;
+      color: var(--accent);
+      text-align: center;
+      border-bottom: 1.5px solid var(--border);
+      font-size: 0.75rem;
+      letter-spacing: 0.3px;
+    }
+
+    #vec-table td {
+      padding: 5px 4px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    #vec-table tbody tr:last-child td { border-bottom: none; }
+
+    .col-dot {
+      width: 36px;
+    }
+
+    .dot-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      font-weight: 700;
+      font-size: 0.76rem;
+    }
+
+    .dot-circle {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .mag-input {
+      width: 52px;
+      padding: 3px 4px;
+      border: 1.5px solid var(--border);
+      border-radius: 5px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+      background: var(--bg);
+      color: var(--text);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .mag-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(68,119,204,0.18);
+    }
+
+    .ro-cell {
+      color: var(--muted);
+      font-size: 0.77rem;
+      font-weight: 600;
+    }
+
+    /* Fnet row in tfoot */
+    #vec-table tfoot tr {
+      background: #1a2a4a;
+    }
+
+    #vec-table tfoot td {
+      color: #e8eeff;
+      font-weight: 700;
+      font-size: 0.76rem;
+      padding: 6px 4px;
+      border-bottom: none;
+    }
+
+    #fnet-row { display: none; }
+
+    /* Controls */
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .btn {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 7px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: filter 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .btn:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+    .btn:active:not(:disabled) { transform: translateY(0); filter: brightness(0.9); }
+    .btn:disabled { opacity: 0.25; cursor: default; transform: none !important; }
+
+    #btn-remove { background: #e03000; color: #fff; }
+    #btn-fnet   { background: #1a2a4a; color: #e8eeff; }
+    #btn-reset  { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+
+    .hint {
+      font-size: 0.70rem;
+      color: #8899aa;
+      line-height: 1.8;
+      padding: 2px 0;
+    }
+
+    /* ── RIGHT COLUMN ── */
+    #right-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    canvas {
+      border-radius: 10px;
+      touch-action: none;
+      width: 100%;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.10);
+      display: block;
+    }
+
+    #fnet-canvas {
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Vector Addition &mdash; Net Force</h1>
+<p class="sub">Add multiple force vectors and find the resultant</p>
+
+<div id="main-layout">
+
+  <!-- ══ LEFT COLUMN ══ -->
+  <div id="left-col">
+
+    <div id="table-card">
+      <table id="vec-table">
+        <thead>
+          <tr>
+            <th class="col-dot">&#11044;</th>
+            <th>|F|</th>
+            <th>&#952;&#176;</th>
+            <th>Fx</th>
+            <th>Fy</th>
+          </tr>
+        </thead>
+        <tbody id="vec-tbody">
+          <!-- rows injected by JS -->
+        </tbody>
+        <tfoot>
+          <tr id="fnet-row">
+            <td>&Sigma; Fnet</td>
+            <td id="fn-mag">—</td>
+            <td id="fn-ang">—</td>
+            <td id="fn-fx">—</td>
+            <td id="fn-fy">—</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div id="controls">
+      <button class="btn" id="btn-remove">&#8722; Remove</button>
+      <button class="btn" id="btn-fnet">Fnet data</button>
+      <button class="btn" id="btn-reset">&#8635; Reset</button>
+    </div>
+
+    <p class="hint">
+      &#9679; Click near the origin to draw a new vector &nbsp;&bull;&nbsp; Drag a tip to resize and rotate &nbsp;&bull;&nbsp; Rotate the axis handle (blue dot on x-axis) &nbsp;&bull;&nbsp; Edit |F| in the table &nbsp;&bull;&nbsp; Toggle Fnet data to reveal the resultant
+    </p>
+
+  </div>
+
+  <!-- ══ RIGHT COLUMN ══ -->
+  <div id="right-col">
+    <!-- Fnet mini-panel -->
+    <canvas id="fnet-canvas" width="860" height="130"></canvas>
+    <!-- Main canvas -->
+    <canvas id="main-canvas" width="860" height="600"></canvas>
+  </div>
+
+</div>
+
+<script>
+function cssVar(n) { return getComputedStyle(document.body).getPropertyValue(n).trim(); }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS & CONFIG
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const COLORS      = ['#e03000','#0088bb','#1e9e1e','#cc8800','#7755cc','#e0007a','#008866'];
+const MAX_VECTORS = 7;
+const GRID_SPACING = 40; // px
+
+// Canvas logical dimensions
+const MW = 860, MH = 600;  // main canvas
+const FW = 860, FH = 130;  // fnet panel
+
+const MOX = MW / 2, MOY = MH / 2;  // main canvas origin
+
+// Axis half-length (pixels) for rotation handle placement
+const AXIS = Math.min(MW, MH) / 2 - 18;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Each vector: { mag: number, angle: number (radians, math CCW from +x) }
+let vectors = [];
+
+// Rotatable axes state — CCW positive (math convention)
+let axAngle = 0;
+
+// Drag state machine
+// { type: 'axis' }           — rotating the axis handle
+// { type: 'tip', idx }       — dragging existing vector tip
+// { type: 'new', color }     — drawing a new vector (preview)
+// null                        — no drag in progress
+let dragState = null;
+
+// In-progress new vector preview
+let previewVec = null;  // { mag, angle, color } or null
+
+let fnetVisible = false;
+
+// Pulse animation state for origin hint
+let pulseT = 0;
+let pulseRAF = null;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CANVAS SETUP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const MC   = document.getElementById('main-canvas');
+const mctx = MC.getContext('2d');
+
+const FC   = document.getElementById('fnet-canvas');
+const fctx = FC.getContext('2d');
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MATH HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Rotated axis unit vectors (canvas coords)
+function exS() { return { x:  Math.cos(axAngle), y: -Math.sin(axAngle) }; }
+function eyS() { return { x: -Math.sin(axAngle), y: -Math.cos(axAngle) }; }
+function dot2(a, b) { return a.x * b.x + a.y * b.y; }
+
+// Decompose canvas-space vector (vx,vy) into rotated-axis components (cx,cy)
+function decompose(vx, vy) {
+  return {
+    cx: dot2({ x: vx, y: vy }, exS()),
+    cy: dot2({ x: vx, y: vy }, eyS())
+  };
+}
+
+function sgn(v) { return v >= 0 ? 1 : -1; }
+
+function computeScale() {
+  const HALF_MIN = Math.min(MW, MH) / 2 - 35;
+  if (!vectors.length) return HALF_MIN;
+  const maxMag = Math.max(...vectors.map(v => v.mag));
+  return maxMag > 0 ? HALF_MIN / maxMag : HALF_MIN;
+}
+
+// Scale that excludes vector at idx (for tip-dragging that one)
+function computeScaleOthers(excludeIdx) {
+  const HALF_MIN = Math.min(MW, MH) / 2 - 35;
+  const others = vectors.filter((_, i) => i !== excludeIdx);
+  if (!others.length) return HALF_MIN;
+  const maxMag = Math.max(...others.map(v => v.mag));
+  return maxMag > 0 ? HALF_MIN / maxMag : HALF_MIN;
+}
+
+function computeFnet() {
+  // Returns world-axis components (not rotated)
+  let fx = 0, fy = 0;
+  for (const v of vectors) {
+    fx += v.mag * Math.cos(v.angle);
+    fy += v.mag * Math.sin(v.angle);
+  }
+  const mag = Math.sqrt(fx * fx + fy * fy);
+  const angle = Math.atan2(fy, fx);
+  return { fx, fy, mag, angle };
+}
+
+// Acute angle info for a canvas-space displacement (vx, vy) under current axAngle
+function acuteAngleInfo(vx, vy) {
+  const { cx, cy } = decompose(vx, vy);
+  const refAngle    = Math.atan2(Math.abs(cy), Math.abs(cx));  // always 0–90°
+  const refAngleDeg = refAngle * 180 / Math.PI;
+  const startA = cx >= 0 ? -axAngle : -axAngle + Math.PI;
+  const acw    = (cx >= 0) === (cy >= 0);
+  const endA   = acw ? startA - refAngle : startA + refAngle;
+  const midA   = acw ? startA - refAngle / 2 : startA + refAngle / 2;
+  return { cx, cy, refAngle, refAngleDeg, startA, acw, endA, midA };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DRAW PRIMITIVES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function drawArrow(ctx, x1, y1, x2, y2, color, lineWidth, headSize) {
+  const dx = x2 - x1, dy = y2 - y1;
+  if (dx * dx + dy * dy < 4) return;
+  const a = Math.atan2(dy, dx);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle   = color;
+  ctx.lineWidth   = lineWidth;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2 - headSize * 0.75 * Math.cos(a), y2 - headSize * 0.75 * Math.sin(a));
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - headSize * Math.cos(a - 0.42), y2 - headSize * Math.sin(a - 0.42));
+  ctx.lineTo(x2 - headSize * Math.cos(a + 0.42), y2 - headSize * Math.sin(a + 0.42));
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function rightAngleMark(ctx, cornerX, cornerY, d1x, d1y, d2x, d2y, size, color) {
+  const p1x = cornerX + size * d1x;
+  const p1y = cornerY + size * d1y;
+  const p2x = p1x + size * d2x;
+  const p2y = p1y + size * d2y;
+  const p3x = cornerX + size * d2x;
+  const p3y = cornerY + size * d2y;
+  ctx.save();
+  ctx.strokeStyle = color + 'aa';
+  ctx.lineWidth   = 1.3;
+  ctx.beginPath();
+  ctx.moveTo(p1x, p1y);
+  ctx.lineTo(p2x, p2y);
+  ctx.lineTo(p3x, p3y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN CANVAS DRAWING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function drawMainBg() {
+  const g = mctx.createLinearGradient(0, 0, 0, MH);
+  g.addColorStop(0, cssVar('--canvas-bg1'));
+  g.addColorStop(1, cssVar('--canvas-bg2'));
+  mctx.fillStyle = g;
+  mctx.fillRect(0, 0, MW, MH);
+}
+
+function drawMainGrid() {
+  mctx.save();
+  mctx.strokeStyle = cssVar('--grid-color');
+  mctx.lineWidth   = 1;
+  for (let x = MOX % GRID_SPACING; x < MW; x += GRID_SPACING) {
+    mctx.beginPath(); mctx.moveTo(x, 0); mctx.lineTo(x, MH); mctx.stroke();
+  }
+  for (let y = MOY % GRID_SPACING; y < MH; y += GRID_SPACING) {
+    mctx.beginPath(); mctx.moveTo(0, y); mctx.lineTo(MW, y); mctx.stroke();
+  }
+  mctx.restore();
+}
+
+function drawMainAxes() {
+  const ex = exS(), ey = eyS();
+
+  // Draw rotated axes
+  drawArrow(mctx, MOX - AXIS * ex.x, MOY - AXIS * ex.y,
+                  MOX + AXIS * ex.x, MOY + AXIS * ex.y, cssVar('--axis-color'), 1.8, 10);
+  drawArrow(mctx, MOX - AXIS * ey.x, MOY - AXIS * ey.y,
+                  MOX + AXIS * ey.x, MOY + AXIS * ey.y, cssVar('--axis-color'), 1.8, 10);
+
+  // Axis labels
+  mctx.save();
+  mctx.font = 'italic bold 17px Georgia, serif';
+  mctx.fillStyle = cssVar('--axis-label');
+  mctx.textAlign = 'center';
+  mctx.textBaseline = 'middle';
+  mctx.fillText('x', MOX + (AXIS + 18) * ex.x, MOY + (AXIS + 18) * ex.y);
+  mctx.fillText('y', MOX + (AXIS + 18) * ey.x, MOY + (AXIS + 18) * ey.y);
+  mctx.restore();
+
+  // Origin dot
+  mctx.save();
+  mctx.fillStyle = cssVar('--axis-color');
+  mctx.beginPath();
+  mctx.arc(MOX, MOY, 4, 0, Math.PI * 2);
+  mctx.fill();
+  mctx.restore();
+
+  // Axis rotation handle (blue dot on x-axis)
+  const hx = MOX + (AXIS - 14) * ex.x;
+  const hy = MOY + (AXIS - 14) * ex.y;
+  mctx.save();
+  mctx.fillStyle   = '#4466dd';
+  mctx.strokeStyle = '#fff';
+  mctx.lineWidth   = 2;
+  mctx.shadowColor = 'rgba(60,100,220,0.28)';
+  mctx.shadowBlur  = 8;
+  mctx.beginPath();
+  mctx.arc(hx, hy, 9, 0, Math.PI * 2);
+  mctx.fill();
+  mctx.stroke();
+  mctx.shadowBlur = 0;
+  // Small arc decoration inside handle
+  mctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  mctx.lineWidth   = 1.5;
+  mctx.beginPath();
+  mctx.arc(hx, hy, 4, 0.3, Math.PI * 1.6);
+  mctx.stroke();
+  const ea = Math.PI * 1.6;
+  mctx.fillStyle = 'rgba(255,255,255,0.85)';
+  mctx.beginPath();
+  mctx.moveTo(hx + 4 * Math.cos(ea), hy + 4 * Math.sin(ea));
+  mctx.lineTo(hx + 4 * Math.cos(ea) - 3 * Math.cos(ea - 1.2), hy + 4 * Math.sin(ea) - 3 * Math.sin(ea - 1.2));
+  mctx.lineTo(hx + 4 * Math.cos(ea) - 3 * Math.cos(ea + 1.2), hy + 4 * Math.sin(ea) - 3 * Math.sin(ea + 1.2));
+  mctx.closePath();
+  mctx.fill();
+  mctx.restore();
+}
+
+// Draw pulsing hint circle at origin when fewer than MAX_VECTORS
+function drawOriginHint() {
+  if (vectors.length >= MAX_VECTORS) return;
+  const alpha = 0.13 + 0.10 * Math.sin(pulseT);
+  const strokeAlpha = 0.28 + 0.18 * Math.sin(pulseT);
+  mctx.save();
+  mctx.fillStyle   = `rgba(80,110,200,${alpha.toFixed(3)})`;
+  mctx.strokeStyle = `rgba(80,110,200,${strokeAlpha.toFixed(3)})`;
+  mctx.lineWidth   = 1.6;
+  mctx.setLineDash([4, 3]);
+  mctx.beginPath();
+  mctx.arc(MOX, MOY, 28, 0, Math.PI * 2);
+  mctx.fill();
+  mctx.stroke();
+  mctx.setLineDash([]);
+  mctx.restore();
+}
+
+// Draw one vector with rotated-axis components, arc, labels
+function drawSingleVector(idx, scale, color, mag, angle, isPreview) {
+  const vx = mag * scale * Math.cos(angle);
+  const vy = -mag * scale * Math.sin(angle);  // canvas y is down
+
+  const tipX = MOX + vx;
+  const tipY = MOY + vy;
+
+  const { cx, cy } = decompose(vx, vy);
+  const ex = exS(), ey = eyS();
+
+  // Foot on rotated x-axis
+  const fxX = MOX + cx * ex.x;
+  const fxY = MOY + cx * ex.y;
+  // Foot on rotated y-axis
+  const fyX = MOX + cy * ey.x;
+  const fyY = MOY + cy * ey.y;
+
+  // ── Component arrows (thin) ────────────────────────────────────────────────
+  if (Math.abs(cx) > 3) {
+    drawArrow(mctx, MOX, MOY, fxX, fxY, color + 'bb', 1.5, 8);
+  }
+  if (Math.abs(cy) > 3) {
+    drawArrow(mctx, MOX, MOY, fyX, fyY, color + 'bb', 1.5, 8);
+  }
+
+  // ── Dashed projection lines from tip to feet ──────────────────────────────
+  if (Math.abs(cx) > 3 && Math.abs(cy) > 3) {
+    mctx.save();
+    mctx.strokeStyle = color + '88';
+    mctx.lineWidth   = 1.2;
+    mctx.setLineDash([6, 4]);
+    mctx.beginPath(); mctx.moveTo(tipX, tipY); mctx.lineTo(fxX, fxY); mctx.stroke();
+    mctx.beginPath(); mctx.moveTo(tipX, tipY); mctx.lineTo(fyX, fyY); mctx.stroke();
+    mctx.setLineDash([]);
+    mctx.restore();
+  }
+
+  // ── Right-angle marks at feet ─────────────────────────────────────────────
+  const SZ = 8;
+  if (Math.abs(cx) > 16 && Math.abs(cy) > 16) {
+    // At x-foot: d1 = back along x, d2 = toward tip along y
+    rightAngleMark(mctx, fxX, fxY,
+      -sgn(cx) * ex.x, -sgn(cx) * ex.y,
+       sgn(cy) * ey.x,  sgn(cy) * ey.y,
+      SZ, color);
+    // At y-foot: d1 = back along y, d2 = toward tip along x
+    rightAngleMark(mctx, fyX, fyY,
+      -sgn(cy) * ey.x, -sgn(cy) * ey.y,
+       sgn(cx) * ex.x,  sgn(cx) * ex.y,
+      SZ, color);
+  }
+
+  // ── Acute angle arc: from nearest x half-axis to vector ───────────────────
+  const arcR = 32 + idx * 7;
+  const { refAngleDeg, startA, acw, endA, midA } = acuteAngleInfo(vx, vy);
+
+  if (refAngleDeg > 2) {
+    mctx.save();
+    mctx.strokeStyle = color + 'cc';
+    mctx.lineWidth   = 1.8;
+    mctx.beginPath();
+    mctx.arc(MOX, MOY, arcR, startA, endA, acw);
+    mctx.stroke();
+    mctx.restore();
+
+    if (refAngleDeg > 4) {
+      mctx.save();
+      mctx.font      = 'bold 10px "Segoe UI", system-ui, sans-serif';
+      mctx.fillStyle = color;
+      mctx.textAlign = 'center';
+      mctx.textBaseline = 'middle';
+      mctx.fillText(
+        refAngleDeg.toFixed(1) + '°',
+        MOX + (arcR + 16) * Math.cos(midA),
+        MOY + (arcR + 16) * Math.sin(midA)
+      );
+      mctx.restore();
+    }
+  }
+
+  // ── Main thick vector arrow ───────────────────────────────────────────────
+  const opacity = isPreview ? 'cc' : '';
+  drawArrow(mctx, MOX, MOY, tipX, tipY, color + opacity, isPreview ? 2.5 : 3.2, 13);
+
+  // ── Tip drag handle ───────────────────────────────────────────────────────
+  if (!isPreview) {
+    mctx.save();
+    mctx.fillStyle   = '#fff';
+    mctx.strokeStyle = color;
+    mctx.lineWidth   = 2;
+    mctx.beginPath();
+    mctx.arc(tipX, tipY, 6, 0, Math.PI * 2);
+    mctx.fill();
+    mctx.stroke();
+    mctx.restore();
+  }
+
+  // ── Label at shaft midpoint ───────────────────────────────────────────────
+  if (!isPreview) {
+    const label      = 'F' + (idx + 1);
+    const midX       = MOX + vx * 0.5;
+    const midY       = MOY + vy * 0.5;
+    const shaftAngle = Math.atan2(vy, vx);
+    const perpX      = -Math.sin(shaftAngle);
+    const perpY      =  Math.cos(shaftAngle);
+    const lx = midX + perpX * 16;
+    const ly = midY + perpY * 16;
+
+    mctx.save();
+    mctx.font        = 'bold 12px "Segoe UI", system-ui, sans-serif';
+    mctx.fillStyle   = color;
+    mctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    mctx.lineWidth   = 3;
+    mctx.textAlign   = 'center';
+    mctx.textBaseline = 'middle';
+    mctx.strokeText(label, lx, ly);
+    mctx.fillText(label, lx, ly);
+    mctx.restore();
+  }
+}
+
+function drawMain() {
+  mctx.clearRect(0, 0, MW, MH);
+  drawMainBg();
+  drawMainGrid();
+
+  // Pulsing origin hint circle (drawn before axes/vectors so it's underneath)
+  drawOriginHint();
+
+  // Draw existing vectors
+  const scale = computeScale();
+  for (let i = 0; i < vectors.length; i++) {
+    drawSingleVector(i, scale, COLORS[i % COLORS.length], vectors[i].mag, vectors[i].angle, false);
+  }
+
+  // Draw preview vector (during new-vector drag)
+  if (previewVec) {
+    // Scale preview using computeScale() (existing vectors only, preview not yet committed)
+    drawSingleVector(vectors.length, scale, previewVec.color, previewVec.mag, previewVec.angle, true);
+  }
+
+  // Hint text when empty and no preview
+  if (vectors.length === 0 && !previewVec) {
+    mctx.save();
+    mctx.font      = '15px "Segoe UI", system-ui, sans-serif';
+    mctx.fillStyle = cssVar('--muted');
+    mctx.textAlign = 'center';
+    mctx.textBaseline = 'middle';
+    mctx.fillText('Click near the origin to draw a vector', MOX, MOY + 60);
+    mctx.restore();
+  }
+
+  // Axes drawn on top of vectors
+  drawMainAxes();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FNET MINI-PANEL DRAWING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function drawFnetPanel() {
+  const ctx = fctx;
+
+  // Background
+  const g = ctx.createLinearGradient(0, 0, 0, FH);
+  g.addColorStop(0, cssVar('--fnet-bg1'));
+  g.addColorStop(1, cssVar('--fnet-bg2'));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, FW, FH, 8);
+  ctx.fill();
+
+  // Light grid
+  ctx.save();
+  ctx.strokeStyle = cssVar('--grid-color');
+  ctx.lineWidth   = 0.8;
+  for (let x = 0; x < FW; x += GRID_SPACING) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, FH); ctx.stroke();
+  }
+  for (let y = 0; y < FH; y += GRID_SPACING) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(FW, y); ctx.stroke();
+  }
+  ctx.restore();
+
+  const FOX = FW / 2;
+  const FOY = FH / 2 - 12;  // shift up slightly to leave room for text
+
+  // Reference world axes (always horizontal/vertical — not rotated)
+  const FAXIS = Math.min(FW / 2 - 20, FOY - 4);
+  drawArrow(ctx, FOX - FAXIS, FOY, FOX + FAXIS, FOY, cssVar('--axis-color'), 1.2, 7);
+  drawArrow(ctx, FOX, FOY + FAXIS, FOX, FOY - FAXIS, cssVar('--axis-color'), 1.2, 7);
+
+  ctx.save();
+  ctx.font = 'italic bold 12px Georgia, serif';
+  ctx.fillStyle = cssVar('--axis-label');
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('x', FOX + FAXIS + 12, FOY);
+  ctx.fillText('y', FOX, FOY - FAXIS - 12);
+  ctx.restore();
+
+  if (vectors.length === 0) {
+    ctx.save();
+    ctx.font = '13px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = cssVar('--muted');
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Net force — draw vectors to see result', FOX, FOY + 8);
+    ctx.restore();
+
+    ctx.save();
+    ctx.font = '11px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = cssVar('--muted');
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('|Fnet| = —    \u03b8 = —    Fnx = —    Fny = —', FW / 2, FH - 6);
+    ctx.restore();
+    return;
+  }
+
+  const fn = computeFnet();
+
+  // Scale Fnet arrow to fit in mini-panel (world axes — no rotation)
+  const maxDim  = FAXIS - 12;
+  const fnScale = fn.mag > 0 ? Math.min(maxDim / fn.mag, 60) : 60;
+
+  const fnvx = fn.fx * fnScale;
+  const fnvy = -fn.fy * fnScale;  // canvas y flipped
+
+  // Draw ONLY the Fnet arrow — no components, no dashed lines
+  if (fn.mag > 0) {
+    drawArrow(ctx, FOX, FOY, FOX + fnvx, FOY + fnvy, cssVar('--fnet-arrow'), 2.8, 10);
+  }
+
+  // Bottom text line
+  let angDisplay, fnxDisplay, fnyDisplay;
+  if (fn.mag > 0) {
+    // Acute angle in the world (unrotated) frame for display
+    const worldVx = fn.fx, worldVy = -fn.fy;  // canvas-convention
+    const worldCx = worldVx, worldCy = worldVy;  // world axes are identity
+    const worldRefDeg = Math.atan2(Math.abs(worldCy), Math.abs(worldCx)) * 180 / Math.PI;
+    angDisplay = worldRefDeg.toFixed(1) + '°';
+    fnxDisplay = fn.fx.toFixed(3);
+    fnyDisplay = fn.fy.toFixed(3);
+  } else {
+    angDisplay = '—';
+    fnxDisplay = '0.000';
+    fnyDisplay = '0.000';
+  }
+
+  ctx.save();
+  ctx.font = 'bold 11px "Segoe UI", system-ui, sans-serif';
+  ctx.fillStyle = cssVar('--fnet-text');
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(
+    `|Fnet| = ${fn.mag.toFixed(3)}    \u03b8 = ${angDisplay}    Fnx = ${fnxDisplay}    Fny = ${fnyDisplay}`,
+    FW / 2, FH - 5
+  );
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TABLE MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function getCellValues(v) {
+  const scale = computeScale();
+  const vx    = v.mag * scale * Math.cos(v.angle);
+  const vy    = -v.mag * scale * Math.sin(v.angle);  // canvas
+  const { cx, cy } = decompose(vx, vy);
+  const Fx = cx / scale;   // force units along rotated x-axis
+  const Fy = cy / scale;   // force units along rotated y-axis
+  const { refAngleDeg } = acuteAngleInfo(vx, vy);
+  return { Fx, Fy, refAngleDeg };
+}
+
+function buildTable() {
+  const tbody = document.getElementById('vec-tbody');
+  tbody.innerHTML = '';
+
+  for (let i = 0; i < vectors.length; i++) {
+    const v     = vectors[i];
+    const color = COLORS[i % COLORS.length];
+    const label = 'F' + (i + 1);
+    const { Fx, Fy, refAngleDeg } = getCellValues(v);
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="col-dot">
+        <div class="dot-label">
+          <span class="dot-circle" style="background:${color}"></span>
+          <span style="color:${color}">${label}</span>
+        </div>
+      </td>
+      <td>
+        <input class="mag-input" type="number" min="0.01" step="0.1"
+               data-idx="${i}" value="${v.mag.toFixed(2)}"
+               style="border-color:${color}88">
+      </td>
+      <td class="ro-cell" id="ang-${i}">${refAngleDeg.toFixed(1)}</td>
+      <td class="ro-cell" id="fx-${i}">${Fx.toFixed(3)}</td>
+      <td class="ro-cell" id="fy-${i}">${Fy.toFixed(3)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  // Attach magnitude input listeners
+  document.querySelectorAll('.mag-input').forEach(input => {
+    input.addEventListener('input', e => {
+      const idx = parseInt(e.target.dataset.idx);
+      const val = parseFloat(e.target.value);
+      if (!isNaN(val) && val > 0) {
+        vectors[idx].mag = val;
+        updateCells(idx);
+        updateFnetRow();
+        drawMain();
+        drawFnetPanel();
+      }
+    });
+  });
+}
+
+function updateCells(idx) {
+  const v = vectors[idx];
+  const { Fx, Fy, refAngleDeg } = getCellValues(v);
+
+  const angEl = document.getElementById('ang-' + idx);
+  const fxEl  = document.getElementById('fx-'  + idx);
+  const fyEl  = document.getElementById('fy-'  + idx);
+  if (angEl) angEl.textContent = refAngleDeg.toFixed(1);
+  if (fxEl)  fxEl.textContent  = Fx.toFixed(3);
+  if (fyEl)  fyEl.textContent  = Fy.toFixed(3);
+
+  // Only update magnitude input if it's not focused
+  const magEl = document.querySelector(`.mag-input[data-idx="${idx}"]`);
+  if (magEl && document.activeElement !== magEl) {
+    magEl.value = v.mag.toFixed(2);
+  }
+}
+
+function updateAllCells() {
+  for (let i = 0; i < vectors.length; i++) {
+    updateCells(i);
+  }
+}
+
+function updateFnetRow() {
+  if (!fnetVisible) return;
+  // Sum using rotated-axis Fx/Fy
+  let sumFx = 0, sumFy = 0;
+  for (const v of vectors) {
+    const { Fx, Fy } = getCellValues(v);
+    sumFx += Fx;
+    sumFy += Fy;
+  }
+  const fnetMag = Math.sqrt(sumFx * sumFx + sumFy * sumFy);
+  // Acute angle of Fnet
+  const fnetRefDeg = Math.atan2(Math.abs(sumFy), Math.abs(sumFx)) * 180 / Math.PI;
+
+  document.getElementById('fn-mag').textContent = fnetMag.toFixed(3);
+  document.getElementById('fn-ang').textContent = fnetRefDeg.toFixed(1) + '°';
+  document.getElementById('fn-fx').textContent  = sumFx.toFixed(3);
+  document.getElementById('fn-fy').textContent  = sumFy.toFixed(3);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BUTTONS & CONTROLS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function updateButtons() {
+  document.getElementById('btn-remove').disabled = vectors.length === 0;
+  document.getElementById('btn-fnet').textContent = fnetVisible ? 'Hide Fnet' : 'Fnet data';
+}
+
+document.getElementById('btn-remove').addEventListener('click', () => {
+  if (vectors.length === 0) return;
+  vectors.pop();
+  buildTable();
+  updateFnetRow();
+  updateButtons();
+  drawMain();
+  drawFnetPanel();
+  ensurePulse();
+});
+
+document.getElementById('btn-fnet').addEventListener('click', () => {
+  fnetVisible = !fnetVisible;
+  document.getElementById('fnet-row').style.display = fnetVisible ? 'table-row' : 'none';
+  updateButtons();
+  if (fnetVisible) updateFnetRow();
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  vectors    = [];
+  axAngle    = 0;
+  previewVec = null;
+  dragState  = null;
+  fnetVisible = false;
+  document.getElementById('fnet-row').style.display = 'none';
+  buildTable();
+  updateFnetRow();
+  updateButtons();
+  drawMain();
+  drawFnetPanel();
+  ensurePulse();
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AXIS HANDLE HIT TEST
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function getAxisHandlePos() {
+  const ex = exS();
+  return { x: MOX + (AXIS - 14) * ex.x, y: MOY + (AXIS - 14) * ex.y };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TIP HIT TEST
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function getTipPosition(idx) {
+  const v     = vectors[idx];
+  const scale = computeScale();
+  const vx    = v.mag * scale * Math.cos(v.angle);
+  const vy    = -v.mag * scale * Math.sin(v.angle);
+  return { x: MOX + vx, y: MOY + vy };
+}
+
+function hitTestTips(mx, my) {
+  const R2 = 18 * 18;
+  for (let i = vectors.length - 1; i >= 0; i--) {
+    const tip = getTipPosition(i);
+    const dx  = mx - tip.x;
+    const dy  = my - tip.y;
+    if (dx * dx + dy * dy <= R2) return i;
+  }
+  return -1;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CANVAS COORD HELPER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function canvasXY(canvas, e, isTouch) {
+  const rect = canvas.getBoundingClientRect();
+  const src  = isTouch ? (e.touches[0] || e.changedTouches[0]) : e;
+  const logW = parseInt(canvas.getAttribute('width'));
+  const logH = parseInt(canvas.getAttribute('height'));
+  return {
+    x: (src.clientX - rect.left) * (logW / rect.width),
+    y: (src.clientY - rect.top)  * (logH / rect.height)
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DRAG INTERACTION — STATE MACHINE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function onMainDown(mx, my) {
+  // 1. Check axis handle (r < 22)
+  const h   = getAxisHandlePos();
+  const dhx = mx - h.x, dhy = my - h.y;
+  if (dhx * dhx + dhy * dhy < 22 * 22) {
+    dragState = { type: 'axis' };
+    MC.style.cursor = 'grabbing';
+    return;
+  }
+
+  // 2. Check existing tips (r < 18), last to first
+  const hit = hitTestTips(mx, my);
+  if (hit >= 0) {
+    dragState = { type: 'tip', idx: hit };
+    MC.style.cursor = 'grabbing';
+    return;
+  }
+
+  // 3. Check near origin (r < 28) for new vector
+  const dox = mx - MOX, doy = my - MOY;
+  if (dox * dox + doy * doy < 28 * 28 && vectors.length < MAX_VECTORS) {
+    const color = COLORS[vectors.length % COLORS.length];
+    dragState  = { type: 'new', color };
+    previewVec = null;
+    MC.style.cursor = 'crosshair';
+    return;
+  }
+}
+
+function onMainMove(mx, my) {
+  if (!dragState) {
+    // Update cursor for hover
+    const h = getAxisHandlePos();
+    const dhx = mx - h.x, dhy = my - h.y;
+    if (dhx * dhx + dhy * dhy < 22 * 22) {
+      MC.style.cursor = 'grab'; return;
+    }
+    const hit = hitTestTips(mx, my);
+    if (hit >= 0) {
+      MC.style.cursor = 'grab'; return;
+    }
+    const dox = mx - MOX, doy = my - MOY;
+    if (dox * dox + doy * doy < 28 * 28 && vectors.length < MAX_VECTORS) {
+      MC.style.cursor = 'crosshair'; return;
+    }
+    MC.style.cursor = 'default';
+    return;
+  }
+
+  const dx = mx - MOX;
+  const dy = my - MOY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  if (dragState.type === 'axis') {
+    axAngle = Math.atan2(-(my - MOY), mx - MOX);
+    updateAllCells();
+    updateFnetRow();
+    drawMain();
+    drawFnetPanel();
+
+  } else if (dragState.type === 'tip') {
+    const idx = dragState.idx;
+    if (dist < 4) return;
+    // New mag = pixelDist / scaleOthers
+    const scaleOthers = computeScaleOthers(idx);
+    const newMag   = dist / scaleOthers;
+    const newAngle = Math.atan2(-dy, dx);  // math angle from canvas coords
+    vectors[idx].mag   = newMag;
+    vectors[idx].angle = newAngle < 0 ? newAngle + 2 * Math.PI : newAngle;
+    updateCells(idx);
+    updateFnetRow();
+    drawMain();
+    drawFnetPanel();
+
+  } else if (dragState.type === 'new') {
+    if (dist < 4) {
+      previewVec = null;
+    } else {
+      const scale    = computeScale();
+      const newMag   = dist / scale;
+      const newAngle = Math.atan2(-dy, dx);
+      previewVec = {
+        mag:   newMag,
+        angle: newAngle < 0 ? newAngle + 2 * Math.PI : newAngle,
+        color: dragState.color
+      };
+    }
+    drawMain();
+  }
+}
+
+function onMainUp(mx, my) {
+  if (!dragState) return;
+
+  if (dragState.type === 'new') {
+    if (previewVec !== null) {
+      const dx = (mx !== undefined) ? mx - MOX : 0;
+      const dy = (my !== undefined) ? my - MOY : 0;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist >= 10 && previewVec) {
+        vectors.push({ mag: previewVec.mag, angle: previewVec.angle });
+        previewVec = null;
+        dragState  = null;
+        buildTable();
+        updateFnetRow();
+        updateButtons();
+        drawMain();
+        drawFnetPanel();
+        ensurePulse();
+        return;
+      }
+    }
+    previewVec = null;
+  }
+
+  dragState = null;
+  MC.style.cursor = 'default';
+  drawMain();
+}
+
+// Mouse events
+MC.addEventListener('mousedown', e => {
+  const p = canvasXY(MC, e);
+  onMainDown(p.x, p.y);
+});
+MC.addEventListener('mousemove', e => {
+  const p = canvasXY(MC, e);
+  onMainMove(p.x, p.y);
+});
+MC.addEventListener('mouseup', e => {
+  const p = canvasXY(MC, e);
+  onMainUp(p.x, p.y);
+});
+MC.addEventListener('mouseleave', () => {
+  if (dragState && dragState.type === 'new') {
+    previewVec = null;
+    dragState  = null;
+    drawMain();
+  } else if (dragState) {
+    dragState = null;
+  }
+  MC.style.cursor = 'default';
+});
+
+// Touch events
+MC.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const p = canvasXY(MC, e, true);
+  onMainDown(p.x, p.y);
+}, { passive: false });
+
+MC.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const p = canvasXY(MC, e, true);
+  onMainMove(p.x, p.y);
+}, { passive: false });
+
+MC.addEventListener('touchend', e => {
+  e.preventDefault();
+  const changedTouch = e.changedTouches[0];
+  const rect = MC.getBoundingClientRect();
+  const logW = parseInt(MC.getAttribute('width'));
+  const logH = parseInt(MC.getAttribute('height'));
+  const px = (changedTouch.clientX - rect.left) * (logW / rect.width);
+  const py = (changedTouch.clientY - rect.top)  * (logH / rect.height);
+  onMainUp(px, py);
+}, { passive: false });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PULSE ANIMATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function animatePulse(ts) {
+  pulseT = ts / 500;  // ~2 full cycles per second
+  // Only redraw from pulse loop when no drag is active (drag handlers redraw themselves)
+  if (!dragState) drawMain();
+  if (vectors.length < MAX_VECTORS) {
+    pulseRAF = requestAnimationFrame(animatePulse);
+  } else {
+    pulseRAF = null;
+  }
+}
+
+function ensurePulse() {
+  if (vectors.length < MAX_VECTORS && !pulseRAF) {
+    pulseRAF = requestAnimationFrame(animatePulse);
+  } else if (vectors.length >= MAX_VECTORS && pulseRAF) {
+    cancelAnimationFrame(pulseRAF);
+    pulseRAF = null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INITIALIZATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+vectors = [];
+
+buildTable();
+updateFnetRow();
+updateButtons();
+drawMain();
+drawFnetPanel();
+ensurePulse();
+</script>
+<button id="theme-toggle">☀</button>
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') { document.body.classList.add('light'); btn.textContent = '☽'; drawMain(); drawFnetPanel(); }
+  btn.addEventListener('click', () => {
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '☽' : '☀';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    drawMain(); drawFnetPanel();
+  });
+})();
+</script>
+</body>
+</html>

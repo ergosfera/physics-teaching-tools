@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kinematics Stopwatch</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d1117;
+      --surface: #161b22;
+      --surface2:#1c2128;
+      --border:  #30363d;
+      --text:    #e6edf3;
+      --muted:   #8b949e;
+      --accent:  #58a6ff;
+      --green:   #3fb950;
+      --yellow:  #d29922;
+      --red:     #f85149;
+      --radius:  8px;
+    }
+    body.light {
+      --bg:      #f6f8fa;
+      --surface: #ffffff;
+      --surface2:#f0f4f8;
+      --border:  #d0d7de;
+      --text:    #1f2328;
+      --muted:   #656d76;
+      --accent:  #0969da;
+      --green:   #1a7f37;
+      --yellow:  #9a6700;
+      --red:     #cf222e;
+    }
+    #theme-toggle {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      transition: border-color .2s, color .2s;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* ── HEADER ── */
+    header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    header h1 { font-size: 0.97rem; font-weight: 700; letter-spacing: -0.3px; }
+    header h1 span { color: var(--accent); }
+    .hints {
+      display: flex; gap: 14px;
+      font-size: 0.71rem; color: var(--muted); align-items: center;
+      flex-wrap: wrap;
+    }
+    .hints span { display: flex; align-items: center; gap: 4px; }
+    kbd {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: inherit;
+      font-size: 0.68rem;
+      color: var(--text);
+    }
+
+    /* ── WORKSPACE ── */
+    .workspace { flex: 1; display: flex; min-height: 0; }
+
+    /* ── LEFT PANEL ── */
+    .left-panel {
+      width: 256px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .timer-section {
+      padding: 18px 16px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+    #clock {
+      font-size: 2.7rem;
+      font-weight: 200;
+      letter-spacing: 3px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      transition: color 0.25s;
+    }
+    #clock.running { color: var(--green); }
+    #clock.paused  { color: var(--yellow); }
+
+    #status-line {
+      margin-top: 6px;
+      font-size: 0.7rem;
+      color: var(--muted);
+      min-height: 1.1em;
+    }
+    #status-line .next { color: var(--accent); font-weight: 600; }
+
+    .controls {
+      display: flex;
+      gap: 6px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .btn {
+      flex: 1;
+      padding: 9px 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .12s, border-color .12s, opacity .12s;
+    }
+    .btn:hover:not(:disabled) { border-color: var(--accent); background: var(--surface); }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn.go   { background: #1f6a2e; color: #fff; border-color: #2ea043; }
+    .btn.go:hover:not(:disabled) { background: #238636; }
+    .btn.danger { color: var(--red); border-color: rgba(248,81,73,0.4); }
+    .btn.danger:hover:not(:disabled) { background: rgba(248,81,73,0.08); border-color: var(--red); }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px 5px;
+      flex-shrink: 0;
+    }
+    .section-label {
+      font-size: 0.63rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .panel-hint { font-size: 0.63rem; color: var(--border); }
+
+    /* ── CHECKPOINT LIST ── */
+    .cp-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2px 12px 4px;
+    }
+    .cp-list::-webkit-scrollbar { width: 4px; }
+    .cp-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .cp-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 5px;
+    }
+    .cp-num {
+      font-size: 0.7rem;
+      color: var(--border);
+      width: 14px;
+      flex-shrink: 0;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      transition: color .2s;
+    }
+    .cp-row.done  .cp-num { color: var(--green); }
+    .cp-row.next  .cp-num { color: var(--accent); font-weight: 700; }
+
+    .cp-name {
+      flex: 1;
+      min-width: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 4px 7px;
+      font-size: 0.75rem;
+      color: var(--text);
+      outline: none;
+    }
+    .cp-name:focus { border-color: var(--accent); }
+
+    .cp-pos {
+      width: 62px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 4px 7px;
+      font-size: 0.75rem;
+      color: var(--accent);
+      text-align: right;
+      outline: none;
+    }
+    .cp-pos:focus { border-color: var(--accent); }
+
+    .cp-del {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--border);
+      font-size: 1rem;
+      padding: 2px 1px;
+      line-height: 1;
+      flex-shrink: 0;
+      transition: color .12s;
+    }
+    .cp-del:hover:not(:disabled) { color: var(--red); }
+    .cp-del:disabled { cursor: not-allowed; }
+
+    .add-cp {
+      display: block;
+      width: calc(100% - 24px);
+      margin: 0 12px 10px;
+      padding: 6px;
+      background: none;
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-size: 0.73rem;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color .12s, color .12s;
+    }
+    .add-cp:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    /* ── DATA TABLE ── */
+    .table-wrap {
+      height: 42%;
+      overflow-y: auto;
+      border-bottom: 1px solid var(--border);
+    }
+    .table-wrap::-webkit-scrollbar { width: 4px; }
+    .table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.79rem; }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 12px;
+      text-align: right;
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 0.67rem;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+    thead th:first-child { text-align: left; padding-left: 16px; }
+
+    tbody tr { transition: background .1s; }
+    tbody tr:hover { background: var(--surface); }
+    tbody tr.flash-row { animation: rowFlash .6s ease-out; }
+
+    @keyframes rowFlash {
+      0%   { background: rgba(88,166,255,.18); }
+      100% { background: transparent; }
+    }
+
+    tbody td {
+      padding: 5px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    tbody td:first-child { text-align: left; color: var(--muted); font-size: 0.72rem; padding-left: 16px; }
+    tbody tr:last-child td { border-bottom: none; }
+
+    .val-t { color: var(--accent); }
+    .val-v { color: var(--green);  font-weight: 600; }
+    .val-a { color: var(--yellow); font-weight: 600; }
+
+    .table-footer {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      padding: 5px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      flex-shrink: 0;
+    }
+    .sm-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 3px 12px;
+      color: var(--muted);
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: border-color .12s, color .12s;
+    }
+    .sm-btn:hover { border-color: var(--green); color: var(--green); }
+
+    /* ── CHARTS ── */
+    .charts-wrap {
+      flex: 1;
+      display: flex;
+      gap: 8px;
+      padding: 8px;
+      min-height: 0;
+    }
+    .chart-box {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .chart-title {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 4px;
+      flex-shrink: 0;
+    }
+    canvas {
+      flex: 1;
+      width: 100%;
+      display: block;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Kinematics <span>Stopwatch</span></h1>
+  <div class="hints">
+    <button id="theme-toggle">☀</button>
+    <span style="margin-left:4px"><kbd>Space</kbd> Start · Lap</span>
+    <span><kbd>P</kbd> Pause / Resume</span>
+    <span><kbd>R</kbd> Reset</span>
+    <span><kbd>E</kbd> Export CSV</span>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- LEFT: timer + checkpoints -->
+  <div class="left-panel">
+
+    <div class="timer-section">
+      <div id="clock">00:00.000</div>
+      <div id="status-line">Press <strong>Start</strong> or <kbd>Space</kbd></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn go"     id="btn-start"  onclick="startExp()">Start</button>
+      <button class="btn"        id="btn-pause"  onclick="togglePause()" disabled>Pause</button>
+      <button class="btn danger" id="btn-reset"  onclick="doReset()">Reset</button>
+    </div>
+
+    <div class="panel-header">
+      <span class="section-label">Checkpoints</span>
+      <span class="panel-hint">name · x (m)</span>
+    </div>
+    <div class="cp-list" id="cp-list"></div>
+    <button class="add-cp" id="btn-add-cp" onclick="addCp()">+ Add checkpoint</button>
+
+  </div>
+
+  <!-- RIGHT: table + charts -->
+  <div class="right-panel">
+
+    <div class="table-wrap" id="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Checkpoint</th>
+            <th>t &nbsp;(s)</th>
+            <th>Δt &nbsp;(s)</th>
+            <th>x &nbsp;(m)</th>
+            <th>v̄ &nbsp;(m/s)</th>
+            <th>a &nbsp;(m/s²)</th>
+          </tr>
+        </thead>
+        <tbody id="data-body"></tbody>
+      </table>
+    </div>
+
+    <div class="table-footer">
+      <button class="sm-btn" onclick="exportCSV()">↓ Export CSV</button>
+    </div>
+
+    <div class="charts-wrap">
+      <div class="chart-box">
+        <div class="chart-title">x &nbsp;vs&nbsp; t &nbsp;—&nbsp; Position</div>
+        <canvas id="chart-x"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">v &nbsp;vs&nbsp; t &nbsp;—&nbsp; Velocity</div>
+        <canvas id="chart-v"></canvas>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────────
+const S = {
+  phase: 'idle',   // 'idle' | 'running' | 'paused'
+  t0: 0,           // performance.now() at start
+  pausedMs: 0,     // total accumulated pause time (ms)
+  pausedAt: 0,     // performance.now() when last paused
+  lapIdx: 0,       // index of NEXT checkpoint to record
+};
+
+let laps = [];          // { n, label, t, dt, x, v, a }
+let checkpoints = [];   // { name, pos }  pos = number | ''
+let rafId = null;
+
+// ─────────────────────────────────────────────────────────────
+//  HELPERS
+// ─────────────────────────────────────────────────────────────
+function elapsedMs() {
+  if (S.phase === 'idle')   return 0;
+  if (S.phase === 'paused') return S.pausedAt - S.t0 - S.pausedMs;
+  return performance.now() - S.t0 - S.pausedMs;
+}
+
+function fmtTime(ms) {
+  ms = Math.max(0, ms);
+  const m  = Math.floor(ms / 60000);
+  const s  = Math.floor((ms % 60000) / 1000);
+  const ms3 = Math.floor(ms % 1000);
+  return `${pad2(m)}:${pad2(s)}.${pad3(ms3)}`;
+}
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function pad3(n) { return String(n).padStart(3, '0'); }
+
+function fmt(v, d = 3) {
+  if (v === null || v === undefined || isNaN(v) || !isFinite(v)) return '—';
+  return Number(v).toFixed(d);
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  CHECKPOINTS
+// ─────────────────────────────────────────────────────────────
+function addCp(name = '', pos = '') {
+  checkpoints.push({ name, pos });
+  renderCps();
+}
+
+function removeCp(i) {
+  checkpoints.splice(i, 1);
+  renderCps();
+}
+
+function renderCps() {
+  const locked = S.phase !== 'idle';
+  const list   = document.getElementById('cp-list');
+  list.innerHTML = '';
+
+  checkpoints.forEach((cp, i) => {
+    const isDone = i < S.lapIdx;
+    const isNext = i === S.lapIdx && S.phase === 'running';
+    const div    = document.createElement('div');
+    div.className = 'cp-row' + (isDone ? ' done' : '') + (isNext ? ' next' : '');
+    div.innerHTML = `
+      <span class="cp-num">${i + 1}</span>
+      <input class="cp-name" placeholder="Name"
+        value="${esc(cp.name)}"
+        oninput="checkpoints[${i}].name = this.value"
+        ${locked ? 'readonly' : ''}>
+      <input class="cp-pos" type="number" step="0.01" placeholder="m"
+        value="${cp.pos}"
+        oninput="checkpoints[${i}].pos = this.value === '' ? '' : parseFloat(this.value)"
+        ${locked ? 'readonly' : ''}>
+      <button class="cp-del" onclick="removeCp(${i})" ${locked ? 'disabled' : ''}>×</button>
+    `;
+    list.appendChild(div);
+  });
+
+  document.getElementById('btn-add-cp').disabled = locked;
+}
+
+// default checkpoints
+addCp('Start',  0);
+addCp('', '');
+addCp('', '');
+
+// ─────────────────────────────────────────────────────────────
+//  TIMER LOOP
+// ─────────────────────────────────────────────────────────────
+function tick() {
+  document.getElementById('clock').textContent = fmtTime(elapsedMs());
+  rafId = requestAnimationFrame(tick);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  EXPERIMENT FLOW
+// ─────────────────────────────────────────────────────────────
+function startExp() {
+  if (S.phase !== 'idle') return;
+  S.t0       = performance.now();
+  S.pausedMs = 0;
+  S.lapIdx   = 0;
+  S.phase    = 'running';
+
+  document.getElementById('clock').classList.add('running');
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-pause').disabled = false;
+
+  // Auto-record first checkpoint at t = 0
+  recordLap(0);
+  rafId = requestAnimationFrame(tick);
+}
+
+function recordLap(tSec) {
+  const i    = S.lapIdx;
+  const cp   = checkpoints[i] || null;
+  const x    = (cp && cp.pos !== '') ? Number(cp.pos) : null;
+  const lbl  = (cp && cp.name.trim()) ? cp.name.trim() : `#${i + 1}`;
+
+  const prev  = laps.length ? laps[laps.length - 1] : null;
+  const dt    = prev ? tSec - prev.t : null;   // null for the first lap
+
+  let v = null, a = null;
+
+  if (prev && dt !== null && dt > 0 && x !== null && prev.x !== null) {
+    v = (x - prev.x) / dt;
+
+    // Acceleration: use midpoint-of-segment method
+    // v_n is the velocity at the MIDPOINT of segment n
+    // t_mid_n = t_{n-1} + dt_n/2
+    if (prev.v !== null && prev.dt !== null && prev.dt > 0) {
+      const tMidCurr = prev.t + dt / 2;          // = tSec - dt/2
+      const tMidPrev = (prev.t - prev.dt) + prev.dt / 2; // = prev.t - prev.dt/2
+      const span     = tMidCurr - tMidPrev;
+      if (span > 0) a = (v - prev.v) / span;
+    }
+  }
+
+  laps.push({ n: laps.length + 1, label: lbl, t: tSec, dt, x, v, a });
+  S.lapIdx++;
+
+  renderTable();
+  renderCharts();
+  renderCps();
+  updateStatusLine();
+}
+
+function doLap() {
+  if (S.phase !== 'running') return;
+  recordLap(elapsedMs() / 1000);
+}
+
+function togglePause() {
+  if (S.phase === 'running') {
+    S.pausedAt = performance.now();
+    S.phase    = 'paused';
+    cancelAnimationFrame(rafId);
+    document.getElementById('clock').classList.remove('running');
+    document.getElementById('clock').classList.add('paused');
+    document.getElementById('btn-pause').textContent = 'Resume';
+    document.getElementById('status-line').innerHTML = '<span style="color:var(--yellow)">Paused</span>';
+  } else if (S.phase === 'paused') {
+    S.pausedMs += performance.now() - S.pausedAt;
+    S.phase     = 'running';
+    document.getElementById('clock').classList.remove('paused');
+    document.getElementById('clock').classList.add('running');
+    document.getElementById('btn-pause').textContent = 'Pause';
+    rafId = requestAnimationFrame(tick);
+    updateStatusLine();
+  }
+}
+
+function doReset() {
+  cancelAnimationFrame(rafId);
+  S.phase    = 'idle';
+  S.t0       = 0;
+  S.pausedMs = 0;
+  S.lapIdx   = 0;
+  laps       = [];
+
+  document.getElementById('clock').textContent = '00:00.000';
+  document.getElementById('clock').classList.remove('running', 'paused');
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-pause').disabled = true;
+  document.getElementById('btn-pause').textContent = 'Pause';
+  document.getElementById('status-line').innerHTML = 'Press <strong>Start</strong> or <kbd>Space</kbd>';
+
+  renderTable();
+  renderCharts();
+  renderCps();
+}
+
+function updateStatusLine() {
+  if (S.phase !== 'running') return;
+  const el    = document.getElementById('status-line');
+  const next  = checkpoints[S.lapIdx];
+  const label = next && next.name.trim() ? next.name.trim() : `#${S.lapIdx + 1}`;
+  if (S.lapIdx < checkpoints.length) {
+    el.innerHTML = `Next: <span class="next">${esc(label)}</span> — Press <kbd>Space</kbd>`;
+  } else {
+    el.innerHTML = `Extra laps — Press <kbd>Space</kbd>`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  TABLE
+// ─────────────────────────────────────────────────────────────
+function renderTable() {
+  const tbody = document.getElementById('data-body');
+  tbody.innerHTML = '';
+  laps.forEach((lap, i) => {
+    const tr = document.createElement('tr');
+    if (i === laps.length - 1 && laps.length > 1) tr.classList.add('flash-row');
+    tr.innerHTML = `
+      <td>${esc(lap.label)}</td>
+      <td class="val-t">${fmt(lap.t, 4)}</td>
+      <td>${lap.dt !== null ? fmt(lap.dt, 4) : '—'}</td>
+      <td>${fmt(lap.x, 3)}</td>
+      <td class="val-v">${fmt(lap.v, 4)}</td>
+      <td class="val-a">${fmt(lap.a, 4)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+  const wrap = document.getElementById('table-wrap');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  CHARTS
+// ─────────────────────────────────────────────────────────────
+function renderCharts() {
+  const xPts = laps
+    .filter(l => l.x !== null)
+    .map(l => ({ x: l.t, y: l.x }));
+
+  // v plotted at midpoint of its segment:  t_mid = t - dt/2
+  const vPts = laps
+    .filter(l => l.v !== null && l.dt !== null)
+    .map(l => ({ x: l.t - l.dt / 2, y: l.v }));
+
+  drawPlot('chart-x', xPts, 't (s)', 'x (m)', '#58a6ff');
+  drawPlot('chart-v', vPts, 't (s)', 'v (m/s)', '#3fb950');
+}
+
+function drawPlot(id, data, xLabel, yLabel, color) {
+  const canvas = document.getElementById(id);
+  const ctx    = canvas.getContext('2d');
+  const rect   = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = rect.width  * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const W = rect.width, H = rect.height;
+  const P = { t: 16, r: 14, b: 34, l: 54 };
+  const pw = W - P.l - P.r;
+  const ph = H - P.t - P.b;
+
+  const cs = getComputedStyle(document.body);
+  const cSurface  = cs.getPropertyValue('--surface').trim();
+  const cMuted    = cs.getPropertyValue('--muted').trim();
+  const cSurface2 = cs.getPropertyValue('--surface2').trim();
+
+  // Background
+  ctx.fillStyle = cSurface;
+  ctx.fillRect(0, 0, W, H);
+
+  // No-data message
+  if (data.length < 1) {
+    ctx.fillStyle = cMuted;
+    ctx.font = '11px Segoe UI, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('No data yet', W / 2, H / 2);
+    return;
+  }
+
+  // Axis ranges
+  let xMin = Math.min(...data.map(d => d.x));
+  let xMax = Math.max(...data.map(d => d.x));
+  let yMin = Math.min(...data.map(d => d.y));
+  let yMax = Math.max(...data.map(d => d.y));
+
+  if (xMax <= xMin) xMax = xMin + 1;
+  const yr = yMax - yMin;
+  if (yr < 1e-9) { yMin -= 0.5; yMax += 0.5; }
+  else           { yMin -= yr * 0.12; yMax += yr * 0.12; }
+
+  const tx = v => P.l + (v - xMin) / (xMax - xMin) * pw;
+  const ty = v => P.t + (1 - (v - yMin) / (yMax - yMin)) * ph;
+
+  // Grid
+  ctx.strokeStyle = cSurface2;
+  ctx.lineWidth   = 1;
+  const NX = 4, NY = 4;
+  for (let i = 0; i <= NX; i++) {
+    const cx = P.l + i / NX * pw;
+    ctx.beginPath(); ctx.moveTo(cx, P.t); ctx.lineTo(cx, P.t + ph); ctx.stroke();
+  }
+  for (let i = 0; i <= NY; i++) {
+    const cy = P.t + i / NY * ph;
+    ctx.beginPath(); ctx.moveTo(P.l, cy); ctx.lineTo(P.l + pw, cy); ctx.stroke();
+  }
+
+  // Axis tick labels
+  ctx.fillStyle    = cMuted;
+  ctx.font         = '9px Segoe UI, system-ui, sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.textAlign    = 'center';
+  for (let i = 0; i <= NX; i++) {
+    const v  = xMin + i / NX * (xMax - xMin);
+    const cx = P.l + i / NX * pw;
+    ctx.fillText(v.toFixed(2), cx, P.t + ph + 4);
+  }
+  ctx.textAlign    = 'right';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i <= NY; i++) {
+    const v  = yMax - i / NY * (yMax - yMin);
+    const cy = P.t + i / NY * ph;
+    ctx.fillText(v.toFixed(2), P.l - 4, cy);
+  }
+
+  // Axis labels
+  ctx.fillStyle    = cMuted;
+  ctx.font         = '10px Segoe UI, system-ui, sans-serif';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(xLabel, P.l + pw / 2, H - 1);
+
+  ctx.save();
+  ctx.translate(11, P.t + ph / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'middle';
+  ctx.fillText(yLabel, 0, 0);
+  ctx.restore();
+
+  // Line (semi-transparent)
+  if (data.length >= 2) {
+    ctx.strokeStyle = color + '55';
+    ctx.lineWidth   = 1.5;
+    ctx.lineJoin    = 'round';
+    ctx.beginPath();
+    data.forEach((d, i) => {
+      const cx = tx(d.x), cy = ty(d.y);
+      i === 0 ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy);
+    });
+    ctx.stroke();
+  }
+
+  // Dots
+  ctx.fillStyle = color;
+  data.forEach(d => {
+    ctx.beginPath();
+    ctx.arc(tx(d.x), ty(d.y), 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Dot labels (checkpoint names for x-chart)
+  if (yLabel === 'x (m)') {
+    ctx.fillStyle    = cMuted;
+    ctx.font         = '9px Segoe UI, system-ui, sans-serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'bottom';
+    laps.filter(l => l.x !== null).forEach(l => {
+      const label = l.label.length > 6 ? l.label.slice(0, 5) + '…' : l.label;
+      ctx.fillText(label, tx(l.t), ty(l.x) - 5);
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  CSV EXPORT
+// ─────────────────────────────────────────────────────────────
+function exportCSV() {
+  if (!laps.length) return;
+  const header = 'checkpoint,t_s,dt_s,x_m,v_ms,a_ms2';
+  const rows   = laps.map(l =>
+    [l.label, l.t ?? '', l.dt ?? '', l.x ?? '', l.v ?? '', l.a ?? ''].join(',')
+  );
+  const csv  = [header, ...rows].join('\n');
+  const link = Object.assign(document.createElement('a'), {
+    href:     URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+    download: 'kinematics.csv',
+  });
+  link.click();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  KEYBOARD
+// ─────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+  switch (e.code) {
+    case 'Space':
+      e.preventDefault();
+      if (S.phase === 'idle')    startExp();
+      else if (S.phase === 'running') doLap();
+      else if (S.phase === 'paused')  togglePause();
+      break;
+    case 'KeyP':
+      if (S.phase !== 'idle') togglePause();
+      break;
+    case 'KeyR':
+      doReset();
+      break;
+    case 'KeyE':
+      exportCSV();
+      break;
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+//  RESIZE
+// ─────────────────────────────────────────────────────────────
+const ro = new ResizeObserver(() => renderCharts());
+ro.observe(document.querySelector('.charts-wrap'));
+
+// Initial render
+renderCharts();
+</script>
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') { document.body.classList.add('light'); btn.textContent = '☽'; }
+  btn.addEventListener('click', () => {
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '☽' : '☀';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  });
+})();
+</script>
+</body>
+</html>

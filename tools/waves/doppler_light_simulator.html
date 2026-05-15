@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relativistic Doppler Effect</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌈</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 7fr 3fr;
+            height: 100vh;
+            gap: 3px;
+            padding: 3px;
+            background: #000;
+        }
+
+        .left-zone {
+            display: grid;
+            grid-template-rows: 1fr 1fr;
+            gap: 3px;
+            background: #000;
+        }
+
+        .upper-left {
+            background: #000;
+            border: 2px solid #0099ff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .starfield {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .space-objects {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 20px;
+        }
+
+        .celestial-object {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 13px;
+            color: #0099ff;
+            font-size: 18px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        .planet-icon {
+            font-size: 13px;
+        }
+
+        .galaxy-icon {
+            font-size: 13px;
+        }
+
+        svg.waves {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .light-pulse { /* color applied dynamically via inline style */ }
+
+        .lower-left {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3px;
+            background: #000;
+        }
+
+        .lower-left-sub {
+            background: #000;
+            border: 2px solid #0099ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 10px 7px;
+            overflow: hidden;
+            justify-content: space-between;
+        }
+
+        .obs-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #00ffff;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-align: center;
+            width: 100%;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #0099ff33;
+        }
+
+        .obs-spectrum-wrap {
+            width: 90%;
+        }
+
+        .obs-spectrum-bar {
+            width: 100%;
+            height: 54px;
+            position: relative;
+            background: linear-gradient(to right,
+                #200000 0%, #400000 32.83%,
+                #FF0000 32.83%, #FF0000 36.48%,
+                #FFB000 39.97%, #FFFF00 41.69%,
+                #00FF00 48.78%, #00FFFF 51.18%,
+                #0000FF 58.13%, #AA00FF 64.95%,
+                #150020 64.95%, #150020 100%);
+            outline: 1px solid #555;
+            outline-offset: 3px;
+        }
+
+        .obs-emit-tri {
+            position: absolute;
+            top: 4px;
+            width: 0; height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 13px solid #0099ff;
+            transform: translateX(-50%);
+            filter: drop-shadow(0 0 3px #0099ff);
+        }
+
+        .obs-recv-tri {
+            position: absolute;
+            bottom: 4px;
+            width: 0; height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 13px solid #ffffff;
+            transform: translateX(-50%);
+            filter: drop-shadow(0 0 3px #ffffff);
+        }
+
+        /* Data grid: label col | freq col | lambda col */
+        .obs-data {
+            width: 90%;
+            display: grid;
+            grid-template-columns: 32px 1fr 1fr;
+            gap: 6px 6px;
+            font-size: 13px;
+            color: #0099ff99;
+        }
+
+        .obs-data-label {
+            font-size: 10px;
+            color: #0099ff44;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: right;
+            padding-right: 5px;
+            border-right: 1px solid #0099ff1a;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .obs-data-val { color: #00ffff; }
+
+        /* z row spans all 3 columns */
+        .obs-z-full {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 14px;
+            color: #0099ff99;
+            border-top: 1px solid #0099ff22;
+            padding-top: 5px;
+            margin-top: 2px;
+        }
+
+        .obs-z-full .obs-data-val {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .shift-indicators {
+            display: flex;
+            gap: 5px;
+            width: 90%;
+        }
+
+        .shift-sign {
+            flex: 1;
+            text-align: center;
+            font-size: 11px;
+            letter-spacing: 1px;
+            padding: 7px 2px;
+            background: #0d0d0d;
+            border: 1px solid #1a1a1a;
+            color: #222;
+            font-weight: 800;
+            text-transform: uppercase;
+            border-radius: 2px;
+            transition: all 0.25s;
+        }
+
+        .shift-sign.on-red {
+            background: #1c0000;
+            border-color: #ff3300;
+            color: #ff4400;
+            text-shadow: 0 0 7px #ff3300;
+            box-shadow: 0 0 5px #ff330033;
+        }
+
+        .shift-sign.on-none {
+            background: #181800;
+            border-color: #dddd00;
+            color: #ffff33;
+            text-shadow: 0 0 7px #eeee00;
+            box-shadow: 0 0 5px #dddd0033;
+        }
+
+        .shift-sign.on-blue {
+            background: #00001c;
+            border-color: #0099ff;
+            color: #0099ff;
+            text-shadow: 0 0 7px #0099ff;
+            box-shadow: 0 0 5px #0099ff33;
+        }
+
+        .right-zone {
+            background: #000;
+            border: 2px solid #0099ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            padding: 10px 12px;
+            color: #0099ff;
+            font-size: 14px;
+            font-weight: 300;
+            letter-spacing: 1px;
+            overflow-y: auto;
+        }
+
+        .slider-control {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .slider-label {
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .slider-value {
+            font-size: 12px;
+            color: #00ffff;
+        }
+
+        .slider-container {
+            width: 85%;
+            position: relative;
+        }
+
+        .scale {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 5px;
+            padding: 0 2px;
+        }
+
+        .scale-mark {
+            position: relative;
+            flex: 1;
+            text-align: center;
+        }
+
+        .scale-mark::before {
+            content: '';
+            position: absolute;
+            width: 1px;
+            height: 4px;
+            background: #0099ff;
+            left: 50%;
+            top: -8px;
+            transform: translateX(-50%);
+        }
+
+        /* Frequency slider: correctly positioned scale */
+        .freq-scale {
+            position: relative;
+            height: 24px;
+            margin-top: 6px;
+            font-size: 12px;
+        }
+
+        .scale-mark-freq {
+            position: absolute;
+            transform: translateX(-50%);
+            color: #0099ffaa;
+            top: 6px;
+            white-space: nowrap;
+        }
+
+        .scale-mark-freq::before {
+            content: '';
+            position: absolute;
+            width: 1px;
+            height: 4px;
+            background: #0099ff88;
+            left: 50%;
+            top: -6px;
+            transform: translateX(-50%);
+        }
+
+        .scale-mark-freq.vl-label {
+            color: #ffffffaa;
+            font-style: italic;
+        }
+
+        .scale-mark-freq.vl-label::before { display: none; }
+
+        /* Frequency slider: spectrum gradient on track (range 100–1100 THz) */
+        #freqSlider {
+            background: linear-gradient(to right,
+                #200000 0%,
+                #400000 32.83%,
+                #FF0000 32.83%,
+                #FF0000 36.48%,
+                #FFB000 39.97%,
+                #FFFF00 41.69%,
+                #00FF00 48.78%,
+                #00FFFF 51.18%,
+                #0000FF 58.13%,
+                #AA00FF 64.95%,
+                #150020 64.95%,
+                #150020 100%
+            );
+        }
+
+        #freqSlider::-webkit-slider-runnable-track {
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(to right,
+                #200000 0%,
+                #400000 32.83%,
+                #FF0000 32.83%,
+                #FF0000 36.48%,
+                #FFB000 39.97%,
+                #FFFF00 41.69%,
+                #00FF00 48.78%,
+                #00FFFF 51.18%,
+                #0000FF 58.13%,
+                #AA00FF 64.95%,
+                #150020 64.95%,
+                #150020 100%
+            );
+        }
+
+        #freqSlider::-moz-range-track {
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(to right,
+                #200000 0%,
+                #400000 32.83%,
+                #FF0000 32.83%,
+                #FF0000 36.48%,
+                #FFB000 39.97%,
+                #FFFF00 41.69%,
+                #00FF00 48.78%,
+                #00FFFF 51.18%,
+                #0000FF 58.13%,
+                #AA00FF 64.95%,
+                #150020 64.95%,
+                #150020 100%
+            );
+        }
+
+        /* Thin gray border around the spectrum sliders */
+        #freqSlider, #lambdaSlider {
+            outline: 1px solid #666666;
+            outline-offset: 3px;
+        }
+
+        /* Hide internal thumb on spectrum sliders — external ▼ marker is used instead */
+        #freqSlider::-webkit-slider-thumb,
+        #lambdaSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+        #freqSlider::-moz-range-thumb,
+        #lambdaSlider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* Lambda slider: spectrum gradient (100 nm left → 1000 nm right) */
+        #lambdaSlider {
+            background: linear-gradient(to right,
+                #150020 0%,
+                #150020 33.33%,
+                #AA00FF 33.33%,
+                #0000FF 37.78%,
+                #00FFFF 43.33%,
+                #00FF00 45.56%,
+                #FFFF00 53.33%,
+                #FFB000 55.56%,
+                #FF0000 60.56%,
+                #FF0000 66.67%,
+                #400000 66.67%,
+                #200000 100%
+            );
+        }
+
+        #lambdaSlider::-webkit-slider-runnable-track {
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(to right,
+                #150020 0%,
+                #150020 33.33%,
+                #AA00FF 33.33%,
+                #0000FF 37.78%,
+                #00FFFF 43.33%,
+                #00FF00 45.56%,
+                #FFFF00 53.33%,
+                #FFB000 55.56%,
+                #FF0000 60.56%,
+                #FF0000 66.67%,
+                #400000 66.67%,
+                #200000 100%
+            );
+        }
+
+        #lambdaSlider::-moz-range-track {
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(to right,
+                #150020 0%,
+                #150020 33.33%,
+                #AA00FF 33.33%,
+                #0000FF 37.78%,
+                #00FFFF 43.33%,
+                #00FF00 45.56%,
+                #FFFF00 53.33%,
+                #FFB000 55.56%,
+                #FF0000 60.56%,
+                #FF0000 66.67%,
+                #400000 66.67%,
+                #200000 100%
+            );
+        }
+
+        .slider-with-marker {
+            position: relative;
+            margin-top: 6px;
+        }
+
+        .marker {
+            position: absolute;
+            top: -11px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #0099ff;
+            left: 0;
+            transform: translateX(-50%);
+            width: 20px;
+            text-align: center;
+        }
+
+        #freqMarker, #lambdaMarker {
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+            top: -5px;
+        }
+
+        #auroraSlider::-webkit-slider-thumb,
+        #coriolisSlider::-webkit-slider-thumb,
+        #borealisSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 14px;
+            background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 6'><polygon points='4,5.5 0.5,0.5 7.5,0.5' fill='black' stroke='%230099ff' stroke-width='1'/></svg>") no-repeat center / contain;
+            border: none;
+            cursor: pointer;
+            filter: drop-shadow(0 0 3px #0099ff);
+        }
+        #auroraSlider::-moz-range-thumb,
+        #coriolisSlider::-moz-range-thumb,
+        #borealisSlider::-moz-range-thumb {
+            width: 18px;
+            height: 14px;
+            background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 6'><polygon points='4,5.5 0.5,0.5 7.5,0.5' fill='black' stroke='%230099ff' stroke-width='1'/></svg>") no-repeat center / contain;
+            border: none;
+            cursor: pointer;
+        }
+        #freqMarker:active, #lambdaMarker:active {
+            cursor: grabbing;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: #0099ff;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 6px solid #0099ff;
+            background: transparent;
+            cursor: pointer;
+            filter: drop-shadow(0 0 3px #0099ff);
+            border-radius: 0;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 6px solid #0099ff;
+            background: transparent;
+            cursor: pointer;
+            border: none;
+            filter: drop-shadow(0 0 3px #0099ff);
+            border-radius: 0;
+        }
+
+        .right-zone {
+            gap: 0;
+            justify-content: space-between;
+        }
+
+        .info-section {
+            width: 100%;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #0099ff33;
+        }
+
+        .info-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #00ffff;
+            letter-spacing: 1px;
+            text-align: center;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .info-text {
+            font-size: 12px;
+            line-height: 1.5;
+            color: #0099ffbb;
+        }
+
+        .info-term {
+            color: #00ffff;
+            font-weight: 600;
+        }
+
+        .section-label {
+            font-size: 13px;
+            color: #00ffff;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-align: center;
+            width: 100%;
+            margin-bottom: 0;
+        }
+
+        .section-divider {
+            width: 100%;
+            border-top: 1px solid #0099ff33;
+            padding-top: 5px;
+        }
+
+        .btn-section {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            justify-content: center;
+            padding-top: 8px;
+            border-top: 1px solid #0099ff33;
+        }
+
+        .ctrl-btn {
+            flex: 1;
+            padding: 7px 0;
+            background: transparent;
+            border: 1px solid #0099ff;
+            color: #0099ff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 13px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .ctrl-btn:hover {
+            background: #0099ff22;
+            color: #00ffff;
+            border-color: #00ffff;
+        }
+
+        .ctrl-btn.active {
+            background: #0099ff33;
+            color: #00ffff;
+            border-color: #00ffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="left-zone">
+            <div class="upper-left">
+                <canvas class="starfield" id="starCanvas"></canvas>
+                <svg class="waves" id="wavesSVG"></svg>
+                <div class="space-objects">
+                    <div class="celestial-object">
+                        <div class="planet-icon">🌍</div>
+                        <span>Aurora</span>
+                    </div>
+                    <div class="celestial-object">
+                        <div class="galaxy-icon">🌀</div>
+                        <span>Coriolis</span>
+                    </div>
+                    <div class="celestial-object">
+                        <div class="planet-icon">🌎</div>
+                        <span>Borealis</span>
+                    </div>
+                </div>
+            </div>
+            <div class="lower-left">
+                <!-- Aurora observer panel -->
+                <div class="lower-left-sub">
+                    <div class="obs-name">Aurora</div>
+                    <div class="obs-spectrum-wrap">
+                        <div class="obs-spectrum-bar">
+                            <div class="obs-emit-tri" id="auroraEmitTri"></div>
+                            <div class="obs-recv-tri" id="auroraRecvTri"></div>
+                        </div>
+                    </div>
+                    <div class="obs-data">
+                        <div class="obs-data-label">emit</div>
+                        <span>f<sub>0</sub> = <span class="obs-data-val" id="auroraFreqEmit">—</span> THz</span>
+                        <span>λ<sub>0</sub> = <span class="obs-data-val" id="auroraLambdaEmit">—</span> nm</span>
+                        <div class="obs-data-label">recv</div>
+                        <span>f<sub>r</sub> = <span class="obs-data-val" id="auroraFreqRecv">—</span> THz</span>
+                        <span>λ<sub>r</sub> = <span class="obs-data-val" id="auroraLambdaRecv">—</span> nm</span>
+                        <div class="obs-data-label">Δ</div>
+                        <span>Δf = <span class="obs-data-val" id="auroraFreqShift">—</span> THz</span>
+                        <span>Δλ = <span class="obs-data-val" id="auroraLambdaShift">—</span> nm</span>
+                        <div class="obs-z-full">z = <span class="obs-data-val" id="auroraZ">—</span></div>
+                    </div>
+                    <div class="shift-indicators">
+                        <div class="shift-sign" id="auroraRedSign">RED SHIFT</div>
+                        <div class="shift-sign" id="auroraNoSign">NO SHIFT</div>
+                        <div class="shift-sign" id="auroraBlueSign">BLUE SHIFT</div>
+                    </div>
+                </div>
+                <!-- Borealis observer panel -->
+                <div class="lower-left-sub">
+                    <div class="obs-name">Borealis</div>
+                    <div class="obs-spectrum-wrap">
+                        <div class="obs-spectrum-bar">
+                            <div class="obs-emit-tri" id="borealisEmitTri"></div>
+                            <div class="obs-recv-tri" id="borealisRecvTri"></div>
+                        </div>
+                    </div>
+                    <div class="obs-data">
+                        <div class="obs-data-label">emit</div>
+                        <span>f<sub>0</sub> = <span class="obs-data-val" id="borealisFreqEmit">—</span> THz</span>
+                        <span>λ<sub>0</sub> = <span class="obs-data-val" id="borealisLambdaEmit">—</span> nm</span>
+                        <div class="obs-data-label">recv</div>
+                        <span>f<sub>r</sub> = <span class="obs-data-val" id="borealisFreqRecv">—</span> THz</span>
+                        <span>λ<sub>r</sub> = <span class="obs-data-val" id="borealisLambdaRecv">—</span> nm</span>
+                        <div class="obs-data-label">Δ</div>
+                        <span>Δf = <span class="obs-data-val" id="borealisFreqShift">—</span> THz</span>
+                        <span>Δλ = <span class="obs-data-val" id="borealisLambdaShift">—</span> nm</span>
+                        <div class="obs-z-full">z = <span class="obs-data-val" id="borealisZ">—</span></div>
+                    </div>
+                    <div class="shift-indicators">
+                        <div class="shift-sign" id="borealisRedSign">RED SHIFT</div>
+                        <div class="shift-sign" id="borealisNoSign">NO SHIFT</div>
+                        <div class="shift-sign" id="borealisBlueSign">BLUE SHIFT</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="right-zone">
+
+            <!-- Info section -->
+            <div class="info-section">
+                <div class="info-title">Relativistic Doppler Effect</div>
+                <div class="info-text">
+                    <b>c = f · λ</b> &nbsp;=&nbsp; 299,792 THz·nm &nbsp;=&nbsp; 2.998 × 10⁸ m/s<br>
+                    <span class="info-term">1 nm</span> = 10⁻⁹ m &emsp; <span class="info-term">1 THz</span> = 10¹² Hz
+                </div>
+            </div>
+
+            <!-- Emission frequency / wavelength sliders -->
+            <div class="section-divider">
+                <div class="section-label">Emission Light</div>
+            </div>
+            <div class="slider-control">
+                <div class="slider-label">Frequency</div>
+                <div class="slider-container">
+                    <div class="slider-with-marker">
+                        <div class="marker" id="freqMarker">▼</div>
+                        <input type="range" id="freqSlider" min="100" max="1100" step="5" value="600">
+                    </div>
+                    <div class="freq-scale">
+                        <span class="scale-mark-freq" style="left:0%;transform:none">100</span>
+                        <span class="scale-mark-freq" style="left:33%">430</span>
+                        <span class="scale-mark-freq" style="left:65%">750</span>
+                        <span class="scale-mark-freq" style="left:100%;transform:translateX(-100%)">1100</span>
+                    </div>
+                </div>
+                <div class="slider-value" id="freqValue">600 THz</div>
+            </div>
+            <div class="slider-control">
+                <div class="slider-label">Wavelength</div>
+                <div class="slider-container">
+                    <div class="slider-with-marker">
+                        <div class="marker" id="lambdaMarker">▼</div>
+                        <input type="range" id="lambdaSlider" min="100" max="1000" step="5" value="500">
+                    </div>
+                    <div class="freq-scale">
+                        <span class="scale-mark-freq" style="left:0%;transform:none">100</span>
+                        <span class="scale-mark-freq" style="left:33.33%">400</span>
+                        <span class="scale-mark-freq" style="left:66.67%">700</span>
+                        <span class="scale-mark-freq" style="left:100%;transform:translateX(-100%)">1000</span>
+                    </div>
+                </div>
+                <div class="slider-value" id="lambdaValue">500 nm</div>
+            </div>
+
+            <!-- Velocity sliders -->
+            <div class="section-divider">
+                <div class="section-label">Object Velocities</div>
+            </div>
+            <div class="slider-control">
+                <div class="slider-label">Aurora</div>
+                <div class="slider-container">
+                    <div class="slider-with-marker">
+                        <div class="marker" id="auroraMarker">A</div>
+                        <input type="range" id="auroraSlider" min="-1" max="1" step="0.01" value="0">
+                    </div>
+                    <div class="scale">
+                        <div class="scale-mark">-1</div>
+                        <div class="scale-mark">-0.5</div>
+                        <div class="scale-mark">0</div>
+                        <div class="scale-mark">+0.5</div>
+                        <div class="scale-mark">+1</div>
+                    </div>
+                </div>
+                <div class="slider-value" id="auroraValue">0% c</div>
+            </div>
+            <div class="slider-control">
+                <div class="slider-label">Coriolis</div>
+                <div class="slider-container">
+                    <div class="slider-with-marker">
+                        <div class="marker" id="coriolisMarker">C</div>
+                        <input type="range" id="coriolisSlider" min="-1" max="1" step="0.01" value="0">
+                    </div>
+                    <div class="scale">
+                        <div class="scale-mark">-1</div>
+                        <div class="scale-mark">-0.5</div>
+                        <div class="scale-mark">0</div>
+                        <div class="scale-mark">+0.5</div>
+                        <div class="scale-mark">+1</div>
+                    </div>
+                </div>
+                <div class="slider-value" id="coriolisValue">0% c</div>
+            </div>
+            <div class="slider-control">
+                <div class="slider-label">Borealis</div>
+                <div class="slider-container">
+                    <div class="slider-with-marker">
+                        <div class="marker" id="borealisMarker">B</div>
+                        <input type="range" id="borealisSlider" min="-1" max="1" step="0.01" value="0">
+                    </div>
+                    <div class="scale">
+                        <div class="scale-mark">-1</div>
+                        <div class="scale-mark">-0.5</div>
+                        <div class="scale-mark">0</div>
+                        <div class="scale-mark">+0.5</div>
+                        <div class="scale-mark">+1</div>
+                    </div>
+                </div>
+                <div class="slider-value" id="borealisValue">0% c</div>
+            </div>
+
+            <!-- Control buttons -->
+            <div class="btn-section">
+                <button class="ctrl-btn active" id="playBtn">▶ Play</button>
+                <button class="ctrl-btn" id="pauseBtn">⏸ Pause</button>
+                <button class="ctrl-btn" id="resetBtn">↺ Reset</button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Initialize starfield
+        const canvas = document.getElementById('starCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = canvas.parentElement;
+
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            drawStars();
+        }
+
+        function drawStars() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const starCount = 150;
+            ctx.fillStyle = '#fff';
+
+            for (let i = 0; i < starCount; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const radius = Math.random() * 1.5;
+                const opacity = Math.random() * 0.7 + 0.3;
+
+                ctx.globalAlpha = opacity;
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Motion control variables
+        const auroraSlider = document.getElementById('auroraSlider');
+        const coriolisSlider = document.getElementById('coriolisSlider');
+        const borealisSlider = document.getElementById('borealisSlider');
+        const auroraValue = document.getElementById('auroraValue');
+        const coriolisValue = document.getElementById('coriolisValue');
+        const borealisValue = document.getElementById('borealisValue');
+        const auroraMarker = document.getElementById('auroraMarker');
+        const coriolisMarker = document.getElementById('coriolisMarker');
+        const borealisMarker = document.getElementById('borealisMarker');
+
+        // Position tracking for velocity-based movement
+        let auroraPos = 0;
+        let coriolisPos = 0;
+        let borealisPos = 0;
+        let lastTime = performance.now();
+
+        // Initial x-positions (set from DOM in first rAF; placeholders ensure A < C < B)
+        let auroraInitX   = -100;
+        let coriolisInitX =    0;
+        let borealisInitX =  100;
+        const velocityPixelsPerSecond = 50;
+        let isPlaying = true;
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const wavesSVG = document.getElementById('wavesSVG');
+        const upperContainer = document.querySelector('.upper-left');
+        const auroraObj = document.querySelectorAll('.celestial-object')[0];
+        const coriolisObj = document.querySelectorAll('.celestial-object')[1];
+        const borealisObj = document.querySelectorAll('.celestial-object')[2];
+        const auroraIconEl = auroraObj.querySelector('.planet-icon');
+        const coriolisIconEl = coriolisObj.querySelector('.galaxy-icon');
+        const borealisIconEl = borealisObj.querySelector('.planet-icon');
+
+        // Pulse state: each pulse travels in a fixed direction at constant speed
+        const pulses = [];
+        const pulseSpeed = 120; // pixels per second on screen
+        const pulseInterval = 250;  // ms between emissions
+        let lastEmissionTime = performance.now();
+        let auroraDir = null;
+        let borealisDir = null;
+
+        function getIconCenterRelative(iconEl) {
+            const cr = upperContainer.getBoundingClientRect();
+            const r = iconEl.getBoundingClientRect();
+            return {
+                x: r.left + r.width / 2 - cr.left,
+                y: r.top + r.height / 2 - cr.top
+            };
+        }
+
+        function updateSliderValue(slider, display) {
+            const value = parseFloat(slider.value);
+            const pct = (value * 100).toFixed(0);
+            display.textContent = (pct > 0 ? '+' : '') + pct + '% c';
+        }
+
+        function updateMarkerPosition(slider, marker) {
+            const value = parseFloat(slider.value);
+            const sliderContainer = slider.closest('.slider-container');
+            const containerWidth = sliderContainer.offsetWidth;
+            const position = ((value + 1) / 2) * containerWidth;
+            marker.style.left = position + 'px';
+        }
+
+        auroraSlider.addEventListener('input', function() {
+            updateSliderValue(this, auroraValue);
+            updateMarkerPosition(this, auroraMarker);
+            updateObserverPanels();
+        });
+        coriolisSlider.addEventListener('input', function() {
+            updateSliderValue(this, coriolisValue);
+            updateMarkerPosition(this, coriolisMarker);
+            updateObserverPanels();
+        });
+        borealisSlider.addEventListener('input', function() {
+            updateSliderValue(this, borealisValue);
+            updateMarkerPosition(this, borealisMarker);
+            updateObserverPanels();
+        });
+
+        updateMarkerPosition(auroraSlider, auroraMarker);
+        updateMarkerPosition(coriolisSlider, coriolisMarker);
+        updateMarkerPosition(borealisSlider, borealisMarker);
+
+        function setSvgViewBox() {
+            wavesSVG.setAttribute('viewBox', `0 0 ${upperContainer.clientWidth} ${upperContainer.clientHeight}`);
+        }
+        setSvgViewBox();
+        window.addEventListener('resize', setSvgViewBox);
+
+        function tick(now) {
+            const deltaTime = (now - lastTime) / 1000;
+            lastTime = now;
+
+            // Move objects based on slider velocities
+            auroraPos += parseFloat(auroraSlider.value) * velocityPixelsPerSecond * deltaTime;
+            coriolisPos += parseFloat(coriolisSlider.value) * velocityPixelsPerSecond * deltaTime;
+            borealisPos += parseFloat(borealisSlider.value) * velocityPixelsPerSecond * deltaTime;
+            auroraObj.style.transform = `translateX(${auroraPos}px)`;
+            coriolisObj.style.transform = `translateX(${coriolisPos}px)`;
+            borealisObj.style.transform = `translateX(${borealisPos}px)`;
+
+            // Update observer panels every frame so Doppler sign reflects real-time positions
+            if (typeof updateObserverPanels === 'function') updateObserverPanels();
+
+            // Read galaxy's current position (only C's movement affects emission point)
+            const galaxyPos = getIconCenterRelative(coriolisIconEl);
+
+            // Emit new pulses in fixed directions (set once at startup)
+            if (auroraDir && now - lastEmissionTime >= pulseInterval) {
+                pulses.push({ emittedAt: now, sx: galaxyPos.x, sy: galaxyPos.y, dx: auroraDir.x, dy: auroraDir.y });
+                pulses.push({ emittedAt: now, sx: galaxyPos.x, sy: galaxyPos.y, dx: borealisDir.x, dy: borealisDir.y });
+                lastEmissionTime = now;
+            }
+
+            // Remove pulses that have left the canvas bounds
+            const svgW = upperContainer.clientWidth;
+            const svgH = upperContainer.clientHeight;
+            for (let i = pulses.length - 1; i >= 0; i--) {
+                const p = pulses[i];
+                const dist = (now - p.emittedAt) / 1000 * pulseSpeed;
+                const px = p.sx + p.dx * dist;
+                const py = p.sy + p.dy * dist;
+                if (px < -20 || px > svgW + 20 || py < -20 || py > svgH + 20) pulses.splice(i, 1);
+            }
+
+            // Render — full brightness, travel to infinity
+            wavesSVG.innerHTML = '';
+            for (const p of pulses) {
+                const dist = (now - p.emittedAt) / 1000 * pulseSpeed;
+                const x = p.sx + p.dx * dist;
+                const y = p.sy + p.dy * dist;
+                const c = document.createElementNS(svgNS, 'circle');
+                c.setAttribute('cx', x);
+                c.setAttribute('cy', y);
+                c.setAttribute('r', '3');
+                c.setAttribute('style', pulseStyle(currentLambda));
+                c.setAttribute('opacity', '1');
+                wavesSVG.appendChild(c);
+            }
+
+            if (isPlaying) requestAnimationFrame(tick);
+        }
+
+        requestAnimationFrame((t) => {
+            lastTime = t; lastEmissionTime = t;
+            const gi = getIconCenterRelative(coriolisIconEl);
+            const ai = getIconCenterRelative(auroraIconEl);
+            const bi = getIconCenterRelative(borealisIconEl);
+            const dax = ai.x - gi.x, day = ai.y - gi.y, da = Math.hypot(dax, day) || 1;
+            const dbx = bi.x - gi.x, dby = bi.y - gi.y, db = Math.hypot(dbx, dby) || 1;
+            auroraDir   = { x: dax/da, y: day/da };
+            borealisDir = { x: dbx/db, y: dby/db };
+            // Capture real initial x-positions from the rendered DOM
+            auroraInitX   = ai.x;
+            coriolisInitX = gi.x;
+            borealisInitX = bi.x;
+            tick(t);
+        });
+
+        // ── Emission sliders ──────────────────────────────────────────
+        const C_NM_THZ = 299792.458; // c in nm·THz
+        let currentLambda = 500;
+
+        function wavelengthToRGB(nm) {
+            let r, g, b;
+            if      (nm < 440) { r = (440-nm)/60;  g = 0;           b = 1; }
+            else if (nm < 490) { r = 0;             g = (nm-440)/50; b = 1; }
+            else if (nm < 510) { r = 0;             g = 1;           b = (510-nm)/20; }
+            else if (nm < 580) { r = (nm-510)/70;   g = 1;           b = 0; }
+            else if (nm < 645) { r = 1;             g = (645-nm)/65; b = 0; }
+            else               { r = 1;             g = 0;           b = 0; }
+            return `rgb(${Math.round(r*255)},${Math.round(g*255)},${Math.round(b*255)})`;
+        }
+
+        function pulseStyle(nm) {
+            if (nm >= 380 && nm <= 700) {
+                const col = wavelengthToRGB(nm);
+                return `fill:${col};stroke:none;filter:drop-shadow(0 0 4px ${col})`;
+            }
+            if (nm >= 100 && nm < 380)
+                return 'fill:#000;stroke:#aa00ff;stroke-width:1.5;filter:drop-shadow(0 0 4px #aa00ff)';
+            if (nm > 700 && nm <= 1000)
+                return 'fill:#000;stroke:#ff2200;stroke-width:1.5;filter:drop-shadow(0 0 4px #ff2200)';
+            return 'fill:#888;stroke:none;filter:drop-shadow(0 0 3px #666)';
+        }
+
+        function updateEmissionMarker(slider, marker) {
+            const min = parseFloat(slider.min);
+            const max = parseFloat(slider.max);
+            const val = parseFloat(slider.value);
+            const container = slider.closest('.slider-container');
+            marker.style.left = ((val - min) / (max - min)) * container.offsetWidth + 'px';
+        }
+
+        function updateEmission(source) {
+            const freqSlider   = document.getElementById('freqSlider');
+            const lambdaSlider = document.getElementById('lambdaSlider');
+            const freqValue    = document.getElementById('freqValue');
+            const lambdaValue  = document.getElementById('lambdaValue');
+
+            let freq, lambda;
+            if (source === 'freq') {
+                freq   = parseFloat(freqSlider.value);
+                lambda = Math.max(100, Math.min(1000, C_NM_THZ / freq));
+                lambdaSlider.value = lambda;
+            } else {
+                lambda = parseFloat(lambdaSlider.value);
+                freq   = Math.max(100, Math.min(1100, C_NM_THZ / lambda));
+                freqSlider.value = freq;
+            }
+
+            freqValue.textContent   = freq.toFixed(0) + ' THz';
+            lambdaValue.textContent = lambda.toFixed(0) + ' nm';
+            currentLambda = lambda;
+
+            updateEmissionMarker(freqSlider, document.getElementById('freqMarker'));
+            updateEmissionMarker(lambdaSlider, document.getElementById('lambdaMarker'));
+            if (typeof updateObserverPanels === 'function') updateObserverPanels();
+        }
+
+        document.getElementById('freqSlider').addEventListener('input',   () => updateEmission('freq'));
+        document.getElementById('lambdaSlider').addEventListener('input', () => updateEmission('lambda'));
+
+        updateEmission('lambda');
+
+        // ── Observer panels (Doppler computation) ─────────────────────
+        function freqToTriPct(freq) {
+            return Math.max(0, Math.min(100, (freq - 100) / 1000 * 100));
+        }
+
+        function updateObsPanel(id, f0, lambda0, fRecv, lambdaRecv, df, dl) {
+            // Triangles on spectrum bar
+            document.getElementById(id + 'EmitTri').style.left = freqToTriPct(f0)    + '%';
+            document.getElementById(id + 'RecvTri').style.left = freqToTriPct(fRecv) + '%';
+
+            // Emitted reference values
+            document.getElementById(id + 'FreqEmit').textContent   = f0.toFixed(0);
+            document.getElementById(id + 'LambdaEmit').textContent = lambda0.toFixed(0);
+
+            // Received values
+            document.getElementById(id + 'FreqRecv').textContent   = isFinite(fRecv)     ? fRecv.toFixed(0)     : '>>>';
+            document.getElementById(id + 'LambdaRecv').textContent = isFinite(lambdaRecv)? lambdaRecv.toFixed(0): '<<<';
+
+            // Frequency and wavelength shifts
+            const dfStr = isFinite(df) ? df.toFixed(0) : '>>>';
+            const dlStr = isFinite(dl) ? dl.toFixed(0) : '>>>';
+            document.getElementById(id + 'FreqShift').textContent   = (parseFloat(dfStr) >= 0 ? '+' : '') + dfStr;
+            document.getElementById(id + 'LambdaShift').textContent = (parseFloat(dlStr) >= 0 ? '+' : '') + dlStr;
+
+            // Redshift parameter z = λ_r / λ_0 − 1
+            const zEl = document.getElementById(id + 'Z');
+            if (zEl) {
+                const z = (isFinite(lambdaRecv) && lambda0 > 0) ? (lambdaRecv / lambda0 - 1) : NaN;
+                if (isFinite(z)) {
+                    zEl.textContent = (z >= 0 ? '+' : '') + z.toFixed(4);
+                } else {
+                    zEl.textContent = '—';
+                }
+            }
+
+            // Shift indicator signs
+            const redSign  = document.getElementById(id + 'RedSign');
+            const noSign   = document.getElementById(id + 'NoSign');
+            const blueSign = document.getElementById(id + 'BlueSign');
+            redSign.className = noSign.className = blueSign.className = 'shift-sign';
+
+            const relShift = Math.abs(df) / f0;
+            if (relShift < 0.001) {
+                noSign.classList.add('on-none');
+            } else if (df < 0) {
+                redSign.classList.add('on-red');
+            } else {
+                blueSign.classList.add('on-blue');
+            }
+        }
+
+        function updateObserverPanels() {
+            const betaA = Math.max(-0.9999, Math.min(0.9999, parseFloat(auroraSlider.value)));
+            const betaC = Math.max(-0.9999, Math.min(0.9999, parseFloat(coriolisSlider.value)));
+            const betaB = Math.max(-0.9999, Math.min(0.9999, parseFloat(borealisSlider.value)));
+            const f0   = parseFloat(document.getElementById('freqSlider').value);
+            const lam0 = C_NM_THZ / f0;   // derived from f0 for internal consistency (z=0 at rest)
+
+            // Actual x-positions of each object in screen space
+            const cX = coriolisInitX + coriolisPos;
+            const aX = auroraInitX   + auroraPos;
+            const bX = borealisInitX + borealisPos;
+
+            // ── Aurora ────────────────────────────────────────────────────
+            // betaRelA = velocity of Coriolis in Aurora's rest frame (+ = rightward)
+            const betaRelA = (betaC - betaA) / (1 - betaC * betaA);
+            let fA;
+            if (cX >= aX) {
+                // C is to the RIGHT of A → light travels left
+                // betaRelA > 0 means C moves right = receding from A → redshift
+                fA = f0 * Math.sqrt(Math.max(0, (1 - betaRelA) / (1 + betaRelA)));
+            } else {
+                // C is to the LEFT of A → light travels right
+                // betaRelA > 0 means C moves right = approaching A → blueshift
+                fA = f0 * Math.sqrt(Math.max(0, (1 + betaRelA) / (1 - betaRelA)));
+            }
+            const lamA = C_NM_THZ / fA;
+
+            // ── Borealis ──────────────────────────────────────────────────
+            // betaRelB = velocity of Coriolis in Borealis's rest frame (+ = rightward)
+            const betaRelB = (betaC - betaB) / (1 - betaC * betaB);
+            let fB;
+            if (cX <= bX) {
+                // C is to the LEFT of B → light travels right
+                // betaRelB > 0 means C moves right = approaching B → blueshift
+                fB = f0 * Math.sqrt(Math.max(0, (1 + betaRelB) / (1 - betaRelB)));
+            } else {
+                // C is to the RIGHT of B → light travels left
+                // betaRelB > 0 means C moves right = receding from B → redshift
+                fB = f0 * Math.sqrt(Math.max(0, (1 - betaRelB) / (1 + betaRelB)));
+            }
+            const lamB = C_NM_THZ / fB;
+
+            updateObsPanel('aurora',   f0, lam0, fA, lamA, fA - f0, lamA - lam0);
+            updateObsPanel('borealis', f0, lam0, fB, lamB, fB - f0, lamB - lam0);
+        }
+
+        updateObserverPanels();
+
+        function makeDraggableMarker(marker, slider, onUpdate) {
+            function applyPosition(clientX) {
+                const container = slider.closest('.slider-container');
+                const rect = container.getBoundingClientRect();
+                const fraction = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+                const min = parseFloat(slider.min);
+                const max = parseFloat(slider.max);
+                const step = parseFloat(slider.step) || 1;
+                slider.value = Math.round((min + fraction * (max - min)) / step) * step;
+                onUpdate();
+            }
+
+            marker.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                marker.style.cursor = 'grabbing';
+                const onMove = (e) => applyPosition(e.clientX);
+                const onUp   = () => {
+                    marker.style.cursor = 'grab';
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup',   onUp);
+                };
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup',   onUp);
+            });
+
+            marker.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const onMove = (e) => { e.preventDefault(); applyPosition(e.touches[0].clientX); };
+                const onEnd  = () => {
+                    document.removeEventListener('touchmove', onMove);
+                    document.removeEventListener('touchend',  onEnd);
+                };
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('touchend',  onEnd);
+            }, { passive: false });
+        }
+
+        makeDraggableMarker(
+            document.getElementById('freqMarker'),
+            document.getElementById('freqSlider'),
+            () => updateEmission('freq')
+        );
+        makeDraggableMarker(
+            document.getElementById('lambdaMarker'),
+            document.getElementById('lambdaSlider'),
+            () => updateEmission('lambda')
+        );
+
+        // ── Play / Pause / Reset ──────────────────────────────────────
+        document.getElementById('playBtn').addEventListener('click', function() {
+            if (!isPlaying) {
+                isPlaying = true;
+                lastTime = performance.now();
+                lastEmissionTime = performance.now();
+                requestAnimationFrame(tick);
+            }
+            this.classList.add('active');
+            document.getElementById('pauseBtn').classList.remove('active');
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', function() {
+            isPlaying = false;
+            this.classList.add('active');
+            document.getElementById('playBtn').classList.remove('active');
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', function() {
+            auroraPos = 0; coriolisPos = 0; borealisPos = 0;
+            auroraSlider.value = 0; coriolisSlider.value = 0; borealisSlider.value = 0;
+            updateSliderValue(auroraSlider, auroraValue);
+            updateSliderValue(coriolisSlider, coriolisValue);
+            updateSliderValue(borealisSlider, borealisValue);
+            updateMarkerPosition(auroraSlider, auroraMarker);
+            updateMarkerPosition(coriolisSlider, coriolisMarker);
+            updateMarkerPosition(borealisSlider, borealisMarker);
+            auroraObj.style.transform   = 'translateX(0px)';
+            coriolisObj.style.transform = 'translateX(0px)';
+            borealisObj.style.transform = 'translateX(0px)';
+            pulses.length = 0;
+            wavesSVG.innerHTML = '';
+            updateObserverPanels();
+            if (!isPlaying) {
+                isPlaying = true;
+                lastTime = performance.now();
+                lastEmissionTime = performance.now();
+                requestAnimationFrame(tick);
+                document.getElementById('playBtn').classList.add('active');
+                document.getElementById('pauseBtn').classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>

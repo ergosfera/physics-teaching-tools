@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doppler Effect Simulator</title>
+    <style>
+        :root {
+            --bg-gradient-1: #667eea;
+            --bg-gradient-2: #764ba2;
+            --container-bg: white;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --text-muted: #999;
+            --input-border: #ddd;
+            --input-bg: white;
+            --canvas-bg: #f9f9f9;
+        }
+
+        body.dark {
+            --bg-gradient-1: #1a1a2e;
+            --bg-gradient-2: #0f3460;
+            --container-bg: #16213e;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --text-muted: #666;
+            --input-border: #444;
+            --input-bg: #2a2a3e;
+            --canvas-bg: #1a1a1a;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, var(--bg-gradient-1) 0%, var(--bg-gradient-2) 100%);
+            transition: background 0.3s ease;
+        }
+
+        .container {
+            background: var(--container-bg);
+            color: var(--text-primary);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            padding: 30px;
+            max-width: 900px;
+            width: 90%;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-primary);
+            margin-top: 0;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label {
+            font-weight: bold;
+            color: var(--text-secondary);
+        }
+
+        input[type="range"] {
+            width: 150px;
+        }
+
+        input[type="number"] {
+            width: 80px;
+            padding: 5px;
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #764ba2;
+        }
+
+        button.paused {
+            background: #555;
+        }
+
+        body.dark button.paused {
+            background: #888;
+        }
+
+        #canvas {
+            border: 2px solid var(--input-border);
+            border-radius: 8px;
+            display: block;
+            margin: 20px auto;
+            background: var(--canvas-bg);
+        }
+
+        .info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .observer-info {
+            padding: 15px;
+            background: var(--input-bg);
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            color: var(--text-primary);
+        }
+
+        .observer-info h3 {
+            margin: 0 0 10px 0;
+            color: var(--text-primary);
+        }
+
+        .frequency-display {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        body.dark .frequency-display {
+            color: #8ba7ff;
+        }
+
+        .frequency-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .description {
+            background: var(--input-bg);
+            border-left: 4px solid #ffa500;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .wavelength-canvas {
+            width: 100%;
+            height: 60px;
+            border: 1px solid var(--input-border);
+            border-radius: 4px;
+            background: var(--canvas-bg);
+            margin: 10px 0;
+            display: block;
+        }
+
+        .audio-controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: var(--input-bg);
+            border-radius: 8px;
+            color: var(--text-primary);
+        }
+
+        .audio-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .audio-option input[type="radio"] {
+            cursor: pointer;
+        }
+
+        .audio-option label {
+            cursor: pointer;
+            font-weight: normal;
+            margin: 0;
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1 style="margin: 0;">🌊 Doppler Effect Simulator</h1>
+            <button id="themeToggle" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;">🌙 Dark</button>
+        </div>
+
+        <div class="description">
+            <strong>How it works:</strong> The green circles represent wave fronts emitted by the moving source.
+            As the source moves right, waves bunch up ahead (shorter wavelength, higher frequency) and spread out behind (longer wavelength, lower frequency).
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="speedSlider">Source Speed (m/s):</label>
+                <input type="range" id="speedSlider" min="0" max="1030" step="10" value="0">
+                <input type="number" id="speedValue" value="0" readonly>
+                <span style="color: var(--text-muted);">m/s</span>
+            </div>
+            <div class="control-group">
+                <label for="freqSlider">Wave Frequency (Hz):</label>
+                <input type="range" id="freqSlider" min="50" max="1000" value="220">
+                <input type="number" id="freqValue" value="220" readonly>
+            </div>
+            <button id="toggleBtn">Play</button>
+            <button id="resetBtn">Reset</button>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="annaVelSlider">👂 Anna's Velocity (m/s):</label>
+                <input type="range" id="annaVelSlider" min="-200" max="200" step="10" value="0">
+                <input type="number" id="annaVelValue" value="0" readonly>
+                <span style="color: var(--text-muted);">m/s</span>
+            </div>
+            <div class="control-group">
+                <label for="billyVelSlider">👂 Billy's Velocity (m/s):</label>
+                <input type="range" id="billyVelSlider" min="-200" max="200" step="10" value="0">
+                <input type="number" id="billyVelValue" value="0" readonly>
+                <span style="color: var(--text-muted);">m/s</span>
+            </div>
+        </div>
+
+        <canvas id="canvas" width="800" height="500"></canvas>
+
+        <div class="info">
+            <div class="observer-info">
+                <h3>👂 Anna (Left)</h3>
+                <div class="frequency-label">Observed Frequency:</div>
+                <div class="frequency-display" id="backFreq">5.0 Hz</div>
+                <small style="color: #999;">Lower frequency (red-shifted)</small>
+                <canvas id="annaWave" class="wavelength-canvas"></canvas>
+            </div>
+            <div class="observer-info">
+                <h3>👂 Billy (Right)</h3>
+                <div class="frequency-label">Observed Frequency:</div>
+                <div class="frequency-display" id="frontFreq">5.0 Hz</div>
+                <small style="color: #999;">Higher frequency (blue-shifted)</small>
+                <canvas id="billyWave" class="wavelength-canvas"></canvas>
+            </div>
+        </div>
+
+        <div class="audio-controls">
+            <div class="audio-option">
+                <input type="radio" id="audioAnna" name="audio" value="anna">
+                <label for="audioAnna">🔊 Anna's Sound</label>
+            </div>
+            <div class="audio-option">
+                <input type="radio" id="audioBilly" name="audio" value="billy">
+                <label for="audioBilly">🔊 Billy's Sound</label>
+            </div>
+            <div class="audio-option">
+                <input type="radio" id="audioSilent" name="audio" value="silent" checked>
+                <label for="audioSilent">🔇 Silent</label>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dark mode toggle
+        function initTheme() {
+            const themeToggle = document.getElementById('themeToggle');
+            const savedTheme = localStorage.getItem('doppler-theme') || 'light';
+
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark');
+                themeToggle.textContent = '☀️ Light';
+            } else {
+                document.body.classList.remove('dark');
+                themeToggle.textContent = '🌙 Dark';
+            }
+
+            themeToggle.addEventListener('click', () => {
+                document.body.classList.toggle('dark');
+                const isDark = document.body.classList.contains('dark');
+                themeToggle.textContent = isDark ? '☀️ Light' : '🌙 Dark';
+                localStorage.setItem('doppler-theme', isDark ? 'dark' : 'light');
+            });
+        }
+
+        initTheme();
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const annaWaveCanvas = document.getElementById('annaWave');
+        const billyWaveCanvas = document.getElementById('billyWave');
+        const annaWaveCtx = annaWaveCanvas.getContext('2d');
+        const billyWaveCtx = billyWaveCanvas.getContext('2d');
+
+        // Audio setup
+        let audioContext = null;
+        let oscillator = null;
+        let gainNode = null;
+        let currentAudioSource = null;
+        let currentAudioFrequency = 250;
+
+        // Set canvas dimensions
+        function initializeWaveCanvases() {
+            const annaContainer = annaWaveCanvas.parentElement;
+            const billyContainer = billyWaveCanvas.parentElement;
+
+            annaWaveCanvas.width = annaContainer.offsetWidth - 2; // Account for border
+            annaWaveCanvas.height = 60;
+
+            billyWaveCanvas.width = billyContainer.offsetWidth - 2;
+            billyWaveCanvas.height = 60;
+        }
+
+        initializeWaveCanvases();
+
+        // Initialize audio context on first user interaction
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                gainNode = audioContext.createGain();
+                gainNode.connect(audioContext.destination);
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            }
+        }
+
+        // Start audio playback
+        function startAudio(frequency) {
+            initAudioContext();
+
+            if (oscillator) {
+                oscillator.stop();
+                oscillator.disconnect();
+            }
+
+            oscillator = audioContext.createOscillator();
+            oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+            oscillator.type = 'sine';
+            oscillator.connect(gainNode);
+            oscillator.start();
+
+            currentAudioFrequency = frequency;
+        }
+
+        // Stop audio playback
+        function stopAudio() {
+            if (oscillator) {
+                oscillator.stop();
+                oscillator.disconnect();
+                oscillator = null;
+            }
+        }
+
+        // Update audio frequency with smooth transition
+        function updateAudioFrequency(frequency) {
+            if (oscillator && audioContext) {
+                oscillator.frequency.setTargetAtTime(frequency, audioContext.currentTime, 0.07);
+                currentAudioFrequency = frequency;
+            }
+        }
+
+        // Smooth frequency update for waveform display (exponential smoothing)
+        function smoothFrequency(current, target, timeConstant, deltaTime) {
+            if (target === 0 || isNaN(target)) return current;
+            // Exponential decay: new_value = target + (current - target) * e^(-deltaTime / timeConstant)
+            const decay = Math.exp(-deltaTime / timeConstant);
+            return target + (current - target) * decay;
+        }
+
+        // Draw wavelength visualization
+        function drawWaveform(canvasCtx, canvasEl, frequency) {
+            const isDarkMode = document.body.classList.contains('dark');
+            const bgColor = isDarkMode ? '#2a2a3e' : '#fafafa';
+            const baselineColor = isDarkMode ? '#444' : '#ddd';
+
+            if (frequency === 0 || isNaN(frequency)) {
+                canvasCtx.fillStyle = bgColor;
+                canvasCtx.fillRect(0, 0, canvasEl.width, canvasEl.height);
+                return;
+            }
+
+            const width = canvasEl.width;
+            const height = canvasEl.height;
+            const centerY = height / 2;
+            const amplitude = height * 0.35;
+
+            // Clear canvas
+            canvasCtx.fillStyle = bgColor;
+            canvasCtx.fillRect(0, 0, width, height);
+
+            // Draw wavelength as sinusoidal curve
+            canvasCtx.strokeStyle = '#4a9d6f';
+            canvasCtx.lineWidth = 2;
+            canvasCtx.beginPath();
+
+            const wavelengthPixels = width / (frequency / 1.2); // Scale frequency to show closer peaks
+
+            for (let x = 0; x < width; x++) {
+                const y = centerY + amplitude * Math.sin((x / wavelengthPixels) * 2 * Math.PI);
+                if (x === 0) {
+                    canvasCtx.moveTo(x, y);
+                } else {
+                    canvasCtx.lineTo(x, y);
+                }
+            }
+            canvasCtx.stroke();
+
+            // Draw baseline
+            canvasCtx.strokeStyle = baselineColor;
+            canvasCtx.lineWidth = 1;
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(0, centerY);
+            canvasCtx.lineTo(width, centerY);
+            canvasCtx.stroke();
+        }
+
+        // Mapping function for frequency
+        function mapFrequency(displayFreq) {
+            return 1 + ((displayFreq - 50) / 950) * 19;
+        }
+
+        // State
+        let isRunning = false;
+        let sourceX = canvas.width / 2;
+        let sourceY = canvas.height / 2;
+        let waveSpeed = 100; // pixels per second (speed of sound)
+        const SPEED_OF_SOUND = 343.2; // m/s (reference)
+
+        // Initialize frequency from HTML slider
+        let displayFrequency = 220; // display value (50-1000)
+        let waveFrequency = mapFrequency(displayFrequency); // mapped value (1-20)
+        let wavePeriod = 1 / waveFrequency;
+
+        // Initialize speed from HTML slider
+        let displaySpeed = 0; // display speed in m/s
+        let machNumber = displaySpeed / SPEED_OF_SOUND;
+        let sourceSpeed = machNumber * waveSpeed; // actual speed in simulation
+
+        let time = 0;
+        let waves = [];
+        let smoothedAnnaFreq = 0;
+        let smoothedBillyFreq = 0;
+        let lastFrameTime = 0;
+
+        // Observer positions and velocities
+        let annaX = 100;
+        let billyX = canvas.width - 100;
+        const observerY = canvas.height / 2;
+        let annaVelocity = 0; // m/s
+        let billyVelocity = 0; // m/s
+        let annaSimSpeed = 0; // pixels/second in simulation
+        let billySimSpeed = 0; // pixels/second in simulation
+
+        // DOM elements
+        const speedSlider = document.getElementById('speedSlider');
+        const speedValue = document.getElementById('speedValue');
+        const freqSlider = document.getElementById('freqSlider');
+        const freqValue = document.getElementById('freqValue');
+        const annaVelSlider = document.getElementById('annaVelSlider');
+        const annaVelValue = document.getElementById('annaVelValue');
+        const billyVelSlider = document.getElementById('billyVelSlider');
+        const billyVelValue = document.getElementById('billyVelValue');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const annaFreqDisplay = document.getElementById('backFreq');
+        const billyFreqDisplay = document.getElementById('frontFreq');
+        const audioAnnaRadio = document.getElementById('audioAnna');
+        const audioBillyRadio = document.getElementById('audioBilly');
+        const audioSilentRadio = document.getElementById('audioSilent');
+
+        // Control listeners
+        speedSlider.addEventListener('input', (e) => {
+            const displaySpeed = parseFloat(e.target.value);
+            machNumber = displaySpeed / SPEED_OF_SOUND;
+            sourceSpeed = machNumber * waveSpeed;
+            speedValue.value = displaySpeed;
+        });
+
+        // Map display frequency (50-1000) to actual frequency (1-20)
+        function mapFrequency(displayFreq) {
+            return 1 + ((displayFreq - 50) / 950) * 19;
+        }
+
+        freqSlider.addEventListener('input', (e) => {
+            displayFrequency = parseInt(e.target.value);
+            waveFrequency = mapFrequency(displayFrequency);
+            wavePeriod = 1 / waveFrequency;
+            freqValue.value = displayFrequency;
+        });
+
+        annaVelSlider.addEventListener('input', (e) => {
+            annaVelocity = parseFloat(e.target.value);
+            annaSimSpeed = (annaVelocity / SPEED_OF_SOUND) * waveSpeed;
+            annaVelValue.value = annaVelocity;
+        });
+
+        billyVelSlider.addEventListener('input', (e) => {
+            billyVelocity = parseFloat(e.target.value);
+            billySimSpeed = (billyVelocity / SPEED_OF_SOUND) * waveSpeed;
+            billyVelValue.value = billyVelocity;
+        });
+
+        toggleBtn.addEventListener('click', () => {
+            isRunning = !isRunning;
+            toggleBtn.textContent = isRunning ? 'Pause' : 'Play';
+            toggleBtn.classList.toggle('paused');
+        });
+
+        resetBtn.addEventListener('click', () => {
+            sourceX = canvas.width / 2;
+            annaX = 100;
+            billyX = canvas.width - 100;
+            time = 0;
+            waves = [];
+        });
+
+        // Audio control listeners
+        audioAnnaRadio.addEventListener('change', () => {
+            if (audioAnnaRadio.checked) {
+                const audioFreq = 250; // Will be updated in animate loop
+                startAudio(audioFreq);
+            }
+        });
+
+        audioBillyRadio.addEventListener('change', () => {
+            if (audioBillyRadio.checked) {
+                const audioFreq = 250; // Will be updated in animate loop
+                startAudio(audioFreq);
+            }
+        });
+
+        audioSilentRadio.addEventListener('change', () => {
+            if (audioSilentRadio.checked) {
+                stopAudio();
+            }
+        });
+
+        // Animation loop
+        let lastWaveTime = -wavePeriod; // Initialize to emit wave immediately
+
+        function animate(timestamp) {
+            const deltaTime = timestamp ? (timestamp - lastTimestamp) / 1000 : 0.016;
+            lastTimestamp = timestamp;
+
+            if (isRunning) {
+                time += deltaTime;
+
+                // Move source
+                sourceX += sourceSpeed * deltaTime;
+
+                // Move observers
+                annaX += annaSimSpeed * deltaTime;
+                billyX += billySimSpeed * deltaTime;
+
+                // Wrap around
+                if (sourceX > canvas.width + 100) {
+                    sourceX = -100;
+                    waves = [];
+                }
+
+                // Create new waves periodically
+                if (time - lastWaveTime >= wavePeriod) {
+                    waves.push({
+                        createdAt: time,
+                        x: sourceX,
+                        y: sourceY
+                    });
+                    lastWaveTime = time;
+                }
+            }
+
+            // Determine colors based on dark mode
+            const isDarkMode = document.body.classList.contains('dark');
+            const bgColor = isDarkMode ? '#1a1a1a' : '#f9f9f9';
+            const gridColor = isDarkMode ? '#333' : '#e0e0e0';
+            const textColor = isDarkMode ? '#b0b0b0' : '#666';
+
+            // Clear canvas
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid lines
+            ctx.strokeStyle = gridColor;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(100, 0);
+            ctx.lineTo(100, canvas.height);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(canvas.width - 100, 0);
+            ctx.lineTo(canvas.width - 100, canvas.height);
+            ctx.stroke();
+
+            // Draw waves
+            ctx.strokeStyle = '#4a9d6f';
+            ctx.lineWidth = 2;
+
+            for (let wave of waves) {
+                const age = time - wave.createdAt;
+                const radius = age * waveSpeed;
+
+                if (radius < Math.max(canvas.width, canvas.height) / 2 + 200) {
+                    ctx.beginPath();
+                    ctx.arc(wave.x, wave.y, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+
+            // Draw source
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc(sourceX, sourceY, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw observers
+            ctx.fillStyle = '#f39c12';
+            ctx.beginPath();
+            ctx.arc(annaX, observerY, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(billyX, observerY, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw observer labels
+            ctx.fillStyle = textColor;
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Anna', annaX, observerY + 30);
+            ctx.fillText('Billy', billyX, observerY + 30);
+
+            // Draw source label
+            ctx.fillStyle = '#e74c3c';
+            ctx.textAlign = 'center';
+            ctx.fillText('Source', sourceX, sourceY - 25);
+
+            // Calculate observed frequencies using Doppler formula with observer motion
+            // f_observed = f_source * (v_wave + v_observer_radial) / (v_wave - v_source_radial)
+            // v_radial is positive when moving away, negative when moving toward
+
+            // Vector from source to Anna (left observer)
+            const dxAnna = annaX - sourceX;
+            const dyAnna = observerY - sourceY;
+            const distAnna = Math.sqrt(dxAnna * dxAnna + dyAnna * dyAnna);
+
+            // Vector from source to Billy (right observer)
+            const dxBilly = billyX - sourceX;
+            const dyBilly = observerY - sourceY;
+            const distBilly = Math.sqrt(dxBilly * dxBilly + dyBilly * dyBilly);
+
+            // Radial component of source velocity (positive = moving away from observer)
+            // Source moves horizontally with sourceSpeed
+            const vRadialAnna = (dxAnna / distAnna) * sourceSpeed; // negative when moving toward Anna
+            const vRadialBilly = (dxBilly / distBilly) * sourceSpeed; // negative when moving toward Billy
+
+            // Radial component of observer velocity (positive = moving toward source)
+            const vRadialAnnaObserver = (dxAnna / distAnna) * annaSimSpeed; // positive when moving toward source
+            const vRadialBillyObserver = (dxBilly / distBilly) * billySimSpeed; // positive when moving toward source
+
+            // Doppler formula with observer motion: f' = f * (v_wave + v_observer_radial) / (v_wave - v_source_radial)
+            // v_observer_radial is positive when moving toward source, negative when moving away
+
+            // Check if source is moving faster than wave speed (Mach > 1)
+            let annaText, billyText;
+            let annaObservedFreq = 0;
+            let billyObservedFreq = 0;
+            let annaAudioFreq = 0;
+            let billyAudioFreq = 0;
+
+            // Anna's observed frequency with observer motion
+            const annaDenominator = waveSpeed - vRadialAnna;
+            if (annaDenominator <= 0) {
+                annaText = 'N/A';
+            } else {
+                annaObservedFreq = waveFrequency * (waveSpeed + vRadialAnnaObserver) / annaDenominator;
+                const annaDisplayFreq = annaObservedFreq * 50;
+                annaText = annaDisplayFreq.toFixed(2) + ' Hz';
+                annaAudioFreq = annaObservedFreq * 50;
+            }
+
+            // Billy's observed frequency with observer motion
+            const billyDenominator = waveSpeed - vRadialBilly;
+            if (billyDenominator <= 0) {
+                billyText = 'N/A';
+            } else {
+                billyObservedFreq = waveFrequency * (waveSpeed + vRadialBillyObserver) / billyDenominator;
+                const billyDisplayFreq = billyObservedFreq * 50;
+                billyText = billyDisplayFreq.toFixed(2) + ' Hz';
+                billyAudioFreq = billyObservedFreq * 50;
+            }
+
+            annaFreqDisplay.textContent = annaText;
+            billyFreqDisplay.textContent = billyText;
+
+            // Apply smoothing to frequencies for waveform display
+            smoothedAnnaFreq = smoothFrequency(smoothedAnnaFreq, annaObservedFreq, 0.07, deltaTime);
+            smoothedBillyFreq = smoothFrequency(smoothedBillyFreq, billyObservedFreq, 0.07, deltaTime);
+
+            // Draw wavelength visualizations with smoothed frequencies
+            drawWaveform(annaWaveCtx, annaWaveCanvas, smoothedAnnaFreq);
+            drawWaveform(billyWaveCtx, billyWaveCanvas, smoothedBillyFreq);
+
+            // Update audio frequency if audio is playing
+            if (audioAnnaRadio.checked && annaAudioFreq > 0) {
+                updateAudioFrequency(annaAudioFreq);
+            } else if (audioBillyRadio.checked && billyAudioFreq > 0) {
+                updateAudioFrequency(billyAudioFreq);
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        let lastTimestamp = 0;
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>

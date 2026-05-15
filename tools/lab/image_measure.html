@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Measurement Tool</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Theme variables ── */
+:root {
+  --bg:             #12141a;
+  --toolbar-bg:     #1c2030;
+  --border:         #2a3050;
+  --tlabel:         #7a869a;
+  --btn-bg:         #252c3e;
+  --btn-color:      #c8d4e8;
+  --btn-border:     #2e3a54;
+  --btn-hover-bg:   #2e3a54;
+  --btn-hover-bdr:  #3e4f70;
+  --text:           #dde3f0;
+  --range-bg:       #2a3050;
+  --info-color:     #7a869a;
+  --canvas-bg:      #0d0f14;
+  --empty-msg:      #4a5568;
+  --empty-sub:      #2d3748;
+  --sidebar-bg:     #1c2030;
+  --sb-head-bg:     #1a2240;
+  --scroll-thumb:   #2a3050;
+  --no-meas:        #3a4a5a;
+  --th-bg:          #1e2840;
+  --th-color:       #6b84b0;
+  --th-border:      #2a3050;
+  --td-border:      #1e2535;
+  --row-hover:      #1e2840;
+  --row-sel:        #1a2c50;
+  --statusbar-bg:   #161820;
+  --statusbar-text: #5a6a80;
+  --modal-surface:  #1c2030;
+  --modal-bdr:      #2e3a54;
+  --modal-input-bg: #12141a;
+  --modal-label:    #aabbcc;
+  --modal-muted:    #7a869a;
+}
+
+body.light {
+  --bg:             #f0f4f8;
+  --toolbar-bg:     #ffffff;
+  --border:         #d0d9e4;
+  --tlabel:         #6b7a8d;
+  --btn-bg:         #eef2f7;
+  --btn-color:      #374151;
+  --btn-border:     #c4cdd8;
+  --btn-hover-bg:   #e2e8f0;
+  --btn-hover-bdr:  #9ab0c8;
+  --text:           #1a2030;
+  --range-bg:       #c8d3de;
+  --info-color:     #6b7a8d;
+  --canvas-bg:      #dde3ea;
+  --empty-msg:      #7a8898;
+  --empty-sub:      #a0b0c0;
+  --sidebar-bg:     #ffffff;
+  --sb-head-bg:     #eef2f7;
+  --scroll-thumb:   #c8d3de;
+  --no-meas:        #8a9aaa;
+  --th-bg:          #f5f8fc;
+  --th-color:       #4a6080;
+  --th-border:      #d0d9e4;
+  --td-border:      #e8eef5;
+  --row-hover:      #eef2f7;
+  --row-sel:        #dbeafe;
+  --statusbar-bg:   #f8fafc;
+  --statusbar-text: #7a8898;
+  --modal-surface:  #ffffff;
+  --modal-bdr:      #d0d9e4;
+  --modal-input-bg: #f0f4f8;
+  --modal-label:    #5a6a80;
+  --modal-muted:    #6b7a8d;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ── Toolbar ── */
+#toolbar {
+  background: var(--toolbar-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 10px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.tgroup {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 0 8px 0 0;
+  border-right: 1px solid var(--border);
+}
+.tgroup:last-child { border-right: none; }
+
+.tlabel {
+  font-size: 11px;
+  color: var(--tlabel);
+  white-space: nowrap;
+}
+
+button {
+  background: var(--btn-bg);
+  color: var(--btn-color);
+  border: 1px solid var(--btn-border);
+  border-radius: 5px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+button:hover  { background: var(--btn-hover-bg); border-color: var(--btn-hover-bdr); }
+button.active { background: #2563eb; border-color: #3b82f6; color: #fff; }
+button:disabled { opacity: 0.35; cursor: default; }
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 90px; height: 4px;
+  background: var(--range-bg);
+  border-radius: 2px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px; height: 13px;
+  background: #3b82f6;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+#rot-display  { font-size: 12px; color: var(--info-color); min-width: 38px; }
+#zoom-display { font-size: 12px; color: var(--info-color); min-width: 44px; }
+#cal-status   { font-size: 12px; color: var(--info-color); white-space: nowrap; }
+
+#btn-theme { margin-left: 4px; }
+
+/* ── Main area ── */
+#main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Canvas ── */
+#canvas-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--canvas-bg);
+}
+
+#canvas {
+  display: block;
+  cursor: crosshair;
+}
+
+#empty-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  gap: 10px;
+}
+#empty-overlay .icon { font-size: 52px; opacity: 0.25; }
+#empty-overlay .msg  { font-size: 15px; color: var(--empty-msg); }
+#empty-overlay .sub  { font-size: 13px; color: var(--empty-sub); }
+
+/* ── Sidebar ── */
+#sidebar {
+  width: 300px;
+  min-width: 220px;
+  background: var(--sidebar-bg);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#sb-header {
+  padding: 8px 10px;
+  background: var(--sb-head-bg);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+#sb-scroll {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+#no-meas {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--no-meas);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+th {
+  position: sticky;
+  top: 0;
+  background: var(--th-bg);
+  padding: 6px 8px;
+  text-align: left;
+  color: var(--th-color);
+  font-weight: 600;
+  border-bottom: 1px solid var(--th-border);
+}
+td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--td-border);
+  vertical-align: middle;
+}
+tr.mrow:hover td { background: var(--row-hover); cursor: pointer; }
+tr.mrow.sel   td { background: var(--row-sel); }
+
+.del-btn {
+  background: none;
+  border: none;
+  color: #e05252;
+  cursor: pointer;
+  padding: 0 3px;
+  font-size: 13px;
+  line-height: 1;
+}
+.del-btn:hover { color: #f87171; background: none; }
+
+/* ── Status bar ── */
+#statusbar {
+  background: var(--statusbar-bg);
+  border-top: 1px solid var(--border);
+  padding: 3px 12px;
+  font-size: 11px;
+  color: var(--statusbar-text);
+  display: flex;
+  gap: 20px;
+  flex-shrink: 0;
+}
+#statusbar span { white-space: nowrap; }
+
+/* ── Modal ── */
+#modal-bg {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 50;
+  align-items: center;
+  justify-content: center;
+}
+#modal-bg.show { display: flex; }
+
+#modal {
+  background: var(--modal-surface);
+  border: 1px solid var(--modal-bdr);
+  border-radius: 10px;
+  padding: 22px 24px;
+  width: 300px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+}
+#modal h3 { margin-bottom: 10px; font-size: 15px; color: var(--text); }
+#modal p  { font-size: 12px; color: var(--modal-muted); margin-bottom: 14px; line-height: 1.5; }
+
+#modal label { display: block; font-size: 12px; color: var(--modal-label); margin-bottom: 4px; }
+#modal input, #modal select {
+  width: 100%;
+  background: var(--modal-input-bg);
+  border: 1px solid var(--modal-bdr);
+  color: var(--text);
+  padding: 7px 9px;
+  border-radius: 5px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.modal-btns {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.btn-primary { background: #2563eb; border-color: #3b82f6; color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+</style>
+</head>
+<body>
+
+<!-- ────────────────────────── TOOLBAR ────────────────────────── -->
+<div id="toolbar">
+
+  <div class="tgroup">
+    <button onclick="document.getElementById('file-in').click()">&#128194; Import image</button>
+    <input type="file" id="file-in" accept="image/*" style="display:none">
+  </div>
+
+  <div class="tgroup">
+    <span class="tlabel">Rotate:</span>
+    <button onclick="rotateSnap(-90)" title="-90°">&#8634; &minus;90°</button>
+    <button onclick="rotateSnap(90)"  title="+90°">&#8635; +90°</button>
+    <input type="range" id="rot-slider" min="-180" max="180" value="0" step="1"
+           oninput="setRotDeg(+this.value)">
+    <span id="rot-display">0°</span>
+  </div>
+
+  <div class="tgroup">
+    <span class="tlabel">Zoom:</span>
+    <button onclick="adjustZoom(0.8)">&#8722;</button>
+    <span id="zoom-display">100%</span>
+    <button onclick="adjustZoom(1.25)">+</button>
+    <button onclick="fitImage()" title="Fit to view">&#8862; Fit</button>
+  </div>
+
+  <div class="tgroup">
+    <span class="tlabel">Tool:</span>
+    <button id="btn-pan"  class="active" onclick="setMode('pan')"       title="Pan / select">&#9654; Pan</button>
+    <button id="btn-cal"  onclick="setMode('calibrate')" title="Set scale by drawing a known distance">&#9141; Calibrate</button>
+    <button id="btn-dist" onclick="setMode('distance')"  title="Measure distance (2 clicks)">&#9123; Distance</button>
+    <button id="btn-ang"  onclick="setMode('angle')"     title="Measure angle (3 clicks: A, vertex, B)">&#8736; Angle</button>
+  </div>
+
+  <div class="tgroup">
+    <button onclick="clearAll()">&#128465; Clear all</button>
+  </div>
+
+  <div class="tgroup">
+    <span class="tlabel">Scale:</span>
+    <span id="cal-status">Not calibrated</span>
+  </div>
+
+  <div class="tgroup" style="margin-left:auto">
+    <button id="btn-theme" onclick="toggleTheme()" title="Toggle light/dark mode">&#9790; Dark</button>
+  </div>
+
+</div>
+
+<!-- ────────────────────────── MAIN ────────────────────────── -->
+<div id="main">
+
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div id="empty-overlay">
+      <div class="icon">&#128444;</div>
+      <div class="msg">Import an image to start measuring</div>
+      <div class="sub">Click "Import image" or drag &amp; drop here</div>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div id="sb-header">
+      <span>Measurements</span>
+      <button onclick="exportCSV()" style="font-size:11px;padding:3px 8px;">&#11015; CSV</button>
+    </div>
+    <div id="sb-scroll">
+      <div id="no-meas">No measurements yet.<br>Pick a tool and click on the image.</div>
+      <table id="meas-table" style="display:none">
+        <thead>
+          <tr>
+            <th>#</th><th>Type</th><th>Value</th><th>Unit</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="meas-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ────────────────────────── STATUS BAR ────────────────────────── -->
+<div id="statusbar">
+  <span id="st-mode">Mode: Pan</span>
+  <span id="st-xy">x: — &nbsp;y: —</span>
+  <span id="st-zoom">Zoom: 100%</span>
+  <span id="st-hint">Right-click drag or middle-click drag to pan.</span>
+</div>
+
+<!-- ────────────────────────── CALIBRATION MODAL ────────────────────────── -->
+<div id="modal-bg">
+  <div id="modal">
+    <h3>Set scale</h3>
+    <p>You marked a line of <strong id="cal-px-display">0</strong> px.<br>
+       Enter the real-world length it represents:</p>
+    <label>Real distance</label>
+    <input type="number" id="cal-val" placeholder="e.g. 10" min="0.0001" step="any">
+    <label>Unit</label>
+    <select id="cal-unit">
+      <option value="mm">mm</option>
+      <option value="cm">cm</option>
+      <option value="m">m</option>
+      <option value="in">in</option>
+      <option value="ft">ft</option>
+      <option value="km">km</option>
+      <option value="px">px (no calibration)</option>
+    </select>
+    <div class="modal-btns">
+      <button onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="applyCalibration()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────────────────── SCRIPT ────────────────────────── -->
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+const wrap    = document.getElementById('canvas-wrap');
+
+let img     = null;
+let imgW    = 0, imgH = 0;
+let rotation = 0;
+let zoom     = 1;
+let panX     = 0, panY = 0;
+
+let mode     = 'pan';
+let pending  = [];
+let meas     = [];
+let nextId   = 1;
+
+let cal = { pxPerUnit: null, unit: 'px' };
+let calLine  = null;
+
+let panning      = false;
+let panStart     = { x:0, y:0 };
+let panBase      = { x:0, y:0 };
+
+let mouse = { x:0, y:0 };
+let selId = null;
+
+// ── Theme ──────────────────────────────────────────────────────────
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  const btn = document.getElementById('btn-theme');
+  btn.textContent = light ? '☀ Light' : '☾ Dark';
+  localStorage.setItem('et_theme', light ? 'light' : 'dark');
+  render();
+}
+
+function toggleTheme() {
+  applyTheme(!document.body.classList.contains('light'));
+}
+
+function isLight() { return document.body.classList.contains('light'); }
+
+function themeColor(dark, light) { return isLight() ? light : dark; }
+
+// ── Canvas resize ──────────────────────────────────────────────────
+function resizeCanvas() {
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  render();
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ── Image import ──────────────────────────────────────────────────
+document.getElementById('file-in').addEventListener('change', function(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  loadImageFile(f);
+  e.target.value = '';
+});
+
+wrap.addEventListener('dragover', e => { e.preventDefault(); wrap.style.outline = '2px dashed #3b82f6'; });
+wrap.addEventListener('dragleave', () => { wrap.style.outline = ''; });
+wrap.addEventListener('drop', e => {
+  e.preventDefault();
+  wrap.style.outline = '';
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadImageFile(f);
+});
+
+function loadImageFile(f) {
+  const url = URL.createObjectURL(f);
+  const image = new Image();
+  image.onload = () => {
+    img  = image;
+    imgW = image.naturalWidth;
+    imgH = image.naturalHeight;
+    rotation = 0;
+    document.getElementById('rot-slider').value = 0;
+    document.getElementById('rot-display').textContent = '0°';
+    meas    = [];
+    pending = [];
+    calLine = null;
+    cal     = { pxPerUnit: null, unit: 'px' };
+    selId   = null;
+    updateCalStatus();
+    updateTable();
+    fitImage();
+    document.getElementById('empty-overlay').style.display = 'none';
+    URL.revokeObjectURL(url);
+  };
+  image.src = url;
+}
+
+// ── Fit / zoom ─────────────────────────────────────────────────────
+function fitImage() {
+  if (!img) return;
+  const margin = 24;
+  const cw = canvas.width  - margin * 2;
+  const ch = canvas.height - margin * 2;
+  const cos = Math.abs(Math.cos(rotation));
+  const sin = Math.abs(Math.sin(rotation));
+  const bw = imgW * cos + imgH * sin;
+  const bh = imgW * sin + imgH * cos;
+  zoom = Math.min(cw / bw, ch / bh);
+  panX = panY = 0;
+  updateZoomDisplay();
+  render();
+}
+
+function adjustZoom(factor) {
+  zoom = Math.max(0.02, Math.min(zoom * factor, 80));
+  updateZoomDisplay();
+  render();
+}
+
+function updateZoomDisplay() {
+  document.getElementById('zoom-display').textContent = Math.round(zoom * 100) + '%';
+  document.getElementById('st-zoom').textContent = 'Zoom: ' + Math.round(zoom * 100) + '%';
+}
+
+// ── Rotation ──────────────────────────────────────────────────────
+function rotateSnap(deg) {
+  rotation += deg * Math.PI / 180;
+  syncRotSlider();
+  render();
+}
+
+function setRotDeg(deg) {
+  rotation = deg * Math.PI / 180;
+  document.getElementById('rot-display').textContent = deg + '°';
+  render();
+}
+
+function syncRotSlider() {
+  let deg = Math.round(rotation * 180 / Math.PI) % 360;
+  if (deg > 180)  deg -= 360;
+  if (deg < -180) deg += 360;
+  document.getElementById('rot-slider').value = deg;
+  document.getElementById('rot-display').textContent = deg + '°';
+}
+
+// ── Coordinate transforms ──────────────────────────────────────────
+function i2c(x, y) {
+  const cos = Math.cos(rotation), sin = Math.sin(rotation);
+  const cx = x - imgW / 2, cy = y - imgH / 2;
+  return {
+    x: canvas.width  / 2 + panX + (cx * cos - cy * sin) * zoom,
+    y: canvas.height / 2 + panY + (cx * sin + cy * cos) * zoom
+  };
+}
+
+function c2i(x, y) {
+  const dx = (x - canvas.width  / 2 - panX) / zoom;
+  const dy = (y - canvas.height / 2 - panY) / zoom;
+  const cos = Math.cos(-rotation), sin = Math.sin(-rotation);
+  return {
+    x: dx * cos - dy * sin + imgW / 2,
+    y: dx * sin + dy * cos + imgH / 2
+  };
+}
+
+// ── Mode ──────────────────────────────────────────────────────────
+const MODE_HINTS = {
+  pan:       'Left-click drag, right-click drag, or middle-click drag to pan. Scroll to zoom.',
+  calibrate: 'Click 2 points to define a known real-world distance.',
+  distance:  'Click 2 points to measure distance.',
+  angle:     'Click 3 points: first arm end → vertex → second arm end.'
+};
+
+function setMode(m) {
+  mode    = m;
+  pending = [];
+  ['pan','cal','dist','ang'].forEach(k =>
+    document.getElementById('btn-' + k).classList.remove('active'));
+  document.getElementById('btn-' + { pan:'pan', calibrate:'cal', distance:'dist', angle:'ang' }[m]).classList.add('active');
+  document.getElementById('st-mode').textContent = 'Mode: ' + m.charAt(0).toUpperCase() + m.slice(1);
+  document.getElementById('st-hint').textContent = MODE_HINTS[m];
+  render();
+}
+
+// ── Mouse ──────────────────────────────────────────────────────────
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+canvas.addEventListener('mousedown', e => {
+  if (!img) return;
+
+  if (e.button === 1 || e.button === 2 || (e.button === 0 && mode === 'pan')) {
+    e.preventDefault();
+    panning   = true;
+    panStart  = { x: e.offsetX, y: e.offsetY };
+    panBase   = { x: panX, y: panY };
+    canvas.style.cursor = 'grab';
+    return;
+  }
+
+  if (e.button !== 0) return;
+  const pt = c2i(e.offsetX, e.offsetY);
+
+  if (mode === 'calibrate') {
+    pending.push(pt);
+    if (pending.length === 2) {
+      const dx = pending[1].x - pending[0].x, dy = pending[1].y - pending[0].y;
+      const px = Math.hypot(dx, dy);
+      calLine = { pts: [...pending], px };
+      pending = [];
+      openModal(px);
+    }
+    render();
+    return;
+  }
+
+  if (mode === 'distance') {
+    pending.push(pt);
+    if (pending.length === 2) { addDist([...pending]); pending = []; }
+    render();
+    return;
+  }
+
+  if (mode === 'angle') {
+    pending.push(pt);
+    if (pending.length === 3) { addAngle([...pending]); pending = []; }
+    render();
+    return;
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  mouse = { x: e.offsetX, y: e.offsetY };
+
+  if (panning) {
+    panX = panBase.x + (e.offsetX - panStart.x);
+    panY = panBase.y + (e.offsetY - panStart.y);
+    render();
+    return;
+  }
+
+  if (img) {
+    const p = c2i(e.offsetX, e.offsetY);
+    document.getElementById('st-xy').textContent =
+      'x: ' + Math.round(p.x) + '  y: ' + Math.round(p.y);
+  }
+  render();
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (panning) { panning = false; canvas.style.cursor = 'crosshair'; }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  panning = false;
+  canvas.style.cursor = 'crosshair';
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  const dx = e.offsetX - canvas.width  / 2 - panX;
+  const dy = e.offsetY - canvas.height / 2 - panY;
+  panX -= dx * (factor - 1);
+  panY -= dy * (factor - 1);
+  zoom = Math.max(0.02, Math.min(zoom * factor, 80));
+  updateZoomDisplay();
+  render();
+}, { passive: false });
+
+// ── Measurements ──────────────────────────────────────────────────
+function dist2(a, b) { return Math.hypot(b.x - a.x, b.y - a.y); }
+
+function angleOf(a, vertex, b) {
+  const u = { x: a.x - vertex.x, y: a.y - vertex.y };
+  const v = { x: b.x - vertex.x, y: b.y - vertex.y };
+  const dot = u.x*v.x + u.y*v.y;
+  const mag = Math.hypot(u.x,u.y) * Math.hypot(v.x,v.y);
+  if (mag === 0) return 0;
+  return Math.acos(Math.max(-1, Math.min(1, dot / mag))) * 180 / Math.PI;
+}
+
+function pxToReal(px) { return cal.pxPerUnit ? px / cal.pxPerUnit : px; }
+
+function addDist(pts) {
+  const px = dist2(pts[0], pts[1]);
+  meas.push({ id: nextId++, type: 'distance', pts, px,
+    value: pxToReal(px), unit: cal.pxPerUnit ? cal.unit : 'px' });
+  updateTable();
+  render();
+}
+
+function addAngle(pts) {
+  meas.push({ id: nextId++, type: 'angle', pts,
+    value: angleOf(pts[0], pts[1], pts[2]), unit: '°' });
+  updateTable();
+  render();
+}
+
+function deleteMeas(id) {
+  meas = meas.filter(m => m.id !== id);
+  if (selId === id) selId = null;
+  updateTable();
+  render();
+}
+
+function clearAll() {
+  if (!meas.length) return;
+  if (!confirm('Delete all measurements?')) return;
+  meas = []; pending = []; selId = null;
+  updateTable();
+  render();
+}
+
+// ── Calibration ──────────────────────────────────────────────────
+function openModal(px) {
+  document.getElementById('cal-px-display').textContent = px.toFixed(1);
+  document.getElementById('cal-val').value = '';
+  document.getElementById('modal-bg').classList.add('show');
+  setTimeout(() => document.getElementById('cal-val').focus(), 50);
+}
+
+function closeModal() {
+  document.getElementById('modal-bg').classList.remove('show');
+  calLine = null;
+  render();
+}
+
+document.getElementById('modal-bg').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-bg')) closeModal();
+});
+
+document.getElementById('cal-val').addEventListener('keydown', e => {
+  if (e.key === 'Enter') applyCalibration();
+  if (e.key === 'Escape') closeModal();
+});
+
+function applyCalibration() {
+  const val  = parseFloat(document.getElementById('cal-val').value);
+  const unit = document.getElementById('cal-unit').value;
+  if (!calLine) { closeModal(); return; }
+  if (unit === 'px' || !val || val <= 0) {
+    cal = { pxPerUnit: null, unit: 'px' };
+  } else {
+    cal = { pxPerUnit: calLine.px / val, unit };
+  }
+  meas.forEach(m => {
+    if (m.type === 'distance') {
+      m.value = pxToReal(m.px);
+      m.unit  = cal.pxPerUnit ? cal.unit : 'px';
+    }
+  });
+  updateCalStatus();
+  updateTable();
+  closeModal();
+}
+
+function updateCalStatus() {
+  const el = document.getElementById('cal-status');
+  if (cal.pxPerUnit) {
+    el.textContent = cal.pxPerUnit.toFixed(3) + ' px/' + cal.unit;
+    el.style.color = '#4ade80';
+  } else {
+    el.textContent = 'Not calibrated';
+    el.style.color = '';
+  }
+}
+
+// ── Table ─────────────────────────────────────────────────────────
+function updateTable() {
+  const tbody = document.getElementById('meas-body');
+  const table = document.getElementById('meas-table');
+  const none  = document.getElementById('no-meas');
+
+  if (!meas.length) {
+    table.style.display = 'none';
+    none.style.display  = 'block';
+    return;
+  }
+  table.style.display = 'table';
+  none.style.display  = 'none';
+
+  tbody.innerHTML = '';
+  meas.forEach(m => {
+    const tr = document.createElement('tr');
+    tr.className = 'mrow' + (m.id === selId ? ' sel' : '');
+    tr.addEventListener('click', () => {
+      selId = (selId === m.id) ? null : m.id;
+      updateTable();
+      render();
+    });
+
+    const icon   = m.type === 'distance' ? '&#9123;' : '&#8736;';
+    const valStr = m.value.toFixed(m.type === 'angle' ? 2 : (m.unit === 'px' ? 1 : 4));
+
+    tr.innerHTML =
+      `<td style="color:var(--th-color)">${m.id}</td>` +
+      `<td>${icon} ${m.type}</td>` +
+      `<td><strong>${valStr}</strong></td>` +
+      `<td style="color:var(--th-color)">${m.unit}</td>` +
+      `<td><button class="del-btn" onclick="event.stopPropagation();deleteMeas(${m.id})" title="Delete">&#10005;</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── CSV export ────────────────────────────────────────────────────
+function exportCSV() {
+  if (!meas.length) { alert('No measurements to export.'); return; }
+  const rows = ['ID,Type,Value,Unit,Pixels,Points'];
+  meas.forEach(m => {
+    const ptsStr = m.pts.map(p => `(${p.x.toFixed(2)};${p.y.toFixed(2)})`).join(' > ');
+    const px = m.type === 'distance' ? m.px.toFixed(3) : '';
+    rows.push(`${m.id},${m.type},${m.value.toFixed(6)},${m.unit},${px},"${ptsStr}"`);
+  });
+  const blob = new Blob([rows.join('\r\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'measurements.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── Render ────────────────────────────────────────────────────────
+const COLORS = { distance: '#38bdf8', angle: '#fb923c', sel: '#facc15', cal: '#a3e635' };
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!img) return;
+
+  ctx.save();
+  ctx.translate(canvas.width / 2 + panX, canvas.height / 2 + panY);
+  ctx.rotate(rotation);
+  ctx.scale(zoom, zoom);
+  ctx.drawImage(img, -imgW / 2, -imgH / 2, imgW, imgH);
+  ctx.restore();
+
+  meas.forEach(m => drawMeas(m, m.id === selId));
+
+  if (calLine) {
+    const p1 = i2c(calLine.pts[0].x, calLine.pts[0].y);
+    const p2 = i2c(calLine.pts[1].x, calLine.pts[1].y);
+    drawLine(p1, p2, COLORS.cal, 2, true);
+    drawDot(p1, COLORS.cal); drawDot(p2, COLORS.cal);
+    drawBadge(`${calLine.px.toFixed(1)} px`, midpoint(p1,p2), COLORS.cal);
+  }
+
+  if (pending.length) {
+    const cPts = pending.map(p => i2c(p.x, p.y));
+    for (let i = 1; i < cPts.length; i++)
+      drawLine(cPts[i-1], cPts[i], themeColor('#fff', '#1a2030'), 1.5);
+
+    const last = cPts[cPts.length - 1];
+    ctx.save();
+    ctx.setLineDash([5,4]);
+    ctx.strokeStyle = themeColor('rgba(255,255,255,0.4)', 'rgba(0,0,0,0.3)');
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(mouse.x, mouse.y);
+    ctx.stroke();
+    ctx.restore();
+
+    const previewColor = themeColor('#e2e8f0', '#1a2030');
+    if (mode === 'distance' && pending.length === 1) {
+      const ip = c2i(mouse.x, mouse.y);
+      const px = dist2(pending[0], ip);
+      const v  = pxToReal(px);
+      const u  = cal.pxPerUnit ? cal.unit : 'px';
+      drawBadge(`${v.toFixed(2)} ${u}`, midpoint(last, mouse), previewColor);
+    }
+    if (mode === 'angle' && pending.length === 2) {
+      const ip    = c2i(mouse.x, mouse.y);
+      const angle = angleOf(pending[0], pending[1], ip);
+      const vtx   = i2c(pending[1].x, pending[1].y);
+      drawBadge(`${angle.toFixed(1)}°`, { x: vtx.x + 16, y: vtx.y - 12 }, previewColor);
+    }
+
+    cPts.forEach(p => drawDot(p, themeColor('#fff', '#1a2030')));
+  }
+}
+
+function drawMeas(m, selected) {
+  const color = selected ? COLORS.sel : (m.type === 'distance' ? COLORS.distance : COLORS.angle);
+  const cPts  = m.pts.map(p => i2c(p.x, p.y));
+  const lw    = selected ? 2.5 : 2;
+
+  if (m.type === 'distance') {
+    drawLine(cPts[0], cPts[1], color, lw);
+    drawEndTick(cPts[0], cPts[1], color);
+    drawEndTick(cPts[1], cPts[0], color);
+    cPts.forEach(p => drawDot(p, color, selected));
+    const valStr = m.value.toFixed(m.unit === 'px' ? 1 : 4);
+    drawBadge(`#${m.id}: ${valStr} ${m.unit}`, midpoint(cPts[0], cPts[1]), color, -10);
+  }
+
+  if (m.type === 'angle') {
+    drawLine(cPts[1], cPts[0], color, lw);
+    drawLine(cPts[1], cPts[2], color, lw);
+    drawAngleArc(cPts[0], cPts[1], cPts[2], color);
+    cPts.forEach(p => drawDot(p, color, selected));
+    drawBadge(`#${m.id}: ${m.value.toFixed(2)}°`, { x: cPts[1].x + 16, y: cPts[1].y - 12 }, color);
+  }
+}
+
+// ── Draw helpers ──────────────────────────────────────────────────
+function midpoint(a, b) { return { x:(a.x+b.x)/2, y:(a.y+b.y)/2 }; }
+
+function drawLine(a, b, color, lw, dashed) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = lw || 2;
+  if (dashed) ctx.setLineDash([6,4]);
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur  = 4;
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawDot(p, color, large) {
+  const r = large ? 6 : 4;
+  ctx.save();
+  ctx.fillStyle   = color;
+  ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+  ctx.lineWidth   = 1.5;
+  ctx.shadowColor = 'rgba(0,0,0,0.4)';
+  ctx.shadowBlur  = 4;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawEndTick(p, other, color) {
+  const dx = other.x - p.x, dy = other.y - p.y;
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return;
+  const nx = -dy / len * 5, ny = dx / len * 5;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 2;
+  ctx.shadowColor = 'rgba(0,0,0,0.4)';
+  ctx.shadowBlur  = 3;
+  ctx.beginPath();
+  ctx.moveTo(p.x+nx, p.y+ny);
+  ctx.lineTo(p.x-nx, p.y-ny);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawBadge(text, pos, color, dy) {
+  const badgeBg = themeColor('rgba(10,12,18,0.78)', 'rgba(240,244,248,0.88)');
+  ctx.save();
+  ctx.font = 'bold 11.5px -apple-system, sans-serif';
+  const w  = ctx.measureText(text).width;
+  const bx = pos.x - w / 2 - 5;
+  const by = (pos.y + (dy||0)) - 9;
+
+  ctx.fillStyle = badgeBg;
+  roundRect(ctx, bx, by, w+10, 18, 3);
+  ctx.fill();
+
+  ctx.fillStyle    = color;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, pos.x, pos.y + (dy||0));
+  ctx.restore();
+}
+
+function drawAngleArc(p1, vtx, p2, color) {
+  const a1 = Math.atan2(p1.y - vtx.y, p1.x - vtx.x);
+  const a2 = Math.atan2(p2.y - vtx.y, p2.x - vtx.x);
+  let diff = a2 - a1;
+  while (diff >  Math.PI) diff -= 2*Math.PI;
+  while (diff < -Math.PI) diff += 2*Math.PI;
+
+  const d1 = Math.hypot(p1.x - vtx.x, p1.y - vtx.y);
+  const d2 = Math.hypot(p2.x - vtx.x, p2.y - vtx.y);
+  const r  = Math.max(20, Math.min(36, Math.min(d1, d2) * 0.4));
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle   = color + '28';
+  ctx.lineWidth   = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(vtx.x, vtx.y);
+  ctx.arc(vtx.x, vtx.y, r, a1, a1 + diff, diff < 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(x, y, w, h, r);
+  } else {
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y); ctx.arcTo(x+w, y,   x+w,   y+r,   r);
+    ctx.lineTo(x+w,   y+h-r); ctx.arcTo(x+w, y+h, x+w-r, y+h,   r);
+    ctx.lineTo(x+r,   y+h); ctx.arcTo(x,   y+h, x,     y+h-r, r);
+    ctx.lineTo(x,     y+r); ctx.arcTo(x,   y,   x+r,   y,     r);
+    ctx.closePath();
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+applyTheme(localStorage.getItem('et_theme') === 'light');
+setMode('pan');
+</script>
+</body>
+</html>

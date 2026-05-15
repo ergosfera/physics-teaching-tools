@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kinematics — Catch-Up Guide · 7th Grade Physics</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,600;0,900;1,300&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:       #1a1a2e;
+    --paper:     #f7f4ef;
+    --cream:     #ede9e1;
+    --rule:      #c8c2b8;
+
+    /* topic accent palette */
+    --c1: #2d6a4f;  /* variable    – forest green  */
+    --c2: #1d4e8f;  /* delta       – royal blue    */
+    --c3: #7b3f00;  /* speed       – burnt sienna  */
+    --c4: #6b2d8b;  /* velocity    – plum          */
+    --c5: #b5451b;  /* uniform w   – terracotta    */
+    --c6: #1a6b6b;  /* uniform g   – teal          */
+    --c7: #8b5e00;  /* accel       – amber         */
+    --c8: #3d1f6e;  /* UAM words   – deep violet   */
+    --c9: #1a4e2e;  /* UAM graphs  – deep green    */
+
+    --radius: 10px;
+    --shadow: 0 4px 24px rgba(26,26,46,.10);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 300;
+    line-height: 1.7;
+    padding: 0 0 80px;
+  }
+
+  /* ── HERO ── */
+  header {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 56px 48px 44px;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 28px,
+      rgba(255,255,255,.03) 28px,
+      rgba(255,255,255,.03) 29px
+    );
+  }
+  .hero-label {
+    font-family: 'DM Mono', monospace;
+    font-size: .75rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: rgba(247,244,239,.5);
+    margin-bottom: 14px;
+  }
+  header h1 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(2.2rem, 5vw, 3.8rem);
+    font-weight: 900;
+    line-height: 1.05;
+    position: relative;
+  }
+  header h1 em {
+    font-style: italic;
+    font-weight: 300;
+  }
+  .hero-sub {
+    margin-top: 18px;
+    font-size: 1rem;
+    color: rgba(247,244,239,.65);
+    max-width: 560px;
+    position: relative;
+  }
+
+  /* ── NAV PILLS ── */
+  .nav-wrap {
+    background: var(--cream);
+    border-bottom: 1px solid var(--rule);
+    padding: 14px 48px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-wrap a {
+    font-family: 'DM Mono', monospace;
+    font-size: .7rem;
+    letter-spacing: .06em;
+    text-decoration: none;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1.5px solid currentColor;
+    transition: background .18s, color .18s;
+  }
+  .nav-wrap a:hover { background: var(--ink); color: var(--paper) !important; border-color: var(--ink); }
+
+  /* ── MAIN LAYOUT ── */
+  main { max-width: 860px; margin: 0 auto; padding: 0 32px; }
+
+  /* ── TOPIC CARD ── */
+  .topic {
+    margin-top: 60px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--rule);
+    animation: fadeUp .5s ease both;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .topic-header {
+    padding: 22px 30px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topic-num {
+    font-family: 'DM Mono', monospace;
+    font-size: .75rem;
+    background: rgba(255,255,255,.22);
+    border-radius: 4px;
+    padding: 3px 8px;
+    letter-spacing: .1em;
+    flex-shrink: 0;
+    color: #fff;
+  }
+  .topic-header h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 1.35rem;
+    color: #fff;
+    line-height: 1.2;
+  }
+
+  .topic-body {
+    background: #fff;
+    padding: 28px 30px;
+  }
+
+  /* section labels */
+  .sec-label {
+    font-family: 'DM Mono', monospace;
+    font-size: .68rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    opacity: .55;
+  }
+
+  /* theory block */
+  .theory { margin-bottom: 22px; }
+  .theory p { font-size: .97rem; margin-bottom: .6em; }
+  .theory p:last-child { margin-bottom: 0; }
+
+  /* formula pill */
+  .formula-wrap { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+  .formula {
+    font-family: 'DM Mono', monospace;
+    font-size: .9rem;
+    padding: 8px 18px;
+    border-radius: 6px;
+    border-left: 4px solid currentColor;
+    background: var(--cream);
+  }
+
+  /* key term */
+  .kterm {
+    display: inline-block;
+    font-weight: 600;
+    border-bottom: 2px solid currentColor;
+    padding-bottom: 1px;
+  }
+
+  /* divider */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--rule);
+    margin: 22px 0;
+  }
+
+  /* worked example */
+  .example {
+    background: var(--cream);
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin-bottom: 22px;
+  }
+  .example .problem {
+    font-size: .95rem;
+    font-style: italic;
+    margin-bottom: 12px;
+    color: #333;
+  }
+  .example .step {
+    font-size: .93rem;
+    margin-bottom: 6px;
+    padding-left: 14px;
+    border-left: 3px solid var(--rule);
+  }
+  .example .step strong {
+    font-family: 'DM Mono', monospace;
+    font-size: .82rem;
+    font-weight: 500;
+  }
+  .example .answer {
+    margin-top: 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: .88rem;
+    font-weight: 500;
+  }
+
+  /* practice problems */
+  .practice {
+    border-radius: 8px;
+    padding: 18px 22px;
+  }
+  .practice ol { padding-left: 18px; }
+  .practice li {
+    font-size: .93rem;
+    margin-bottom: 8px;
+    padding-left: 4px;
+  }
+  .practice li:last-child { margin-bottom: 0; }
+
+  /* graph canvas area */
+  .graph-wrap {
+    margin: 16px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+  }
+  canvas { display: block; width: 100%; }
+
+  /* answer toggle */
+  details { margin-top: 16px; }
+  summary {
+    font-family: 'DM Mono', monospace;
+    font-size: .72rem;
+    letter-spacing: .1em;
+    cursor: pointer;
+    color: #888;
+    user-select: none;
+  }
+  summary:hover { color: var(--ink); }
+  .ans-body {
+    margin-top: 10px;
+    background: var(--cream);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: .88rem;
+  }
+  .ans-body p { margin-bottom: .4em; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    header { padding: 40px 24px 32px; }
+    .nav-wrap { padding: 12px 20px; }
+    main { padding: 0 16px; }
+    .topic-body { padding: 22px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="hero-label">7th Grade Physics · Catch-Up Guide</p>
+  <h1>Motion &amp; <em>Kinematics</em></h1>
+  <p class="hero-sub">A topic-by-topic reference with worked examples and practice problems to help you get up to speed.</p>
+</header>
+
+<nav class="nav-wrap">
+  <a href="#t1" style="color:var(--c1)">1 · Variables</a>
+  <a href="#t2" style="color:var(--c2)">2 · Delta</a>
+  <a href="#t3" style="color:var(--c3)">3 · Speed</a>
+  <a href="#t4" style="color:var(--c4)">4 · Velocity</a>
+  <a href="#t5" style="color:var(--c5)">5 · Uniform (words)</a>
+  <a href="#t6" style="color:var(--c6)">6 · Uniform (graphs)</a>
+  <a href="#t7" style="color:var(--c7)">7 · Acceleration</a>
+  <a href="#t8" style="color:var(--c8)">8 · UAM (words)</a>
+  <a href="#t9" style="color:var(--c9)">9 · UAM (graphs)</a>
+</nav>
+
+<main>
+
+<!-- ══════════════════════════════════════════════════
+     TOPIC 1 · VARIABLES
+══════════════════════════════════════════════════ -->
+<section class="topic" id="t1" style="animation-delay:.05s">
+  <div class="topic-header" style="background:var(--c1)">
+    <span class="topic-num">01</span>
+    <h2>Definition of a Variable</h2>
+  </div>
+  <div class="topic-body">
+
+    <div class="theory">
+      <p class="sec-label">Theory</p>
+      <p>In physics, a <span class="kterm" style="color:var(--c1)">variable</span> is a symbol that represents a quantity that can take different values. Variables let us write general rules instead of repeating the same calculation for every possible number.</p>
+      <p>Each variable has a <strong>name</strong>, a <strong>symbol</strong>, and a <strong>unit</strong>. For example:</p>
+      <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:.9rem;margin-top:10px">
+        <thead>
+          <tr style="background:var(--cream)">
+            <th style="padding:8px 14px;text-align:left;font-family:'DM Mono',monospace;font-size:.75rem;letter-spacing:.08em;font-weight:500">Name</th>
+            <th style="padding:8px 14px;text-align:left;font-family:'DM Mono',monospace;font-size:.75rem;letter-spacing:.08em;font-weight:500">Symbol</th>
+            <th style="padding:8px 14px;text-align:left;font-family:'DM Mono',monospace;font-size:.75rem;letter-spacing:.08em;font-weight:500">Unit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:7px 14px">position</td><td style="padding:7px 14px;font-family:'DM Mono',monospace">x</td><td style="padding:7px 14px">meter (m)</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:7px 14px">time</td><td style="padding:7px 14px;font-family:'DM Mono',monospace">t</td><td style="padding:7px 14px">second (s)</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:7px 14px">speed / velocity</td><td style="padding:7px 14px;font-family:'DM Mono',monospace">v</td><td style="padding:7px 14px">meter per second (m/s)</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:7px 14px">acceleration</td><td style="padding:7px 14px;font-family:'DM Mono',monospace">a</td><td style="padding:7px 14px">meter per second squared (m/s²)</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p style="margin-top:12px">A variable is <em>not</em> the same as a number. The symbol <span style="font-family:'DM Mono',monospace">t</span> can equal 2 s in one problem and 15 s in another — the symbol stays the same, the value changes.</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="example">
+      <p class="sec-label">Worked Example</p>
+      <p class="problem">A car travels for some time <em>t</em> and covers a distance <em>d</em>. Identify the variables, their symbols, and their units.</p>
+      <div class="step"><strong>Given info:</strong> two physical quantities — time and distance.</div>
+      <div class="step"><strong>Symbol for time:</strong> t &nbsp;·&nbsp; unit: second (s)</div>
+      <div class="step"><strong>Symbol for distance:</strong> d (or Δx) &nbsp;·&nbsp; unit: meter (m)</div>
+      <p class="answer" style="color:var(--c1)">→ t [s] and d [m] are the two variables in this situation.</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="practice" style="background:#f0f7f4">
+      <p class="sec-label">Practice</p>
+      <ol>
+        <li>List three physical quantities you can measure about a moving bicycle. For each one, write its name, a symbol you would use, and its unit.</li>
+        <li>A swimmer completes a race. Which variable tells you <em>how far</em> she swam? Which variable tells you <em>how long</em> it took?</li>
+      </ol>
+      <details>
+        <summary>SHOW ANSWERS</summary>
+        <div class="ans-body">
+          <p><strong>1.</strong> Possible answers: distance — d or Δx — m; time — t — s; speed — v — m/s. (Others are valid.)</p>
+          <p><strong>2.</strong> Distance → Δx [m]; time → t [s].</p>
+        </div>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     TOPIC 2 · DELTA
+══════════════════════════════════════════════════ -->
+<section class="topic" id="t2" style="animation-delay:.1s">
+  <div class="topic-header" style="background:var(--c2)">
+    <span class="topic-num">02</span>
+    <h2>What Does Δ (Delta) Mean?</h2>
+  </div>
+  <div class="topic-body">
+
+    <div class="theory">
+      <p class="sec-label">Theory</p>
+      <p>The Greek letter <span class="kterm" style="color:var(--c2)">Δ (delta)</span> means <strong>"change in."</strong> It is always calculated as:</p>
+      <div class="formula-wrap">
+        <span class="formula" style="color:var(--c2)">Δ(quantity) = final value − initial value</span>
+      </div>
+      <p>So <strong>Δx</strong> means "change in position" and <strong>Δt</strong> means "change in time." The initial value is sometimes written with a subscript <em>i</em> or the number 0, and the final value with a subscript <em>f</em>:</p>
+      <div class="formula-wrap">
+        <span class="formula" style="color:var(--c2)">Δx = x_f − x_i</span>
+        <span class="formula" style="color:var(--c2)">Δt = t_f − t_i</span>
+      </div>
+      <p>Delta can be positive (quantity increased), negative (quantity decreased), or zero (no change).</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="example">
+      <p class="sec-label">Worked Example</p>
+      <p class="problem">A runner starts at position x = 5 m and finishes at x = 23 m. The clock reads 10 s at the start and 18 s at the finish. Find Δx and Δt.</p>
+      <div class="step"><strong>Δx:</strong> x_f − x_i = 23 m − 5 m = 18 m</div>
+      <div class="step"><strong>Δt:</strong> t_f − t_i = 18 s − 10 s = 8 s</div>
+      <p class="answer" style="color:var(--c2)">→ Δx = 18 m &nbsp;|&nbsp; Δt = 8 s</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="practice" style="background:#eef3fb">
+      <p class="sec-label">Practice</p>
+      <ol>
+        <li>A car's speedometer reads 12 m/s at t = 3 s and 30 m/s at t = 9 s. Calculate Δv and Δt.</li>
+        <li>A ball is at position x = 40 m. It moves and ends up at x = 15 m. What is Δx? Is it positive or negative? What does that tell you about the direction of motion?</li>
+      </ol>
+      <details>
+        <summary>SHOW ANSWERS</summary>
+        <div class="ans-body">
+          <p><strong>1.</strong> Δv = 30 − 12 = 18 m/s; Δt = 9 − 3 = 6 s.</p>
+          <p><strong>2.</strong> Δx = 15 − 40 = −25 m. Negative → the ball moved in the negative direction (backward / to the left).</p>
+        </div>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     TOPIC 3 · SPEED
+══════════════════════════════════════════════════ -->
+<section class="topic" id="t3" style="animation-delay:.15s">
+  <div class="topic-header" style="background:var(--c3)">
+    <span class="topic-num">03</span>
+    <h2>Definition of Speed</h2>
+  </div>
+  <div class="topic-body">
+
+    <div class="theory">
+      <p class="sec-label">Theory</p>
+      <p><span class="kterm" style="color:var(--c3)">Speed</span> tells you how much distance an object covers per unit of time. It answers the question: <em>how fast?</em></p>
+      <div class="formula-wrap">
+        <span class="formula" style="color:var(--c3)">v = Δx / Δt</span>
+      </div>
+      <p>Speed is always a <strong>positive number</strong> (or zero). Its unit is <strong>m/s</strong> (meters per second). Speed does <em>not</em> tell you which direction the object is moving.</p>
+      <p>When the speed stays the same throughout a trip, we call it <em>constant speed</em>. When it changes, we often talk about <em>average speed</em>, which uses the total distance and total time.</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="example">
+      <p class="sec-label">Worked Example</p>
+      <p class="problem">A cyclist covers 150 m in 25 s. What is her speed?</p>
+      <div class="step"><strong>Identify:</strong> Δx = 150 m, Δt = 25 s, v = ?</div>
+      <div class="step"><strong>Formula:</strong> v = Δx / Δt</div>
+      <div class="step"><strong>Substitute:</strong> v = 150 m / 25 s = 6 m/s</div>
+      <p class="answer" style="color:var(--c3)">→ v = 6 m/s</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="practice" style="background:#fdf4ee">
+      <p class="sec-label">Practice</p>
+      <ol>
+        <li>A dog runs 48 m in 8 s. What is its speed?</li>
+        <li>A train travels at 25 m/s. How far does it go in 2 minutes? (Careful with units!)</li>
+      </ol>
+      <details>
+        <summary>SHOW ANSWERS</summary>
+        <div class="ans-body">
+          <p><strong>1.</strong> v = 48 / 8 = 6 m/s.</p>
+          <p><strong>2.</strong> Δt = 2 min = 120 s; Δx = v · Δt = 25 × 120 = 3000 m.</p>
+        </div>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     TOPIC 4 · SPEED vs VELOCITY
+══════════════════════════════════════════════════ -->
+<section class="topic" id="t4" style="animation-delay:.2s">
+  <div class="topic-header" style="background:var(--c4)">
+    <span class="topic-num">04</span>
+    <h2>Speed vs. Velocity</h2>
+  </div>
+  <div class="topic-body">
+
+    <div class="theory">
+      <p class="sec-label">Theory</p>
+      <p><span class="kterm" style="color:var(--c4)">Velocity</span> is speed <em>with direction</em>. It uses the same formula, but Δx is a signed displacement (positive or negative depending on direction), not just a distance:</p>
+      <div class="formula-wrap">
+        <span class="formula" style="color:var(--c4)">v = Δx / Δt &nbsp; (with sign)</span>
+      </div>
+      <p>Key contrasts:</p>
+      <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:.9rem;margin-top:8px">
+        <thead>
+          <tr style="background:var(--cream)">
+            <th style="padding:8px 14px;text-align:left;font-family:'DM Mono',monospace;font-size:.75rem;font-weight:500">Property</th>
+            <th style="padding:8px 14px;text-align:left;font-family:'DM Mono',monospace;font-size:.75rem;font-weight:500">Speed</th>
+            <th style="padding:8px 14px;text-align:left;font-family:'DM Mono',monospace;font-size:.75rem;font-weight:500">Velocity</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:7px 14px">Has direction?</td><td style="padding:7px 14px">No</td><td style="padding:7px 14px">Yes</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:7px 14px">Can be negative?</td><td style="padding:7px 14px">No</td><td style="padding:7px 14px">Yes</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:7px 14px">Type of quantity</td><td style="padding:7px 14px">scalar</td><td style="padding:7px 14px">vector</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:7px 14px">Example</td><td style="padding:7px 14px">12 m/s</td><td style="padding:7px 14px">−12 m/s (moving left)</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p style="margin-top:12px">A car going 60 km/h north and a car going 60 km/h south have the same <em>speed</em> but opposite <em>velocities</em>.</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="example">
+      <p class="sec-label">Worked Example</p>
+      <p class="problem">A ball rolls from x = 20 m to x = 8 m in 4 s. Find (a) the speed and (b) the velocity.</p>
+      <div class="step"><strong>Δx:</strong> 8 − 20 = −12 m &nbsp; (displacement, signed)</div>
+      <div class="step"><strong>Distance:</strong> |−12| = 12 m &nbsp; (always positive)</div>
+      <div class="step"><strong>(a) Speed:</strong> 12 m / 4 s = 3 m/s</div>
+      <div class="step"><strong>(b) Velocity:</strong> −12 m / 4 s = −3 m/s (moving in the negative direction)</div>
+      <p class="answer" style="color:var(--c4)">→ speed = 3 m/s &nbsp;|&nbsp; velocity = −3 m/s</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="practice" style="background:#f5eefb">
+      <p class="sec-label">Practice</p>
+      <ol>
+        <li>A skater moves from x = 0 m to x = −30 m in 6 s. Find her speed and her velocity.</li>
+        <li>Two objects both have a speed of 5 m/s. Object A moves to the right; object B moves to the left. Write their velocities using signs. Are they the same?</li>
+      </ol>
+      <details>
+        <summary>SHOW ANSWERS</summary>
+        <div class="ans-body">
+          <p><strong>1.</strong> Δx = −30 m; speed = 30/6 = 5 m/s; velocity = −30/6 = −5 m/s.</p>
+          <p><strong>2.</strong> v_A = +5 m/s; v_B = −5 m/s. Same speed, different velocities.</p>
+        </div>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     TOPIC 5 · UNIFORM MOTION — WORD PROBLEMS
+══════════════════════════════════════════════════ -->
+<section class="topic" id="t5" style="animation-delay:.25s">
+  <div class="topic-header" style="background:var(--c5)">
+    <span class="topic-num">05</span>
+    <h2>Uniform Motion — Word Problems</h2>
+  </div>
+  <div class="topic-body">
+
+    <div class="theory">
+      <p class="sec-label">Theory</p>
+      <p><span class="kterm" style="color:var(--c5)">Uniform motion</span> (also called constant-velocity motion) means the object moves at a <strong>fixed speed in a fixed direction</strong> — no speeding up, no slowing down, no turning. Acceleration equals zero.</p>
+      <p>There is only one equation you need:</p>
+      <div class="formula-wrap">
+        <span class="formula" style="color:var(--c5)">Δx = v · Δt</span>
+      </div>
+      <p>This can be rearranged to find any of the three variables:</p>
+      <div class="formula-wrap">
+        <span class="formula" style="color:var(--c5)">v = Δx / Δt</span>
+        <span class="formula" style="color:var(--c5)">Δt = Δx / v</span>
+      </div>
+      <p><strong>Problem-solving steps:</strong> (1) identify what you know, (2) identify what you want, (3) choose the right form of the equation, (4) substitute and calculate, (5) check the unit.</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="example">
+      <p class="sec-label">Worked Example</p>
+      <p class="problem">A boat moves at a constant velocity of 4 m/s. How long does it take to cross a river that is 60 m wide?</p>
+      <div class="step"><strong>Known:</strong> v = 4 m/s, Δx = 60 m</div>
+      <div class="step"><strong>Want:</strong> Δt</div>
+      <div class="step"><strong>Equation:</strong> Δt = Δx / v</div>
+      <div class="step"><strong>Substitute:</strong> Δt = 60 m / 4 m/s = 15 s</div>
+      <p class="answer" style="color:var(--c5)">→ Δt = 15 s</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="practice" style="background:#fdf0ec">
+      <p class="sec-label">Practice</p>
+      <ol>
+        <li>A bus moves at 12 m/s for 30 s. How far does it travel?</li>
+        <li>A person walks 270 m at a constant speed of 1.5 m/s. How long does the walk take?</li>
+      </ol>
+      <details>
+        <summary>SHOW ANSWERS</summary>
+        <div class="ans-body">
+          <p><strong>1.</strong> Δx = 12 × 30 = 360 m.</p>
+          <p><strong>2.</strong> Δt = 270 / 1.5 = 180 s.</p>
+        </div>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     TOPIC 6 · UNIFORM MOTION — GRAPHS
+══════════════════════════════════════════════════ -->
+<section class="topic" id="t6" style="animation-delay:.3s">
+  <div class="topic-header" style="background:var(--c6)">
+    <span class="topic-num">06</span>
+    <h2>Uniform Motion — Graphs</h2>
+  </div>
+  <div class="topic-body">
+
+    <div class="theory">
+      <p class="sec-label">Theory</p>
+      <p>Two graphs are used to represent uniform motion:</p>
+      <p><strong>Position-time graph (x vs. t):</strong> produces a <em>straight diagonal line</em>. The slope of that line equals the velocity: slope = Δx / Δt = v.</p>
+      <p><strong>Velocity-time graph (v vs. t):</strong> produces a <em>horizontal straight line</em> because velocity does not change.</p>
+      <p>The area under a v-t graph equals the displacement Δx.</p>
+    </div>
+
+    <div class="graph-wrap">
+      <canvas id="g6" height="200"></canvas>
+    </div>
+
+    <hr class="divider">
+
+    <div class="example">
+      <p class="sec-label">Worked Example</p>
+      <p class="problem">An x-t graph shows a straight line passing through (0 s, 2 m) and (5 s, 22 m). What is the velocity of the object?</p>
+      <div class="step"><strong>Slope = Δx / Δt:</strong> (22 − 2) m / (5 − 0) s</div>
+      <div class="step"><strong>Calculate:</strong> 20 m / 5 s = 4 m/s</div>
+      <p class="answer" style="color:var(--c6)">→ v = 4 m/s (positive → moving in positive direction)</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="practice" style="background:#eef7f7">
+      <p class="sec-label">Practice</p>
+      <ol>
+        <li>An x-t graph has a straight line through (0 s, 0 m) and (8 s, 24 m). What is the object's velocity?</li>
+        <li>A v-t graph shows a horizontal line at v = 5 m/s from t = 0 to t = 10 s. What is the displacement during this interval?</li>
+      </ol>
+      <details>
+        <summary>SHOW ANSWERS</summary>
+        <div class="ans-body">
+          <p><strong>1.</strong> slope = 24/8 = 3 m/s.</p>
+          <p><strong>2.</strong> Δx = area = 5 × 10 = 50 m.</p>
+        </div>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     TOPIC 7 · ACCELERATION
+══════════════════════════════════════════════════ -->
+<section class="topic" id="t7" style="animation-delay:.35s">
+  <div class="topic-header" style="background:var(--c7)">
+    <span class="topic-num">07</span>
+    <h2>Definition of Acceleration</h2>
+  </div>
+  <div class="topic-body">
+
+    <div class="theory">
+      <p class="sec-label">Theory</p>
+      <p><span class="kterm" style="color:var(--c7)">Acceleration</span> measures how quickly velocity changes. It answers: <em>how fast is the speed changing?</em></p>
+      <div class="formula-wrap">
+        <span class="formula" style="color:var(--c7)">a = Δv / Δt</span>
+      </div>
+      <p>Its unit is <strong>m/s²</strong> (meters per second squared). Like velocity, acceleration has a sign: positive means speeding up in the positive direction (or slowing down in the negative direction); negative means the opposite.</p>
+      <p>Important: an object can have acceleration even when it is momentarily at rest — it just means its velocity is about to change.</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="example">
+      <p class="sec-label">Worked Example</p>
+      <p class="problem">A motorcycle increases its velocity from 6 m/s to 24 m/s in 6 s. What is its acceleration?</p>
+      <div class="step"><strong>Δv:</strong> 24 − 6 = 18 m/s</div>
+      <div class="step"><strong>Δt:</strong> 6 s</div>
+      <div class="step"><strong>a = Δv / Δt:</strong> 18 / 6 = 3 m/s²</div>
+      <p class="answer" style="color:var(--c7)">→ a = 3 m/s² (speeding up)</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="practice" style="background:#fdf8ee">
+      <p class="sec-label">Practice</p>
+      <ol>
+        <li>A car slows from 20 m/s to 8 m/s in 4 s. Find the acceleration. Is it positive or negative?</li>
+        <li>An object has a = 0. What can you say about its motion?</li>
+      </ol>
+      <details>
+        <summary>SHOW ANSWERS</summary>
+        <div class="ans-body">
+          <p><strong>1.</strong> Δv = 8 − 20 = −12 m/s; a = −12 / 4 = −3 m/s². Negative → slowing down.</p>
+          <p><strong>2.</strong> a = 0 means Δv = 0, so velocity is constant → uniform motion (or the object is at rest).</p>
+        </div>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     TOPIC 8 · UAM — WORD PROBLEMS
+══════════════════════════════════════════════════ -->
+<section class="topic" id="t8" style="animation-delay:.4s">
+  <div class="topic-header" style="background:var(--c8)">
+    <span class="topic-num">08</span>
+    <h2>Uniformly Accelerated Motion — Word Problems</h2>
+  </div>
+  <div class="topic-body">
+
+    <div class="theory">
+      <p class="sec-label">Theory</p>
+      <p><span class="kterm" style="color:var(--c8)">Uniformly Accelerated Motion (UAM)</span> means the acceleration is <strong>constant</strong> — the velocity changes by the same amount every second. The three kinematic equations for UAM are:</p>
+      <div class="formula-wrap">
+        <span class="formula" style="color:var(--c8)">v_f = v_i + a · Δt</span>
+        <span class="formula" style="color:var(--c8)">Δx = v_i · Δt + ½ · a · Δt²</span>
+        <span class="formula" style="color:var(--c8)">v_f² = v_i² + 2 · a · Δx</span>
+      </div>
+      <p>Each equation uses four of the five kinematic variables: v_i, v_f, a, Δt, Δx. The strategy is to identify three known quantities and choose the equation that contains those three plus the one unknown.</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="example">
+      <p class="sec-label">Worked Example</p>
+      <p class="problem">A ball starts from rest and accelerates at 2 m/s² for 5 s. How far does it travel?</p>
+      <div class="step"><strong>Known:</strong> v_i = 0 m/s, a = 2 m/s², Δt = 5 s</div>
+      <div class="step"><strong>Want:</strong> Δx</div>
+      <div class="step"><strong>Equation:</strong> Δx = v_i · Δt + ½ · a · Δt²</div>
+      <div class="step"><strong>Substitute:</strong> Δx = 0·5 + ½·2·5² = 0 + 1·25 = 25 m</div>
+      <p class="answer" style="color:var(--c8)">→ Δx = 25 m</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="practice" style="background:#f1edfb">
+      <p class="sec-label">Practice</p>
+      <ol>
+        <li>A skier starts at 3 m/s and accelerates at 1.5 m/s² for 8 s. What is her final velocity?</li>
+        <li>A car traveling at 20 m/s brakes with a = −4 m/s². How far does it travel before stopping?</li>
+      </ol>
+      <details>
+        <summary>SHOW ANSWERS</summary>
+        <div class="ans-body">
+          <p><strong>1.</strong> v_f = 3 + 1.5 × 8 = 3 + 12 = 15 m/s.</p>
+          <p><strong>2.</strong> v_f = 0; use v_f² = v_i² + 2aΔx → 0 = 400 + 2(−4)Δx → Δx = 400/8 = 50 m.</p>
+        </div>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     TOPIC 9 · UAM — GRAPHS
+══════════════════════════════════════════════════ -->
+<section class="topic" id="t9" style="animation-delay:.45s">
+  <div class="topic-header" style="background:var(--c9)">
+    <span class="topic-num">09</span>
+    <h2>Uniformly Accelerated Motion — Graphs</h2>
+  </div>
+  <div class="topic-body">
+
+    <div class="theory">
+      <p class="sec-label">Theory</p>
+      <p>UAM produces different graph shapes compared to uniform motion:</p>
+      <p><strong>Position-time graph (x vs. t):</strong> a <em>parabola</em> (curved line). The curve bends upward for positive acceleration, downward for negative acceleration.</p>
+      <p><strong>Velocity-time graph (v vs. t):</strong> a <em>straight diagonal line</em>. The slope of this line equals the acceleration: slope = Δv / Δt = a. The area under the line equals Δx.</p>
+      <p><strong>Acceleration-time graph (a vs. t):</strong> a <em>horizontal line</em> because acceleration is constant.</p>
+    </div>
+
+    <div class="graph-wrap">
+      <canvas id="g9" height="200"></canvas>
+    </div>
+
+    <hr class="divider">
+
+    <div class="example">
+      <p class="sec-label">Worked Example</p>
+      <p class="problem">A v-t graph shows a straight line from (0 s, 0 m/s) to (6 s, 18 m/s). Find (a) the acceleration and (b) the displacement.</p>
+      <div class="step"><strong>(a) slope:</strong> Δv / Δt = 18 / 6 = 3 m/s²</div>
+      <div class="step"><strong>(b) area (triangle):</strong> ½ · base · height = ½ · 6 · 18 = 54 m</div>
+      <p class="answer" style="color:var(--c9)">→ a = 3 m/s² &nbsp;|&nbsp; Δx = 54 m</p>
+    </div>
+
+    <hr class="divider">
+
+    <div class="practice" style="background:#eef6f0">
+      <p class="sec-label">Practice</p>
+      <ol>
+        <li>A v-t graph shows a line from (0 s, 10 m/s) to (4 s, 2 m/s). Find the acceleration. Is the object speeding up or slowing down?</li>
+        <li>Sketch the shape you would expect for the x-t graph of an object that starts from rest and accelerates uniformly. Is it a straight line or a curve? Which way does it bend?</li>
+      </ol>
+      <details>
+        <summary>SHOW ANSWERS</summary>
+        <div class="ans-body">
+          <p><strong>1.</strong> Δv = 2 − 10 = −8 m/s; a = −8/4 = −2 m/s². Negative → slowing down.</p>
+          <p><strong>2.</strong> It is a parabola curving upward (opening upward), because position increases faster and faster as the object gains speed.</p>
+        </div>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+</main>
+
+<!-- ── FOOTER ── -->
+<footer style="margin-top:70px;padding:28px 48px;border-top:1px solid var(--rule);font-family:'DM Mono',monospace;font-size:.7rem;color:#aaa;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+  <span>7th Grade Physics · Kinematics Catch-Up Guide</span>
+  <span>Gimnasio La Montaña</span>
+</footer>
+
+<script>
+/* ── GRAPH 6: uniform motion ── */
+(function(){
+  const c = document.getElementById('g6');
+  const W = c.parentElement.offsetWidth || 700;
+  c.width = W; c.height = 200;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,200);
+
+  const pad = {l:60,r:30,t:20,b:40};
+  const gw = W - pad.l - pad.r;
+  const gh = 200 - pad.t - pad.b;
+
+  // axes
+  ctx.strokeStyle='#888'; ctx.lineWidth=1.2;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t+gh);
+  ctx.lineTo(pad.l+gw, pad.t+gh);
+  ctx.stroke();
+
+  // labels
+  ctx.fillStyle='#555'; ctx.font='13px Outfit';
+  ctx.fillText('x (m)', pad.l-42, pad.t+gh/2);
+  ctx.fillText('t (s)', pad.l+gw/2, pad.t+gh+32);
+
+  // x-t line (slope = 4 m/s, from (0,2) to (5,22))
+  const scaleX = gw/6; const scaleY = gh/25;
+  function px(t){ return pad.l + t*scaleX; }
+  function py(x){ return pad.t + gh - x*scaleY; }
+
+  ctx.strokeStyle='#1a6b6b'; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.moveTo(px(0),py(2)); ctx.lineTo(px(5),py(22)); ctx.stroke();
+
+  // v-t line (horizontal at v=4)
+  const vy = pad.t + gh/2;
+  ctx.strokeStyle='#b5451b'; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+  ctx.beginPath(); ctx.moveTo(px(0),vy); ctx.lineTo(px(5),vy); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // legend
+  ctx.font='11px DM Mono'; ctx.fillStyle='#1a6b6b';
+  ctx.fillText('x-t (slope = v)', pad.l+8, pad.t+16);
+  ctx.fillStyle='#b5451b';
+  ctx.fillText('v-t (horizontal)', pad.l+8, pad.t+34);
+})();
+
+/* ── GRAPH 9: UAM ── */
+(function(){
+  const c = document.getElementById('g9');
+  const W = c.parentElement.offsetWidth || 700;
+  c.width = W; c.height = 200;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,200);
+
+  const pad = {l:60,r:30,t:20,b:40};
+  const gw = W - pad.l - pad.r;
+  const gh = 200 - pad.t - pad.b;
+
+  ctx.strokeStyle='#888'; ctx.lineWidth=1.2;
+  ctx.beginPath();
+  ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,pad.t+gh);
+  ctx.lineTo(pad.l+gw,pad.t+gh);
+  ctx.stroke();
+
+  ctx.fillStyle='#555'; ctx.font='13px Outfit';
+  ctx.fillText('x (m)', pad.l-42, pad.t+gh/2);
+  ctx.fillText('t (s)', pad.l+gw/2, pad.t+gh+32);
+
+  // x-t parabola: x = ½·3·t², t=0..6
+  const tMax=6; const xMax=54;
+  function px(t){ return pad.l + (t/tMax)*gw; }
+  function py(x){ return pad.t + gh - (x/xMax)*gh; }
+
+  ctx.strokeStyle='#1a4e2e'; ctx.lineWidth=2.5;
+  ctx.beginPath();
+  for(let t=0;t<=tMax;t+=0.05){
+    const x = 0.5*3*t*t;
+    if(t===0) ctx.moveTo(px(t),py(x));
+    else ctx.lineTo(px(t),py(x));
+  }
+  ctx.stroke();
+
+  // v-t line: v = 3t, t=0..6
+  ctx.strokeStyle='#b5451b'; ctx.lineWidth=2; ctx.setLineDash([6,4]);
+  ctx.beginPath();
+  ctx.moveTo(px(0), pad.t+gh);
+  ctx.lineTo(px(6), pad.t);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.font='11px DM Mono';
+  ctx.fillStyle='#1a4e2e';
+  ctx.fillText('x-t (parabola)', pad.l+8, pad.t+16);
+  ctx.fillStyle='#b5451b';
+  ctx.fillText('v-t (straight line)', pad.l+8, pad.t+34);
+})();
+</script>
+</body>
+</html>

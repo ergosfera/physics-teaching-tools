@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elevator — Velocity &amp; Acceleration</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Cormorant+Garamond:wght@500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #0d1117;
+    --bg2:        #161b22;
+    --border:     #30363d;
+    --amber:      #58a6ff;
+    --blue:       #58a6ff;
+    --green:      #3fb950;
+    --red:        #f85149;
+    --red-light:  #ff7b72;
+    --text:       #e6edf3;
+    --dim:        #8b949e;
+    --mark:       #58a6ff;
+    --orange:     #d29922;
+    --hover-bg:   #1d2535;
+    --btn-play-bg:#1a2535;
+  }
+  body.light {
+    --bg:         #e8f0f8;
+    --bg2:        #d8e8f5;
+    --border:     #9ab8d8;
+    --amber:      #1858a8;
+    --blue:       #4090d0;
+    --green:      #1a8050;
+    --red:        #c02818;
+    --red-light:  #e06858;
+    --text:       #102040;
+    --dim:        #4870a8;
+    --mark:       #1880b0;
+    --orange:     #c07020;
+    --hover-bg:   #c8daf0;
+    --btn-play-bg:#eaf2ff;
+  }
+  #theme-toggle {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 9999;
+    background: var(--bg2, #161b22);
+    border: 1px solid var(--border, #30363d);
+    border-radius: 20px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--dim, #8b949e);
+    transition: border-color .2s, color .2s;
+    user-select: none;
+  }
+  #theme-toggle:hover { border-color: var(--blue, #58a6ff); color: var(--blue, #58a6ff); }
+
+  html, body {
+    height: 100%; background: var(--bg); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; overflow: hidden;
+  }
+  body { display: flex; }
+
+  /* ── Left ── */
+  #left {
+    width: 65%; height: 100vh; height: calc(var(--vh, 1vh) * 100);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+  }
+  #sim-wrap {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: var(--bg); overflow: hidden;
+  }
+  #canvas { display: block; }
+
+  #left-controls {
+    flex-shrink: 0; display: flex;
+    border-top: 1px solid var(--border);
+  }
+  #left-controls button {
+    flex: 1; padding: 14px 0; min-height: 48px;
+    border: none; border-right: 1px solid var(--border);
+    background: var(--bg2); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #left-controls button:last-child { border-right: none; }
+  #left-controls button:hover { background: var(--hover-bg); }
+  #btn-play {
+    color: var(--amber) !important; font-weight: 600 !important;
+    background: var(--btn-play-bg) !important;
+  }
+  #btn-play:hover { background: var(--hover-bg) !important; }
+
+  #status-bar {
+    font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--dim); text-align: center; padding: 5px 0 6px;
+    background: var(--bg); border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #status-bar.running { color: var(--mark); }
+
+  /* ── Right ── */
+  #right {
+    width: 35%; height: 100vh; height: calc(var(--vh, 1vh) * 100);
+    display: flex; flex-direction: column;
+    background: var(--bg); overflow: hidden;
+  }
+
+  #panel-title {
+    flex-shrink: 0;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-weight: 600; font-size: 20px; letter-spacing: 0.04em;
+    color: var(--amber); padding: 10px 18px 9px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Readouts */
+  #readouts {
+    flex-shrink: 0; background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+  }
+  .readout-block {
+    flex: 1; padding: 10px 10px 9px;
+    border-right: 1px solid var(--border);
+  }
+  .readout-block:last-child { border-right: none; }
+  .ro-label {
+    font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--dim); margin-bottom: 3px;
+  }
+  .ro-value {
+    font-size: 30px; font-weight: 300; line-height: 1;
+    font-variant-numeric: tabular-nums; transition: color 0.2s;
+  }
+  .ro-unit { font-size: 9px; color: var(--dim); letter-spacing: 0.1em; margin-top: 2px; }
+  #v-value  { color: var(--amber); }
+  #a-value  { color: var(--dim);   }
+  #sw-value { color: var(--dim);   }
+
+  #state-chip {
+    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 2px; margin-top: 5px;
+    display: inline-block; background: var(--bg2); color: var(--dim);
+  }
+
+  /* Unit toggle */
+  #unit-toggle { display: flex; margin-top: 5px; }
+  .unit-btn {
+    flex: 1; padding: 2px 0;
+    border: 1px solid var(--border);
+    background: var(--bg2); color: var(--dim);
+    font-family: 'JetBrains Mono', monospace; font-size: 8px;
+    letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .unit-btn:first-child { border-radius: 2px 0 0 2px; border-right: none; }
+  .unit-btn:last-child  { border-radius: 0 2px 2px 0; }
+  .unit-btn.active { background: var(--btn-play-bg); color: var(--amber); font-weight: 600; }
+  .unit-btn:disabled { opacity: 0.40; cursor: default; }
+
+  /* Controls */
+  #controls-section {
+    flex-shrink: 0; padding: 14px 18px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ctrl-row { margin-bottom: 14px; }
+  .ctrl-row:last-child { margin-bottom: 0; }
+  .ctrl-label {
+    font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--dim); margin-bottom: 6px; display: flex;
+    justify-content: space-between;
+  }
+  .ctrl-label span { color: var(--text); font-weight: 600; }
+  .sym { text-transform: none; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 3px;
+    background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+    background: var(--amber); cursor: pointer;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--amber);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 13px; height: 13px; border-radius: 50%;
+    background: var(--amber); border: none; cursor: pointer;
+  }
+  input[type=range]:disabled { opacity: 0.38; cursor: default; }
+
+  #kbd-hint {
+    font-size: 9px; color: var(--dim); letter-spacing: 0.08em;
+    margin-top: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .kbd {
+    display: inline-block; padding: 1px 5px;
+    border: 1px solid var(--border); border-radius: 3px;
+    background: var(--bg2); font-size: 10px; color: var(--text); line-height: 1.6;
+  }
+  .check-row {
+    display: flex; align-items: center; gap: 7px;
+    margin-top: 9px; font-size: 9px; color: var(--dim); letter-spacing: 0.06em;
+    cursor: pointer; user-select: none;
+  }
+  .check-row input[type=checkbox] {
+    width: 12px; height: 12px; cursor: pointer; accent-color: var(--amber); flex-shrink: 0;
+  }
+
+  /* Explanation */
+  #explain-section {
+    flex: 1; overflow-y: auto; padding: 14px 18px;
+  }
+  #explain-section h3 {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 15px; font-weight: 600; color: var(--amber);
+    margin-bottom: 8px; letter-spacing: 0.04em;
+  }
+  #explain-section p {
+    font-size: 11px; line-height: 1.8; color: var(--dim); margin-bottom: 9px;
+  }
+  .hl-v { color: var(--amber); font-weight: 600; }
+  .hl-a { color: var(--red);   font-weight: 600; }
+  .hl-g { color: var(--green); font-weight: 600; }
+  .hl-r { color: var(--red);   font-weight: 600; }
+  .sign-table {
+    width: 100%; border-collapse: collapse; font-size: 10px;
+    margin: 8px 0 10px; color: var(--dim);
+  }
+  .sign-table th {
+    font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--dim); font-weight: 400; text-align: left;
+    padding: 4px 6px; border-bottom: 1px solid var(--border); background: var(--bg2);
+  }
+  .sign-table td { padding: 5px 6px; border-bottom: 1px solid var(--border); line-height: 1.4; }
+  .sign-table td:first-child { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div id="left">
+  <div id="sim-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+  <div id="left-controls">
+    <button id="btn-play">&#9654; Play</button>
+    <button id="btn-reset">&#8635; Reset</button>
+  </div>
+  <div id="status-bar">idle</div>
+</div>
+
+<div id="right">
+  <div id="panel-title">Elevator — v &amp; a</div>
+
+  <div id="readouts">
+    <div class="readout-block">
+      <div class="ro-label">velocity</div>
+      <div class="ro-value" id="v-value">0</div>
+      <div class="ro-unit" id="v-unit-label">km / h</div>
+      <div id="unit-toggle">
+        <button class="unit-btn active" data-unit="kmh">km/h</button>
+        <button class="unit-btn"        data-unit="ms">m/s</button>
+      </div>
+      <div id="state-chip">stopped</div>
+    </div>
+    <div class="readout-block">
+      <div class="ro-label">acceleration</div>
+      <div class="ro-value" id="a-value">0</div>
+      <div class="ro-unit">m / s²</div>
+    </div>
+    <div class="readout-block">
+      <div class="ro-label">elapsed</div>
+      <div class="ro-value" id="sw-value">0.0</div>
+      <div class="ro-unit">s</div>
+    </div>
+  </div>
+
+  <div id="controls-section">
+    <div class="ctrl-row">
+      <div class="ctrl-label">
+        initial velocity <span class="sym">v₀</span>
+        <span id="v0-display" class="sym">0 km/h</span>
+      </div>
+      <input type="range" id="v0-slider" min="-120" max="120" value="0" step="5">
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-label">
+        acceleration <span class="sym">a</span>
+        <span id="a-display" class="sym">0 m/s²</span>
+      </div>
+      <input type="range" id="a-slider" min="-9.8" max="9.8" value="0" step="0.1">
+    </div>
+    <div id="kbd-hint">
+      <span class="kbd">Space</span> play/pause &nbsp;
+      <span class="kbd">S</span> stop &nbsp;
+      <span class="kbd">▲</span><span class="kbd">▼</span> accel ±0.5 m/s²
+    </div>
+    <label class="check-row">
+      <input type="checkbox" id="chk-autostop">
+      pause automatically when <span class="sym">v</span> = 0 and <span class="sym">a</span> ≠ 0
+    </label>
+  </div>
+
+  <div id="explain-section">
+    <h3>Vertical signs of motion</h3>
+    <p>
+      Positive is <span class="hl-g">upward</span>; negative is
+      <span class="hl-r">downward</span>. The
+      <span class="hl-v">blue arrow</span> shows velocity, the
+      <span class="hl-a">red arrow</span> shows acceleration — each
+      with its own direction.
+    </p>
+    <p>
+      When they point the <span class="hl-g">same way</span>, the elevator
+      speeds up. When they point <span class="hl-r">opposite ways</span>,
+      it slows down — even while still moving.
+    </p>
+    <table class="sign-table">
+      <thead><tr><th>v</th><th>a</th><th>result</th></tr></thead>
+      <tbody>
+        <tr><td>+ (up)</td><td>+ (up)</td><td>faster upward</td></tr>
+        <tr><td>+ (up)</td><td>− (down)</td><td>braking, then drops</td></tr>
+        <tr><td>− (down)</td><td>− (down)</td><td>faster downward</td></tr>
+        <tr><td>− (down)</td><td>+ (up)</td><td>braking, then rises</td></tr>
+      </tbody>
+    </table>
+    <p>
+      Free-fall: set <span class="sym">v₀ = 0</span> and
+      <span class="sym">a = −9.8 m/s²</span>. The floor numbers scroll
+      exactly as in a free-falling elevator — no gravity felt inside.
+    </p>
+  </div>
+</div>
+
+<script>
+// ── Canvas ───────────────────────────────────────────────────
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+const simWrap = document.getElementById('sim-wrap');
+
+// Fix for iOS Safari 100vh bug (browser chrome eats into viewport)
+function setVh() {
+  document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px');
+}
+setVh();
+
+function resize() {
+  canvas.width  = simWrap.clientWidth;
+  canvas.height = simWrap.clientHeight;
+}
+resize();
+window.addEventListener('resize', () => { setVh(); resize(); render(); });
+
+// ── Physics ──────────────────────────────────────────────────
+// Positive v/a = UPWARD
+let v       = 0;
+let vInit   = 0;
+let acc     = 0;
+const V_MAX = 120 / 3.6;
+
+// ── Scroll state ─────────────────────────────────────────────
+// floorOff in pixels; increases when going up
+// markerY for floor n = CABIN_CY() - n * FLOOR_H_PX() + floorOff
+let floorOff   = 0;
+let cablePhase = 0;  // subtle cable sway
+
+// ── Timing ───────────────────────────────────────────────────
+let running   = false;
+let lastT     = null;
+let elapsed   = 0;
+let wasMoving = false;
+
+// ── Units & options ──────────────────────────────────────────
+let unit     = 'kmh';
+let autoStop = false;
+
+// ── Scene geometry ───────────────────────────────────────────
+const SHAFT_W_F = 0.34;               // fraction of canvas width
+const SHAFT_LX  = () => canvas.width  * (0.5 - SHAFT_W_F / 2);
+const SHAFT_RX  = () => canvas.width  * (0.5 + SHAFT_W_F / 2);
+const CABIN_CX  = () => canvas.width  * 0.5;
+const CABIN_CY  = () => canvas.height * 0.52;
+const FLOOR_H_PX = () => canvas.height * 0.14; // pixels per floor
+
+// Arrow anchor: right of shaft
+const ARR_VX = () => SHAFT_RX() + (canvas.width - SHAFT_RX()) * 0.28;
+const ARR_AX = () => SHAFT_RX() + (canvas.width - SHAFT_RX()) * 0.70;
+
+// ── Seeded scene objects ──────────────────────────────────────
+const RNG = (n => ({ next: () => { n = (n * 16807) % 2147483647; return (n-1)/2147483646; } }))(7);
+const WIN_COLS_L = 4, WIN_COLS_R = 4;
+// per-floor random tints
+const floorTint = Array.from({ length: 200 }, () => RNG.next() * 0.15);
+
+// ── Palette ───────────────────────────────────────────────────
+const C_dark = {
+  bldg:          '#1a2638',
+  bldgLine:      '#243048',
+  winLit:        'rgba(200,220,255,0.22)',
+  winDark:       'rgba(100,130,180,0.08)',
+  winBorder:     'rgba(50,80,120,0.30)',
+  shaft:         '#0e151e',
+  shaftWall:     '#16202c',
+  shaftEdge:     '#111820',
+  rail:          '#2a3a50',
+  railHigh:      '#3a5070',
+  floorLine:     'rgba(80,120,170,0.55)',
+  floorTxt:      '#4878a8',
+  cabinBase:     '#222a36',
+  cabinMid:      '#2e3a4c',
+  cabinHigh:     '#384858',
+  cabinEdge:     '#1c2430',
+  cabinDoor:     '#0a0e16',
+  cabinTrim:     'rgba(160,190,230,0.20)',
+  cabinSill:     '#181e28',
+  cabinIndicator:'#080c12',
+  cabinHandle:   '#606880',
+  cabinEmerg:    '#1a0e10',
+  cabinGrill:    '#2a3444',
+  cabinBracket:  '#1a2230',
+  ledGreen:      '#30d060',
+  cable:         '#283848',
+};
+const C_light = {
+  bldg:          '#bfccd8',
+  bldgLine:      '#9eb0c0',
+  winLit:        'rgba(160,200,240,0.68)',
+  winDark:       'rgba(130,165,200,0.38)',
+  winBorder:     'rgba(60,90,140,0.38)',
+  shaft:         '#b8c5d0',
+  shaftWall:     '#a8b5c2',
+  shaftEdge:     '#98a8b8',
+  rail:          '#6888a0',
+  railHigh:      '#4870a0',
+  floorLine:     'rgba(50,80,130,0.48)',
+  floorTxt:      '#2858a0',
+  cabinBase:     '#7888a0',
+  cabinMid:      '#8898b0',
+  cabinHigh:     '#98a8c0',
+  cabinEdge:     '#5878a0',
+  cabinDoor:     '#3a5070',
+  cabinTrim:     'rgba(20,50,110,0.22)',
+  cabinSill:     '#4a6078',
+  cabinIndicator:'#283040',
+  cabinHandle:   '#8898a8',
+  cabinEmerg:    '#503040',
+  cabinGrill:    '#5878a0',
+  cabinBracket:  '#4a6078',
+  ledGreen:      '#18a030',
+  cable:         '#4870a0',
+};
+let C = C_dark;
+
+// ── Unit-aware velocity display ───────────────────────────────
+function fmtV(vMs) {
+  if (unit === 'ms') return { num: (vMs >= 0 ? '+' : '') + vMs.toFixed(1), lbl: 'm / s' };
+  const k = vMs * 3.6;
+  return { num: (k >= 0 ? '+' : '') + k.toFixed(0), lbl: 'km / h' };
+}
+
+function currentFloorNum() {
+  return Math.round(floorOff / FLOOR_H_PX()) + 1;
+}
+
+// ── Draw: building exterior ───────────────────────────────────
+function drawExterior() {
+  const W = canvas.width, H = canvas.height;
+  const sl = SHAFT_LX(), sr = SHAFT_RX();
+
+  // Wall fill
+  ctx.fillStyle = C.bldg;
+  ctx.fillRect(0, 0, sl, H);
+  ctx.fillRect(sr, 0, W - sr, H);
+
+  // Scrolling floor dividers + windows on exterior
+  const fp = FLOOR_H_PX();
+  const nStart = Math.floor((floorOff - CABIN_CY() - fp) / fp) - 1;
+  const nEnd   = nStart + Math.ceil((H + fp * 2) / fp) + 2;
+
+  for (let n = nStart; n <= nEnd; n++) {
+    const fy = CABIN_CY() - n * fp + floorOff;
+    const absFloor = n + currentFloorNum() - Math.round(floorOff / fp);
+    const tint = floorTint[((absFloor % 200) + 200) % 200];
+
+    // Horizontal floor line
+    ctx.strokeStyle = C.bldgLine; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(0, fy); ctx.lineTo(sl, fy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sr, fy); ctx.lineTo(W, fy); ctx.stroke();
+
+    // Windows
+    const winH = fp * 0.42, winW = sl * 0.18;
+    const winY = fy - fp * 0.72;
+    const wColor = tint > 0.10 ? C.winLit : C.winDark;
+
+    for (let c = 0; c < WIN_COLS_L; c++) {
+      const wx = sl * 0.06 + c * (winW + sl * 0.04);
+      ctx.fillStyle = wColor;
+      ctx.fillRect(wx, winY, winW, winH);
+      ctx.strokeStyle = C.winBorder; ctx.lineWidth = 0.5;
+      ctx.strokeRect(wx, winY, winW, winH);
+    }
+    for (let c = 0; c < WIN_COLS_R; c++) {
+      const wx = sr + (W - sr) * 0.06 + c * (winW + (W - sr) * 0.04);
+      ctx.fillStyle = wColor;
+      ctx.fillRect(wx, winY, winW, winH);
+      ctx.strokeStyle = C.winBorder; ctx.lineWidth = 0.5;
+      ctx.strokeRect(wx, winY, winW, winH);
+    }
+  }
+}
+
+// ── Draw: shaft interior ──────────────────────────────────────
+function drawShaft() {
+  const W = canvas.width, H = canvas.height;
+  const sl = SHAFT_LX(), sr = SHAFT_RX(), sw = sr - sl;
+
+  // Shaft background
+  ctx.fillStyle = C.shaft;
+  ctx.fillRect(sl, 0, sw, H);
+
+  // Inner wall panels
+  const panelW = sw * 0.06;
+  const wallGrad = ctx.createLinearGradient(sl, 0, sl + panelW * 2, 0);
+  wallGrad.addColorStop(0, C.shaftEdge);
+  wallGrad.addColorStop(0.4, C.shaftWall);
+  wallGrad.addColorStop(1, C.shaft);
+  ctx.fillStyle = wallGrad;
+  ctx.fillRect(sl, 0, panelW * 2, H);
+
+  const wallGradR = ctx.createLinearGradient(sr, 0, sr - panelW * 2, 0);
+  wallGradR.addColorStop(0, '#111820');
+  wallGradR.addColorStop(0.4, C.shaftWall);
+  wallGradR.addColorStop(1, C.shaft);
+  ctx.fillStyle = wallGradR;
+  ctx.fillRect(sr - panelW * 2, 0, panelW * 2, H);
+
+  // Guide rails
+  const railX1 = sl + sw * 0.10, railX2 = sr - sw * 0.10;
+  const railW = sw * 0.025;
+  [railX1, railX2].forEach(rx => {
+    const rg = ctx.createLinearGradient(rx, 0, rx + railW, 0);
+    rg.addColorStop(0, C.rail);
+    rg.addColorStop(0.35, C.railHigh);
+    rg.addColorStop(1, C.rail);
+    ctx.fillStyle = rg;
+    ctx.fillRect(rx, 0, railW, H);
+  });
+
+  // Scrolling floor markers inside shaft
+  const fp = FLOOR_H_PX();
+  const nStart = Math.floor((floorOff - CABIN_CY() - fp) / fp) - 1;
+  const nEnd   = nStart + Math.ceil((H + fp * 2) / fp) + 2;
+
+  for (let n = nStart; n <= nEnd; n++) {
+    const fy = CABIN_CY() - n * fp + floorOff;
+    const floorNum = n + 1;
+
+    // Floor line
+    ctx.strokeStyle = C.floorLine; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(sl, fy); ctx.lineTo(sr, fy); ctx.stroke();
+
+    // Floor number label (left side of shaft)
+    ctx.fillStyle = C.floorTxt;
+    ctx.font = `400 ${Math.max(9, sw * 0.085)}px 'JetBrains Mono', monospace`;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(floorNum, sl + sw * 0.08, fy - fp * 0.3);
+  }
+}
+
+// ── Draw: cable ───────────────────────────────────────────────
+function drawCable() {
+  const cx = CABIN_CX(), H = canvas.height;
+  const cabH = canvas.height * 0.22;
+  const cabTop = CABIN_CY() - cabH / 2;
+  const sw = SHAFT_RX() - SHAFT_LX(), sl = SHAFT_LX();
+  const cabW = sw * 0.66;
+
+  const c1x = cx - cabW * 0.12;
+  const c2x = cx + cabW * 0.12;
+
+  // Slight wave from cablePhase
+  const sway = Math.sin(cablePhase) * 0.5;
+
+  ctx.strokeStyle = C.cable; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  [c1x + sway, c2x - sway].forEach(cx_ => {
+    ctx.beginPath();
+    ctx.moveTo(cx_, cabTop);
+    ctx.quadraticCurveTo(cx_ + sway * 2, cabTop - (cabTop * 0.4), cx_, 0);
+    ctx.stroke();
+  });
+}
+
+// ── Draw: cabin ───────────────────────────────────────────────
+function drawCabin() {
+  const W = canvas.width, H = canvas.height;
+  const sl = SHAFT_LX(), sw = SHAFT_RX() - sl;
+  const cabW = sw * 0.66;
+  const cabH = H * 0.22;
+  const cx = CABIN_CX(), cy = CABIN_CY();
+  const L = cx - cabW / 2, T = cy - cabH / 2;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.fillRect(L + 5, T + 5, cabW, cabH);
+
+  // Body gradient (brushed steel)
+  const bg = ctx.createLinearGradient(L, 0, L + cabW, 0);
+  bg.addColorStop(0,    C.cabinEdge);
+  bg.addColorStop(0.08, C.cabinMid);
+  bg.addColorStop(0.48, C.cabinMid);
+  bg.addColorStop(0.52, C.cabinMid);
+  bg.addColorStop(0.92, C.cabinMid);
+  bg.addColorStop(1,    C.cabinEdge);
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.roundRect(L, T, cabW, cabH, 3); ctx.fill();
+
+  // Top accent strip
+  ctx.fillStyle = C.cabinHigh;
+  ctx.fillRect(L, T, cabW, cabH * 0.04);
+
+  // Bottom sill
+  ctx.fillStyle = C.cabinSill;
+  ctx.fillRect(L, T + cabH - cabH * 0.06, cabW, cabH * 0.06);
+
+  // Center door gap
+  ctx.fillStyle = C.cabinDoor;
+  ctx.fillRect(cx - 1.5, T + cabH * 0.06, 3, cabH * 0.86);
+
+  // Door panel horizontal lines (subtle)
+  ctx.strokeStyle = C.cabinTrim; ctx.lineWidth = 0.6;
+  [0.28, 0.52, 0.74].forEach(frac => {
+    const ly = T + cabH * frac;
+    ctx.beginPath();
+    ctx.moveTo(L + cabW * 0.03, ly); ctx.lineTo(cx - 4, ly); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + 4, ly); ctx.lineTo(L + cabW * 0.97, ly); ctx.stroke();
+  });
+
+  // Door handles
+  ctx.fillStyle = C.cabinHandle;
+  const hW = cabW * 0.06, hH = cabH * 0.008;
+  ctx.fillRect(cx - cabW * 0.16 - hW / 2, cy - hH / 2, hW, hH);
+  ctx.fillRect(cx + cabW * 0.16 - hW / 2, cy - hH / 2, hW, hH);
+
+  // Floor indicator display (top center)
+  const indW = cabW * 0.28, indH = cabH * 0.10;
+  const indX = cx - indW / 2, indY = T + cabH * 0.07;
+  ctx.fillStyle = C.cabinIndicator;
+  ctx.beginPath(); ctx.roundRect(indX, indY, indW, indH, 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(80,110,160,0.5)'; ctx.lineWidth = 0.8; ctx.stroke();
+
+  const fn = currentFloorNum();
+  const fnStr = fn > 0 ? String(fn) : 'B' + String(Math.abs(fn - 1));
+  ctx.font = `600 ${indH * 0.62}px 'JetBrains Mono', monospace`;
+  ctx.fillStyle = C.ledGreen;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(fnStr, cx, indY + indH / 2);
+
+  // Emergency panel (small red square, right door)
+  const panW = cabW * 0.06, panH = cabH * 0.18;
+  const panX = cx + cabW * 0.30, panY = cy - panH / 2;
+  ctx.fillStyle = C.cabinEmerg;
+  ctx.fillRect(panX, panY, panW, panH);
+  // Emergency button
+  ctx.beginPath();
+  ctx.arc(panX + panW / 2, panY + panH * 0.35, panW * 0.35, 0, Math.PI * 2);
+  ctx.fillStyle = '#c02010'; ctx.fill();
+  // Speaker grill (left door, tiny dots)
+  const grillX = cx - cabW * 0.36, grillY = cy - cabH * 0.06;
+  ctx.fillStyle = C.cabinGrill;
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) {
+    ctx.beginPath();
+    ctx.arc(grillX + c * cabW * 0.025, grillY + r * cabH * 0.04, 1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Top mounting bracket
+  const brW = cabW * 0.28, brH = cabH * 0.055;
+  ctx.fillStyle = C.cabinBracket;
+  ctx.fillRect(cx - brW / 2, T - brH, brW, brH);
+  ctx.strokeStyle = 'rgba(80,110,160,0.4)'; ctx.lineWidth = 0.7;
+  ctx.strokeRect(cx - brW / 2, T - brH, brW, brH);
+}
+
+// ── Draw: physics arrows (vertical) ──────────────────────────
+function drawArrows(vMs, aMs2) {
+  const cy = CABIN_CY();
+  const vx = ARR_VX(), ax = ARR_AX();
+  const H = canvas.height;
+
+  const MAX_PX = H * 0.30;
+  const vKmh   = vMs * 3.6;
+  const vLen   = Math.min(Math.abs(vKmh) / 120 * MAX_PX, MAX_PX);
+  const aLen   = Math.min(Math.abs(aMs2) / 9.8 * MAX_PX * 0.78, MAX_PX * 0.78);
+
+  const vDir = vMs < 0 ? -1 : 1;
+  const aDir = aMs2 < 0 ? -1 : 1;
+
+  const cs = getComputedStyle(document.documentElement);
+  const varAmber    = cs.getPropertyValue('--amber').trim();
+  const varBlue     = cs.getPropertyValue('--blue').trim();
+  const varRed      = cs.getPropertyValue('--red').trim();
+  const varRedLight = cs.getPropertyValue('--red-light').trim();
+  const varDim      = cs.getPropertyValue('--dim').trim();
+  const varText     = cs.getPropertyValue('--text').trim();
+
+  const vColor = vMs < 0 ? varBlue : varAmber;
+  const aColor = aMs2 < 0 ? varRedLight : aMs2 > 0 ? varRed : varDim;
+
+  const isLight  = document.body.classList.contains('light');
+  const labelBg  = isLight ? 'rgba(255,255,255,0.94)' : 'rgba(232,242,255,0.92)';
+  const labelStr = isLight ? 'rgba(50,100,180,0.60)'  : 'rgba(100,140,200,0.40)';
+
+  function drawVArrow(x, baseY, len, dir, color, label) {
+    ctx.save();
+    const HW = 12, HL = 16;
+    const tipY = baseY - dir * len;
+
+    if (len < 3) {
+      ctx.beginPath(); ctx.arc(x, baseY, 5, 0, Math.PI * 2);
+      ctx.fillStyle = color; ctx.fill();
+    } else {
+      const shaftEnd = tipY + dir * HL;
+      ctx.beginPath(); ctx.moveTo(x, baseY); ctx.lineTo(x, shaftEnd);
+      ctx.strokeStyle = color; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, tipY);
+      ctx.lineTo(x - HW, tipY + dir * HL);
+      ctx.lineTo(x + HW, tipY + dir * HL);
+      ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+    }
+
+    const labelY = len < 3 ? baseY : baseY - dir * Math.max(len * 0.5, HL);
+    const labelX = x + 14;
+    ctx.font = '600 14px "JetBrains Mono", monospace';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = labelBg;
+    ctx.beginPath(); ctx.roundRect(labelX - 4, labelY - 11, tw + 10, 22, 3); ctx.fill();
+    ctx.strokeStyle = labelStr; ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.fillText(label, labelX, labelY);
+
+    ctx.restore();
+  }
+
+  const { num: vNum, lbl: vUnitLbl } = fmtV(vMs);
+  drawVArrow(vx, cy, vLen, vDir, vColor, 'v = ' + vNum + ' ' + vUnitLbl.replace(' / ', '/'));
+
+  if (Math.abs(aMs2) > 0.01) {
+    const aSign  = aMs2 > 0 ? '+' : '';
+    drawVArrow(ax, cy, aLen, aDir, aColor, 'a = ' + aSign + aMs2.toFixed(1) + ' m/s²');
+  } else {
+    ctx.save();
+    const label = 'a = 0  m/s²';
+    ctx.font = '600 14px "JetBrains Mono", monospace';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = labelBg;
+    ctx.beginPath(); ctx.roundRect(ax - 4, cy - 13, tw + 10, 26, 4); ctx.fill();
+    ctx.strokeStyle = labelStr; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = varText; ctx.fillText(label, ax, cy);
+    ctx.restore();
+  }
+}
+
+// ── Full render ───────────────────────────────────────────────
+function render() {
+  C = document.body.classList.contains('light') ? C_light : C_dark;
+  const W = canvas.width, H = canvas.height;
+
+  // Clear
+  ctx.clearRect(0, 0, W, H);
+
+  // 1. Building exterior + windows
+  drawExterior();
+
+  // 2. Shaft + floor markers + guide rails
+  drawShaft();
+
+  // 3. Cable
+  drawCable();
+
+  // 4. Cabin
+  drawCabin();
+
+  // 5. Physics arrows (on top)
+  drawArrows(v, acc);
+}
+
+// ── Animation loop ────────────────────────────────────────────
+function tick(ts) {
+  if (!running) return;
+  if (lastT === null) lastT = ts;
+  const dt = Math.min((ts - lastT) / 1000, 0.05);
+  lastT = ts;
+
+  v += acc * dt;
+  if (v >=  V_MAX) { v =  V_MAX; if (acc > 0) setAcc(0); }
+  if (v <= -V_MAX) { v = -V_MAX; if (acc < 0) setAcc(0); }
+
+  if (Math.abs(v) > 0.1) wasMoving = true;
+
+  elapsed += dt;
+  document.getElementById('sw-value').textContent = elapsed.toFixed(1);
+
+  // Auto-stop: v=0 and a≠0
+  if (autoStop && wasMoving && Math.abs(v) < 0.05 && Math.abs(acc) > 0.01) {
+    wasMoving = false;
+    running = false;
+    document.getElementById('btn-play').textContent = '▶ Play';
+    const sb = document.getElementById('status-bar');
+    sb.innerHTML = 'paused — <span class="sym">v</span> = 0, <span class="sym">a</span> ≠ 0';
+    sb.className = '';
+    document.getElementById('v0-slider').disabled = false;
+    document.querySelectorAll('.unit-btn').forEach(b => b.disabled = false);
+    updateReadouts(); render();
+    return;
+  }
+
+  // Scroll: positive v = going up = floorOff increases
+  const scalePx = FLOOR_H_PX() / 3.0;  // pixels per metre
+  floorOff += v * scalePx * dt;
+
+  // Cable gentle sway proportional to |a|
+  cablePhase += dt * (0.5 + Math.abs(acc) * 0.3);
+
+  updateReadouts();
+  render();
+  requestAnimationFrame(tick);
+}
+
+// ── Readout updates ───────────────────────────────────────────
+function updateReadouts() {
+  const { num, lbl } = fmtV(v);
+  const vEl = document.getElementById('v-value');
+  vEl.textContent = num;
+  vEl.style.color = v < 0 ? 'var(--blue)' : 'var(--amber)';
+  document.getElementById('v-unit-label').textContent = lbl;
+
+  const aEl = document.getElementById('a-value');
+  aEl.textContent = (acc > 0 ? '+' : '') + acc.toFixed(1);
+  aEl.style.color = acc > 0 ? 'var(--red)' : acc < 0 ? 'var(--red-light)' : 'var(--dim)';
+
+  const chip  = document.getElementById('state-chip');
+  const spdup = (v > 0.1 && acc > 0.01) || (v < -0.1 && acc < -0.01);
+  const sldwn = (v > 0.1 && acc < -0.01) || (v < -0.1 && acc > 0.01);
+  chip.textContent      = spdup ? 'speeding up' : sldwn ? 'slowing down' : Math.abs(v) < 0.05 ? 'stopped' : 'constant';
+  chip.style.background = spdup ? '#e0f4ec' : sldwn ? '#fceee8' : 'var(--bg2)';
+  chip.style.color      = spdup ? 'var(--green)' : sldwn ? 'var(--red)' : 'var(--dim)';
+}
+
+// ── Sync a-slider ─────────────────────────────────────────────
+function setAcc(val) {
+  acc = Math.max(-9.8, Math.min(9.8, val));
+  document.getElementById('a-slider').value = acc;
+  document.getElementById('a-display').textContent =
+    (acc > 0 ? '+' : '') + acc.toFixed(1) + ' m/s²';
+  updateReadouts();
+  if (!running) render();
+}
+
+// ── Controls ──────────────────────────────────────────────────
+const btnPlay   = document.getElementById('btn-play');
+const btnReset  = document.getElementById('btn-reset');
+const v0Slider  = document.getElementById('v0-slider');
+const aSlider   = document.getElementById('a-slider');
+const statusBar = document.getElementById('status-bar');
+const unitBtns  = document.querySelectorAll('.unit-btn');
+const chkAuto   = document.getElementById('chk-autostop');
+
+function lockControls(lock) {
+  v0Slider.disabled = lock;
+  unitBtns.forEach(b => b.disabled = lock);
+}
+
+btnPlay.addEventListener('click', () => {
+  running = !running;
+  btnPlay.textContent   = running ? '⏸ Pause' : '▶ Play';
+  statusBar.textContent = running ? 'running' : 'paused';
+  statusBar.className   = running ? 'running' : '';
+  lockControls(running);
+  if (running) { lastT = null; requestAnimationFrame(tick); }
+});
+
+btnReset.addEventListener('click', () => {
+  running = false;
+  btnPlay.textContent   = '▶ Play';
+  statusBar.textContent = 'idle'; statusBar.className = '';
+  v = vInit; setAcc(0);
+  elapsed = 0; wasMoving = false;
+  floorOff = 0; cablePhase = 0;
+  document.getElementById('sw-value').textContent = '0.0';
+  lastT = null;
+  lockControls(false);
+  updateReadouts(); render();
+});
+
+v0Slider.addEventListener('input', () => {
+  const kmh = parseInt(v0Slider.value);
+  vInit = v = kmh / 3.6;
+  const { num, lbl } = fmtV(vInit);
+  document.getElementById('v0-display').textContent = num + ' ' + lbl.replace(' / ', '/');
+  updateReadouts(); render();
+});
+
+aSlider.addEventListener('input', () => { setAcc(parseFloat(aSlider.value)); });
+
+unitBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    unit = btn.dataset.unit;
+    unitBtns.forEach(b => b.classList.toggle('active', b === btn));
+    const { num, lbl } = fmtV(vInit);
+    document.getElementById('v0-display').textContent = num + ' ' + lbl.replace(' / ', '/');
+    updateReadouts(); render();
+  });
+});
+
+chkAuto.addEventListener('change', () => { autoStop = chkAuto.checked; });
+
+document.addEventListener('keydown', e => {
+  if (e.key === ' ')                  { e.preventDefault(); btnPlay.click(); }
+  if (e.key === 's' || e.key === 'S') { e.preventDefault(); btnReset.click(); }
+  if (e.key === 'ArrowUp')   { e.preventDefault(); setAcc(acc + 0.5); }
+  if (e.key === 'ArrowDown') { e.preventDefault(); setAcc(acc - 0.5); }
+});
+
+// ── Init ──────────────────────────────────────────────────────
+updateReadouts();
+render();
+</script>
+<button id="theme-toggle">☀</button>
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') { document.body.classList.add('light'); btn.textContent = '☽'; }
+  btn.addEventListener('click', () => {
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '☽' : '☀';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    if (!running) render();
+  });
+})();
+</script>
+</body>
+</html>

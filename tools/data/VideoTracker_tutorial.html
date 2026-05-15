@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Tracker — Tutorial</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --border: #0f3460;
+    --text: #dde;
+    --muted: #aaa;
+    --accent: #e94560;
+    --callout-tip-bg:  #0d2035;
+    --callout-warn-bg: #1e1505;
+    --callout-info-bg: #0d1a0d;
+    --kbd-bg:          #0a0a1a;
+    --kbd-border:      #1a3060;
+    --btn-lbl-bg:      #0f3460;
+    --btn-lbl-border:  #1a4080;
+    --step-badge-bg:   #0f3460;
+    --table-head-bg:   #16213e;
+    --table-row-hover: #131c2e;
+    --hero-bg:    linear-gradient(135deg, #0f3460 0%, #16213e 60%);
+    --hero-border: #0f3460;
+    --hero-h1:    #eee;
+    --hero-p:     #99aacc;
+}
+body.light {
+    --bg: #f6f8fa;
+    --surface: #e8ecf0;
+    --border: #c0c8d4;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #e94560;
+    --callout-tip-bg:  #e8f4fc;
+    --callout-warn-bg: #fef8e8;
+    --callout-info-bg: #e8f8e8;
+    --kbd-bg:          #f0f2f8;
+    --kbd-border:      #c0c8d4;
+    --btn-lbl-bg:      #dde4ee;
+    --btn-lbl-border:  #c0c8d4;
+    --step-badge-bg:   #4a7ab8;
+    --table-head-bg:   #e4e8f0;
+    --table-row-hover: #f0f4f8;
+    --hero-bg:    linear-gradient(135deg, #dbeafe 0%, #eff6ff 60%);
+    --hero-border: #c0c8d4;
+    --hero-h1:    #1e3a5f;
+    --hero-p:     #4a5568;
+}
+#theme-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    transition: border-color .2s, color .2s;
+    user-select: none;
+    flex-shrink: 0;
+}
+#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+}
+
+/* ── NAV ── */
+nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+nav .logo { font-size: 15px; font-weight: 600; color: var(--text); }
+nav .logo span { color: #e94560; }
+nav a.launch-btn {
+    padding: 6px 14px;
+    background: #e94560;
+    border-radius: 5px;
+    color: #fff;
+    text-decoration: none;
+    font-size: 13px;
+    transition: background .15s;
+}
+nav a.launch-btn:hover { background: #c73050; }
+
+/* ── LAYOUT ── */
+.toc-sidebar {
+    position: fixed;
+    top: 52px;
+    left: 0;
+    width: 210px;
+    height: calc(100vh - 52px);
+    overflow-y: auto;
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    padding: 18px 0;
+}
+.toc-sidebar h3 {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--muted);
+    padding: 0 18px 8px;
+}
+.toc-sidebar a {
+    display: block;
+    padding: 5px 18px;
+    font-size: 12px;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color .12s;
+}
+.toc-sidebar a:hover { color: var(--text); }
+.toc-sidebar a.active { color: #4fc3f7; border-left: 2px solid #4fc3f7; padding-left: 16px; }
+
+main {
+    margin-left: 210px;
+    padding: 40px 52px 80px;
+    max-width: 900px;
+}
+
+/* ── HERO ── */
+.hero {
+    background: var(--hero-bg);
+    border: 1px solid var(--hero-border);
+    border-radius: 10px;
+    padding: 36px 40px;
+    margin-bottom: 48px;
+}
+.hero h1 { font-size: 26px; color: var(--hero-h1); margin-bottom: 8px; }
+.hero h1 span { color: #e94560; }
+.hero p { color: var(--hero-p); font-size: 14px; max-width: 600px; }
+.badges { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.badge {
+    font-size: 11px; padding: 3px 10px;
+    border-radius: 20px; border: 1px solid;
+}
+.badge.blue  { color: #4fc3f7; border-color: #1a4a6a; }
+.badge.red   { color: #e94560; border-color: #4a1a2a; }
+.badge.green { color: #3fb950; border-color: #1a3a2a; }
+
+/* ── SECTIONS ── */
+section { margin-bottom: 52px; scroll-margin-top: 70px; }
+h2 {
+    font-size: 19px; color: var(--text);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 10px;
+}
+h2 .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--step-badge-bg); color: #4fc3f7;
+    font-size: 13px; font-weight: 700; flex-shrink: 0;
+}
+h3 { font-size: 14px; color: var(--text); margin: 20px 0 8px; }
+
+p { margin-bottom: 10px; font-size: 14px; color: var(--muted); }
+ul, ol { padding-left: 20px; margin-bottom: 10px; }
+li { font-size: 14px; color: var(--muted); margin-bottom: 5px; }
+li strong { color: var(--text); }
+
+/* ── CALLOUT BOXES ── */
+.callout {
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin: 16px 0;
+    font-size: 13px;
+    line-height: 1.6;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+.callout .icon { font-size: 18px; flex-shrink: 0; line-height: 1.3; }
+.callout.tip   { background: var(--callout-tip-bg);  border-left: 3px solid #4fc3f7; color: var(--muted); }
+.callout.warn  { background: var(--callout-warn-bg); border-left: 3px solid #f0a030; color: var(--muted); }
+.callout.info  { background: var(--callout-info-bg); border-left: 3px solid #3fb950; color: var(--muted); }
+
+/* ── UI LABELS ── */
+kbd {
+    display: inline-block;
+    padding: 1px 7px;
+    background: var(--kbd-bg);
+    border: 1px solid var(--kbd-border);
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--text);
+}
+.btn-label {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--btn-lbl-bg);
+    border: 1px solid var(--btn-lbl-border);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--text);
+}
+.btn-label.active { background: #e94560; border-color: #c73050; }
+.btn-label.green  { background: #1a7f37; border-color: #156b2e; }
+
+/* ── WORKFLOW DIAGRAM ── */
+.workflow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+.wf-step {
+    flex: 1; min-width: 110px;
+    text-align: center;
+    padding: 12px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+.wf-step .wf-icon { font-size: 22px; margin-bottom: 4px; }
+.wf-step .wf-title { font-size: 12px; color: var(--text); font-weight: 600; }
+.wf-step .wf-sub   { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.wf-arrow { color: var(--muted); font-size: 20px; padding: 0 6px; }
+
+/* ── NUMBERED STEPS ── */
+.steps { counter-reset: step-counter; padding: 0; list-style: none; }
+.steps li {
+    counter-increment: step-counter;
+    padding: 10px 10px 10px 46px;
+    position: relative;
+    border-left: 1px dashed var(--border);
+    margin-left: 14px;
+    margin-bottom: 4px;
+}
+.steps li::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: -14px;
+    top: 8px;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--step-badge-bg);
+    color: #4fc3f7;
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+}
+
+/* ── TABLE ── */
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+thead th {
+    background: var(--table-head-bg);
+    padding: 7px 12px;
+    text-align: left;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+}
+tbody td { padding: 6px 12px; border-bottom: 1px solid var(--border); color: var(--muted); }
+tbody tr:hover { background: var(--table-row-hover); }
+
+/* ── FOOTER ── */
+footer {
+    margin-left: 210px;
+    padding: 20px 52px;
+    font-size: 12px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 860px) {
+    .toc-sidebar { display: none; }
+    main { margin-left: 0; padding: 24px 20px 60px; }
+    footer { margin-left: 0; padding: 16px 20px; }
+    .workflow { gap: 4px; }
+    .wf-arrow { display: none; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">&#127909; Video Tracker <span>Tutorial</span></div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button id="theme-toggle">☀</button>
+    <a class="launch-btn" href="VideoTracker.html" target="_blank">Launch App &#8599;</a>
+  </div>
+</nav>
+
+<!-- ── TABLE OF CONTENTS ── -->
+<aside class="toc-sidebar">
+  <h3>Contents</h3>
+  <a href="#overview">Overview</a>
+  <a href="#step1">1. Load a video</a>
+  <a href="#step2">2. Set up the origin</a>
+  <a href="#step3">3. Calibrate the scale</a>
+  <a href="#step4">4. Track the object</a>
+  <a href="#step5">5. Graphs &amp; curve fitting</a>
+  <a href="#step6">6. Export data (CSV)</a>
+  <a href="#controls">Video controls</a>
+  <a href="#tips">Tips &amp; tricks</a>
+  <a href="#shortcuts">Keyboard shortcuts</a>
+</aside>
+
+<!-- ── MAIN CONTENT ── -->
+<main>
+
+  <!-- HERO -->
+  <div class="hero">
+    <h1>&#127919; Video <span>Tracker</span> — Physics Analysis</h1>
+    <p>Analyze the motion of any object in a video: set up a coordinate system,
+       calibrate the real-world scale, click on the object frame by frame, and
+       instantly see position-vs-time graphs with optional curve fitting.</p>
+    <div class="badges">
+      <span class="badge blue">Browser-based · no install</span>
+      <span class="badge red">MP4 / WebM / MOV</span>
+      <span class="badge green">CSV export</span>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <h2>Overview</h2>
+    <p>The workflow has four ordered phases. The toolbar mode buttons guide you
+       through them left to right:</p>
+    <div class="workflow">
+      <div class="wf-step">
+        <div class="wf-icon">&#128194;</div>
+        <div class="wf-title">Load</div>
+        <div class="wf-sub">Drop or open a video</div>
+      </div>
+      <div class="wf-arrow">&#8250;</div>
+      <div class="wf-step">
+        <div class="wf-icon">&#9881;</div>
+        <div class="wf-title">Origin</div>
+        <div class="wf-sub">Place &amp; tilt the axes</div>
+      </div>
+      <div class="wf-arrow">&#8250;</div>
+      <div class="wf-step">
+        <div class="wf-icon">&#128207;</div>
+        <div class="wf-title">Calibrate</div>
+        <div class="wf-sub">Set px → real distance</div>
+      </div>
+      <div class="wf-arrow">&#8250;</div>
+      <div class="wf-step">
+        <div class="wf-icon">&#127919;</div>
+        <div class="wf-title">Track</div>
+        <div class="wf-sub">Click the object each frame</div>
+      </div>
+    </div>
+    <p>Results appear in real time on the right panel: an X(t) graph (red), a Y(t)
+       graph (blue), and a data table. When you are done, export everything as CSV.</p>
+  </section>
+
+  <!-- STEP 1 -->
+  <section id="step1">
+    <h2><span class="step-num">1</span> Load a video</h2>
+
+    <p>Two ways to open a video file:</p>
+    <ul>
+      <li><strong>Drag &amp; drop</strong> the file anywhere onto the dark video panel.</li>
+      <li><strong>Click</strong> <span class="btn-label">&#128194; Load</span> in the bottom controls bar and pick a file.</li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="icon">&#9888;</div>
+      <div><strong>Supported formats:</strong> MP4 (H.264), WebM, and MOV work in all modern browsers.
+      AVI, MPEG, and WMV need conversion first.
+      Free converters: <strong>HandBrake</strong> (desktop app) or <strong>CloudConvert.com</strong> (web).</div>
+    </div>
+
+    <h3>Set the frame rate (FPS)</h3>
+    <p>The app defaults to <strong>30 fps</strong>. If your video was recorded at a different rate
+       (e.g. 60 fps slow-motion, 120 fps high-speed), change the <span class="btn-label">FPS</span>
+       field in the bottom bar <em>before</em> you start tracking so that time values are correct.</p>
+
+    <h3>Rotate the video (optional)</h3>
+    <p>If the video was recorded in portrait mode, use
+       <span class="btn-label">&#8634; 90°</span> or <span class="btn-label">90° &#8635;</span>
+       to rotate it without affecting the analysis.</p>
+  </section>
+
+  <!-- STEP 2 -->
+  <section id="step2">
+    <h2><span class="step-num">2</span> Set up the coordinate origin</h2>
+
+    <p>After loading a video the app is in <span class="btn-label active">&#9881; Origin</span> mode.
+       A white dot with red/blue dashed axes appears on the video.</p>
+
+    <ol class="steps">
+      <li><strong>Drag the white dot</strong> to the point you want to be (0, 0) in your coordinate system
+          — for example, the launch point of a projectile or a corner of a table.</li>
+      <li>Optionally tilt the axes using the <strong>Axis°</strong> slider (or type an angle)
+          in the top toolbar. This is useful when the surface of motion is not horizontal.</li>
+      <li>The red dashed line is the <strong>X axis</strong>; the blue dashed line is the <strong>Y axis</strong>
+          (pointing up by default).</li>
+    </ol>
+
+    <div class="callout tip">
+      <div class="icon">&#128161;</div>
+      <div>You can toggle the axes overlay on and off at any time with the
+           <span class="btn-label active">Axes</span> button in the top toolbar.
+           The origin is re-centred to the middle of the video whenever you resize the window.</div>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section id="step3">
+    <h2><span class="step-num">3</span> Calibrate the scale</h2>
+
+    <p>Calibration converts pixels to real-world units (metres or centimetres).
+       You need a known length visible in the video — a ruler, a metre stick, the
+       length of a table, etc.</p>
+
+    <ol class="steps">
+      <li>Click <span class="btn-label">&#128207; Calibrate</span> in the top toolbar.
+          The status bar changes to <em>"Calibration — click 2 points"</em>.</li>
+      <li><strong>Click the two ends</strong> of the known length on the video.
+          Gold markers (labelled 1 and 2) appear, connected by a dashed line showing the pixel distance.</li>
+      <li>A dialog asks for the <strong>real-world distance</strong> between those two points.
+          Enter the value and select the unit (<strong>m</strong> or <strong>cm</strong>) in the
+          top toolbar, then click <strong>Confirm</strong>.</li>
+      <li>The status bar now shows <em>"Scale: X.XX px/m"</em> — calibration is complete.</li>
+    </ol>
+
+    <div class="callout tip">
+      <div class="icon">&#128161;</div>
+      <div>Pick two calibration points that are as far apart as possible to minimise the
+           relative pixel-placement error.</div>
+    </div>
+
+    <div class="callout warn">
+      <div class="icon">&#9888;</div>
+      <div>Calibration is required before you can track. The
+           <span class="btn-label">&#127919; Track</span> button only activates after a
+           successful calibration.</div>
+    </div>
+
+    <p>You can toggle the gold calibration markers on/off with the
+       <span class="btn-label active">Cal</span> button in the top toolbar.</p>
+  </section>
+
+  <!-- STEP 4 -->
+  <section id="step4">
+    <h2><span class="step-num">4</span> Track the object</h2>
+
+    <p>Click <span class="btn-label">&#127919; Track</span> to enter tracking mode.</p>
+
+    <ol class="steps">
+      <li>Navigate to the <strong>first frame</strong> where you want to start using the scrubber
+          or <kbd>&#8592;</kbd> / <kbd>&#8594;</kbd> arrow keys.</li>
+      <li><strong>Click on the object</strong> in the video. A gold dot is placed and the video
+          automatically advances by the number of frames set in the <strong>Step</strong> field
+          (default: 1 frame).</li>
+      <li>Click on the object again in the new frame. Repeat until you reach the last frame
+          of interest.</li>
+      <li>The graphs on the right update after every click.</li>
+    </ol>
+
+    <h3>Step size</h3>
+    <p>The <strong>Step</strong> field (bottom bar) controls how many frames the video skips
+       after each click. Setting <strong>Step = 2</strong> halves the number of clicks needed
+       and effectively samples the motion every 2 frames.</p>
+
+    <h3>Correcting mistakes</h3>
+    <ul>
+      <li><span class="btn-label">&#8630; Undo</span> removes the <em>last</em> tracked point.</li>
+      <li>The ✕ button in the data table deletes any individual point.</li>
+      <li><span class="btn-label">&#128465; Clear</span> removes all points and resets calibration
+          (asks for confirmation).</li>
+    </ul>
+
+    <div class="callout info">
+      <div class="icon">&#128202;</div>
+      <div>The status bar at the bottom always shows the current frame number, timestamp,
+           cursor position in real-world coordinates, and total point count.</div>
+    </div>
+  </section>
+
+  <!-- STEP 5 -->
+  <section id="step5">
+    <h2><span class="step-num">5</span> Graphs &amp; curve fitting</h2>
+
+    <p>The right panel shows two live graphs and a data table:</p>
+    <ul>
+      <li><strong style="color:#e94560">X(t)</strong> — horizontal position vs. time</li>
+      <li><strong style="color:#4fc3f7">Y(t)</strong> — vertical position vs. time</li>
+    </ul>
+
+    <h3>Curve fitting</h3>
+    <p>Each graph has a dropdown to overlay a best-fit curve:</p>
+    <table>
+      <thead><tr><th>Option</th><th>Equation</th><th>Use when…</th></tr></thead>
+      <tbody>
+        <tr><td>No fit</td><td>—</td><td>Exploratory / irregular motion</td></tr>
+        <tr><td>Linear fit</td><td>x = a + b·t</td><td>Constant-velocity motion</td></tr>
+        <tr><td>Quadratic fit</td><td>x = c·t² + b·t + a</td><td>Constant acceleration (free fall, projectile)</td></tr>
+      </tbody>
+    </table>
+    <p>Fit coefficients are printed directly on the graph in yellow.
+       For a quadratic Y(t), the <strong>a(t²)</strong> coefficient equals ½g — compare it
+       with −4.9 m/s² to check your calibration.</p>
+
+    <h3>Showing / hiding graphs</h3>
+    <p>Use the checkboxes in the graph headers to show or hide individual graphs.
+       When a graph is hidden, its column is also hidden from the data table.</p>
+  </section>
+
+  <!-- STEP 6 -->
+  <section id="step6">
+    <h2><span class="step-num">6</span> Export data (CSV)</h2>
+
+    <ol class="steps">
+      <li>Click <span class="btn-label">&#11015; CSV</span> in the top toolbar.</li>
+      <li>A dialog lets you choose which columns to include:
+          <strong>Frame #</strong>, <strong>Time (s)</strong>, <strong>X position</strong>,
+          <strong>Y position</strong>.</li>
+      <li>Click <strong>Export</strong>. The file <code>tracking_data.csv</code> is downloaded
+          immediately.</li>
+    </ol>
+
+    <p>The CSV is ready to open in Excel, Google Sheets, Python (pandas), Logger Pro,
+       or any data-analysis software.</p>
+
+    <div class="callout tip">
+      <div class="icon">&#128161;</div>
+      <div>Column headers include the unit — for example <code>x_m</code> or <code>y_cm</code> —
+           so there is no ambiguity when you open the file later.</div>
+    </div>
+  </section>
+
+  <!-- VIDEO CONTROLS -->
+  <section id="controls">
+    <h2>Video controls reference</h2>
+    <table>
+      <thead><tr><th>Control</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><span class="btn-label green">&#9654; Play</span></td><td>Play / pause video</td></tr>
+        <tr><td><span class="btn-label">&#9632; Stop</span></td><td>Pause and return to trim-start frame</td></tr>
+        <tr><td><span class="btn-label">&#9664;&#9664;</span> (Rewind)</td><td>Jump to trim-start frame</td></tr>
+        <tr><td><span class="btn-label">&#8635; Loop</span></td><td>Toggle loop playback between trim points</td></tr>
+        <tr><td>Scrubber bar</td><td>Drag to any frame; click to jump</td></tr>
+        <tr><td><span class="btn-label">&#9664; In</span> / <strong>In</strong> field</td><td>Set the trim start to the current frame / type a frame number</td></tr>
+        <tr><td><span class="btn-label">Out &#9654;</span> / <strong>Out</strong> field</td><td>Set the trim end to the current frame / type a frame number</td></tr>
+        <tr><td><strong>Step</strong> field</td><td>Frames to advance after each tracked click</td></tr>
+        <tr><td><span class="btn-label">&#8634; 90°</span> / <span class="btn-label">90° &#8635;</span></td><td>Rotate the video 90° CCW / CW</td></tr>
+        <tr><td><strong>FPS</strong> field</td><td>Set the frame rate used for time calculations</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- TIPS -->
+  <section id="tips">
+    <h2>Tips &amp; tricks</h2>
+
+    <h3>Getting accurate results</h3>
+    <ul>
+      <li>Use a <strong>slow-motion video</strong> (60–240 fps) for fast events like a bouncing ball;
+          set FPS accordingly before loading.</li>
+      <li>Keep the <strong>camera still</strong> during recording. Panning adds a systematic offset
+          to all positions.</li>
+      <li>Place the calibration object <strong>in the same plane</strong> as the motion; otherwise
+          perspective introduces a scale error.</li>
+      <li>Use <strong>trim points</strong> to restrict the scrubber range to only the frames of
+          interest — this makes stepping through faster.</li>
+    </ul>
+
+    <h3>Typical physics experiments</h3>
+    <table>
+      <thead><tr><th>Experiment</th><th>Expected graph shape</th><th>Best fit</th></tr></thead>
+      <tbody>
+        <tr><td>Projectile (horizontal)</td><td>X(t): straight line</td><td>Linear</td></tr>
+        <tr><td>Projectile (vertical)</td><td>Y(t): downward parabola</td><td>Quadratic</td></tr>
+        <tr><td>Free fall</td><td>Y(t): downward parabola; a(t²) ≈ −4.9 m/s²</td><td>Quadratic</td></tr>
+        <tr><td>Uniform circular motion</td><td>X(t) and Y(t): sinusoidal</td><td>No fit</td></tr>
+        <tr><td>Car / constant velocity</td><td>X(t): straight line</td><td>Linear</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- KEYBOARD SHORTCUTS -->
+  <section id="shortcuts">
+    <h2>Keyboard shortcuts</h2>
+    <table>
+      <thead><tr><th>Key</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
+        <tr><td><kbd>&#8594;</kbd></td><td>Advance one frame (when paused)</td></tr>
+        <tr><td><kbd>&#8592;</kbd></td><td>Go back one frame (when paused)</td></tr>
+      </tbody>
+    </table>
+    <p>Shortcuts are disabled while the cursor is inside a text or number input field.</p>
+  </section>
+
+</main>
+
+<footer>
+  Video Tracker — Physics Analysis Tool &nbsp;·&nbsp; Tutorial page
+</footer>
+
+<script>
+// Highlight active TOC link on scroll
+
+const sections = document.querySelectorAll('section[id], .hero');
+const links = document.querySelectorAll('.toc-sidebar a');
+const obs = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+        if (en.isIntersecting) {
+            links.forEach(l => l.classList.remove('active'));
+            const a = document.querySelector(`.toc-sidebar a[href="#${en.target.id}"]`);
+            if (a) a.classList.add('active');
+        }
+    });
+}, { rootMargin: '-20% 0px -70% 0px' });
+document.querySelectorAll('section[id]').forEach(s => obs.observe(s));
+</script>
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') { document.body.classList.add('light'); btn.textContent = '☽'; }
+  btn.addEventListener('click', () => {
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '☽' : '☀';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  });
+})();
+</script>
+</body>
+</html>

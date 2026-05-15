@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car — Velocity &amp; Acceleration</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Cormorant+Garamond:wght@500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:            #0d1117;
+    --bg2:           #161b22;
+    --border:        #30363d;
+    --amber:         #58a6ff;
+    --blue:          #58a6ff;
+    --green:         #3fb950;
+    --red:           #f85149;
+    --red-light:     #ff7b72;
+    --text:          #e6edf3;
+    --dim:           #8b949e;
+    --mark:          #58a6ff;
+    --bg-accent:     #1a2030;
+    --bg-accent-hov: #232d40;
+    --chip-green-bg: #1a3028;
+    --chip-red-bg:   #30181a;
+    --arrow-label-bg: rgba(15,22,35,0.92);
+    --arrow-label-bg2: rgba(15,22,35,0.96);
+    --arrow-label-border: rgba(80,120,180,0.55);
+    --arrow-label-text: #e6edf3;
+  }
+  body.light {
+    --bg:            #e8f0f8;
+    --bg2:           #d8e8f5;
+    --border:        #9ab8d8;
+    --amber:         #1858a8;
+    --blue:          #4090d0;
+    --green:         #1a8050;
+    --red:           #c02818;
+    --red-light:     #e06858;
+    --text:          #102040;
+    --dim:           #4870a8;
+    --mark:          #1880b0;
+    --bg-accent:     #eaf2ff;
+    --bg-accent-hov: #daeaff;
+    --chip-green-bg: #e0f4ec;
+    --chip-red-bg:   #fceee8;
+    --arrow-label-bg: rgba(232,242,255,0.92);
+    --arrow-label-bg2: rgba(232,242,255,0.96);
+    --arrow-label-border: rgba(100,140,200,0.55);
+    --arrow-label-text: #2a2420;
+  }
+  #theme-toggle {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 9999;
+    background: var(--bg2, #161b22);
+    border: 1px solid var(--border, #30363d);
+    border-radius: 20px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--dim, #8b949e);
+    transition: border-color .2s, color .2s;
+    user-select: none;
+  }
+  #theme-toggle:hover { border-color: var(--blue, #58a6ff); color: var(--blue, #58a6ff); }
+
+  html, body {
+    height: 100%; background: var(--bg); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; overflow: hidden;
+  }
+  body { display: flex; }
+
+  /* ── Left ── */
+  #left {
+    width: 65%; height: 100vh; height: calc(var(--vh, 1vh) * 100);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+  }
+  #sim-wrap {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    background: var(--bg); overflow: hidden;
+  }
+  #canvas { display: block; }
+
+  #left-controls {
+    flex-shrink: 0; display: flex;
+    border-top: 1px solid var(--border);
+  }
+  #left-controls button {
+    flex: 1; padding: 14px 0; min-height: 48px;
+    border: none; border-right: 1px solid var(--border);
+    background: var(--bg2); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    cursor: pointer; transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #left-controls button:last-child { border-right: none; }
+  #left-controls button:hover { background: var(--bg-accent-hov); }
+  #btn-play {
+    color: var(--amber) !important; font-weight: 600 !important;
+    background: var(--bg-accent) !important;
+  }
+  #btn-play:hover { background: var(--bg-accent-hov) !important; }
+
+  #status-bar {
+    font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--dim); text-align: center; padding: 5px 0 6px;
+    background: var(--bg); border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #status-bar.running { color: var(--mark); }
+
+  /* ── Right ── */
+  #right {
+    width: 35%; height: 100vh; height: calc(var(--vh, 1vh) * 100);
+    display: flex; flex-direction: column;
+    background: var(--bg); overflow: hidden;
+  }
+
+  #panel-title {
+    flex-shrink: 0;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-weight: 600; font-size: 20px; letter-spacing: 0.04em;
+    color: var(--amber); padding: 10px 18px 9px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Readouts */
+  #readouts {
+    flex-shrink: 0; background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+  }
+  .readout-block {
+    flex: 1; padding: 10px 10px 9px;
+    border-right: 1px solid var(--border);
+  }
+  .readout-block:last-child { border-right: none; }
+  .ro-label {
+    font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--dim); margin-bottom: 3px;
+  }
+  .ro-value {
+    font-size: 30px; font-weight: 300; line-height: 1;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.2s;
+  }
+  .ro-unit {
+    font-size: 9px; color: var(--dim); letter-spacing: 0.1em; margin-top: 2px;
+  }
+  #v-value { color: var(--amber); }
+  #a-value { color: var(--dim); }
+  #sw-value { color: var(--dim); }
+  #state-chip {
+    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 2px; margin-top: 5px;
+    display: inline-block; background: var(--bg2); color: var(--dim);
+  }
+
+  /* Unit toggle */
+  #unit-toggle {
+    display: flex; margin-top: 5px;
+  }
+  .unit-btn {
+    flex: 1; padding: 2px 0;
+    border: 1px solid var(--border);
+    background: var(--bg2); color: var(--dim);
+    font-family: 'JetBrains Mono', monospace; font-size: 8px;
+    letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .unit-btn:first-child { border-radius: 2px 0 0 2px; border-right: none; }
+  .unit-btn:last-child  { border-radius: 0 2px 2px 0; }
+  .unit-btn.active { background: var(--bg-accent); color: var(--amber); font-weight: 600; }
+  .unit-btn:disabled { opacity: 0.40; cursor: default; }
+
+  /* Physics symbol — keeps lower-case despite parent text-transform */
+  .sym { text-transform: none; }
+
+  /* Auto-stop checkbox row */
+  .check-row {
+    display: flex; align-items: center; gap: 7px;
+    margin-top: 9px; font-size: 9px; color: var(--dim); letter-spacing: 0.06em;
+    cursor: pointer; user-select: none;
+  }
+  .check-row input[type=checkbox] {
+    width: 12px; height: 12px; cursor: pointer;
+    accent-color: var(--amber); flex-shrink: 0;
+  }
+  .check-row:has(input:disabled) { opacity: 0.40; cursor: default; }
+
+  /* Controls */
+  #controls-section {
+    flex-shrink: 0; padding: 14px 18px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ctrl-row { margin-bottom: 14px; }
+  .ctrl-row:last-child { margin-bottom: 0; }
+  .ctrl-label {
+    font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--dim); margin-bottom: 6px; display: flex;
+    justify-content: space-between;
+  }
+  .ctrl-label span { color: var(--text); font-weight: 600; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 3px;
+    background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+    background: var(--amber); cursor: pointer;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--amber);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 13px; height: 13px; border-radius: 50%;
+    background: var(--amber); border: none; cursor: pointer;
+  }
+  input[type=range]:disabled { opacity: 0.38; cursor: default; }
+  input[type=range]:disabled::-webkit-slider-thumb { cursor: default; }
+
+  /* Keyboard hint */
+  #kbd-hint {
+    font-size: 9px; color: var(--dim); letter-spacing: 0.08em;
+    margin-top: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .kbd {
+    display: inline-block; padding: 1px 5px;
+    border: 1px solid var(--border); border-radius: 3px;
+    background: var(--bg2); font-size: 10px; color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* Explanation */
+  #explain-section {
+    flex: 1; overflow-y: auto; padding: 14px 18px;
+  }
+  #explain-section h3 {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 15px; font-weight: 600; color: var(--amber);
+    margin-bottom: 8px; letter-spacing: 0.04em;
+  }
+  #explain-section p {
+    font-size: 11px; line-height: 1.8; color: var(--dim); margin-bottom: 9px;
+  }
+  .hl   { color: var(--text);  font-weight: 600; }
+  .hl-v { color: var(--amber); font-weight: 600; }
+  .hl-a { color: var(--red);   font-weight: 600; }
+  .hl-r { color: var(--red);   font-weight: 600; }
+  .hl-g { color: var(--green); font-weight: 600; }
+  .sign-table {
+    width: 100%; border-collapse: collapse; font-size: 10px;
+    margin: 8px 0 10px; color: var(--dim);
+  }
+  .sign-table th {
+    font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--dim); font-weight: 400; text-align: left;
+    padding: 4px 6px; border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+  .sign-table td {
+    padding: 5px 6px; border-bottom: 1px solid var(--border); line-height: 1.4;
+  }
+  .sign-table td:first-child { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div id="left">
+  <div id="sim-wrap">
+    <canvas id="canvas"></canvas>
+  </div>
+  <div id="left-controls">
+    <button id="btn-play">&#9654; Play</button>
+    <button id="btn-reset">&#8635; Reset</button>
+  </div>
+  <div id="status-bar">idle</div>
+</div>
+
+<div id="right">
+  <div id="panel-title">Velocity &amp; Acceleration</div>
+
+  <div id="readouts">
+    <div class="readout-block">
+      <div class="ro-label">velocity</div>
+      <div class="ro-value" id="v-value">0</div>
+      <div class="ro-unit" id="v-unit-label">km / h</div>
+      <div id="unit-toggle">
+        <button class="unit-btn active" data-unit="kmh">km/h</button>
+        <button class="unit-btn"        data-unit="ms">m/s</button>
+      </div>
+      <div id="state-chip">constant</div>
+    </div>
+    <div class="readout-block">
+      <div class="ro-label">acceleration</div>
+      <div class="ro-value" id="a-value">0</div>
+      <div class="ro-unit">m / s²</div>
+    </div>
+    <div class="readout-block">
+      <div class="ro-label">elapsed</div>
+      <div class="ro-value" id="sw-value">0.0</div>
+      <div class="ro-unit">s</div>
+    </div>
+  </div>
+
+  <div id="controls-section">
+    <div class="ctrl-row">
+      <div class="ctrl-label">
+        initial velocity <span class="sym">v₀</span>
+        <span id="v0-display" class="sym">0 km/h</span>
+      </div>
+      <input type="range" id="v0-slider" min="-120" max="120" value="0" step="5">
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-label">
+        acceleration <span class="sym">a</span>
+        <span id="a-display" class="sym">0 m/s²</span>
+      </div>
+      <input type="range" id="a-slider" min="-8" max="8" value="0" step="0.5">
+    </div>
+    <div id="kbd-hint">
+      <span class="kbd">Space</span> play/pause &nbsp;
+      <span class="kbd">S</span> stop &nbsp;
+      <span class="kbd">◀</span><span class="kbd">▶</span> accel ±0.5 m/s²
+    </div>
+    <label class="check-row">
+      <input type="checkbox" id="chk-autostop">
+      pause automatically when v = 0 and a ≠ 0
+    </label>
+  </div>
+
+  <div id="explain-section">
+    <h3>Signs of motion</h3>
+    <p>
+      The <span class="hl-v">blue arrow</span> shows velocity — its direction
+      tells you which way the car moves; its length tells you how fast.
+    </p>
+    <p>
+      The <span class="hl-a">red arrow</span> shows acceleration — the direction
+      the velocity is <em>changing</em> toward. It is independent of velocity.
+    </p>
+    <p>
+      When the arrows point the <span class="hl-g">same way</span>, the car is
+      speeding up. When they point <span class="hl-r">opposite ways</span>,
+      it is slowing down — even though acceleration is not zero.
+    </p>
+    <table class="sign-table">
+      <thead>
+        <tr><th>v</th><th>a</th><th>result</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>+ (right)</td><td>+ (right)</td><td>faster rightward</td></tr>
+        <tr><td>+ (right)</td><td>− (left)</td><td>braking, then reverses</td></tr>
+        <tr><td>− (left)</td><td>− (left)</td><td>faster leftward</td></tr>
+        <tr><td>− (left)</td><td>+ (right)</td><td>braking, then reverses</td></tr>
+      </tbody>
+    </table>
+    <p>
+      Drag the sliders — or use <strong>◀ ▶ arrow keys</strong> — to explore
+      all four cases.
+    </p>
+  </div>
+</div>
+
+<script>
+// ── Canvas ──────────────────────────────────────────────────
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+const simWrap = document.getElementById('sim-wrap');
+
+// Fix for iOS Safari 100vh bug (browser chrome eats into viewport)
+function setVh() {
+  document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px');
+}
+setVh();
+
+function resize() {
+  canvas.width  = simWrap.clientWidth;
+  canvas.height = simWrap.clientHeight;
+}
+resize();
+window.addEventListener('resize', () => { setVh(); resize(); render(); });
+
+// ── Physics ─────────────────────────────────────────────────
+let v       = 0;
+let vInit   = 0;
+let acc     = 0;
+const V_MAX = 160 / 3.6;
+
+// ── Scroll / wheel state ─────────────────────────────────────
+let cloudOff = 0, treeOff = 0, fenceOff = 0, roadOff = 0;
+let wheelAngle = 0;
+
+// ── Timing ──────────────────────────────────────────────────
+let running    = false;
+let lastT      = null;
+let elapsed    = 0;
+
+// ── Unit & options ───────────────────────────────────────────
+let unit        = 'kmh';
+let autoStop    = false;
+let wasMoving   = false;  // tracks whether v was nonzero since last play
+
+// ── Scene geometry ───────────────────────────────────────────
+//  HORIZON  : sky / grass boundary; tree and fence base
+//  ROAD_TOP : grass / road boundary; shoulder strip
+//  CAR_GND  : where car wheel bottoms sit (on road surface)
+const HORIZON  = () => canvas.height * 0.46;
+const ROAD_TOP = () => canvas.height * 0.58;
+const CAR_GND  = () => canvas.height * 0.76;
+
+// ── Palette ──────────────────────────────────────────────────
+const C = {
+  sky0:    '#1850a0', sky1: '#60aae0',
+  grass0:  '#5a8c2a', grass1: '#8ab84e',
+  road0:   '#6a6460', road1: '#484440',
+  shoulder:'#908070',
+  roadLn:  '#f0e8d8',
+  fence:   '#7a6a50',
+  treeTrk: '#5a3c18',
+  treeFol0:'#2a5816', treeFol1:'#387020',
+  cloud:   'rgba(255,255,255,0.85)',
+  carBody: '#22262e',
+  carRim:  '#7a8090',
+  carHub:  '#b0b4be',
+  carSpoke:'#9098a8',
+  carWin:  'rgba(120,168,200,0.72)',
+  carGlass:'rgba(100,148,185,0.55)',
+};
+
+// ── Scene objects (seeded RNG for reproducibility) ───────────
+const SPREAD = 3600;
+const RNG = (n => ({ next: () => { n = (n * 16807) % 2147483647; return (n - 1) / 2147483646; } }))(42);
+
+const trees = Array.from({ length: 22 }, (_, i) => ({
+  x:    (i / 22) * SPREAD,
+  size: 0.65 + RNG.next() * 0.55,
+  kind: RNG.next() < 0.48 ? 'round' : 'cone',
+}));
+const posts = Array.from({ length: 55 }, (_, i) => ({ x: (i / 55) * SPREAD }));
+const clouds = Array.from({ length: 9 }, (_, i) => ({
+  x: (i / 9) * SPREAD,
+  y: 0.04 + RNG.next() * 0.28,
+  w: 0.08 + RNG.next() * 0.10,
+  h: 0.032 + RNG.next() * 0.030,
+}));
+
+// ── Wrap helper ──────────────────────────────────────────────
+function wrap(x, off, spread) {
+  return ((x - off % spread + spread * 8) % spread);
+}
+
+// ── Draw: cloud ──────────────────────────────────────────────
+function drawCloud(cx, cy, w, h) {
+  const W = canvas.width, H = canvas.height;
+  const px = cx * W, py = cy * H, pw = w * W, ph = h * H;
+  ctx.save();
+  ctx.fillStyle = C.cloud;
+  ctx.shadowColor = 'rgba(100,150,200,0.20)'; ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.ellipse(px,          py,          pw * .52, ph * .88, 0, 0, Math.PI*2);
+  ctx.ellipse(px + pw*.25, py + ph*.14, pw * .40, ph * .72, 0, 0, Math.PI*2);
+  ctx.ellipse(px - pw*.25, py + ph*.10, pw * .36, ph * .68, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// ── Draw: tree ───────────────────────────────────────────────
+function drawTree(x, kind, size) {
+  const W = canvas.width, H = canvas.height;
+  const base = HORIZON();
+  const bw = W * 0.009 * size, tH = H * 0.085 * size, fr = W * 0.028 * size;
+  ctx.fillStyle = C.treeTrk;
+  ctx.fillRect(x - bw/2, base - tH, bw, tH);
+  if (kind === 'round') {
+    ctx.beginPath(); ctx.arc(x, base - tH - fr * .52, fr, 0, Math.PI*2);
+    ctx.fillStyle = C.treeFol0; ctx.fill();
+    ctx.beginPath(); ctx.arc(x + fr*.30, base - tH - fr*.28, fr * .65, 0, Math.PI*2);
+    ctx.fillStyle = C.treeFol1; ctx.fill();
+  } else {
+    [[1.95, 1.00], [1.40, 0.78], [0.90, 0.60]].forEach(([top, base_]) => {
+      ctx.beginPath();
+      ctx.moveTo(x,            base - tH - fr * top);
+      ctx.lineTo(x + fr * base_, base - tH + fr * (top - base_) * 0.10);
+      ctx.lineTo(x - fr * base_, base - tH + fr * (top - base_) * 0.10);
+      ctx.closePath();
+      ctx.fillStyle = top > 1.5 ? C.treeFol1 : C.treeFol0;
+      ctx.fill();
+    });
+  }
+}
+
+// ── Draw: fence ──────────────────────────────────────────────
+function drawFence(off) {
+  const W = canvas.width, H = canvas.height;
+  const base = ROAD_TOP();
+  const postH = H * 0.044, postW = W * 0.005;
+  const railY1 = base - postH * .74, railY2 = base - postH * .38;
+
+  ctx.strokeStyle = C.fence; ctx.lineWidth = W * 0.0022;
+  [railY1, railY2].forEach(ry => {
+    ctx.beginPath(); ctx.moveTo(0, ry); ctx.lineTo(W, ry); ctx.stroke();
+  });
+
+  ctx.fillStyle = C.fence;
+  posts.forEach(p => {
+    const px = wrap(p.x, off, SPREAD) / SPREAD * W * 1.4 - W * 0.2;
+    if (px > -10 && px < W + 10) ctx.fillRect(px - postW/2, base - postH, postW, postH);
+  });
+}
+
+// ── Draw: alloy wheel ────────────────────────────────────────
+function drawWheel(wx, wy, wr, angle) {
+  ctx.beginPath(); ctx.arc(wx, wy, wr, 0, Math.PI*2);
+  ctx.fillStyle = '#12141a'; ctx.fill();
+
+  ctx.beginPath(); ctx.arc(wx, wy, wr * .70, 0, Math.PI*2);
+  ctx.fillStyle = C.carRim; ctx.fill();
+
+  ctx.beginPath(); ctx.arc(wx, wy, wr * .50, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(55,60,72,0.65)'; ctx.lineWidth = wr * .13; ctx.stroke();
+
+  for (let i = 0; i < 5; i++) {
+    const a = angle + (i / 5) * Math.PI * 2;
+    ctx.save(); ctx.translate(wx, wy); ctx.rotate(a);
+    const sw = wr * .085;
+    ctx.beginPath();
+    ctx.moveTo(-sw * .30, wr * .15);
+    ctx.lineTo(-sw * .52, wr * .65);
+    ctx.lineTo( sw * .52, wr * .65);
+    ctx.lineTo( sw * .30, wr * .15);
+    ctx.closePath();
+    ctx.fillStyle = C.carSpoke; ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.beginPath(); ctx.arc(wx, wy, wr * .13, 0, Math.PI*2);
+  ctx.fillStyle = C.carHub; ctx.fill();
+
+  ctx.beginPath(); ctx.arc(wx, wy, wr, 0, Math.PI*2);
+  ctx.strokeStyle = '#181a1e'; ctx.lineWidth = 1.5; ctx.stroke();
+}
+
+// ── Draw: car ────────────────────────────────────────────────
+function drawCar(cx, wAngle) {
+  const W = canvas.width, H = canvas.height;
+
+  // Mirror the entire car around cx when velocity is negative
+  ctx.save();
+  if (v < 0) {
+    ctx.translate(cx * 2, 0);
+    ctx.scale(-1, 1);
+  }
+  const gnd = CAR_GND();
+  const L   = W * 0.115;
+  const wr  = H * 0.040;
+  const axY = gnd - wr;
+
+  const fwx = cx + L * 0.62;
+  const rwx = cx - L * 0.56;
+
+  const sillY = axY + wr * 0.20;
+  const hoodY = sillY - H * 0.036;
+  const roofY = sillY - H * 0.082;
+
+  const xFront  = cx + L;
+  const xHoodS  = cx + L * 0.90;
+  const xHoodE  = cx + L * 0.16;
+  const xWinF   = cx + L * 0.14;
+  const xWinT   = cx - L * 0.04;
+  const xRoofR  = cx - L * 0.40;
+  const xCpilB  = cx - L * 0.64;
+  const xTrunkR = cx - L * 0.76;
+  const xBack   = cx - L;
+
+  // shadow
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.10)';
+  ctx.beginPath();
+  ctx.ellipse(cx + L * 0.04, gnd, L * 0.55, H * 0.010, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // body
+  ctx.beginPath();
+  ctx.moveTo(xFront, sillY);
+  ctx.quadraticCurveTo(xFront + 2, sillY - H*.014, xHoodS, hoodY);
+  ctx.lineTo(xHoodE, hoodY - H*.003);
+  ctx.lineTo(xWinF,  hoodY - H*.001);
+  ctx.lineTo(xWinT,  roofY);
+  ctx.quadraticCurveTo(cx - L*.22, roofY - H*.004, xRoofR, roofY + H*.005);
+  ctx.lineTo(xCpilB, hoodY + H*.004);
+  ctx.lineTo(xTrunkR, hoodY);
+  ctx.quadraticCurveTo(xBack - 2, hoodY - H*.005, xBack, sillY - H*.010);
+  ctx.lineTo(xBack, sillY);
+  ctx.closePath();
+  ctx.fillStyle = C.carBody; ctx.fill();
+
+  // roof highlight
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(xWinT, roofY + 1);
+  ctx.quadraticCurveTo(cx - L*.22, roofY - H*.003, xRoofR, roofY + H*.006);
+  ctx.strokeStyle = 'rgba(155,170,195,0.28)'; ctx.lineWidth = 1.8; ctx.stroke();
+  ctx.restore();
+
+  // windshield
+  ctx.beginPath();
+  ctx.moveTo(xWinF + L*.01,  hoodY);
+  ctx.lineTo(xWinT,           roofY + 1);
+  ctx.lineTo(xWinT - L*.18,   roofY + 1);
+  ctx.lineTo(xWinF - L*.14,   hoodY);
+  ctx.closePath();
+  ctx.fillStyle = C.carWin; ctx.fill();
+
+  // door glass
+  ctx.beginPath();
+  ctx.moveTo(xWinF - L*.16,  hoodY);
+  ctx.lineTo(xWinT - L*.20,  roofY + 2);
+  ctx.lineTo(xRoofR,         roofY + H*.006);
+  ctx.lineTo(xRoofR - L*.12, hoodY + H*.001);
+  ctx.closePath();
+  ctx.fillStyle = C.carGlass; ctx.fill();
+
+  // rear window
+  ctx.beginPath();
+  ctx.moveTo(xRoofR - L*.01,  roofY + H*.008);
+  ctx.lineTo(xCpilB + L*.01,  hoodY + H*.005);
+  ctx.lineTo(xCpilB - L*.08,  hoodY + H*.005);
+  ctx.lineTo(xRoofR - L*.14,  roofY + H*.011);
+  ctx.closePath();
+  ctx.fillStyle = C.carGlass; ctx.fill();
+
+  // chrome sill strip
+  ctx.beginPath();
+  ctx.moveTo(xHoodS - L*.06, sillY - H*.001);
+  ctx.lineTo(xBack + L*.08,  sillY - H*.001);
+  ctx.strokeStyle = 'rgba(125,135,150,0.45)'; ctx.lineWidth = 0.9; ctx.stroke();
+
+  // headlight LED strip
+  ctx.save(); ctx.lineCap = 'round';
+  ctx.strokeStyle = '#fffff5'; ctx.lineWidth = H * .0050;
+  ctx.beginPath();
+  ctx.moveTo(xFront - L*.04, hoodY + H*.008);
+  ctx.lineTo(xFront - L*.04, hoodY + H*.022);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,240,180,0.45)'; ctx.lineWidth = H * .0026;
+  ctx.beginPath();
+  ctx.moveTo(xFront - L*.07, hoodY + H*.024);
+  ctx.lineTo(xHoodS - L*.02, hoodY + H*.024);
+  ctx.stroke();
+  ctx.restore();
+
+  // tail light LED strip
+  ctx.save(); ctx.lineCap = 'round';
+  ctx.strokeStyle = '#cc1808'; ctx.lineWidth = H * .0055;
+  ctx.beginPath();
+  ctx.moveTo(xBack + L*.04, hoodY + H*.006);
+  ctx.lineTo(xBack + L*.04, hoodY + H*.022);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(200,40,20,0.38)'; ctx.lineWidth = H * .0026;
+  ctx.beginPath();
+  ctx.moveTo(xBack + L*.07, hoodY + H*.024);
+  ctx.lineTo(xTrunkR + L*.06, hoodY + H*.024);
+  ctx.stroke();
+  ctx.restore();
+
+  const wa = v < 0 ? -wAngle : wAngle;
+  drawWheel(fwx, axY, wr, wa);
+  drawWheel(rwx, axY, wr, wa);
+  ctx.restore(); // end mirror transform
+}
+
+// ── Draw: physics arrows ─────────────────────────────────────
+function drawArrows(W, H, vMs, aMs2) {
+  const cx = W * 0.42;
+
+  // anchor arrows above the car roof
+  const gnd   = CAR_GND();
+  const wr    = H * 0.040;
+  const axY   = gnd - wr;
+  const sillY = axY + wr * 0.20;
+  const roofY = sillY - H * 0.082;
+
+  const vArrowY = roofY - H * 0.055;
+  const aArrowY = vArrowY - H * 0.088;
+
+  const MAX_PX = W * 0.30;
+  const vKmh   = vMs * 3.6;
+  const vLen   = Math.min(Math.abs(vKmh) / 120 * MAX_PX, MAX_PX);
+  const aLen   = Math.min(Math.abs(aMs2) / 8   * MAX_PX * 0.78, MAX_PX * 0.78);
+
+  const vDir = vMs < 0 ? -1 : 1;
+  const aDir = aMs2 < 0 ? -1 : 1;
+
+  const vColor = vMs < 0 ? '#4090d0' : '#1858a8';
+  const aColor = aMs2 < 0 ? '#e06858' : aMs2 > 0 ? '#c02818' : '#4870a8';
+
+  function drawArrow(x, y, len, dir, color, label) {
+    ctx.save();
+    const HW = 13, HL = 18;  // arrowhead half-width, length
+
+    if (len < 3) {
+      // dot for zero-length
+      ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI*2);
+      ctx.fillStyle = color; ctx.fill();
+    } else {
+      const tip = x + dir * len;
+      const shaftEnd = tip - dir * HL;
+
+      // shaft
+      ctx.beginPath();
+      ctx.moveTo(x, y); ctx.lineTo(shaftEnd, y);
+      ctx.strokeStyle = color; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.stroke();
+
+      // arrowhead
+      ctx.beginPath();
+      ctx.moveTo(tip, y);
+      ctx.lineTo(shaftEnd, y - HW);
+      ctx.lineTo(shaftEnd, y + HW);
+      ctx.closePath();
+      ctx.fillStyle = color; ctx.fill();
+    }
+
+    // label background + text
+    const labelX = len < 3 ? x : x + dir * Math.max(len * 0.5, HL * 0.5);
+    const labelY = y - 22;
+    ctx.font = '600 15px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    const tw = ctx.measureText(label).width;
+    const isLight = document.body.classList.contains('light');
+    ctx.fillStyle = isLight ? 'rgba(232,242,255,0.92)' : 'rgba(15,22,35,0.92)';
+    ctx.beginPath();
+    ctx.roundRect(labelX - tw/2 - 6, labelY - 16, tw + 12, 22, 3);
+    ctx.fill();
+    ctx.fillStyle = color;
+    ctx.fillText(label, labelX, labelY);
+
+    ctx.restore();
+  }
+
+  // v arrow
+  const { num: vNum, lbl: vUnitLbl } = fmtV(vMs);
+  const vLabel = 'v = ' + vNum + ' ' + vUnitLbl.replace(' / ', '/');
+  drawArrow(cx, vArrowY, vLen, vDir, vColor, vLabel);
+
+  // a arrow
+  if (Math.abs(aMs2) > 0.01) {
+    const aSign  = aMs2 > 0 ? '+' : '';
+    const aLabel = 'a = ' + aSign + aMs2.toFixed(1) + ' m/s²';
+    drawArrow(cx, aArrowY, aLen, aDir, aColor, aLabel);
+  } else {
+    ctx.save();
+    const label = 'a = 0  m/s²';
+    ctx.font = '600 15px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    const tw = ctx.measureText(label).width;
+    const isLight = document.body.classList.contains('light');
+    // pill background with border
+    ctx.fillStyle = isLight ? 'rgba(232,242,255,0.96)' : 'rgba(15,22,35,0.96)';
+    ctx.beginPath();
+    ctx.roundRect(cx - tw/2 - 8, aArrowY - 22, tw + 16, 26, 4);
+    ctx.fill();
+    ctx.strokeStyle = isLight ? 'rgba(100,140,200,0.55)' : 'rgba(80,120,180,0.55)'; ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = isLight ? '#2a2420' : '#e6edf3';
+    ctx.fillText(label, cx, aArrowY - 3);
+    ctx.restore();
+  }
+}
+
+// ── Full render ──────────────────────────────────────────────
+function render() {
+  const W = canvas.width, H = canvas.height;
+  const hor = HORIZON(), rt = ROAD_TOP();
+  const cx  = W * 0.42;
+
+  // Sky
+  const sg = ctx.createLinearGradient(0, 0, 0, hor);
+  sg.addColorStop(0, C.sky0);   sg.addColorStop(1, C.sky1);
+  ctx.fillStyle = sg; ctx.fillRect(0, 0, W, hor);
+
+  // Clouds
+  clouds.forEach(cl => {
+    const px = wrap(cl.x, cloudOff, SPREAD) / SPREAD * W * 2.2 - W * .6;
+    if (px > -W*.2 && px < W*1.2) drawCloud(px / W, cl.y, cl.w, cl.h);
+  });
+
+  // Grass (horizon to road top)
+  const gg = ctx.createLinearGradient(0, hor, 0, rt);
+  gg.addColorStop(0, C.grass0); gg.addColorStop(1, C.grass1);
+  ctx.fillStyle = gg; ctx.fillRect(0, hor, W, rt - hor);
+
+  // Grass continuation below road (sides)
+  ctx.fillStyle = C.grass1; ctx.fillRect(0, rt, W, H - rt);
+
+  // Shoulder strip
+  ctx.fillStyle = C.shoulder; ctx.fillRect(0, rt, W, H - rt);
+
+  // Road surface
+  const rg = ctx.createLinearGradient(0, rt, 0, H);
+  rg.addColorStop(0, '#686460'); rg.addColorStop(1, C.road1);
+  ctx.fillStyle = rg; ctx.fillRect(0, rt + H*.016, W, H - rt);
+
+  // Kerb
+  ctx.fillStyle = '#c0b8a8'; ctx.fillRect(0, rt + H*.014, W, H * .0032);
+
+  // Centre dashes
+  const dLen = W*.075, dGap = W*.055, dPer = dLen + dGap;
+  const dY   = rt + (H - rt) * 0.44, dH = H * .0065;
+  ctx.fillStyle = C.roadLn;
+  for (let dx = -(roadOff % dPer); dx < W + dLen; dx += dPer)
+    ctx.fillRect(dx, dY - dH/2, dLen, dH);
+
+  // Trees (at horizon, behind road)
+  trees.forEach(tr => {
+    const px = wrap(tr.x, treeOff, SPREAD) / SPREAD * W * 1.9 - W * .45;
+    if (px > -W*.1 && px < W*1.1) drawTree(px, tr.kind, tr.size);
+  });
+
+  // Fence (at road edge)
+  drawFence(fenceOff);
+
+  // Car
+  drawCar(cx, wheelAngle);
+
+  // Physics arrows (drawn last, on top)
+  drawArrows(W, H, v, acc);
+}
+
+// ── Animation loop ───────────────────────────────────────────
+function tick(ts) {
+  if (!running) return;
+  if (lastT === null) lastT = ts;
+  const dt = Math.min((ts - lastT) / 1000, 0.05);
+  lastT = ts;
+
+  v += acc * dt;
+  if (v >= V_MAX)  { v =  V_MAX; if (acc > 0) setAcc(0); }
+  if (v <= -V_MAX) { v = -V_MAX; if (acc < 0) setAcc(0); }
+
+  if (Math.abs(v) > 0.1) wasMoving = true;
+
+  elapsed += dt;
+  document.getElementById('sw-value').textContent = elapsed.toFixed(1);
+
+  // Auto-stop: v=0 and a≠0, only after the car was actually moving
+  if (autoStop && wasMoving && Math.abs(v) < 0.05 && Math.abs(acc) > 0.01) {
+    wasMoving = false;
+    running = false;
+    document.getElementById('btn-play').textContent = '▶ Play';
+    const sb = document.getElementById('status-bar');
+    sb.innerHTML = 'paused — <span class="sym">v</span> = 0, <span class="sym">a</span> ≠ 0';
+    sb.className = '';
+    document.getElementById('v0-slider').disabled = false;
+    document.querySelectorAll('.unit-btn').forEach(b => b.disabled = false);
+    updateReadouts(); render();
+    return;
+  }
+
+  const scalePx = canvas.width / 28;
+  const d = v * scalePx * dt;
+  cloudOff += d * 0.12;
+  treeOff  += d * 0.65;
+  fenceOff += d;
+  roadOff  += d;
+  wheelAngle += d / (canvas.height * 0.040);
+
+  updateReadouts();
+  render();
+  requestAnimationFrame(tick);
+}
+
+// ── Unit-aware velocity display ───────────────────────────────
+function fmtV(vMs) {
+  if (unit === 'ms') {
+    return { num: (vMs >= 0 ? '+' : '') + vMs.toFixed(1), lbl: 'm / s' };
+  }
+  const k = vMs * 3.6;
+  return { num: (k >= 0 ? '+' : '') + k.toFixed(0), lbl: 'km / h' };
+}
+
+// ── Readout updates ──────────────────────────────────────────
+function updateReadouts() {
+  const { num, lbl } = fmtV(v);
+  const vEl = document.getElementById('v-value');
+  vEl.textContent = num;
+  vEl.style.color = v < 0 ? 'var(--blue)' : 'var(--amber)';
+  document.getElementById('v-unit-label').textContent = lbl;
+
+  const aEl = document.getElementById('a-value');
+  aEl.textContent = (acc > 0 ? '+' : '') + acc.toFixed(1);
+  aEl.style.color = acc > 0 ? 'var(--red)' : acc < 0 ? 'var(--red-light)' : 'var(--dim)';
+
+  const chip  = document.getElementById('state-chip');
+  const spdup = (v > 0.1 && acc > 0.01) || (v < -0.1 && acc < -0.01);
+  const sldwn = (v > 0.1 && acc < -0.01) || (v < -0.1 && acc > 0.01);
+  chip.textContent      = spdup ? 'speeding up' : sldwn ? 'slowing down' : 'constant';
+  chip.style.background = spdup ? 'var(--chip-green-bg)' : sldwn ? 'var(--chip-red-bg)' : 'var(--bg2)';
+  chip.style.color      = spdup ? 'var(--green)' : sldwn ? 'var(--red)' : 'var(--dim)';
+}
+
+// ── Sync a-slider & display ──────────────────────────────────
+function setAcc(val) {
+  acc = Math.max(-8, Math.min(8, val));
+  const aSlider = document.getElementById('a-slider');
+  aSlider.value = acc;
+  document.getElementById('a-display').textContent =
+    (acc > 0 ? '+' : '') + acc.toFixed(1) + ' m/s²';
+  updateReadouts();
+  if (!running) render();
+}
+
+// ── Controls ─────────────────────────────────────────────────
+const btnPlay  = document.getElementById('btn-play');
+const btnReset = document.getElementById('btn-reset');
+const v0Slider = document.getElementById('v0-slider');
+const aSlider  = document.getElementById('a-slider');
+const statusBar = document.getElementById('status-bar');
+
+const unitBtns   = document.querySelectorAll('.unit-btn');
+const chkAutostop = document.getElementById('chk-autostop');
+
+function lockControls(lock) {
+  v0Slider.disabled = lock;
+  unitBtns.forEach(b => b.disabled = lock);
+}
+
+btnPlay.addEventListener('click', () => {
+  running = !running;
+  btnPlay.textContent   = running ? '⏸ Pause' : '▶ Play';
+  statusBar.textContent = running ? 'running' : 'paused';
+  statusBar.className   = running ? 'running' : '';
+  lockControls(running);
+  if (running) { lastT = null; requestAnimationFrame(tick); }
+});
+
+btnReset.addEventListener('click', () => {
+  running = false;
+  btnPlay.textContent   = '▶ Play';
+  statusBar.textContent = 'idle'; statusBar.className = '';
+  v = vInit;
+  setAcc(0);
+  elapsed = 0;
+  wasMoving = false;
+  document.getElementById('sw-value').textContent = '0.0';
+  cloudOff = treeOff = fenceOff = roadOff = wheelAngle = 0;
+  lastT = null;
+  lockControls(false);
+  updateReadouts(); render();
+});
+
+v0Slider.addEventListener('input', () => {
+  const kmh = parseInt(v0Slider.value);
+  vInit = v = kmh / 3.6;
+  const { num, lbl } = fmtV(vInit);
+  document.getElementById('v0-display').textContent = num + ' ' + lbl.replace(' / ', '/');
+  updateReadouts(); render();
+});
+
+aSlider.addEventListener('input', () => {
+  setAcc(parseFloat(aSlider.value));
+});
+
+unitBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    unit = btn.dataset.unit;
+    unitBtns.forEach(b => b.classList.toggle('active', b === btn));
+    // refresh v0 display label too
+    const { num, lbl } = fmtV(vInit);
+    document.getElementById('v0-display').textContent = num + ' ' + lbl.replace(' / ', '/');
+    updateReadouts(); render();
+  });
+});
+
+chkAutostop.addEventListener('change', () => {
+  autoStop = chkAutostop.checked;
+});
+
+// keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === ' ')                    { e.preventDefault(); btnPlay.click(); }
+  if (e.key === 's' || e.key === 'S')   { e.preventDefault(); btnReset.click(); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); setAcc(acc + 0.5); }
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); setAcc(acc - 0.5); }
+});
+
+// ── Init ─────────────────────────────────────────────────────
+updateReadouts();
+render();
+</script>
+<button id="theme-toggle">☀</button>
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('theme');
+  if (saved === 'light') { document.body.classList.add('light'); btn.textContent = '☽'; }
+  btn.addEventListener('click', () => {
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '☽' : '☀';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  });
+})();
+</script>
+</body>
+</html>
