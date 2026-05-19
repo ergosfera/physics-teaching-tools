@@ -258,6 +258,45 @@ tr.mrow.sel   td { background: var(--row-sel); }
 }
 .del-btn:hover { color: #f87171; background: none; }
 
+/* ── Inline name input ── */
+.name-inp {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: inherit;
+  font-size: 12px;
+  font-family: inherit;
+  width: 100%;
+  padding: 1px 2px;
+  cursor: text;
+  min-width: 0;
+}
+.name-inp:hover  { border-bottom-color: var(--border); }
+.name-inp:focus  {
+  outline: none;
+  border-bottom-color: #3b82f6;
+  background: var(--row-hover);
+  border-radius: 2px;
+}
+
+/* ── Color swatch ── */
+.color-swatch {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  vertical-align: middle;
+  margin-right: 4px;
+  background: none;
+  flex-shrink: 0;
+}
+.color-swatch::-webkit-color-swatch-wrapper { padding: 0; }
+.color-swatch::-webkit-color-swatch { border: none; border-radius: 2px; }
+
 /* ── Status bar ── */
 #statusbar {
   background: var(--statusbar-bg);
@@ -344,7 +383,7 @@ tr.mrow.sel   td { background: var(--row-sel); }
 
   <div class="tgroup">
     <span class="tlabel">Tool:</span>
-    <button id="btn-pan"  class="active" onclick="setMode('pan')"       title="Pan / select">&#9654; Pan</button>
+    <button id="btn-pan"  class="active" onclick="setMode('pan')"       title="Pan / drag points">&#128400; Pan</button>
     <button id="btn-cal"  onclick="setMode('calibrate')" title="Set scale by drawing a known distance">&#9141; Calibrate</button>
     <button id="btn-dist" onclick="setMode('distance')"  title="Measure distance (2 clicks)">&#9123; Distance</button>
     <button id="btn-ang"  onclick="setMode('angle')"     title="Measure angle (3 clicks: A, vertex, B)">&#8736; Angle</button>
@@ -387,7 +426,7 @@ tr.mrow.sel   td { background: var(--row-sel); }
       <table id="meas-table" style="display:none">
         <thead>
           <tr>
-            <th>#</th><th>Type</th><th>Value</th><th>Unit</th><th></th>
+            <th>#</th><th>Name</th><th>Value</th><th>Unit</th><th></th>
           </tr>
         </thead>
         <tbody id="meas-body"></tbody>
@@ -402,7 +441,7 @@ tr.mrow.sel   td { background: var(--row-sel); }
   <span id="st-mode">Mode: Pan</span>
   <span id="st-xy">x: — &nbsp;y: —</span>
   <span id="st-zoom">Zoom: 100%</span>
-  <span id="st-hint">Right-click drag or middle-click drag to pan.</span>
+  <span id="st-hint">Right-click drag or middle-click drag to pan. In Pan mode, drag measurement endpoints to reposition them.</span>
 </div>
 
 <!-- ────────────────────────── CALIBRATION MODAL ────────────────────────── -->
@@ -456,6 +495,8 @@ let calLine  = null;
 let panning      = false;
 let panStart     = { x:0, y:0 };
 let panBase      = { x:0, y:0 };
+
+let dragging     = null;  // { mIdx, ptIdx } when dragging a measurement endpoint
 
 let mouse = { x:0, y:0 };
 let selId = null;
@@ -518,6 +559,7 @@ function loadImageFile(f) {
     calLine = null;
     cal     = { pxPerUnit: null, unit: 'px' };
     selId   = null;
+    dragging = null;
     updateCalStatus();
     updateTable();
     fitImage();
@@ -597,7 +639,7 @@ function c2i(x, y) {
 
 // ── Mode ──────────────────────────────────────────────────────────
 const MODE_HINTS = {
-  pan:       'Left-click drag, right-click drag, or middle-click drag to pan. Scroll to zoom.',
+  pan:       'Left-click drag to pan. Drag measurement endpoints to reposition them. Right/middle click also pans.',
   calibrate: 'Click 2 points to define a known real-world distance.',
   distance:  'Click 2 points to measure distance.',
   angle:     'Click 3 points: first arm end → vertex → second arm end.'
@@ -614,22 +656,54 @@ function setMode(m) {
   render();
 }
 
+// ── Find nearest measurement point (canvas coords) ─────────────────
+function findNearPoint(cx, cy, threshold) {
+  threshold = threshold || 10;
+  for (let i = meas.length - 1; i >= 0; i--) {
+    for (let j = 0; j < meas[i].pts.length; j++) {
+      const cp = i2c(meas[i].pts[j].x, meas[i].pts[j].y);
+      if (Math.hypot(cp.x - cx, cp.y - cy) < threshold) {
+        return { mIdx: i, ptIdx: j };
+      }
+    }
+  }
+  return null;
+}
+
 // ── Mouse ──────────────────────────────────────────────────────────
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 canvas.addEventListener('mousedown', e => {
   if (!img) return;
 
-  if (e.button === 1 || e.button === 2 || (e.button === 0 && mode === 'pan')) {
+  // Middle / right click always pan
+  if (e.button === 1 || e.button === 2) {
     e.preventDefault();
-    panning   = true;
-    panStart  = { x: e.offsetX, y: e.offsetY };
-    panBase   = { x: panX, y: panY };
-    canvas.style.cursor = 'grab';
+    panning  = true;
+    panStart = { x: e.offsetX, y: e.offsetY };
+    panBase  = { x: panX, y: panY };
+    canvas.style.cursor = 'grabbing';
     return;
   }
 
   if (e.button !== 0) return;
+
+  if (mode === 'pan') {
+    // Check if clicking near a measurement endpoint → drag it
+    const near = findNearPoint(e.offsetX, e.offsetY);
+    if (near) {
+      dragging = near;
+      canvas.style.cursor = 'grabbing';
+      return;
+    }
+    // Otherwise pan
+    panning  = true;
+    panStart = { x: e.offsetX, y: e.offsetY };
+    panBase  = { x: panX, y: panY };
+    canvas.style.cursor = 'grabbing';
+    return;
+  }
+
   const pt = c2i(e.offsetX, e.offsetY);
 
   if (mode === 'calibrate') {
@@ -663,11 +737,34 @@ canvas.addEventListener('mousedown', e => {
 canvas.addEventListener('mousemove', e => {
   mouse = { x: e.offsetX, y: e.offsetY };
 
+  // Dragging a measurement endpoint
+  if (dragging !== null) {
+    const ip = c2i(e.offsetX, e.offsetY);
+    const m  = meas[dragging.mIdx];
+    m.pts[dragging.ptIdx] = ip;
+    if (m.type === 'distance') {
+      m.px    = dist2(m.pts[0], m.pts[1]);
+      m.value = pxToReal(m.px);
+      m.unit  = cal.pxPerUnit ? cal.unit : 'px';
+    } else if (m.type === 'angle') {
+      m.value = angleOf(m.pts[0], m.pts[1], m.pts[2]);
+    }
+    updateTable();
+    render();
+    return;
+  }
+
   if (panning) {
     panX = panBase.x + (e.offsetX - panStart.x);
     panY = panBase.y + (e.offsetY - panStart.y);
     render();
     return;
+  }
+
+  // Cursor hint when in pan mode: show grab cursor near endpoints
+  if (mode === 'pan' && img) {
+    const near = findNearPoint(e.offsetX, e.offsetY);
+    canvas.style.cursor = near ? 'grab' : 'crosshair';
   }
 
   if (img) {
@@ -679,11 +776,20 @@ canvas.addEventListener('mousemove', e => {
 });
 
 canvas.addEventListener('mouseup', e => {
-  if (panning) { panning = false; canvas.style.cursor = 'crosshair'; }
+  if (dragging !== null) {
+    dragging = null;
+    canvas.style.cursor = 'crosshair';
+    return;
+  }
+  if (panning) {
+    panning = false;
+    canvas.style.cursor = 'crosshair';
+  }
 });
 
 canvas.addEventListener('mouseleave', () => {
-  panning = false;
+  panning  = false;
+  dragging = null;
   canvas.style.cursor = 'crosshair';
 });
 
@@ -716,14 +822,16 @@ function pxToReal(px) { return cal.pxPerUnit ? px / cal.pxPerUnit : px; }
 function addDist(pts) {
   const px = dist2(pts[0], pts[1]);
   meas.push({ id: nextId++, type: 'distance', pts, px,
-    value: pxToReal(px), unit: cal.pxPerUnit ? cal.unit : 'px' });
+    value: pxToReal(px), unit: cal.pxPerUnit ? cal.unit : 'px',
+    label: '', color: COLORS.distance });
   updateTable();
   render();
 }
 
 function addAngle(pts) {
   meas.push({ id: nextId++, type: 'angle', pts,
-    value: angleOf(pts[0], pts[1], pts[2]), unit: '°' });
+    value: angleOf(pts[0], pts[1], pts[2]), unit: '°',
+    label: '', color: COLORS.angle });
   updateTable();
   render();
 }
@@ -741,6 +849,16 @@ function clearAll() {
   meas = []; pending = []; selId = null;
   updateTable();
   render();
+}
+
+function renameMeas(id, label) {
+  const m = meas.find(m => m.id === id);
+  if (m) { m.label = label.trim(); render(); }
+}
+
+function setMeasColor(id, color) {
+  const m = meas.find(m => m.id === id);
+  if (m) { m.color = color; render(); }
 }
 
 // ── Calibration ──────────────────────────────────────────────────
@@ -798,6 +916,8 @@ function updateCalStatus() {
 }
 
 // ── Table ─────────────────────────────────────────────────────────
+function escAttr(s) { return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
+
 function updateTable() {
   const tbody = document.getElementById('meas-body');
   const table = document.getElementById('meas-table');
@@ -821,15 +941,24 @@ function updateTable() {
       render();
     });
 
-    const icon   = m.type === 'distance' ? '&#9123;' : '&#8736;';
     const valStr = m.value.toFixed(m.type === 'angle' ? 2 : (m.unit === 'px' ? 1 : 4));
 
     tr.innerHTML =
       `<td style="color:var(--th-color)">${m.id}</td>` +
-      `<td>${icon} ${m.type}</td>` +
+      `<td style="max-width:80px">` +
+        `<input class="name-inp" type="text" value="${escAttr(m.label)}" placeholder="${m.type}" ` +
+          `title="Click to rename" ` +
+          `onclick="event.stopPropagation()" ` +
+          `onchange="renameMeas(${m.id}, this.value)">` +
+      `</td>` +
       `<td><strong>${valStr}</strong></td>` +
       `<td style="color:var(--th-color)">${m.unit}</td>` +
-      `<td><button class="del-btn" onclick="event.stopPropagation();deleteMeas(${m.id})" title="Delete">&#10005;</button></td>`;
+      `<td style="white-space:nowrap;text-align:right">` +
+        `<input type="color" value="${m.color}" class="color-swatch" title="Change color" ` +
+          `onclick="event.stopPropagation()" ` +
+          `oninput="setMeasColor(${m.id}, this.value)">` +
+        `<button class="del-btn" onclick="event.stopPropagation();deleteMeas(${m.id})" title="Delete">&#10005;</button>` +
+      `</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -837,11 +966,11 @@ function updateTable() {
 // ── CSV export ────────────────────────────────────────────────────
 function exportCSV() {
   if (!meas.length) { alert('No measurements to export.'); return; }
-  const rows = ['ID,Type,Value,Unit,Pixels,Points'];
+  const rows = ['ID,Name,Type,Value,Unit,Pixels,Points'];
   meas.forEach(m => {
     const ptsStr = m.pts.map(p => `(${p.x.toFixed(2)};${p.y.toFixed(2)})`).join(' > ');
     const px = m.type === 'distance' ? m.px.toFixed(3) : '';
-    rows.push(`${m.id},${m.type},${m.value.toFixed(6)},${m.unit},${px},"${ptsStr}"`);
+    rows.push(`${m.id},"${m.label || ''}",${m.type},${m.value.toFixed(6)},${m.unit},${px},"${ptsStr}"`);
   });
   const blob = new Blob([rows.join('\r\n')], { type: 'text/csv' });
   const a = document.createElement('a');
@@ -911,9 +1040,10 @@ function render() {
 }
 
 function drawMeas(m, selected) {
-  const color = selected ? COLORS.sel : (m.type === 'distance' ? COLORS.distance : COLORS.angle);
+  const color = selected ? COLORS.sel : m.color;
   const cPts  = m.pts.map(p => i2c(p.x, p.y));
   const lw    = selected ? 2.5 : 2;
+  const displayName = m.label || ('#' + m.id);
 
   if (m.type === 'distance') {
     drawLine(cPts[0], cPts[1], color, lw);
@@ -921,7 +1051,7 @@ function drawMeas(m, selected) {
     drawEndTick(cPts[1], cPts[0], color);
     cPts.forEach(p => drawDot(p, color, selected));
     const valStr = m.value.toFixed(m.unit === 'px' ? 1 : 4);
-    drawBadge(`#${m.id}: ${valStr} ${m.unit}`, midpoint(cPts[0], cPts[1]), color, -10);
+    drawBadge(`${displayName}: ${valStr} ${m.unit}`, midpoint(cPts[0], cPts[1]), color, -10);
   }
 
   if (m.type === 'angle') {
@@ -929,7 +1059,7 @@ function drawMeas(m, selected) {
     drawLine(cPts[1], cPts[2], color, lw);
     drawAngleArc(cPts[0], cPts[1], cPts[2], color);
     cPts.forEach(p => drawDot(p, color, selected));
-    drawBadge(`#${m.id}: ${m.value.toFixed(2)}°`, { x: cPts[1].x + 16, y: cPts[1].y - 12 }, color);
+    drawBadge(`${displayName}: ${m.value.toFixed(2)}°`, { x: cPts[1].x + 16, y: cPts[1].y - 12 }, color);
   }
 }
 
