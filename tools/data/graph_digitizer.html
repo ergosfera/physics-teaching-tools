@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Graph Digitizer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: #ecf0f1;
+    color: #2c3e50;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    background: #2c3e50;
+    color: #ecf0f1;
+    padding: 10px 20px;
+    font-size: 1.1em;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header span.sub {
+    font-weight: 400;
+    font-size: 0.8em;
+    color: #95a5a6;
+  }
+
+  .main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Left Panel ── */
+  .left-panel {
+    width: 280px;
+    min-width: 220px;
+    background: #fff;
+    border-right: 2px solid #dde3e9;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 14px 12px;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+
+  .section-label {
+    font-size: 0.68em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #95a5a6;
+    margin-bottom: 6px;
+  }
+
+  /* Upload zone */
+  #drop-zone {
+    border: 2px dashed #bdc3c7;
+    border-radius: 8px;
+    padding: 18px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    font-size: 0.82em;
+    color: #7f8c8d;
+  }
+  #drop-zone.hover { border-color: #3498db; background: #eaf4fb; }
+  #drop-zone input { display: none; }
+
+  /* Step blocks */
+  .step-block {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1px solid #e0e6ed;
+  }
+  .step-block.active {
+    border-color: #3498db;
+    background: #eaf4fb;
+  }
+  .step-block.done {
+    border-color: #27ae60;
+    background: #eafaf1;
+  }
+
+  .step-title {
+    font-size: 0.78em;
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .badge {
+    background: #bdc3c7;
+    color: #fff;
+    border-radius: 50%;
+    width: 18px; height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75em;
+    flex-shrink: 0;
+  }
+  .step-block.active .badge { background: #3498db; }
+  .step-block.done .badge { background: #27ae60; }
+
+  .step-desc {
+    font-size: 0.74em;
+    color: #7f8c8d;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8em;
+    font-weight: 600;
+    padding: 7px 12px;
+    transition: background 0.15s, opacity 0.15s;
+  }
+  button:disabled { opacity: 0.4; cursor: default; }
+
+  .btn-primary { background: #3498db; color: #fff; }
+  .btn-primary:not(:disabled):hover { background: #2980b9; }
+  .btn-success { background: #27ae60; color: #fff; }
+  .btn-success:not(:disabled):hover { background: #229954; }
+  .btn-danger  { background: #e74c3c; color: #fff; }
+  .btn-danger:not(:disabled):hover  { background: #c0392b; }
+  .btn-neutral { background: #ecf0f1; color: #2c3e50; border: 1px solid #bdc3c7; }
+  .btn-neutral:not(:disabled):hover { background: #dde3e9; }
+  .btn-block { width: 100%; margin-top: 4px; }
+
+  /* Ref point rows */
+  .ref-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .ref-row label {
+    font-size: 0.75em;
+    font-weight: 600;
+    width: 24px;
+    flex-shrink: 0;
+  }
+  .ref-row input[type=number] {
+    width: 68px;
+    padding: 4px 6px;
+    border: 1px solid #bdc3c7;
+    border-radius: 5px;
+    font-size: 0.78em;
+    color: #2c3e50;
+  }
+  .ref-status {
+    font-size: 0.7em;
+    flex: 1;
+    text-align: right;
+    color: #95a5a6;
+  }
+  .ref-status.set { color: #27ae60; font-weight: 700; }
+
+  /* Data table */
+  .table-wrap {
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid #e0e6ed;
+    border-radius: 6px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.76em;
+  }
+  thead { position: sticky; top: 0; background: #2c3e50; color: #ecf0f1; }
+  thead th { padding: 5px 6px; font-weight: 700; text-align: right; }
+  thead th:first-child { text-align: left; }
+  tbody tr:nth-child(even) { background: #f4f6f8; }
+  tbody td { padding: 4px 6px; text-align: right; }
+  tbody td:first-child { text-align: left; color: #7f8c8d; font-size: 0.9em; }
+  .del-btn {
+    background: none;
+    border: none;
+    color: #e74c3c;
+    font-size: 0.95em;
+    cursor: pointer;
+    padding: 0 2px;
+    font-weight: 700;
+  }
+  .no-data {
+    text-align: center;
+    color: #bdc3c7;
+    padding: 12px;
+    font-size: 0.78em;
+    font-style: italic;
+  }
+
+  .row-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  /* ── Canvas area ── */
+  .canvas-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #dde3e9;
+    position: relative;
+  }
+
+  .canvas-wrap {
+    position: relative;
+    display: inline-block;
+    cursor: crosshair;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    max-width: 100%;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
+  #main-canvas {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  #overlay-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+  }
+
+  .crosshair-h, .crosshair-v {
+    position: absolute;
+    background: rgba(231,76,60,0.5);
+    pointer-events: none;
+  }
+  .crosshair-h { height: 1px; left: 0; right: 0; }
+  .crosshair-v { width: 1px; top: 0; bottom: 0; }
+
+  #empty-msg {
+    text-align: center;
+    color: #95a5a6;
+    font-size: 0.9em;
+  }
+  #empty-msg p { margin-bottom: 6px; }
+
+  #status-bar {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(44,62,80,0.85);
+    color: #ecf0f1;
+    font-size: 0.74em;
+    padding: 4px 14px;
+    border-radius: 20px;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* Mode chip */
+  #mode-chip {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 0.72em;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .chip-calib { background: #f39c12; color: #fff; }
+  .chip-digit { background: #27ae60; color: #fff; }
+  .chip-idle  { background: #bdc3c7; color: #fff; }
+
+  /* Modal */
+  #modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  #modal-overlay.show { display: flex; }
+  #modal-box {
+    background: #fff;
+    border-radius: 10px;
+    padding: 22px 24px;
+    min-width: 260px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  }
+  #modal-box h3 { font-size: 0.95em; margin-bottom: 12px; color: #2c3e50; }
+  .modal-field { margin-bottom: 10px; }
+  .modal-field label { font-size: 0.8em; display: block; margin-bottom: 4px; color: #7f8c8d; }
+  .modal-field input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #bdc3c7;
+    border-radius: 5px;
+    font-size: 0.88em;
+  }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  Graph Digitizer
+  <span class="sub">Upload a graph image &rarr; calibrate axes &rarr; click to collect data</span>
+</header>
+
+<div class="main">
+
+  <!-- ── LEFT PANEL ── -->
+  <div class="left-panel">
+
+    <!-- Upload -->
+    <div>
+      <div class="section-label">Image</div>
+      <div id="drop-zone">
+        <input type="file" id="file-input" accept="image/*">
+        <div>&#128247; Drop image here<br>or <u style="color:#3498db;cursor:pointer" onclick="document.getElementById('file-input').click()">browse</u></div>
+      </div>
+    </div>
+
+    <!-- Step 1: Calibration -->
+    <div class="step-block" id="step1-block">
+      <div class="step-title">
+        <span class="badge">1</span> Calibrate Axes
+      </div>
+      <div class="step-desc">
+        Click two known points on the graph. Enter their real (x, y) coordinates.
+      </div>
+
+      <div id="ref1-row" class="ref-row">
+        <label>P1</label>
+        <input type="number" id="p1x" placeholder="x₁" step="any">
+        <input type="number" id="p1y" placeholder="y₁" step="any">
+        <span class="ref-status" id="p1-status">not set</span>
+      </div>
+      <div id="ref2-row" class="ref-row">
+        <label>P2</label>
+        <input type="number" id="p2x" placeholder="x₂" step="any">
+        <input type="number" id="p2y" placeholder="y₂" step="any">
+        <span class="ref-status" id="p2-status">not set</span>
+      </div>
+
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button class="btn-primary" id="btn-pick-p1" disabled>Pick P1</button>
+        <button class="btn-primary" id="btn-pick-p2" disabled>Pick P2</button>
+      </div>
+      <button class="btn-success btn-block" id="btn-done-calib" disabled>Start Digitizing &#8594;</button>
+      <button class="btn-neutral btn-block" id="btn-recalib" style="display:none">Re-calibrate</button>
+    </div>
+
+    <!-- Step 2: Digitize -->
+    <div class="step-block" id="step2-block">
+      <div class="step-title">
+        <span class="badge">2</span> Digitize
+      </div>
+      <div class="step-desc" id="step2-desc">
+        Click on data points in the graph to record them.
+      </div>
+      <div class="section-label" style="margin-top:4px">Data points</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th id="th-x">x</th>
+              <th id="th-y">y</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="data-tbody">
+            <tr><td colspan="4" class="no-data">No points yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="row-actions" style="margin-top:8px">
+        <button class="btn-danger" id="btn-clear" disabled>Clear All</button>
+        <button class="btn-success" id="btn-export" disabled>Export CSV</button>
+        <button class="btn-neutral" id="btn-undo" disabled>Undo</button>
+      </div>
+
+      <!-- Axis labels for CSV header -->
+      <div style="margin-top:10px">
+        <div class="section-label">Column labels (for CSV)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div>
+            <label style="font-size:0.72em;color:#7f8c8d;display:block;margin-bottom:2px">x column</label>
+            <input type="text" id="label-x" value="x" style="width:100%;padding:4px 6px;border:1px solid #bdc3c7;border-radius:5px;font-size:0.78em;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:0.72em;color:#7f8c8d;display:block;margin-bottom:2px">y column</label>
+            <input type="text" id="label-y" value="y" style="width:100%;padding:4px 6px;border:1px solid #bdc3c7;border-radius:5px;font-size:0.78em;box-sizing:border-box">
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end left-panel -->
+
+  <!-- ── CANVAS AREA ── -->
+  <div class="canvas-area" id="canvas-area">
+    <div id="empty-msg">
+      <p style="font-size:2em">&#128202;</p>
+      <p>Upload a graph image to begin</p>
+    </div>
+
+    <div class="canvas-wrap" id="canvas-wrap" style="display:none">
+      <canvas id="main-canvas"></canvas>
+      <canvas id="overlay-canvas"></canvas>
+      <div class="crosshair-h" id="ch-h" style="display:none"></div>
+      <div class="crosshair-v" id="ch-v" style="display:none"></div>
+    </div>
+
+    <div id="mode-chip" class="chip-idle">idle</div>
+    <div id="status-bar">Upload an image to begin</div>
+  </div>
+
+</div>
+
+<!-- Modal for entering coordinates after picking a point -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <h3 id="modal-title">Enter coordinates for P1</h3>
+    <div class="modal-field">
+      <label>x value</label>
+      <input type="number" id="modal-x" step="any" placeholder="e.g. 0">
+    </div>
+    <div class="modal-field">
+      <label>y value</label>
+      <input type="number" id="modal-y" step="any" placeholder="e.g. 0">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-neutral" id="modal-cancel">Cancel</button>
+      <button class="btn-primary" id="modal-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── State ── */
+const state = {
+  mode: 'idle',        // idle | pick_p1 | pick_p2 | digitize
+  img: null,
+  imgW: 0, imgH: 0,
+  // calibration ref points (pixel coords)
+  p1px: null, p1py: null,
+  p2px: null, p2py: null,
+  // calibration ref points (data coords)
+  p1dx: null, p1dy: null,
+  p2dx: null, p2dy: null,
+  // collected data
+  points: [],
+};
+
+/* ── Elements ── */
+const dropZone    = document.getElementById('drop-zone');
+const fileInput   = document.getElementById('file-input');
+const mainCanvas  = document.getElementById('main-canvas');
+const overlayCanvas = document.getElementById('overlay-canvas');
+const canvasWrap  = document.getElementById('canvas-wrap');
+const emptyMsg    = document.getElementById('empty-msg');
+const modeChip    = document.getElementById('mode-chip');
+const statusBar   = document.getElementById('status-bar');
+const chH         = document.getElementById('ch-h');
+const chV         = document.getElementById('ch-v');
+const ctx         = mainCanvas.getContext('2d');
+const octx        = overlayCanvas.getContext('2d');
+
+const btnPickP1   = document.getElementById('btn-pick-p1');
+const btnPickP2   = document.getElementById('btn-pick-p2');
+const btnDoneCalib= document.getElementById('btn-done-calib');
+const btnRecalib  = document.getElementById('btn-recalib');
+const p1Status    = document.getElementById('p1-status');
+const p2Status    = document.getElementById('p2-status');
+const step1Block  = document.getElementById('step1-block');
+const step2Block  = document.getElementById('step2-block');
+const dataTbody   = document.getElementById('data-tbody');
+const btnClear    = document.getElementById('btn-clear');
+const btnExport   = document.getElementById('btn-export');
+const btnUndo     = document.getElementById('btn-undo');
+const labelX      = document.getElementById('label-x');
+const labelY      = document.getElementById('label-y');
+
+const modalOverlay= document.getElementById('modal-overlay');
+const modalTitle  = document.getElementById('modal-title');
+const modalX      = document.getElementById('modal-x');
+const modalY      = document.getElementById('modal-y');
+const modalOk     = document.getElementById('modal-ok');
+const modalCancel = document.getElementById('modal-cancel');
+
+/* ── Drag & drop ── */
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('hover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('hover');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) loadImage(f);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) loadImage(fileInput.files[0]);
+});
+dropZone.addEventListener('click', () => fileInput.click());
+
+function loadImage(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      state.img = img;
+      state.imgW = img.width;
+      state.imgH = img.height;
+      resetCalibration();
+      renderImage();
+      emptyMsg.style.display = 'none';
+      canvasWrap.style.display = 'inline-block';
+      btnPickP1.disabled = false;
+      setMode('idle');
+      setStatus('Image loaded. Pick two reference points to calibrate.');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ── Render image ── */
+function renderImage() {
+  const area = document.getElementById('canvas-area');
+  const maxW = area.clientWidth - 20;
+  const maxH = area.clientHeight - 20;
+  const scale = Math.min(maxW / state.imgW, maxH / state.imgH, 1);
+  const dw = Math.round(state.imgW * scale);
+  const dh = Math.round(state.imgH * scale);
+  mainCanvas.width  = dw;
+  mainCanvas.height = dh;
+  overlayCanvas.width  = dw;
+  overlayCanvas.height = dh;
+  overlayCanvas.style.width  = dw + 'px';
+  overlayCanvas.style.height = dh + 'px';
+  ctx.drawImage(state.img, 0, 0, dw, dh);
+  redrawOverlay();
+}
+
+/* ── Pixel <-> data coordinate transform ── */
+function pixelToData(px, py) {
+  const { p1px, p1py, p2px, p2py, p1dx, p1dy, p2dx, p2dy } = state;
+  const dx = p1dx + (px - p1px) * (p2dx - p1dx) / (p2px - p1px);
+  const dy = p1dy + (py - p1py) * (p2dy - p1dy) / (p2py - p1py);
+  return [dx, dy];
+}
+
+/* ── Canvas mouse events ── */
+canvasWrap.addEventListener('mousemove', e => {
+  const r = mainCanvas.getBoundingClientRect();
+  const x = e.clientX - r.left;
+  const y = e.clientY - r.top;
+  chH.style.top  = y + 'px';
+  chH.style.display = '';
+  chV.style.left = x + 'px';
+  chV.style.display = '';
+
+  if (state.mode === 'digitize') {
+    const [dx, dy] = pixelToData(x, y);
+    setStatus(`x = ${fmt(dx)},  y = ${fmt(dy)}`);
+  } else if (state.mode === 'pick_p1' || state.mode === 'pick_p2') {
+    setStatus(`pixel (${Math.round(x)}, ${Math.round(y)})`);
+  }
+});
+canvasWrap.addEventListener('mouseleave', () => {
+  chH.style.display = 'none';
+  chV.style.display = 'none';
+  setStatus(state.mode === 'digitize' ? 'Click on data points to record them' : '');
+});
+
+canvasWrap.addEventListener('click', e => {
+  if (!state.img) return;
+  const r = mainCanvas.getBoundingClientRect();
+  const px = e.clientX - r.left;
+  const py = e.clientY - r.top;
+
+  if (state.mode === 'pick_p1') {
+    state._pendingPx = px; state._pendingPy = py;
+    openModal('P1', px, py);
+  } else if (state.mode === 'pick_p2') {
+    state._pendingPx = px; state._pendingPy = py;
+    openModal('P2', px, py);
+  } else if (state.mode === 'digitize') {
+    const [dx, dy] = pixelToData(px, py);
+    state.points.push({ px, py, dx, dy });
+    redrawOverlay();
+    updateTable();
+    btnClear.disabled = false;
+    btnExport.disabled = false;
+    btnUndo.disabled = false;
+    setStatus(`Recorded: x = ${fmt(dx)},  y = ${fmt(dy)}`);
+  }
+});
+
+/* ── Modal ── */
+let _modalFor = null;
+function openModal(which, px, py) {
+  _modalFor = which;
+  modalTitle.textContent = `Enter real coordinates for ${which}`;
+  const xinput = document.getElementById(`p${which === 'P1' ? 1 : 2}x`);
+  const yinput = document.getElementById(`p${which === 'P1' ? 1 : 2}y`);
+  modalX.value = xinput.value;
+  modalY.value = yinput.value;
+  modalOverlay.classList.add('show');
+  modalX.focus();
+}
+
+modalOk.addEventListener('click', confirmModal);
+modalX.addEventListener('keydown', e => { if (e.key === 'Enter') { modalY.focus(); } });
+modalY.addEventListener('keydown', e => { if (e.key === 'Enter') confirmModal(); });
+modalCancel.addEventListener('click', () => {
+  modalOverlay.classList.remove('show');
+  setMode('idle');
+  setStatus('Pick cancelled. Choose Pick P1 or P2 again.');
+});
+
+function confirmModal() {
+  const xv = parseFloat(modalX.value);
+  const yv = parseFloat(modalY.value);
+  if (isNaN(xv) || isNaN(yv)) { modalX.focus(); return; }
+  modalOverlay.classList.remove('show');
+
+  if (_modalFor === 'P1') {
+    state.p1px = state._pendingPx;
+    state.p1py = state._pendingPy;
+    state.p1dx = xv; state.p1dy = yv;
+    document.getElementById('p1x').value = xv;
+    document.getElementById('p1y').value = yv;
+    p1Status.textContent = '✓ set';
+    p1Status.className = 'ref-status set';
+    setMode('idle');
+    setStatus('P1 set. Now pick P2.');
+    btnPickP2.disabled = false;
+  } else {
+    state.p2px = state._pendingPx;
+    state.p2py = state._pendingPy;
+    state.p2dx = xv; state.p2dy = yv;
+    document.getElementById('p2x').value = xv;
+    document.getElementById('p2y').value = yv;
+    p2Status.textContent = '✓ set';
+    p2Status.className = 'ref-status set';
+    setMode('idle');
+    checkCalibReady();
+    setStatus('P2 set. Click "Start Digitizing" when ready.');
+  }
+  redrawOverlay();
+}
+
+function checkCalibReady() {
+  const ok = state.p1px !== null && state.p2px !== null &&
+             state.p1px !== state.p2px && state.p1py !== state.p2py;
+  btnDoneCalib.disabled = !ok;
+}
+
+/* ── Calibration buttons ── */
+btnPickP1.addEventListener('click', () => { setMode('pick_p1'); setStatus('Click on P1 in the graph...'); });
+btnPickP2.addEventListener('click', () => { setMode('pick_p2'); setStatus('Click on P2 in the graph...'); });
+
+btnDoneCalib.addEventListener('click', () => {
+  setMode('digitize');
+  step1Block.classList.remove('active');
+  step1Block.classList.add('done');
+  step2Block.classList.add('active');
+  btnDoneCalib.style.display = 'none';
+  btnRecalib.style.display = '';
+  setStatus('Click on data points to record them.');
+});
+
+btnRecalib.addEventListener('click', () => {
+  resetCalibration();
+  setMode('idle');
+  step1Block.classList.remove('done');
+  step2Block.classList.remove('active');
+  btnDoneCalib.style.display = '';
+  btnRecalib.style.display = 'none';
+  setStatus('Calibration reset. Pick P1 again.');
+});
+
+/* ── Data buttons ── */
+btnClear.addEventListener('click', () => {
+  if (!confirm('Clear all data points?')) return;
+  state.points = [];
+  updateTable();
+  redrawOverlay();
+  btnClear.disabled = true;
+  btnExport.disabled = true;
+  btnUndo.disabled = true;
+});
+
+btnUndo.addEventListener('click', () => {
+  state.points.pop();
+  updateTable();
+  redrawOverlay();
+  if (!state.points.length) {
+    btnClear.disabled = true;
+    btnExport.disabled = true;
+    btnUndo.disabled = true;
+  }
+});
+
+btnExport.addEventListener('click', () => {
+  const lx = labelX.value || 'x';
+  const ly = labelY.value || 'y';
+  let csv = `${lx},${ly}\n`;
+  state.points.forEach(p => {
+    csv += `${fmt(p.dx)},${fmt(p.dy)}\n`;
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'digitized_data.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+/* ── Table ── */
+function updateTable() {
+  document.getElementById('th-x').textContent = labelX.value || 'x';
+  document.getElementById('th-y').textContent = labelY.value || 'y';
+
+  if (!state.points.length) {
+    dataTbody.innerHTML = '<tr><td colspan="4" class="no-data">No points yet</td></tr>';
+    return;
+  }
+  dataTbody.innerHTML = state.points.map((p, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${fmt(p.dx)}</td>
+      <td>${fmt(p.dy)}</td>
+      <td><button class="del-btn" onclick="deletePoint(${i})" title="Delete">&#x2715;</button></td>
+    </tr>
+  `).join('');
+}
+
+labelX.addEventListener('input', updateTable);
+labelY.addEventListener('input', updateTable);
+
+function deletePoint(i) {
+  state.points.splice(i, 1);
+  updateTable();
+  redrawOverlay();
+  if (!state.points.length) {
+    btnClear.disabled = true;
+    btnExport.disabled = true;
+    btnUndo.disabled = true;
+  }
+}
+
+/* ── Overlay drawing ── */
+function redrawOverlay() {
+  octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+  const drawMarker = (px, py, color, label) => {
+    octx.save();
+    octx.strokeStyle = color;
+    octx.lineWidth = 1.5;
+    const R = 6;
+    octx.beginPath();
+    octx.moveTo(px - R, py); octx.lineTo(px + R, py);
+    octx.moveTo(px, py - R); octx.lineTo(px, py + R);
+    octx.stroke();
+    octx.beginPath();
+    octx.arc(px, py, R, 0, 2 * Math.PI);
+    octx.strokeStyle = color;
+    octx.stroke();
+    if (label) {
+      octx.fillStyle = color;
+      octx.font = 'bold 11px Segoe UI, sans-serif';
+      octx.fillText(label, px + 8, py - 6);
+    }
+    octx.restore();
+  };
+
+  // Calibration points
+  if (state.p1px !== null)
+    drawMarker(state.p1px, state.p1py, '#e67e22', 'P1');
+  if (state.p2px !== null)
+    drawMarker(state.p2px, state.p2py, '#8e44ad', 'P2');
+
+  // Data points
+  state.points.forEach((p, i) => {
+    octx.save();
+    octx.fillStyle = '#e74c3c';
+    octx.strokeStyle = '#c0392b';
+    octx.lineWidth = 1.5;
+    octx.beginPath();
+    octx.arc(p.px, p.py, 4, 0, 2 * Math.PI);
+    octx.fill();
+    octx.stroke();
+    octx.fillStyle = '#2c3e50';
+    octx.font = '10px Segoe UI, sans-serif';
+    octx.fillText(i + 1, p.px + 6, p.py - 4);
+    octx.restore();
+  });
+}
+
+/* ── Helpers ── */
+function setMode(m) {
+  state.mode = m;
+  modeChip.className = 'chip-idle';
+  modeChip.textContent = 'idle';
+  if (m === 'pick_p1' || m === 'pick_p2') {
+    modeChip.className = 'chip-calib';
+    modeChip.textContent = 'calibrate';
+  } else if (m === 'digitize') {
+    modeChip.className = 'chip-digit';
+    modeChip.textContent = 'digitize';
+  }
+  step1Block.classList.toggle('active', m === 'pick_p1' || m === 'pick_p2');
+}
+
+function setStatus(msg) { statusBar.textContent = msg; }
+
+function fmt(v) {
+  if (v === null || v === undefined) return '';
+  // Show up to 5 sig figs without unnecessary trailing zeros
+  const s = parseFloat(v.toPrecision(5));
+  return String(s);
+}
+
+function resetCalibration() {
+  state.p1px = state.p1py = state.p2px = state.p2py = null;
+  state.p1dx = state.p1dy = state.p2dx = state.p2dy = null;
+  state.points = [];
+  p1Status.textContent = 'not set'; p1Status.className = 'ref-status';
+  p2Status.textContent = 'not set'; p2Status.className = 'ref-status';
+  btnPickP1.disabled = false;
+  btnPickP2.disabled = true;
+  btnDoneCalib.disabled = true;
+  btnClear.disabled = true;
+  btnExport.disabled = true;
+  btnUndo.disabled = true;
+  updateTable();
+}
+
+/* ── Resize: re-render image to fit ── */
+window.addEventListener('resize', () => { if (state.img) renderImage(); });
+</script>
+</body>
+</html>
