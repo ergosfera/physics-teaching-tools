@@ -7,7 +7,6 @@
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Theme variables ── */
 :root {
   --bg:             #12141a;
   --toolbar-bg:     #1c2030;
@@ -89,7 +88,6 @@ body {
   user-select: none;
 }
 
-/* ── Toolbar ── */
 #toolbar {
   background: var(--toolbar-bg);
   border-bottom: 1px solid var(--border);
@@ -110,11 +108,7 @@ body {
 }
 .tgroup:last-child { border-right: none; }
 
-.tlabel {
-  font-size: 11px;
-  color: var(--tlabel);
-  white-space: nowrap;
-}
+.tlabel { font-size: 11px; color: var(--tlabel); white-space: nowrap; }
 
 button {
   background: var(--btn-bg);
@@ -149,214 +143,131 @@ input[type=range]::-webkit-slider-thumb {
 #rot-display  { font-size: 12px; color: var(--info-color); min-width: 38px; }
 #zoom-display { font-size: 12px; color: var(--info-color); min-width: 44px; }
 #cal-status   { font-size: 12px; color: var(--info-color); white-space: nowrap; }
+#btn-theme    { margin-left: 4px; }
 
-#btn-theme { margin-left: 4px; }
+#main { display: flex; flex: 1; overflow: hidden; }
 
-/* ── Main area ── */
-#main {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-/* ── Canvas ── */
 #canvas-wrap {
   flex: 1;
   position: relative;
   overflow: hidden;
   background: var(--canvas-bg);
 }
-
-#canvas {
-  display: block;
-  cursor: crosshair;
-}
+#canvas { display: block; cursor: crosshair; }
 
 #empty-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  gap: 10px;
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  pointer-events: none; gap: 10px;
 }
 #empty-overlay .icon { font-size: 52px; opacity: 0.25; }
 #empty-overlay .msg  { font-size: 15px; color: var(--empty-msg); }
 #empty-overlay .sub  { font-size: 13px; color: var(--empty-sub); }
 
-/* ── Sidebar ── */
 #sidebar {
-  width: 300px;
-  min-width: 220px;
+  width: 300px; min-width: 220px;
   background: var(--sidebar-bg);
   border-left: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
+  display: flex; flex-direction: column;
   overflow: hidden;
 }
-
 #sb-header {
   padding: 8px 10px;
   background: var(--sb-head-bg);
-  font-size: 13px;
-  font-weight: 600;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  font-size: 13px; font-weight: 600;
+  display: flex; justify-content: space-between; align-items: center;
   flex-shrink: 0;
   border-bottom: 1px solid var(--border);
 }
-
 #sb-scroll {
-  flex: 1;
-  overflow-y: auto;
+  flex: 1; overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--scroll-thumb) transparent;
 }
-
 #no-meas {
-  padding: 24px 16px;
-  text-align: center;
-  color: var(--no-meas);
-  font-size: 13px;
-  line-height: 1.7;
+  padding: 24px 16px; text-align: center;
+  color: var(--no-meas); font-size: 13px; line-height: 1.7;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
 th {
-  position: sticky;
-  top: 0;
+  position: sticky; top: 0;
   background: var(--th-bg);
-  padding: 6px 8px;
-  text-align: left;
-  color: var(--th-color);
-  font-weight: 600;
+  padding: 6px 8px; text-align: left;
+  color: var(--th-color); font-weight: 600;
   border-bottom: 1px solid var(--th-border);
 }
-td {
-  padding: 5px 8px;
-  border-bottom: 1px solid var(--td-border);
-  vertical-align: middle;
-}
+td { padding: 5px 8px; border-bottom: 1px solid var(--td-border); vertical-align: middle; }
 tr.mrow:hover td { background: var(--row-hover); cursor: pointer; }
 tr.mrow.sel   td { background: var(--row-sel); }
 
 .del-btn {
-  background: none;
-  border: none;
-  color: #e05252;
-  cursor: pointer;
-  padding: 0 3px;
-  font-size: 13px;
-  line-height: 1;
+  background: none; border: none;
+  color: #e05252; cursor: pointer;
+  padding: 0 3px; font-size: 13px; line-height: 1;
 }
 .del-btn:hover { color: #f87171; background: none; }
 
-/* ── Inline name input ── */
 .name-inp {
   background: transparent;
   border: none;
   border-bottom: 1px solid transparent;
-  color: inherit;
-  font-size: 12px;
-  font-family: inherit;
-  width: 100%;
-  padding: 1px 2px;
-  cursor: text;
-  min-width: 0;
+  color: inherit; font-size: 12px; font-family: inherit;
+  width: 100%; padding: 1px 2px; cursor: text; min-width: 0;
 }
-.name-inp:hover  { border-bottom-color: var(--border); }
-.name-inp:focus  {
-  outline: none;
-  border-bottom-color: #3b82f6;
-  background: var(--row-hover);
-  border-radius: 2px;
+.name-inp:hover { border-bottom-color: var(--border); }
+.name-inp:focus {
+  outline: none; border-bottom-color: #3b82f6;
+  background: var(--row-hover); border-radius: 2px;
 }
 
-/* ── Color swatch ── */
 .color-swatch {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  cursor: pointer;
-  vertical-align: middle;
-  margin-right: 4px;
-  background: none;
-  flex-shrink: 0;
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; padding: 0;
+  border: 1px solid var(--border); border-radius: 3px;
+  cursor: pointer; vertical-align: middle; margin-right: 4px;
+  background: none; flex-shrink: 0;
 }
 .color-swatch::-webkit-color-swatch-wrapper { padding: 0; }
 .color-swatch::-webkit-color-swatch { border: none; border-radius: 2px; }
 
-/* ── Status bar ── */
 #statusbar {
   background: var(--statusbar-bg);
   border-top: 1px solid var(--border);
-  padding: 3px 12px;
-  font-size: 11px;
+  padding: 3px 12px; font-size: 11px;
   color: var(--statusbar-text);
-  display: flex;
-  gap: 20px;
-  flex-shrink: 0;
+  display: flex; gap: 20px; flex-shrink: 0;
 }
 #statusbar span { white-space: nowrap; }
 
-/* ── Modal ── */
 #modal-bg {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 50;
-  align-items: center;
-  justify-content: center;
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5); z-index: 50;
+  align-items: center; justify-content: center;
 }
 #modal-bg.show { display: flex; }
-
 #modal {
   background: var(--modal-surface);
   border: 1px solid var(--modal-bdr);
-  border-radius: 10px;
-  padding: 22px 24px;
-  width: 300px;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  border-radius: 10px; padding: 22px 24px;
+  width: 300px; box-shadow: 0 12px 40px rgba(0,0,0,0.4);
 }
 #modal h3 { margin-bottom: 10px; font-size: 15px; color: var(--text); }
 #modal p  { font-size: 12px; color: var(--modal-muted); margin-bottom: 14px; line-height: 1.5; }
-
 #modal label { display: block; font-size: 12px; color: var(--modal-label); margin-bottom: 4px; }
 #modal input, #modal select {
-  width: 100%;
-  background: var(--modal-input-bg);
-  border: 1px solid var(--modal-bdr);
-  color: var(--text);
-  padding: 7px 9px;
-  border-radius: 5px;
-  margin-bottom: 12px;
-  font-size: 13px;
+  width: 100%; background: var(--modal-input-bg);
+  border: 1px solid var(--modal-bdr); color: var(--text);
+  padding: 7px 9px; border-radius: 5px; margin-bottom: 12px; font-size: 13px;
 }
-.modal-btns {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-top: 4px;
-}
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
 .btn-primary { background: #2563eb; border-color: #3b82f6; color: #fff; }
 .btn-primary:hover { background: #1d4ed8; }
 </style>
 </head>
 <body>
 
-<!-- ────────────────────────── TOOLBAR ────────────────────────── -->
 <div id="toolbar">
 
   <div class="tgroup">
@@ -366,8 +277,8 @@ tr.mrow.sel   td { background: var(--row-sel); }
 
   <div class="tgroup">
     <span class="tlabel">Rotate:</span>
-    <button onclick="rotateSnap(-90)" title="-90°">&#8634; &minus;90°</button>
-    <button onclick="rotateSnap(90)"  title="+90°">&#8635; +90°</button>
+    <button onclick="rotateSnap(-90)">&#8634; &minus;90°</button>
+    <button onclick="rotateSnap(90)">&#8635; +90°</button>
     <input type="range" id="rot-slider" min="-180" max="180" value="0" step="1"
            oninput="setRotDeg(+this.value)">
     <span id="rot-display">0°</span>
@@ -378,15 +289,23 @@ tr.mrow.sel   td { background: var(--row-sel); }
     <button onclick="adjustZoom(0.8)">&#8722;</button>
     <span id="zoom-display">100%</span>
     <button onclick="adjustZoom(1.25)">+</button>
-    <button onclick="fitImage()" title="Fit to view">&#8862; Fit</button>
+    <button onclick="fitImage()">&#8862; Fit</button>
   </div>
 
   <div class="tgroup">
-    <span class="tlabel">Tool:</span>
+    <span class="tlabel">Measure:</span>
     <button id="btn-pan"  class="active" onclick="setMode('pan')"       title="Pan / drag points">&#128400; Pan</button>
-    <button id="btn-cal"  onclick="setMode('calibrate')" title="Set scale by drawing a known distance">&#9141; Calibrate</button>
+    <button id="btn-cal"  onclick="setMode('calibrate')" title="Set scale">&#9141; Calibrate</button>
     <button id="btn-dist" onclick="setMode('distance')"  title="Measure distance (2 clicks)">&#9123; Distance</button>
-    <button id="btn-ang"  onclick="setMode('angle')"     title="Measure angle (3 clicks: A, vertex, B)">&#8736; Angle</button>
+    <button id="btn-ang"  onclick="setMode('angle')"     title="Measure angle (3 clicks)">&#8736; Angle</button>
+  </div>
+
+  <div class="tgroup">
+    <span class="tlabel">Shapes:</span>
+    <button id="btn-rect"   onclick="setMode('rect')"   title="Draw rectangle (click-drag)">&#9645; Rect</button>
+    <button id="btn-circle" onclick="setMode('circle')" title="Draw circle (click-drag)">&#9675; Circle</button>
+    <button id="btn-hline"  onclick="setMode('hline')"  title="Add horizontal line (click)">&#9473; H-Line</button>
+    <button id="btn-vline"  onclick="setMode('vline')"  title="Add vertical line (click)">&#9475; V-Line</button>
   </div>
 
   <div class="tgroup">
@@ -399,12 +318,11 @@ tr.mrow.sel   td { background: var(--row-sel); }
   </div>
 
   <div class="tgroup" style="margin-left:auto">
-    <button id="btn-theme" onclick="toggleTheme()" title="Toggle light/dark mode">&#9790; Dark</button>
+    <button id="btn-theme" onclick="toggleTheme()">&#9790; Dark</button>
   </div>
 
 </div>
 
-<!-- ────────────────────────── MAIN ────────────────────────── -->
 <div id="main">
 
   <div id="canvas-wrap">
@@ -418,16 +336,14 @@ tr.mrow.sel   td { background: var(--row-sel); }
 
   <div id="sidebar">
     <div id="sb-header">
-      <span>Measurements</span>
+      <span>Measurements &amp; Shapes</span>
       <button onclick="exportCSV()" style="font-size:11px;padding:3px 8px;">&#11015; CSV</button>
     </div>
     <div id="sb-scroll">
-      <div id="no-meas">No measurements yet.<br>Pick a tool and click on the image.</div>
+      <div id="no-meas">No items yet.<br>Pick a tool and click on the image.</div>
       <table id="meas-table" style="display:none">
         <thead>
-          <tr>
-            <th>#</th><th>Name</th><th>Value</th><th>Unit</th><th></th>
-          </tr>
+          <tr><th>#</th><th>Name</th><th>Value</th><th>Unit</th><th></th></tr>
         </thead>
         <tbody id="meas-body"></tbody>
       </table>
@@ -436,15 +352,13 @@ tr.mrow.sel   td { background: var(--row-sel); }
 
 </div>
 
-<!-- ────────────────────────── STATUS BAR ────────────────────────── -->
 <div id="statusbar">
   <span id="st-mode">Mode: Pan</span>
   <span id="st-xy">x: — &nbsp;y: —</span>
   <span id="st-zoom">Zoom: 100%</span>
-  <span id="st-hint">Right-click drag or middle-click drag to pan. In Pan mode, drag measurement endpoints to reposition them.</span>
+  <span id="st-hint">In Pan mode, drag measurement endpoints or shape handles to reposition them.</span>
 </div>
 
-<!-- ────────────────────────── CALIBRATION MODAL ────────────────────────── -->
 <div id="modal-bg">
   <div id="modal">
     <h3>Set scale</h3>
@@ -469,56 +383,46 @@ tr.mrow.sel   td { background: var(--row-sel); }
   </div>
 </div>
 
-<!-- ────────────────────────── SCRIPT ────────────────────────── -->
 <script>
 'use strict';
 
-// ── State ──────────────────────────────────────────────────────────
-const canvas  = document.getElementById('canvas');
-const ctx     = canvas.getContext('2d');
-const wrap    = document.getElementById('canvas-wrap');
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+const wrap   = document.getElementById('canvas-wrap');
 
-let img     = null;
-let imgW    = 0, imgH = 0;
-let rotation = 0;
-let zoom     = 1;
-let panX     = 0, panY = 0;
-
-let mode     = 'pan';
-let pending  = [];
-let meas     = [];
-let nextId   = 1;
-
-let cal = { pxPerUnit: null, unit: 'px' };
-let calLine  = null;
-
-let panning      = false;
-let panStart     = { x:0, y:0 };
-let panBase      = { x:0, y:0 };
-
-let dragging     = null;  // { mIdx, ptIdx } when dragging a measurement endpoint
-
-let mouse = { x:0, y:0 };
+let img = null, imgW = 0, imgH = 0;
+let rotation = 0, zoom = 1, panX = 0, panY = 0;
+let mode = 'pan';
+let pending = [];
+let meas = [], nextId = 1;
+let cal  = { pxPerUnit: null, unit: 'px' };
+let calLine = null;
+let panning = false, panStart = {x:0,y:0}, panBase = {x:0,y:0};
+let dragging = null;   // { mIdx, ptIdx }
+let shapeStart = null; // image-coord point for click-drag shapes (rect/circle)
+let mouse = {x:0, y:0};
 let selId = null;
+
+// ── Colors ──────────────────────────────────────────────────────────
+const COLORS = {
+  distance: '#38bdf8', angle: '#fb923c',
+  rect:     '#a78bfa', circle: '#34d399',
+  hline:    '#f472b6', vline:  '#f472b6',
+  sel: '#facc15', cal: '#a3e635'
+};
 
 // ── Theme ──────────────────────────────────────────────────────────
 function applyTheme(light) {
   document.body.classList.toggle('light', light);
-  const btn = document.getElementById('btn-theme');
-  btn.textContent = light ? '☀ Light' : '☾ Dark';
+  document.getElementById('btn-theme').textContent = light ? '☀ Light' : '☾ Dark';
   localStorage.setItem('et_theme', light ? 'light' : 'dark');
   render();
 }
-
-function toggleTheme() {
-  applyTheme(!document.body.classList.contains('light'));
-}
-
+function toggleTheme() { applyTheme(!document.body.classList.contains('light')); }
 function isLight() { return document.body.classList.contains('light'); }
-
 function themeColor(dark, light) { return isLight() ? light : dark; }
 
-// ── Canvas resize ──────────────────────────────────────────────────
+// ── Resize ────────────────────────────────────────────────────────
 function resizeCanvas() {
   canvas.width  = wrap.clientWidth;
   canvas.height = wrap.clientHeight;
@@ -527,19 +431,15 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-// ── Image import ──────────────────────────────────────────────────
+// ── Image load ────────────────────────────────────────────────────
 document.getElementById('file-in').addEventListener('change', function(e) {
-  const f = e.target.files[0];
-  if (!f) return;
-  loadImageFile(f);
-  e.target.value = '';
+  const f = e.target.files[0]; if (!f) return;
+  loadImageFile(f); e.target.value = '';
 });
-
 wrap.addEventListener('dragover', e => { e.preventDefault(); wrap.style.outline = '2px dashed #3b82f6'; });
 wrap.addEventListener('dragleave', () => { wrap.style.outline = ''; });
 wrap.addEventListener('drop', e => {
-  e.preventDefault();
-  wrap.style.outline = '';
+  e.preventDefault(); wrap.style.outline = '';
   const f = e.dataTransfer.files[0];
   if (f && f.type.startsWith('image/')) loadImageFile(f);
 });
@@ -548,220 +448,175 @@ function loadImageFile(f) {
   const url = URL.createObjectURL(f);
   const image = new Image();
   image.onload = () => {
-    img  = image;
-    imgW = image.naturalWidth;
-    imgH = image.naturalHeight;
+    img = image; imgW = image.naturalWidth; imgH = image.naturalHeight;
     rotation = 0;
     document.getElementById('rot-slider').value = 0;
     document.getElementById('rot-display').textContent = '0°';
-    meas    = [];
-    pending = [];
-    calLine = null;
-    cal     = { pxPerUnit: null, unit: 'px' };
-    selId   = null;
-    dragging = null;
-    updateCalStatus();
-    updateTable();
-    fitImage();
+    meas = []; pending = []; calLine = null;
+    cal = { pxPerUnit: null, unit: 'px' };
+    selId = null; dragging = null; shapeStart = null;
+    updateCalStatus(); updateTable(); fitImage();
     document.getElementById('empty-overlay').style.display = 'none';
     URL.revokeObjectURL(url);
   };
   image.src = url;
 }
 
-// ── Fit / zoom ─────────────────────────────────────────────────────
+// ── Zoom / fit ────────────────────────────────────────────────────
 function fitImage() {
   if (!img) return;
-  const margin = 24;
-  const cw = canvas.width  - margin * 2;
-  const ch = canvas.height - margin * 2;
-  const cos = Math.abs(Math.cos(rotation));
-  const sin = Math.abs(Math.sin(rotation));
-  const bw = imgW * cos + imgH * sin;
-  const bh = imgW * sin + imgH * cos;
-  zoom = Math.min(cw / bw, ch / bh);
-  panX = panY = 0;
-  updateZoomDisplay();
-  render();
+  const m = 24, cw = canvas.width - m*2, ch = canvas.height - m*2;
+  const cos = Math.abs(Math.cos(rotation)), sin = Math.abs(Math.sin(rotation));
+  zoom = Math.min(cw / (imgW*cos + imgH*sin), ch / (imgW*sin + imgH*cos));
+  panX = panY = 0; updateZoomDisplay(); render();
 }
-
-function adjustZoom(factor) {
-  zoom = Math.max(0.02, Math.min(zoom * factor, 80));
-  updateZoomDisplay();
-  render();
-}
-
+function adjustZoom(f) { zoom = Math.max(0.02, Math.min(zoom*f, 80)); updateZoomDisplay(); render(); }
 function updateZoomDisplay() {
-  document.getElementById('zoom-display').textContent = Math.round(zoom * 100) + '%';
-  document.getElementById('st-zoom').textContent = 'Zoom: ' + Math.round(zoom * 100) + '%';
+  const s = Math.round(zoom*100) + '%';
+  document.getElementById('zoom-display').textContent = s;
+  document.getElementById('st-zoom').textContent = 'Zoom: ' + s;
 }
 
 // ── Rotation ──────────────────────────────────────────────────────
-function rotateSnap(deg) {
-  rotation += deg * Math.PI / 180;
-  syncRotSlider();
-  render();
-}
-
+function rotateSnap(deg) { rotation += deg * Math.PI/180; syncRotSlider(); render(); }
 function setRotDeg(deg) {
-  rotation = deg * Math.PI / 180;
-  document.getElementById('rot-display').textContent = deg + '°';
-  render();
+  rotation = deg * Math.PI/180;
+  document.getElementById('rot-display').textContent = deg + '°'; render();
 }
-
 function syncRotSlider() {
-  let deg = Math.round(rotation * 180 / Math.PI) % 360;
-  if (deg > 180)  deg -= 360;
-  if (deg < -180) deg += 360;
+  let deg = Math.round(rotation*180/Math.PI) % 360;
+  if (deg > 180) deg -= 360; if (deg < -180) deg += 360;
   document.getElementById('rot-slider').value = deg;
   document.getElementById('rot-display').textContent = deg + '°';
 }
 
-// ── Coordinate transforms ──────────────────────────────────────────
+// ── Coordinate transforms ─────────────────────────────────────────
 function i2c(x, y) {
   const cos = Math.cos(rotation), sin = Math.sin(rotation);
-  const cx = x - imgW / 2, cy = y - imgH / 2;
-  return {
-    x: canvas.width  / 2 + panX + (cx * cos - cy * sin) * zoom,
-    y: canvas.height / 2 + panY + (cx * sin + cy * cos) * zoom
-  };
+  const cx = x - imgW/2, cy = y - imgH/2;
+  return { x: canvas.width/2  + panX + (cx*cos - cy*sin)*zoom,
+           y: canvas.height/2 + panY + (cx*sin + cy*cos)*zoom };
 }
-
 function c2i(x, y) {
-  const dx = (x - canvas.width  / 2 - panX) / zoom;
-  const dy = (y - canvas.height / 2 - panY) / zoom;
+  const dx = (x - canvas.width/2  - panX) / zoom;
+  const dy = (y - canvas.height/2 - panY) / zoom;
   const cos = Math.cos(-rotation), sin = Math.sin(-rotation);
-  return {
-    x: dx * cos - dy * sin + imgW / 2,
-    y: dx * sin + dy * cos + imgH / 2
-  };
+  return { x: dx*cos - dy*sin + imgW/2, y: dx*sin + dy*cos + imgH/2 };
 }
 
 // ── Mode ──────────────────────────────────────────────────────────
+const ALL_BTNS = { pan:'pan', calibrate:'cal', distance:'dist', angle:'ang',
+                   rect:'rect', circle:'circle', hline:'hline', vline:'vline' };
 const MODE_HINTS = {
-  pan:       'Left-click drag to pan. Drag measurement endpoints to reposition them. Right/middle click also pans.',
+  pan:       'Left-click drag to pan. Drag any handle to reposition measurements or shapes. Right/middle click also pans.',
   calibrate: 'Click 2 points to define a known real-world distance.',
   distance:  'Click 2 points to measure distance.',
-  angle:     'Click 3 points: first arm end → vertex → second arm end.'
+  angle:     'Click 3 points: first arm end → vertex → second arm end.',
+  rect:      'Click and drag to draw a rectangle.',
+  circle:    'Click and drag to draw a circle (click = center, drag = radius).',
+  hline:     'Click anywhere to place a horizontal reference line.',
+  vline:     'Click anywhere to place a vertical reference line.'
 };
 
 function setMode(m) {
-  mode    = m;
-  pending = [];
-  ['pan','cal','dist','ang'].forEach(k =>
-    document.getElementById('btn-' + k).classList.remove('active'));
-  document.getElementById('btn-' + { pan:'pan', calibrate:'cal', distance:'dist', angle:'ang' }[m]).classList.add('active');
+  mode = m; pending = []; shapeStart = null;
+  Object.keys(ALL_BTNS).forEach(k => document.getElementById('btn-' + ALL_BTNS[k]).classList.remove('active'));
+  document.getElementById('btn-' + ALL_BTNS[m]).classList.add('active');
   document.getElementById('st-mode').textContent = 'Mode: ' + m.charAt(0).toUpperCase() + m.slice(1);
   document.getElementById('st-hint').textContent = MODE_HINTS[m];
   render();
 }
 
-// ── Find nearest measurement point (canvas coords) ─────────────────
-function findNearPoint(cx, cy, threshold) {
-  threshold = threshold || 10;
+// ── Find nearest handle ───────────────────────────────────────────
+function findNearPoint(cx, cy, thresh) {
+  thresh = thresh || 10;
   for (let i = meas.length - 1; i >= 0; i--) {
     for (let j = 0; j < meas[i].pts.length; j++) {
       const cp = i2c(meas[i].pts[j].x, meas[i].pts[j].y);
-      if (Math.hypot(cp.x - cx, cp.y - cy) < threshold) {
+      if (Math.hypot(cp.x - cx, cp.y - cy) < thresh)
         return { mIdx: i, ptIdx: j };
-      }
     }
   }
   return null;
 }
 
-// ── Mouse ──────────────────────────────────────────────────────────
+// ── Mouse ─────────────────────────────────────────────────────────
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 canvas.addEventListener('mousedown', e => {
   if (!img) return;
 
-  // Middle / right click always pan
   if (e.button === 1 || e.button === 2) {
     e.preventDefault();
-    panning  = true;
-    panStart = { x: e.offsetX, y: e.offsetY };
-    panBase  = { x: panX, y: panY };
-    canvas.style.cursor = 'grabbing';
-    return;
+    panning = true; panStart = {x:e.offsetX,y:e.offsetY}; panBase = {x:panX,y:panY};
+    canvas.style.cursor = 'grabbing'; return;
   }
-
   if (e.button !== 0) return;
 
-  if (mode === 'pan') {
-    // Check if clicking near a measurement endpoint → drag it
-    const near = findNearPoint(e.offsetX, e.offsetY);
-    if (near) {
-      dragging = near;
-      canvas.style.cursor = 'grabbing';
-      return;
-    }
-    // Otherwise pan
-    panning  = true;
-    panStart = { x: e.offsetX, y: e.offsetY };
-    panBase  = { x: panX, y: panY };
-    canvas.style.cursor = 'grabbing';
-    return;
-  }
-
   const pt = c2i(e.offsetX, e.offsetY);
+
+  if (mode === 'pan') {
+    const near = findNearPoint(e.offsetX, e.offsetY);
+    if (near) { dragging = near; canvas.style.cursor = 'grabbing'; return; }
+    panning = true; panStart = {x:e.offsetX,y:e.offsetY}; panBase = {x:panX,y:panY};
+    canvas.style.cursor = 'grabbing'; return;
+  }
 
   if (mode === 'calibrate') {
     pending.push(pt);
     if (pending.length === 2) {
       const dx = pending[1].x - pending[0].x, dy = pending[1].y - pending[0].y;
-      const px = Math.hypot(dx, dy);
-      calLine = { pts: [...pending], px };
-      pending = [];
-      openModal(px);
+      calLine = { pts: [...pending], px: Math.hypot(dx, dy) };
+      pending = []; openModal(calLine.px);
     }
-    render();
-    return;
+    render(); return;
   }
 
   if (mode === 'distance') {
     pending.push(pt);
     if (pending.length === 2) { addDist([...pending]); pending = []; }
-    render();
-    return;
+    render(); return;
   }
 
   if (mode === 'angle') {
     pending.push(pt);
     if (pending.length === 3) { addAngle([...pending]); pending = []; }
-    render();
-    return;
+    render(); return;
   }
+
+  // Rect / Circle: start drag
+  if (mode === 'rect' || mode === 'circle') {
+    shapeStart = pt; render(); return;
+  }
+
+  // H-Line / V-Line: single click
+  if (mode === 'hline') { addHLine(pt); return; }
+  if (mode === 'vline') { addVLine(pt); return; }
 });
 
 canvas.addEventListener('mousemove', e => {
-  mouse = { x: e.offsetX, y: e.offsetY };
+  mouse = {x: e.offsetX, y: e.offsetY};
 
-  // Dragging a measurement endpoint
   if (dragging !== null) {
     const ip = c2i(e.offsetX, e.offsetY);
     const m  = meas[dragging.mIdx];
     m.pts[dragging.ptIdx] = ip;
     if (m.type === 'distance') {
-      m.px    = dist2(m.pts[0], m.pts[1]);
+      m.px = dist2(m.pts[0], m.pts[1]);
       m.value = pxToReal(m.px);
       m.unit  = cal.pxPerUnit ? cal.unit : 'px';
     } else if (m.type === 'angle') {
       m.value = angleOf(m.pts[0], m.pts[1], m.pts[2]);
     }
-    updateTable();
-    render();
-    return;
+    updateTable(); render(); return;
   }
 
   if (panning) {
     panX = panBase.x + (e.offsetX - panStart.x);
     panY = panBase.y + (e.offsetY - panStart.y);
-    render();
-    return;
+    render(); return;
   }
 
-  // Cursor hint when in pan mode: show grab cursor near endpoints
   if (mode === 'pan' && img) {
     const near = findNearPoint(e.offsetX, e.offsetY);
     canvas.style.cursor = near ? 'grab' : 'crosshair';
@@ -769,194 +624,190 @@ canvas.addEventListener('mousemove', e => {
 
   if (img) {
     const p = c2i(e.offsetX, e.offsetY);
-    document.getElementById('st-xy').textContent =
-      'x: ' + Math.round(p.x) + '  y: ' + Math.round(p.y);
+    document.getElementById('st-xy').textContent = 'x: ' + Math.round(p.x) + '  y: ' + Math.round(p.y);
   }
   render();
 });
 
 canvas.addEventListener('mouseup', e => {
-  if (dragging !== null) {
-    dragging = null;
-    canvas.style.cursor = 'crosshair';
-    return;
-  }
-  if (panning) {
-    panning = false;
-    canvas.style.cursor = 'crosshair';
+  if (dragging !== null) { dragging = null; canvas.style.cursor = 'crosshair'; return; }
+  if (panning) { panning = false; canvas.style.cursor = 'crosshair'; return; }
+
+  if (e.button === 0 && shapeStart !== null) {
+    const pt = c2i(e.offsetX, e.offsetY);
+    if (mode === 'rect')   addRect(shapeStart, pt);
+    if (mode === 'circle') addCircle(shapeStart, pt);
+    shapeStart = null; render();
   }
 });
 
 canvas.addEventListener('mouseleave', () => {
-  panning  = false;
-  dragging = null;
+  panning = false; dragging = null;
   canvas.style.cursor = 'crosshair';
 });
 
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
-  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-  const dx = e.offsetX - canvas.width  / 2 - panX;
-  const dy = e.offsetY - canvas.height / 2 - panY;
-  panX -= dx * (factor - 1);
-  panY -= dy * (factor - 1);
-  zoom = Math.max(0.02, Math.min(zoom * factor, 80));
-  updateZoomDisplay();
-  render();
+  const f = e.deltaY < 0 ? 1.12 : 1/1.12;
+  const dx = e.offsetX - canvas.width/2  - panX;
+  const dy = e.offsetY - canvas.height/2 - panY;
+  panX -= dx*(f-1); panY -= dy*(f-1);
+  zoom = Math.max(0.02, Math.min(zoom*f, 80));
+  updateZoomDisplay(); render();
 }, { passive: false });
 
-// ── Measurements ──────────────────────────────────────────────────
-function dist2(a, b) { return Math.hypot(b.x - a.x, b.y - a.y); }
-
-function angleOf(a, vertex, b) {
-  const u = { x: a.x - vertex.x, y: a.y - vertex.y };
-  const v = { x: b.x - vertex.x, y: b.y - vertex.y };
-  const dot = u.x*v.x + u.y*v.y;
-  const mag = Math.hypot(u.x,u.y) * Math.hypot(v.x,v.y);
-  if (mag === 0) return 0;
-  return Math.acos(Math.max(-1, Math.min(1, dot / mag))) * 180 / Math.PI;
+// ── Measurement math ──────────────────────────────────────────────
+function dist2(a, b) { return Math.hypot(b.x-a.x, b.y-a.y); }
+function angleOf(a, vtx, b) {
+  const u = {x:a.x-vtx.x, y:a.y-vtx.y}, v = {x:b.x-vtx.x, y:b.y-vtx.y};
+  const dot = u.x*v.x + u.y*v.y, mag = Math.hypot(u.x,u.y)*Math.hypot(v.x,v.y);
+  return mag === 0 ? 0 : Math.acos(Math.max(-1,Math.min(1,dot/mag)))*180/Math.PI;
 }
+function pxToReal(px) { return cal.pxPerUnit ? px/cal.pxPerUnit : px; }
 
-function pxToReal(px) { return cal.pxPerUnit ? px / cal.pxPerUnit : px; }
-
+// ── Add items ─────────────────────────────────────────────────────
 function addDist(pts) {
   const px = dist2(pts[0], pts[1]);
-  meas.push({ id: nextId++, type: 'distance', pts, px,
-    value: pxToReal(px), unit: cal.pxPerUnit ? cal.unit : 'px',
-    label: '', color: COLORS.distance });
-  updateTable();
-  render();
+  meas.push({ id:nextId++, type:'distance', pts, px,
+    value:pxToReal(px), unit: cal.pxPerUnit ? cal.unit : 'px',
+    label:'', color: COLORS.distance });
+  updateTable(); render();
 }
-
 function addAngle(pts) {
-  meas.push({ id: nextId++, type: 'angle', pts,
-    value: angleOf(pts[0], pts[1], pts[2]), unit: '°',
-    label: '', color: COLORS.angle });
-  updateTable();
-  render();
+  meas.push({ id:nextId++, type:'angle', pts,
+    value: angleOf(pts[0],pts[1],pts[2]), unit:'°',
+    label:'', color: COLORS.angle });
+  updateTable(); render();
+}
+function addRect(p1, p2) {
+  meas.push({ id:nextId++, type:'rect', pts:[{...p1},{...p2}],
+    label:'', color: COLORS.rect });
+  updateTable(); render();
+}
+function addCircle(center, edge) {
+  meas.push({ id:nextId++, type:'circle', pts:[{...center},{...edge}],
+    label:'', color: COLORS.circle });
+  updateTable(); render();
+}
+function addHLine(pt) {
+  meas.push({ id:nextId++, type:'hline', pts:[{...pt}],
+    label:'', color: COLORS.hline });
+  updateTable(); render();
+}
+function addVLine(pt) {
+  meas.push({ id:nextId++, type:'vline', pts:[{...pt}],
+    label:'', color: COLORS.vline });
+  updateTable(); render();
 }
 
 function deleteMeas(id) {
   meas = meas.filter(m => m.id !== id);
   if (selId === id) selId = null;
-  updateTable();
-  render();
+  updateTable(); render();
 }
-
 function clearAll() {
   if (!meas.length) return;
-  if (!confirm('Delete all measurements?')) return;
+  if (!confirm('Delete all items?')) return;
   meas = []; pending = []; selId = null;
-  updateTable();
-  render();
+  updateTable(); render();
 }
-
 function renameMeas(id, label) {
   const m = meas.find(m => m.id === id);
   if (m) { m.label = label.trim(); render(); }
 }
-
 function setMeasColor(id, color) {
   const m = meas.find(m => m.id === id);
   if (m) { m.color = color; render(); }
 }
 
-// ── Calibration ──────────────────────────────────────────────────
+// ── Calibration ───────────────────────────────────────────────────
 function openModal(px) {
   document.getElementById('cal-px-display').textContent = px.toFixed(1);
   document.getElementById('cal-val').value = '';
   document.getElementById('modal-bg').classList.add('show');
   setTimeout(() => document.getElementById('cal-val').focus(), 50);
 }
-
-function closeModal() {
-  document.getElementById('modal-bg').classList.remove('show');
-  calLine = null;
-  render();
-}
-
+function closeModal() { document.getElementById('modal-bg').classList.remove('show'); calLine = null; render(); }
 document.getElementById('modal-bg').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-bg')) closeModal();
 });
-
 document.getElementById('cal-val').addEventListener('keydown', e => {
   if (e.key === 'Enter') applyCalibration();
   if (e.key === 'Escape') closeModal();
 });
-
 function applyCalibration() {
   const val  = parseFloat(document.getElementById('cal-val').value);
   const unit = document.getElementById('cal-unit').value;
   if (!calLine) { closeModal(); return; }
-  if (unit === 'px' || !val || val <= 0) {
-    cal = { pxPerUnit: null, unit: 'px' };
-  } else {
-    cal = { pxPerUnit: calLine.px / val, unit };
-  }
+  cal = (unit === 'px' || !val || val <= 0)
+      ? { pxPerUnit: null, unit: 'px' }
+      : { pxPerUnit: calLine.px / val, unit };
   meas.forEach(m => {
     if (m.type === 'distance') {
       m.value = pxToReal(m.px);
       m.unit  = cal.pxPerUnit ? cal.unit : 'px';
     }
   });
-  updateCalStatus();
-  updateTable();
-  closeModal();
+  updateCalStatus(); updateTable(); closeModal();
 }
-
 function updateCalStatus() {
   const el = document.getElementById('cal-status');
   if (cal.pxPerUnit) {
     el.textContent = cal.pxPerUnit.toFixed(3) + ' px/' + cal.unit;
     el.style.color = '#4ade80';
   } else {
-    el.textContent = 'Not calibrated';
-    el.style.color = '';
+    el.textContent = 'Not calibrated'; el.style.color = '';
   }
 }
 
+// ── Display value helper ──────────────────────────────────────────
+function getMeasDisplay(m) {
+  const u = cal.pxPerUnit ? cal.unit : 'px';
+  if (m.type === 'distance')
+    return { val: m.value.toFixed(m.unit === 'px' ? 1 : 4), unit: m.unit };
+  if (m.type === 'angle')
+    return { val: m.value.toFixed(2), unit: '°' };
+  if (m.type === 'rect') {
+    const wPx = Math.abs(m.pts[1].x - m.pts[0].x);
+    const hPx = Math.abs(m.pts[1].y - m.pts[0].y);
+    return { val: `${pxToReal(wPx).toFixed(1)}×${pxToReal(hPx).toFixed(1)}`, unit: u };
+  }
+  if (m.type === 'circle') {
+    const r = dist2(m.pts[0], m.pts[1]);
+    return { val: `r=${pxToReal(r).toFixed(2)}`, unit: u };
+  }
+  if (m.type === 'hline') return { val: `y=${m.pts[0].y.toFixed(1)}`, unit: 'px' };
+  if (m.type === 'vline') return { val: `x=${m.pts[0].x.toFixed(1)}`, unit: 'px' };
+  return { val: '—', unit: '' };
+}
+
 // ── Table ─────────────────────────────────────────────────────────
-function escAttr(s) { return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;'); }
+function escAttr(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
 
 function updateTable() {
   const tbody = document.getElementById('meas-body');
   const table = document.getElementById('meas-table');
   const none  = document.getElementById('no-meas');
-
-  if (!meas.length) {
-    table.style.display = 'none';
-    none.style.display  = 'block';
-    return;
-  }
-  table.style.display = 'table';
-  none.style.display  = 'none';
-
+  if (!meas.length) { table.style.display='none'; none.style.display='block'; return; }
+  table.style.display = 'table'; none.style.display = 'none';
   tbody.innerHTML = '';
   meas.forEach(m => {
     const tr = document.createElement('tr');
     tr.className = 'mrow' + (m.id === selId ? ' sel' : '');
     tr.addEventListener('click', () => {
-      selId = (selId === m.id) ? null : m.id;
-      updateTable();
-      render();
+      selId = (selId === m.id) ? null : m.id; updateTable(); render();
     });
-
-    const valStr = m.value.toFixed(m.type === 'angle' ? 2 : (m.unit === 'px' ? 1 : 4));
-
+    const { val, unit } = getMeasDisplay(m);
     tr.innerHTML =
       `<td style="color:var(--th-color)">${m.id}</td>` +
-      `<td style="max-width:80px">` +
-        `<input class="name-inp" type="text" value="${escAttr(m.label)}" placeholder="${m.type}" ` +
-          `title="Click to rename" ` +
-          `onclick="event.stopPropagation()" ` +
-          `onchange="renameMeas(${m.id}, this.value)">` +
-      `</td>` +
-      `<td><strong>${valStr}</strong></td>` +
-      `<td style="color:var(--th-color)">${m.unit}</td>` +
+      `<td style="max-width:80px"><input class="name-inp" type="text" value="${escAttr(m.label)}" ` +
+        `placeholder="${m.type}" title="Click to rename" onclick="event.stopPropagation()" ` +
+        `onchange="renameMeas(${m.id},this.value)"></td>` +
+      `<td><strong>${val}</strong></td>` +
+      `<td style="color:var(--th-color)">${unit}</td>` +
       `<td style="white-space:nowrap;text-align:right">` +
         `<input type="color" value="${m.color}" class="color-swatch" title="Change color" ` +
-          `onclick="event.stopPropagation()" ` +
-          `oninput="setMeasColor(${m.id}, this.value)">` +
+          `onclick="event.stopPropagation()" oninput="setMeasColor(${m.id},this.value)">` +
         `<button class="del-btn" onclick="event.stopPropagation();deleteMeas(${m.id})" title="Delete">&#10005;</button>` +
       `</td>`;
     tbody.appendChild(tr);
@@ -965,37 +816,34 @@ function updateTable() {
 
 // ── CSV export ────────────────────────────────────────────────────
 function exportCSV() {
-  if (!meas.length) { alert('No measurements to export.'); return; }
-  const rows = ['ID,Name,Type,Value,Unit,Pixels,Points'];
+  if (!meas.length) { alert('No items to export.'); return; }
+  const rows = ['ID,Name,Type,Value,Unit,Points'];
   meas.forEach(m => {
+    const { val, unit } = getMeasDisplay(m);
     const ptsStr = m.pts.map(p => `(${p.x.toFixed(2)};${p.y.toFixed(2)})`).join(' > ');
-    const px = m.type === 'distance' ? m.px.toFixed(3) : '';
-    rows.push(`${m.id},"${m.label || ''}",${m.type},${m.value.toFixed(6)},${m.unit},${px},"${ptsStr}"`);
+    rows.push(`${m.id},"${m.label||''}",${m.type},"${val}",${unit},"${ptsStr}"`);
   });
-  const blob = new Blob([rows.join('\r\n')], { type: 'text/csv' });
+  const blob = new Blob([rows.join('\r\n')], { type:'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'measurements.csv';
-  a.click();
+  a.download = 'measurements.csv'; a.click();
   URL.revokeObjectURL(a.href);
 }
 
 // ── Render ────────────────────────────────────────────────────────
-const COLORS = { distance: '#38bdf8', angle: '#fb923c', sel: '#facc15', cal: '#a3e635' };
-
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (!img) return;
 
   ctx.save();
-  ctx.translate(canvas.width / 2 + panX, canvas.height / 2 + panY);
-  ctx.rotate(rotation);
-  ctx.scale(zoom, zoom);
-  ctx.drawImage(img, -imgW / 2, -imgH / 2, imgW, imgH);
+  ctx.translate(canvas.width/2 + panX, canvas.height/2 + panY);
+  ctx.rotate(rotation); ctx.scale(zoom, zoom);
+  ctx.drawImage(img, -imgW/2, -imgH/2, imgW, imgH);
   ctx.restore();
 
-  meas.forEach(m => drawMeas(m, m.id === selId));
+  meas.forEach(m => drawItem(m, m.id === selId));
 
+  // Calibration line
   if (calLine) {
     const p1 = i2c(calLine.pts[0].x, calLine.pts[0].y);
     const p2 = i2c(calLine.pts[1].x, calLine.pts[1].y);
@@ -1004,169 +852,216 @@ function render() {
     drawBadge(`${calLine.px.toFixed(1)} px`, midpoint(p1,p2), COLORS.cal);
   }
 
+  // Live previews during multi-click modes
   if (pending.length) {
     const cPts = pending.map(p => i2c(p.x, p.y));
     for (let i = 1; i < cPts.length; i++)
-      drawLine(cPts[i-1], cPts[i], themeColor('#fff', '#1a2030'), 1.5);
-
-    const last = cPts[cPts.length - 1];
-    ctx.save();
-    ctx.setLineDash([5,4]);
-    ctx.strokeStyle = themeColor('rgba(255,255,255,0.4)', 'rgba(0,0,0,0.3)');
+      drawLine(cPts[i-1], cPts[i], themeColor('#fff','#1a2030'), 1.5);
+    const last = cPts[cPts.length-1];
+    ctx.save(); ctx.setLineDash([5,4]);
+    ctx.strokeStyle = themeColor('rgba(255,255,255,0.4)','rgba(0,0,0,0.3)');
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(last.x, last.y);
-    ctx.lineTo(mouse.x, mouse.y);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(mouse.x, mouse.y); ctx.stroke();
     ctx.restore();
-
-    const previewColor = themeColor('#e2e8f0', '#1a2030');
+    const pc = themeColor('#e2e8f0','#1a2030');
     if (mode === 'distance' && pending.length === 1) {
       const ip = c2i(mouse.x, mouse.y);
-      const px = dist2(pending[0], ip);
-      const v  = pxToReal(px);
+      const v  = pxToReal(dist2(pending[0], ip));
       const u  = cal.pxPerUnit ? cal.unit : 'px';
-      drawBadge(`${v.toFixed(2)} ${u}`, midpoint(last, mouse), previewColor);
+      drawBadge(`${v.toFixed(2)} ${u}`, midpoint(last, mouse), pc);
     }
     if (mode === 'angle' && pending.length === 2) {
-      const ip    = c2i(mouse.x, mouse.y);
-      const angle = angleOf(pending[0], pending[1], ip);
+      const angle = angleOf(pending[0], pending[1], c2i(mouse.x, mouse.y));
       const vtx   = i2c(pending[1].x, pending[1].y);
-      drawBadge(`${angle.toFixed(1)}°`, { x: vtx.x + 16, y: vtx.y - 12 }, previewColor);
+      drawBadge(`${angle.toFixed(1)}°`, {x:vtx.x+16, y:vtx.y-12}, pc);
     }
+    cPts.forEach(p => drawDot(p, themeColor('#fff','#1a2030')));
+  }
 
-    cPts.forEach(p => drawDot(p, themeColor('#fff', '#1a2030')));
+  // Rect / Circle drag preview
+  if (shapeStart !== null) {
+    const p1 = i2c(shapeStart.x, shapeStart.y);
+    const p2 = mouse;
+    ctx.save(); ctx.setLineDash([5,4]);
+    if (mode === 'rect') {
+      const x = Math.min(p1.x,p2.x), y = Math.min(p1.y,p2.y);
+      const w = Math.abs(p2.x-p1.x), h = Math.abs(p2.y-p1.y);
+      ctx.strokeStyle = COLORS.rect; ctx.lineWidth = 1.5;
+      ctx.fillStyle = COLORS.rect + '22';
+      ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
+    }
+    if (mode === 'circle') {
+      const r = Math.hypot(p2.x-p1.x, p2.y-p1.y);
+      ctx.strokeStyle = COLORS.circle; ctx.lineWidth = 1.5;
+      ctx.fillStyle = COLORS.circle + '22';
+      ctx.beginPath(); ctx.arc(p1.x,p1.y,r,0,Math.PI*2);
+      ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+    drawDot(p1, mode === 'rect' ? COLORS.rect : COLORS.circle);
+  }
+
+  // H-Line / V-Line cursor preview
+  if ((mode === 'hline' || mode === 'vline') && img) {
+    const ip = c2i(mouse.x, mouse.y);
+    ctx.save(); ctx.setLineDash([4,4]); ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = mode === 'hline' ? COLORS.hline : COLORS.vline;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (mode === 'hline') {
+      const L = i2c(-imgW, ip.y), R = i2c(imgW*2, ip.y);
+      ctx.moveTo(L.x, L.y); ctx.lineTo(R.x, R.y);
+    } else {
+      const T = i2c(ip.x, -imgH), B = i2c(ip.x, imgH*2);
+      ctx.moveTo(T.x, T.y); ctx.lineTo(B.x, B.y);
+    }
+    ctx.stroke(); ctx.restore();
   }
 }
 
-function drawMeas(m, selected) {
+// ── Draw individual item ──────────────────────────────────────────
+function drawItem(m, selected) {
   const color = selected ? COLORS.sel : m.color;
-  const cPts  = m.pts.map(p => i2c(p.x, p.y));
   const lw    = selected ? 2.5 : 2;
-  const displayName = m.label || ('#' + m.id);
+  const name  = m.label || ('#' + m.id);
 
   if (m.type === 'distance') {
-    drawLine(cPts[0], cPts[1], color, lw);
-    drawEndTick(cPts[0], cPts[1], color);
-    drawEndTick(cPts[1], cPts[0], color);
-    cPts.forEach(p => drawDot(p, color, selected));
-    const valStr = m.value.toFixed(m.unit === 'px' ? 1 : 4);
-    drawBadge(`${displayName}: ${valStr} ${m.unit}`, midpoint(cPts[0], cPts[1]), color, -10);
+    const [p1, p2] = m.pts.map(p => i2c(p.x, p.y));
+    drawLine(p1, p2, color, lw);
+    drawEndTick(p1, p2, color); drawEndTick(p2, p1, color);
+    [p1,p2].forEach(p => drawDot(p, color, selected));
+    const { val, unit } = getMeasDisplay(m);
+    drawBadge(`${name}: ${val} ${unit}`, midpoint(p1,p2), color, -10);
   }
 
   if (m.type === 'angle') {
-    drawLine(cPts[1], cPts[0], color, lw);
-    drawLine(cPts[1], cPts[2], color, lw);
-    drawAngleArc(cPts[0], cPts[1], cPts[2], color);
-    cPts.forEach(p => drawDot(p, color, selected));
-    drawBadge(`${displayName}: ${m.value.toFixed(2)}°`, { x: cPts[1].x + 16, y: cPts[1].y - 12 }, color);
+    const [p1, vtx, p2] = m.pts.map(p => i2c(p.x, p.y));
+    drawLine(vtx, p1, color, lw); drawLine(vtx, p2, color, lw);
+    drawAngleArc(p1, vtx, p2, color);
+    [p1,vtx,p2].forEach(p => drawDot(p, color, selected));
+    const { val } = getMeasDisplay(m);
+    drawBadge(`${name}: ${val}°`, {x:vtx.x+16, y:vtx.y-12}, color);
+  }
+
+  if (m.type === 'rect') {
+    const [p1, p2] = m.pts.map(p => i2c(p.x, p.y));
+    const x = Math.min(p1.x,p2.x), y = Math.min(p1.y,p2.y);
+    const w = Math.abs(p2.x-p1.x), h = Math.abs(p2.y-p1.y);
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = lw;
+    ctx.fillStyle = color + (selected ? '30' : '18');
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
+    ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
+    ctx.restore();
+    [p1,p2].forEach(p => drawDot(p, color, selected));
+    const { val, unit } = getMeasDisplay(m);
+    drawBadge(`${name}: ${val} ${unit}`, midpoint(p1,p2), color);
+  }
+
+  if (m.type === 'circle') {
+    const center = i2c(m.pts[0].x, m.pts[0].y);
+    const edge   = i2c(m.pts[1].x, m.pts[1].y);
+    const r      = Math.hypot(edge.x-center.x, edge.y-center.y);
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = lw;
+    ctx.fillStyle = color + (selected ? '30' : '18');
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
+    ctx.beginPath(); ctx.arc(center.x, center.y, r, 0, Math.PI*2);
+    ctx.fill(); ctx.stroke(); ctx.restore();
+    drawLine(center, edge, color, 1, true);
+    drawDot(center, color, selected); drawDot(edge, color, false);
+    const { val, unit } = getMeasDisplay(m);
+    drawBadge(`${name}: ${val} ${unit}`, {x:center.x, y:center.y - r - 12}, color);
+  }
+
+  if (m.type === 'hline') {
+    const handle = i2c(m.pts[0].x, m.pts[0].y);
+    const L = i2c(-imgW,    m.pts[0].y);
+    const R = i2c(imgW * 2, m.pts[0].y);
+    drawLine(L, R, color, lw);
+    drawDot(handle, color, selected);
+    drawBadge(`${name}  y=${m.pts[0].y.toFixed(1)} px`, {x:handle.x, y:handle.y-12}, color);
+  }
+
+  if (m.type === 'vline') {
+    const handle = i2c(m.pts[0].x, m.pts[0].y);
+    const T = i2c(m.pts[0].x, -imgH);
+    const B = i2c(m.pts[0].x, imgH * 2);
+    drawLine(T, B, color, lw);
+    drawDot(handle, color, selected);
+    drawBadge(`${name}  x=${m.pts[0].x.toFixed(1)} px`, {x:handle.x+14, y:handle.y}, color);
   }
 }
 
-// ── Draw helpers ──────────────────────────────────────────────────
-function midpoint(a, b) { return { x:(a.x+b.x)/2, y:(a.y+b.y)/2 }; }
+// ── Draw primitives ───────────────────────────────────────────────
+function midpoint(a, b) { return {x:(a.x+b.x)/2, y:(a.y+b.y)/2}; }
 
 function drawLine(a, b, color, lw, dashed) {
   ctx.save();
-  ctx.strokeStyle = color;
-  ctx.lineWidth   = lw || 2;
+  ctx.strokeStyle = color; ctx.lineWidth = lw || 2;
   if (dashed) ctx.setLineDash([6,4]);
-  ctx.shadowColor = 'rgba(0,0,0,0.5)';
-  ctx.shadowBlur  = 4;
-  ctx.beginPath();
-  ctx.moveTo(a.x, a.y);
-  ctx.lineTo(b.x, b.y);
-  ctx.stroke();
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 4;
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
   ctx.restore();
 }
 
 function drawDot(p, color, large) {
   const r = large ? 6 : 4;
   ctx.save();
-  ctx.fillStyle   = color;
-  ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-  ctx.lineWidth   = 1.5;
-  ctx.shadowColor = 'rgba(0,0,0,0.4)';
-  ctx.shadowBlur  = 4;
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, r, 0, Math.PI*2);
-  ctx.fill();
-  ctx.stroke();
+  ctx.fillStyle = color; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 1.5;
+  ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 4;
+  ctx.beginPath(); ctx.arc(p.x,p.y,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
   ctx.restore();
 }
 
 function drawEndTick(p, other, color) {
-  const dx = other.x - p.x, dy = other.y - p.y;
-  const len = Math.hypot(dx, dy);
-  if (len === 0) return;
-  const nx = -dy / len * 5, ny = dx / len * 5;
+  const dx = other.x-p.x, dy = other.y-p.y, len = Math.hypot(dx,dy);
+  if (!len) return;
+  const nx = -dy/len*5, ny = dx/len*5;
   ctx.save();
-  ctx.strokeStyle = color;
-  ctx.lineWidth   = 2;
-  ctx.shadowColor = 'rgba(0,0,0,0.4)';
-  ctx.shadowBlur  = 3;
-  ctx.beginPath();
-  ctx.moveTo(p.x+nx, p.y+ny);
-  ctx.lineTo(p.x-nx, p.y-ny);
-  ctx.stroke();
+  ctx.strokeStyle = color; ctx.lineWidth = 2;
+  ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 3;
+  ctx.beginPath(); ctx.moveTo(p.x+nx,p.y+ny); ctx.lineTo(p.x-nx,p.y-ny); ctx.stroke();
   ctx.restore();
 }
 
 function drawBadge(text, pos, color, dy) {
-  const badgeBg = themeColor('rgba(10,12,18,0.78)', 'rgba(240,244,248,0.88)');
+  const bg = themeColor('rgba(10,12,18,0.78)', 'rgba(240,244,248,0.88)');
   ctx.save();
   ctx.font = 'bold 11.5px -apple-system, sans-serif';
-  const w  = ctx.measureText(text).width;
-  const bx = pos.x - w / 2 - 5;
-  const by = (pos.y + (dy||0)) - 9;
-
-  ctx.fillStyle = badgeBg;
-  roundRect(ctx, bx, by, w+10, 18, 3);
-  ctx.fill();
-
-  ctx.fillStyle    = color;
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
+  const w = ctx.measureText(text).width;
+  ctx.fillStyle = bg;
+  roundRect(ctx, pos.x - w/2 - 5, (pos.y+(dy||0)) - 9, w+10, 18, 3); ctx.fill();
+  ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(text, pos.x, pos.y + (dy||0));
   ctx.restore();
 }
 
 function drawAngleArc(p1, vtx, p2, color) {
-  const a1 = Math.atan2(p1.y - vtx.y, p1.x - vtx.x);
-  const a2 = Math.atan2(p2.y - vtx.y, p2.x - vtx.x);
+  const a1 = Math.atan2(p1.y-vtx.y, p1.x-vtx.x);
+  const a2 = Math.atan2(p2.y-vtx.y, p2.x-vtx.x);
   let diff = a2 - a1;
   while (diff >  Math.PI) diff -= 2*Math.PI;
   while (diff < -Math.PI) diff += 2*Math.PI;
-
-  const d1 = Math.hypot(p1.x - vtx.x, p1.y - vtx.y);
-  const d2 = Math.hypot(p2.x - vtx.x, p2.y - vtx.y);
-  const r  = Math.max(20, Math.min(36, Math.min(d1, d2) * 0.4));
-
+  const r = Math.max(20, Math.min(36,
+    Math.min(Math.hypot(p1.x-vtx.x,p1.y-vtx.y),
+             Math.hypot(p2.x-vtx.x,p2.y-vtx.y)) * 0.4));
   ctx.save();
-  ctx.strokeStyle = color;
-  ctx.fillStyle   = color + '28';
-  ctx.lineWidth   = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(vtx.x, vtx.y);
-  ctx.arc(vtx.x, vtx.y, r, a1, a1 + diff, diff < 0);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
+  ctx.strokeStyle = color; ctx.fillStyle = color + '28'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(vtx.x,vtx.y);
+  ctx.arc(vtx.x,vtx.y,r,a1,a1+diff,diff<0);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.restore();
 }
 
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
-  if (ctx.roundRect) {
-    ctx.roundRect(x, y, w, h, r);
-  } else {
-    ctx.moveTo(x+r, y);
-    ctx.lineTo(x+w-r, y); ctx.arcTo(x+w, y,   x+w,   y+r,   r);
-    ctx.lineTo(x+w,   y+h-r); ctx.arcTo(x+w, y+h, x+w-r, y+h,   r);
-    ctx.lineTo(x+r,   y+h); ctx.arcTo(x,   y+h, x,     y+h-r, r);
-    ctx.lineTo(x,     y+r); ctx.arcTo(x,   y,   x+r,   y,     r);
-    ctx.closePath();
-  }
+  if (ctx.roundRect) { ctx.roundRect(x,y,w,h,r); return; }
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,   x+w,  y+r,  r);
+                      ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h, r);
+                      ctx.lineTo(x+r,y+h);   ctx.arcTo(x,  y+h,x,    y+h-r,r);
+                      ctx.lineTo(x,  y+r);   ctx.arcTo(x,  y,  x+r,  y,    r);
+  ctx.closePath();
 }
 
 // ── Init ──────────────────────────────────────────────────────────
