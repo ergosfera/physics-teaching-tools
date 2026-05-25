@@ -271,7 +271,7 @@ tbody tr:hover { background: var(--bg-panel); }
   <div class="tb-sep"></div>
 
   <div class="tb-group">
-    <button id="btn-rew"  onclick="stepBack()"     disabled title="Step back one frame">&#9664;&#9664;</button>
+    <button id="btn-rew"  onclick="rewindToStart()" disabled title="Rewind to start">&#9664;&#9664;</button>
     <button id="btn-play-pause" class="btn-play" onclick="togglePlayback()" disabled>&#9654; Play</button>
     <button id="btn-stop" onclick="stopPlayback()" disabled>&#9646;&#9646; Stop</button>
     <button id="btn-loop" onclick="toggleLoop()"   disabled title="Loop between trim points">&#8635; Loop</button>
@@ -419,7 +419,7 @@ tbody tr:hover { background: var(--bg-panel); }
       </div>
       <div id="data-scroll">
         <table>
-          <thead><tr><th>#</th><th>t (s)</th><th id="th-x">X</th><th id="th-y">Y</th></tr></thead>
+          <thead><tr><th>#</th><th>t (s)</th><th id="th-x">X</th><th id="th-y">Y</th><th></th></tr></thead>
           <tbody id="data-tbody"></tbody>
         </table>
       </div>
@@ -624,7 +624,9 @@ function resizeVideoCanvas() {
 // ═══════════════════════════════════════════════════════
 //  FRAME SEEKING — Safari-safe with timeout fallback
 // ═══════════════════════════════════════════════════════
-let _seekTimer = null;
+let _seekTimer   = null;
+let _seekHandler = null;
+let _seekGen     = 0;
 
 function seekTo(frameIdx) {
     frameIdx = Math.max(S.trimStart, Math.min(S.trimEnd, frameIdx));
@@ -632,16 +634,23 @@ function seekTo(frameIdx) {
     const t = frameIdx / S.fps;
     if (t > S.videoDuration) return;
 
-    if (_seekTimer) clearTimeout(_seekTimer);
-    let done = false;
+    // Cancel any pending seek: remove old listener and timer
+    if (_seekTimer)   { clearTimeout(_seekTimer); _seekTimer = null; }
+    if (_seekHandler) { video.removeEventListener('seeked', _seekHandler); _seekHandler = null; }
+
+    const gen = ++_seekGen;
+    let fired = false;
 
     const finish = () => {
-        if (done) return;
-        done = true;
-        clearTimeout(_seekTimer);
+        if (fired || gen !== _seekGen) return;
+        fired = true;
+        if (_seekTimer)   { clearTimeout(_seekTimer); _seekTimer = null; }
+        video.removeEventListener('seeked', finish);
+        _seekHandler = null;
         onSeeked();
     };
 
+    _seekHandler = finish;
     video.addEventListener('seeked', finish, { once: true });
     _seekTimer = setTimeout(finish, 500);
     video.currentTime = t;
@@ -705,9 +714,10 @@ function playbackLoop() {
     rafId = requestAnimationFrame(playbackLoop);
 }
 
-function stepBack() {
-    if (!S.videoLoaded || S.isPlaying) return;
-    seekTo(Math.max(S.trimStart, S.frameIndex - 1));
+function rewindToStart() {
+    if (!S.videoLoaded) return;
+    if (S.isPlaying) pausePlayback();
+    seekTo(S.trimStart);
 }
 
 function toggleLoop() {
@@ -1401,12 +1411,22 @@ function drawGraphY() { drawGraphSingle(gyctx, gycan, 'y', S.fitY); }
 // ═══════════════════════════════════════════════════════
 //  DATA TABLE
 // ═══════════════════════════════════════════════════════
+function removePoint(i) {
+    S.points.splice(i, 1);
+    if (!S.points.length)
+        ['btn-undo','btn-clear','btn-export'].forEach(id =>
+            document.getElementById(id).disabled = true);
+    drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
+}
+
 function updateDataTable() {
     const tbody = document.getElementById('data-tbody');
     tbody.innerHTML = '';
     S.points.forEach((p, i) => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${i+1}</td><td>${p.time.toFixed(3)}</td><td>${p.wx.toFixed(3)}</td><td>${p.wy.toFixed(3)}</td>`;
+        tr.innerHTML = `<td>${i+1}</td><td>${p.time.toFixed(3)}</td><td>${p.wx.toFixed(3)}</td><td>${p.wy.toFixed(3)}</td>`
+            + `<td style="text-align:center;padding:0 4px"><span onclick="removePoint(${i})" `
+            + `style="cursor:pointer;color:var(--btn-act-bg);font-size:13px;line-height:1" title="Remove point">×</span></td>`;
         tbody.appendChild(tr);
     });
     const ds = document.getElementById('data-scroll');
