@@ -34,6 +34,9 @@
     --g-lbl:       #8899aa;
     --g-nodata:    #2a2a3a;
     --overlay-err: rgba(10,10,20,0.93);
+    --bg-video:    #000;
+    --hint-text:   #888;
+    --hint-sub:    #555;
 }
 html[data-theme="light"] {
     --bg:          #f0f4f8;
@@ -63,6 +66,9 @@ html[data-theme="light"] {
     --g-lbl:       #445566;
     --g-nodata:    #99aabb;
     --overlay-err: rgba(240,244,248,0.95);
+    --bg-video:    #c8d8e8;
+    --hint-text:   #445;
+    --hint-sub:    #778;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -132,7 +138,7 @@ select {
 #video-panel {
     flex: 7;
     position: relative;
-    background: #000;
+    background: var(--bg-video);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -146,11 +152,11 @@ select {
     position: absolute; inset: 0;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    color: #444; pointer-events: none; gap: 10px;
+    color: var(--hint-text); pointer-events: none; gap: 10px;
 }
 #drop-hint .icon { font-size: 52px; }
 #drop-hint .text { font-size: 15px; }
-#drop-hint .sub  { font-size: 12px; color: #333; }
+#drop-hint .sub  { font-size: 12px; color: var(--hint-sub); }
 
 #format-error {
     display: none;
@@ -265,8 +271,10 @@ tbody tr:hover { background: var(--bg-panel); }
   <div class="tb-sep"></div>
 
   <div class="tb-group">
+    <button id="btn-rew"  onclick="stepBack()"     disabled title="Step back one frame">&#9664;&#9664;</button>
     <button id="btn-play-pause" class="btn-play" onclick="togglePlayback()" disabled>&#9654; Play</button>
     <button id="btn-stop" onclick="stopPlayback()" disabled>&#9646;&#9646; Stop</button>
+    <button id="btn-loop" onclick="toggleLoop()"   disabled title="Loop between trim points">&#8635; Loop</button>
   </div>
   <div class="tb-group">
     <input type="range" id="scrubber" min="0" max="100" value="0" step="1" disabled>
@@ -275,9 +283,9 @@ tbody tr:hover { background: var(--bg-panel); }
 
   <div class="tb-group">
     <label class="tb-label">Trim:</label>
-    <button id="btn-trim-s" onclick="setTrimStart()" disabled title="Set start to current frame">&#9664; In</button>
+    <button id="btn-trim-s" onclick="setTrimStart()" disabled title="Set start to current frame">&#9654; Start</button>
     <input type="number" id="trim-s-in" value="0" min="0" step="1" style="width:52px" title="Start frame">
-    <button id="btn-trim-e" onclick="setTrimEnd()" disabled title="Set end to current frame">Out &#9654;</button>
+    <button id="btn-trim-e" onclick="setTrimEnd()" disabled title="Set end to current frame">End &#9664;</button>
     <input type="number" id="trim-e-in" value="0" min="0" step="1" style="width:52px" title="End frame">
   </div>
   <div class="tb-sep"></div>
@@ -474,6 +482,7 @@ const S = {
     showY: true,
     fitX: 'none',
     fitY: 'none',
+    loop: false,
 };
 
 // ═══════════════════════════════════════════════════════
@@ -570,7 +579,7 @@ function initVideo() {
     resizeVideoCanvas();
     dropHint.style.display = 'none';
 
-    ['btn-play-pause','btn-stop','btn-trim-s','btn-trim-e',
+    ['btn-play-pause','btn-stop','btn-rew','btn-loop','btn-trim-s','btn-trim-e',
      'btn-rot-ccw','btn-rot-cw','btn-cal','btn-track'].forEach(id => {
         document.getElementById(id).disabled = false;
     });
@@ -663,6 +672,11 @@ function playbackLoop() {
     if (!S.isPlaying) return;
     const t = video.currentTime;
     if (t >= S.trimEnd / S.fps || video.ended) {
+        if (S.loop) {
+            video.currentTime = S.trimStart / S.fps;
+            rafId = requestAnimationFrame(playbackLoop);
+            return;
+        }
         video.pause();
         S.isPlaying = false;
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
@@ -676,6 +690,16 @@ function playbackLoop() {
     updateStatus();
     updateScrubber();
     rafId = requestAnimationFrame(playbackLoop);
+}
+
+function stepBack() {
+    if (!S.videoLoaded || S.isPlaying) return;
+    seekTo(Math.max(S.trimStart, S.frameIndex - 1));
+}
+
+function toggleLoop() {
+    S.loop = !S.loop;
+    document.getElementById('btn-loop').classList.toggle('active', S.loop);
 }
 
 function togglePlayback() {
