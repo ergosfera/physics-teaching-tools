@@ -1,65 +1,128 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Video Tracker — Physics Analysis</title>
 <style>
+/* ── THEME VARIABLES ── */
+:root {
+    --bg:          #1a1a2e;
+    --bg-panel:    #16213e;
+    --bg-input:    #0a0a1a;
+    --bg-right:    #0d1117;
+    --border:      #0f3460;
+    --sep:         #1a2233;
+    --text:        #eee;
+    --text-muted:  #aaa;
+    --text-dim:    #666;
+    --btn-bg:      #0f3460;
+    --btn-hover:   #1a4a8a;
+    --btn-act-bg:  #e94560;
+    --btn-act-bdr: #c73050;
+    --btn-play:    #1a7f37;
+    --btn-play-h:  #22a347;
+    --btn-pause:   #b07a10;
+    --gx:          #e94560;
+    --gy:          #4fc3f7;
+    --gt:          #3fb950;
+    --g-bg:        #0d1117;
+    --g-grid:      #1a2233;
+    --g-zero:      #2a3a4a;
+    --g-border:    #334455;
+    --g-tick:      #667788;
+    --g-lbl:       #8899aa;
+    --g-nodata:    #2a2a3a;
+    --overlay-err: rgba(10,10,20,0.93);
+}
+html[data-theme="light"] {
+    --bg:          #f0f4f8;
+    --bg-panel:    #dde6ef;
+    --bg-input:    #ffffff;
+    --bg-right:    #f8fafc;
+    --border:      #90aac8;
+    --sep:         #c8d8e8;
+    --text:        #1a1a2e;
+    --text-muted:  #445;
+    --text-dim:    #889;
+    --btn-bg:      #2a5a90;
+    --btn-hover:   #1a4a80;
+    --btn-act-bg:  #c0392b;
+    --btn-act-bdr: #a02010;
+    --btn-play:    #1a7f37;
+    --btn-play-h:  #22a347;
+    --btn-pause:   #a06010;
+    --gx:          #c0392b;
+    --gy:          #1565c0;
+    --gt:          #2d7a3a;
+    --g-bg:        #f8fafc;
+    --g-grid:      #d0dce8;
+    --g-zero:      #a0b0c0;
+    --g-border:    #aabbc8;
+    --g-tick:      #7788aa;
+    --g-lbl:       #445566;
+    --g-nodata:    #99aabb;
+    --overlay-err: rgba(240,244,248,0.95);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #1a1a2e;
-    color: #eee;
+    background: var(--bg);
+    color: var(--text);
     height: 100vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     user-select: none;
+    -webkit-user-select: none;
 }
 
 /* ── TOOLBAR ── */
 #toolbar {
-    background: #16213e;
+    background: var(--bg-panel);
     padding: 6px 10px;
     display: flex;
     align-items: center;
     gap: 7px;
-    border-bottom: 1px solid #0f3460;
+    border-bottom: 1px solid var(--border);
     flex-wrap: wrap;
     flex-shrink: 0;
 }
-.tb-sep { width: 1px; height: 24px; background: #0f3460; margin: 0 1px; flex-shrink: 0; }
+.tb-sep { width: 1px; height: 24px; background: var(--border); margin: 0 1px; flex-shrink: 0; }
 .tb-group { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-label.tb-label { font-size: 11px; color: #aaa; white-space: nowrap; }
+label.tb-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 
 button {
     padding: 4px 9px;
-    border: 1px solid #0f3460;
+    border: 1px solid var(--border);
     border-radius: 4px;
-    background: #0f3460;
-    color: #eee;
+    background: var(--btn-bg);
+    color: var(--text);
     cursor: pointer;
     font-size: 12px;
     transition: background 0.15s;
     white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
 }
-button:hover:not(:disabled) { background: #1a4a8a; }
-button.active { background: #e94560; border-color: #c73050; }
+button:hover:not(:disabled) { background: var(--btn-hover); }
+button.active  { background: var(--btn-act-bg); border-color: var(--btn-act-bdr); }
 button:disabled { opacity: 0.35; cursor: not-allowed; }
-button.btn-play { background: #1a7f37; border-color: #156b2e; }
-button.btn-play:hover:not(:disabled) { background: #22a347; }
-button.btn-play.playing { background: #b07a10; border-color: #927010; }
+button.btn-play { background: var(--btn-play); border-color: var(--btn-play); }
+button.btn-play:hover:not(:disabled) { background: var(--btn-play-h); }
+button.btn-play.playing { background: var(--btn-pause); border-color: var(--btn-pause); }
 
 input[type=number] {
     width: 56px; padding: 3px 5px;
-    border: 1px solid #0f3460; border-radius: 4px;
-    background: #0a0a1a; color: #eee; font-size: 12px;
+    border: 1px solid var(--border); border-radius: 4px;
+    background: var(--bg-input); color: var(--text); font-size: 12px;
 }
-input[type=range] { cursor: pointer; accent-color: #e94560; }
+input[type=range] { cursor: pointer; accent-color: var(--btn-act-bg); }
 #scrubber { width: 110px; }
 select {
     padding: 3px 5px;
-    border: 1px solid #0f3460; border-radius: 4px;
-    background: #0a0a1a; color: #eee; font-size: 12px;
+    border: 1px solid var(--border); border-radius: 4px;
+    background: var(--bg-input); color: var(--text); font-size: 12px;
 }
 
 /* ── MAIN ── */
@@ -77,7 +140,7 @@ select {
 }
 #canvas-container { position: relative; flex-shrink: 0; }
 #video-canvas { display: block; }
-#overlay-canvas { position: absolute; top: 0; left: 0; }
+#overlay-canvas { position: absolute; top: 0; left: 0; touch-action: none; }
 
 #drop-hint {
     position: absolute; inset: 0;
@@ -92,15 +155,15 @@ select {
 #format-error {
     display: none;
     position: absolute; inset: 0;
-    background: rgba(10,10,20,0.93);
+    background: var(--overlay-err);
     flex-direction: column;
     align-items: center; justify-content: center;
     gap: 12px; text-align: center; padding: 30px;
     z-index: 10;
 }
 #format-error .fe-icon  { font-size: 44px; }
-#format-error .fe-title { font-size: 18px; color: #e94560; font-weight: 600; }
-#format-error .fe-msg   { font-size: 13px; color: #aaa; line-height: 1.7; max-width: 420px; }
+#format-error .fe-title { font-size: 18px; color: var(--btn-act-bg); font-weight: 600; }
+#format-error .fe-msg   { font-size: 13px; color: var(--text-muted); line-height: 1.7; max-width: 420px; }
 #format-error .fe-close { font-size: 12px; color: #4fc3f7; cursor: pointer; margin-top: 6px; }
 #format-error .fe-close:hover { text-decoration: underline; }
 
@@ -108,8 +171,8 @@ select {
 #right-panel {
     flex: 3;
     min-width: 240px;
-    background: #0d1117;
-    border-left: 1px solid #0f3460;
+    background: var(--bg-right);
+    border-left: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -117,46 +180,57 @@ select {
 .graph-section {
     flex: 1; min-height: 0;
     display: flex; flex-direction: column;
-    border-bottom: 1px solid #1a2233;
+    border-bottom: 1px solid var(--sep);
+    transition: flex 0.2s;
 }
+.graph-section.collapsed { flex: 0; }
 .graph-section:last-child { border-bottom: none; }
 .graph-section-header {
-    padding: 3px 10px; font-size: 11px; color: #aaa;
-    flex-shrink: 0; background: #16213e;
-    border-bottom: 1px solid #0f3460;
-    display: flex; align-items: center; gap: 6px;
+    padding: 3px 8px; font-size: 11px; color: var(--text-muted);
+    flex-shrink: 0; background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 5px;
 }
 .graph-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .graph-wrap { flex: 1; min-height: 0; position: relative; }
 .graph-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.graph-section.collapsed .graph-wrap { display: none; }
 
-#table-section {
-    flex: 1; min-height: 0;
-    display: flex; flex-direction: column; overflow: hidden;
+.graph-cb { cursor: pointer; accent-color: var(--btn-act-bg); flex-shrink: 0; }
+.fit-sel {
+    margin-left: auto;
+    font-size: 10px;
+    padding: 1px 3px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--bg-input);
+    color: var(--text-muted);
+    flex-shrink: 0;
 }
-#data-scroll { flex: 1; overflow-y: auto; min-height: 0; }
 
+#data-scroll { flex: 1; overflow-y: auto; min-height: 0; }
 table { width: 100%; border-collapse: collapse; font-size: 11px; }
 thead th {
-    background: #16213e; padding: 3px 7px;
-    text-align: right; color: #aaa;
+    background: var(--bg-panel); padding: 3px 7px;
+    text-align: right; color: var(--text-muted);
     position: sticky; top: 0; z-index: 1;
+    border-bottom: 1px solid var(--border);
 }
 thead th:first-child { text-align: left; }
-tbody td { padding: 2px 7px; text-align: right; border-bottom: 1px solid #1a1a2e; }
+tbody td { padding: 2px 7px; text-align: right; border-bottom: 1px solid var(--bg); color: var(--text); }
 tbody td:first-child { text-align: left; }
-tbody tr:hover { background: #131c2e; }
+tbody tr:hover { background: var(--bg-panel); }
 
 /* ── STATUS BAR ── */
 #status-bar {
-    background: #16213e;
+    background: var(--bg-panel);
     padding: 3px 12px;
-    border-top: 1px solid #0f3460;
+    border-top: 1px solid var(--border);
     display: flex; gap: 18px;
-    font-size: 11px; color: #666;
+    font-size: 11px; color: var(--text-dim);
     flex-shrink: 0; flex-wrap: wrap;
 }
-.st-item b { color: #ddd; font-weight: normal; }
+.st-item b { color: var(--text); font-weight: normal; }
 
 /* ── MODAL ── */
 #modal-overlay {
@@ -166,15 +240,15 @@ tbody tr:hover { background: #131c2e; }
 }
 #modal-overlay.open { display: flex; }
 #modal-box {
-    background: #16213e; border: 1px solid #0f3460;
+    background: var(--bg-panel); border: 1px solid var(--border);
     border-radius: 8px; padding: 24px 28px;
     min-width: 280px; display: flex; flex-direction: column; gap: 14px;
 }
-#modal-box h4 { font-size: 15px; color: #eee; }
-#modal-box p  { font-size: 13px; color: #aaa; line-height: 1.5; }
+#modal-box h4 { font-size: 15px; color: var(--text); }
+#modal-box p  { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
 #modal-input {
-    padding: 6px 10px; border: 1px solid #0f3460; border-radius: 4px;
-    background: #0a0a1a; color: #eee; font-size: 14px; width: 100%;
+    padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px;
+    background: var(--bg-input); color: var(--text); font-size: 14px; width: 100%;
 }
 .modal-buttons { display: flex; gap: 8px; justify-content: flex-end; }
 </style>
@@ -184,14 +258,12 @@ tbody tr:hover { background: #131c2e; }
 <!-- ═══ TOOLBAR ═══ -->
 <div id="toolbar">
 
-  <!-- Load -->
   <div class="tb-group">
     <button onclick="document.getElementById('file-input').click()">&#128194; Load</button>
-    <input type="file" id="file-input" accept="video/*,.avi,.mpeg,.mpg,.wmv" style="display:none">
+    <input type="file" id="file-input" accept="video/*" style="display:none">
   </div>
   <div class="tb-sep"></div>
 
-  <!-- Playback -->
   <div class="tb-group">
     <button id="btn-play-pause" class="btn-play" onclick="togglePlayback()" disabled>&#9654; Play</button>
     <button id="btn-stop" onclick="stopPlayback()" disabled>&#9646;&#9646; Stop</button>
@@ -201,7 +273,6 @@ tbody tr:hover { background: #131c2e; }
   </div>
   <div class="tb-sep"></div>
 
-  <!-- Trim -->
   <div class="tb-group">
     <label class="tb-label">Trim:</label>
     <button id="btn-trim-s" onclick="setTrimStart()" disabled title="Set start to current frame">&#9664; In</button>
@@ -211,7 +282,6 @@ tbody tr:hover { background: #131c2e; }
   </div>
   <div class="tb-sep"></div>
 
-  <!-- Frame rotation -->
   <div class="tb-group">
     <label class="tb-label">Rotate:</label>
     <button id="btn-rot-ccw" onclick="rotateVideo(-90)" disabled title="90° counter-clockwise">&#8634; 90°</button>
@@ -219,14 +289,12 @@ tbody tr:hover { background: #131c2e; }
   </div>
   <div class="tb-sep"></div>
 
-  <!-- FPS -->
   <div class="tb-group">
     <label class="tb-label">FPS:</label>
     <input type="number" id="fps-input" value="30" min="1" max="240" step="0.001">
   </div>
   <div class="tb-sep"></div>
 
-  <!-- Mode -->
   <div class="tb-group">
     <button id="btn-setup" class="active" onclick="setMode('setup')">&#9881; Setup</button>
     <button id="btn-cal"   onclick="setMode('calibration')" disabled>&#128207; Calibrate</button>
@@ -234,7 +302,6 @@ tbody tr:hover { background: #131c2e; }
   </div>
   <div class="tb-sep"></div>
 
-  <!-- Axis angle -->
   <div class="tb-group">
     <label class="tb-label">Axis:</label>
     <input type="range" id="angle-slider" min="-180" max="180" value="0" style="width:80px">
@@ -243,18 +310,21 @@ tbody tr:hover { background: #131c2e; }
   </div>
   <div class="tb-sep"></div>
 
-  <!-- Unit -->
   <div class="tb-group">
     <label class="tb-label">Unit:</label>
     <select id="unit-sel"><option value="cm">cm</option><option value="m">m</option></select>
   </div>
   <div class="tb-sep"></div>
 
-  <!-- Edit -->
   <div class="tb-group">
     <button id="btn-undo"   onclick="undoLastPoint()" disabled>&#8630; Undo</button>
     <button id="btn-clear"  onclick="clearTracking()"  disabled>&#128465; Clear</button>
     <button id="btn-export" onclick="exportCSV()"      disabled>&#11015; CSV</button>
+  </div>
+  <div class="tb-sep"></div>
+
+  <div class="tb-group">
+    <button id="btn-theme" onclick="toggleTheme()" title="Toggle light/dark mode">&#9728; Light</button>
   </div>
 
 </div>
@@ -262,7 +332,6 @@ tbody tr:hover { background: #131c2e; }
 <!-- ═══ MAIN ═══ -->
 <div id="main">
 
-  <!-- Left: video 70% -->
   <div id="video-panel"
        ondragover="event.preventDefault();this.style.outline='2px solid #e94560'"
        ondragleave="this.style.outline=''"
@@ -277,20 +346,29 @@ tbody tr:hover { background: #131c2e; }
       <div class="sub">MP4, MOV, WebM work best &nbsp;·&nbsp; AVI/MPEG need conversion</div>
     </div>
     <div id="format-error">
-      <div class="fe-icon">⚠️</div>
+      <div class="fe-icon">&#9888;&#65039;</div>
       <div class="fe-title">Format Not Supported</div>
-      <div class="fe-msg" id="fe-msg">This video format cannot be played by your browser.<br>Please convert it to <strong>MP4 (H.264)</strong> or <strong>WebM</strong>.<br><br>Free tools: <strong>HandBrake</strong> (desktop app) &nbsp;·&nbsp; <strong>CloudConvert.com</strong> (browser)</div>
-      <div class="fe-close" onclick="dismissFormatError()">✕ Dismiss and try another file</div>
+      <div class="fe-msg" id="fe-msg">This video format cannot be played by your browser.<br>
+        Please convert it to <strong>MP4 (H.264)</strong> or <strong>WebM</strong>.<br><br>
+        Free tools: <strong>HandBrake</strong> (desktop app) &nbsp;·&nbsp; <strong>CloudConvert.com</strong> (browser)</div>
+      <div class="fe-close" onclick="dismissFormatError()">&#10005; Dismiss and try another file</div>
     </div>
   </div>
 
-  <!-- Right: graphs + table 30% -->
   <div id="right-panel">
 
     <!-- X vs t -->
-    <div class="graph-section">
+    <div class="graph-section" id="section-x">
       <div class="graph-section-header">
-        <div class="graph-dot" style="background:#e94560"></div>X position vs. Time
+        <input type="checkbox" class="graph-cb" id="cb-x" checked onchange="toggleGraph('x')">
+        <div class="graph-dot" style="background:var(--gx)"></div>
+        X position vs. Time
+        <select class="fit-sel" id="fit-x" onchange="S.fitX=this.value;drawGraphX()">
+          <option value="none">No fit</option>
+          <option value="linear">Linear</option>
+          <option value="quad">Quadratic</option>
+          <option value="exp">Exponential</option>
+        </select>
       </div>
       <div class="graph-wrap" id="graph-x-wrap">
         <canvas id="graph-x-canvas"></canvas>
@@ -298,9 +376,17 @@ tbody tr:hover { background: #131c2e; }
     </div>
 
     <!-- Y vs t -->
-    <div class="graph-section">
+    <div class="graph-section" id="section-y">
       <div class="graph-section-header">
-        <div class="graph-dot" style="background:#4fc3f7"></div>Y position vs. Time
+        <input type="checkbox" class="graph-cb" id="cb-y" checked onchange="toggleGraph('y')">
+        <div class="graph-dot" style="background:var(--gy)"></div>
+        Y position vs. Time
+        <select class="fit-sel" id="fit-y" onchange="S.fitY=this.value;drawGraphY()">
+          <option value="none">No fit</option>
+          <option value="linear">Linear</option>
+          <option value="quad">Quadratic</option>
+          <option value="exp">Exponential</option>
+        </select>
       </div>
       <div class="graph-wrap" id="graph-y-wrap">
         <canvas id="graph-y-canvas"></canvas>
@@ -310,7 +396,7 @@ tbody tr:hover { background: #131c2e; }
     <!-- Data table -->
     <div class="graph-section" id="table-section">
       <div class="graph-section-header">
-        <div class="graph-dot" style="background:#3fb950"></div>Data Table
+        <div class="graph-dot" style="background:var(--gt)"></div>Data Table
       </div>
       <div id="data-scroll">
         <table>
@@ -340,14 +426,24 @@ tbody tr:hover { background: #131c2e; }
     <p id="modal-info">Enter the real-world distance between the two points you placed:</p>
     <input type="number" id="modal-input" placeholder="e.g. 100" min="0.0001" step="any">
     <div class="modal-buttons">
-      <button onclick="cancelCalibration()" style="background:#222">Cancel</button>
-      <button onclick="confirmCalibration()" style="background:#0f3460">Confirm</button>
+      <button onclick="cancelCalibration()" style="background:var(--bg)">Cancel</button>
+      <button onclick="confirmCalibration()" style="background:var(--btn-bg)">Confirm</button>
     </div>
   </div>
 </div>
 
-<!-- Hidden video element -->
-<video id="hv" style="display:none" preload="auto"></video>
+<!--
+  Video element: NOT display:none — iOS Safari refuses to seek/draw hidden elements.
+  Positioned off-screen at 1×1 with near-zero opacity so it is technically "rendered".
+  playsinline + muted allow autoplay and frame capture without user gesture on iOS.
+-->
+<video id="hv"
+       style="position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0.01;pointer-events:none;"
+       preload="auto"
+       playsinline
+       webkit-playsinline
+       muted>
+</video>
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -359,29 +455,25 @@ const S = {
     frameIndex: 0,
     videoLoaded: false,
     videoDuration: 0,
-
-    videoRotation: 0,   // 0 | 90 | 180 | 270
-
+    videoRotation: 0,
     trimStart: 0,
     trimEnd: 0,
-
     isPlaying: false,
-
     origin: { x: 200, y: 200 },
     angle: 0,
     scale: 1,
     unit: 'cm',
     calibrated: false,
-
     calPts: [],
     calDist: 0,
-
     points: [],
-
     dragging: false,
     lastCursorPos: null,
-
     CW: 640, CH: 480,
+    showX: true,
+    showY: true,
+    fitX: 'none',
+    fitY: 'none',
 };
 
 // ═══════════════════════════════════════════════════════
@@ -403,6 +495,17 @@ const videoPanel = document.getElementById('video-panel');
 const scrubber   = document.getElementById('scrubber');
 
 // ═══════════════════════════════════════════════════════
+//  THEME
+// ═══════════════════════════════════════════════════════
+function toggleTheme() {
+    const html = document.documentElement;
+    const toLight = html.dataset.theme !== 'light';
+    html.dataset.theme = toLight ? 'light' : 'dark';
+    document.getElementById('btn-theme').innerHTML = toLight ? '&#9790; Dark' : '&#9728; Light';
+    drawOverlay(); drawGraphX(); drawGraphY();
+}
+
+// ═══════════════════════════════════════════════════════
 //  VIDEO LOADING
 // ═══════════════════════════════════════════════════════
 document.getElementById('file-input').addEventListener('change', e => {
@@ -418,14 +521,12 @@ function handleDrop(e) {
 function loadFile(file) {
     formatErr.style.display = 'none';
     video._fileExt = file.name.split('.').pop().toLowerCase();
-
-    // Clean up old listeners
     video.removeEventListener('error', onVideoError);
     video.removeEventListener('loadedmetadata', initVideo);
-
-    video.src = URL.createObjectURL(file);
+    if (video._objectUrl) URL.revokeObjectURL(video._objectUrl);
+    video._objectUrl = URL.createObjectURL(file);
+    video.src = video._objectUrl;
     video.load();
-
     video.addEventListener('error', onVideoError, { once: true });
     video.addEventListener('loadedmetadata', initVideo, { once: true });
 }
@@ -446,11 +547,11 @@ function dismissFormatError() {
 }
 
 function initVideo() {
-    S.videoLoaded    = true;
-    S.videoDuration  = video.duration;
-    S.fps            = parseFloat(document.getElementById('fps-input').value) || 30;
-    S.frameIndex     = 0;
-    S.videoRotation  = 0;
+    S.videoLoaded   = true;
+    S.videoDuration = video.duration;
+    S.fps           = parseFloat(document.getElementById('fps-input').value) || 30;
+    S.frameIndex    = 0;
+    S.videoRotation = 0;
 
     const total = Math.round(S.videoDuration * S.fps);
     S.trimStart = 0;
@@ -473,18 +574,16 @@ function initVideo() {
      'btn-rot-ccw','btn-rot-cw','btn-cal','btn-track'].forEach(id => {
         document.getElementById(id).disabled = false;
     });
-
     seekTo(0);
 }
 
 // ═══════════════════════════════════════════════════════
-//  CANVAS SIZING (respects rotation)
+//  CANVAS SIZING
 // ═══════════════════════════════════════════════════════
 function resizeVideoCanvas() {
     const rot  = S.videoRotation;
     const natW = (rot === 90 || rot === 270) ? video.videoHeight : video.videoWidth;
     const natH = (rot === 90 || rot === 270) ? video.videoWidth  : video.videoHeight;
-
     const maxW = videoPanel.clientWidth  - 4;
     const maxH = videoPanel.clientHeight - 4;
     const ratio = natW / natH;
@@ -493,25 +592,37 @@ function resizeVideoCanvas() {
     if (h > maxH) { h = maxH; w = h * ratio; }
     S.CW = Math.round(w);
     S.CH = Math.round(h);
-
     vcan.width  = ocan.width  = S.CW;
     vcan.height = ocan.height = S.CH;
     container.style.width  = S.CW + 'px';
     container.style.height = S.CH + 'px';
-
     S.origin = { x: S.CW / 2, y: S.CH / 2 };
 }
 
 // ═══════════════════════════════════════════════════════
-//  FRAME SEEKING
+//  FRAME SEEKING — Safari-safe with timeout fallback
 // ═══════════════════════════════════════════════════════
+let _seekTimer = null;
+
 function seekTo(frameIdx) {
     frameIdx = Math.max(S.trimStart, Math.min(S.trimEnd, frameIdx));
     S.frameIndex = frameIdx;
     const t = frameIdx / S.fps;
     if (t > S.videoDuration) return;
+
+    if (_seekTimer) clearTimeout(_seekTimer);
+    let done = false;
+
+    const finish = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(_seekTimer);
+        onSeeked();
+    };
+
+    video.addEventListener('seeked', finish, { once: true });
+    _seekTimer = setTimeout(finish, 500);
     video.currentTime = t;
-    video.addEventListener('seeked', onSeeked, { once: true });
 }
 
 function onSeeked() {
@@ -612,6 +723,7 @@ function updatePlayBtn() {
 //  SCRUBBER
 // ═══════════════════════════════════════════════════════
 scrubber.addEventListener('mousedown', () => { if (S.isPlaying) pausePlayback(); });
+scrubber.addEventListener('touchstart', () => { if (S.isPlaying) pausePlayback(); }, { passive: true });
 scrubber.addEventListener('input', () => { if (S.videoLoaded) seekTo(parseInt(scrubber.value)); });
 function updateScrubber() { scrubber.value = S.frameIndex; }
 
@@ -653,6 +765,15 @@ function rotateVideo(delta) {
 // ═══════════════════════════════════════════════════════
 document.getElementById('fps-input').addEventListener('change', e => {
     S.fps = parseFloat(e.target.value) || 30;
+    if (!S.videoLoaded) return;
+    const total = Math.round(S.videoDuration * S.fps);
+    S.trimEnd    = total;
+    document.getElementById('trim-e-in').value = total;
+    document.getElementById('trim-e-in').max   = total;
+    document.getElementById('trim-s-in').max   = total;
+    scrubber.max = total;
+    S.frameIndex = Math.round(video.currentTime * S.fps);
+    updateStatus();
 });
 document.getElementById('angle-slider').addEventListener('input', e => {
     const deg = parseFloat(e.target.value);
@@ -661,10 +782,9 @@ document.getElementById('angle-slider').addEventListener('input', e => {
     drawOverlay();
 });
 document.getElementById('angle-num').addEventListener('change', e => {
-    let deg = parseFloat(e.target.value) || 0;
-    deg = Math.max(-180, Math.min(180, deg));
+    let deg = Math.max(-180, Math.min(180, parseFloat(e.target.value) || 0));
     document.getElementById('angle-slider').value = deg;
-    document.getElementById('angle-num').value = deg;
+    document.getElementById('angle-num').value    = deg;
     S.angle = deg * Math.PI / 180;
     drawOverlay();
 });
@@ -676,19 +796,31 @@ document.getElementById('unit-sel').addEventListener('change', e => {
 });
 
 // ═══════════════════════════════════════════════════════
+//  GRAPH VISIBILITY TOGGLE
+// ═══════════════════════════════════════════════════════
+function toggleGraph(axis) {
+    const show = document.getElementById('cb-' + axis).checked;
+    S['show' + axis.toUpperCase()] = show;
+    document.getElementById('section-' + axis).classList.toggle('collapsed', !show);
+}
+
+// ═══════════════════════════════════════════════════════
 //  MODE SWITCHING
 // ═══════════════════════════════════════════════════════
 function setMode(mode) {
     S.mode = mode;
     ['setup','cal','track'].forEach(m =>
         document.getElementById('btn-' + m).classList.remove('active'));
-    const btnId = mode === 'calibration' ? 'btn-cal' : mode === 'tracking' ? 'btn-track' : 'btn-setup';
+    const btnId = mode === 'calibration' ? 'btn-cal'
+                : mode === 'tracking'    ? 'btn-track'
+                :                          'btn-setup';
     document.getElementById(btnId).classList.add('active');
     if (mode === 'calibration') S.calPts = [];
     document.getElementById('st-mode').textContent =
         mode === 'setup'       ? 'Setup Axis' :
         mode === 'calibration' ? 'Calibration — click 2 points' :
-                                 'Tracking — click on object';
+        S.calibrated           ? 'Tracking — click on object' :
+                                 'Tracking — calibrate first!';
     drawOverlay();
 }
 
@@ -696,8 +828,7 @@ function setMode(mode) {
 //  COORDINATE TRANSFORMS
 // ═══════════════════════════════════════════════════════
 function canvasToWorld(px, py) {
-    const dx = (px - S.origin.x);
-    const dy = -(py - S.origin.y);
+    const dx = px - S.origin.x, dy = -(py - S.origin.y);
     const c = Math.cos(S.angle), s = Math.sin(S.angle);
     return { x: (dx*c + dy*s) / S.scale, y: (-dx*s + dy*c) / S.scale };
 }
@@ -710,19 +841,23 @@ function worldToCanvas(wx, wy) {
 }
 
 // ═══════════════════════════════════════════════════════
-//  MOUSE EVENTS
+//  POINTER HELPERS — unified mouse + touch
 // ═══════════════════════════════════════════════════════
-function canvasPos(e) {
+function canvasPos(clientX, clientY) {
     const r = ocan.getBoundingClientRect();
     return {
-        x: (e.clientX - r.left) * (ocan.width  / r.width),
-        y: (e.clientY - r.top)  * (ocan.height / r.height),
+        x: (clientX - r.left) * (ocan.width  / r.width),
+        y: (clientY - r.top)  * (ocan.height / r.height),
     };
 }
 function dist2(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
-ocan.addEventListener('mousemove', e => {
-    const p = canvasPos(e);
+function onPtrDown(cx, cy) {
+    const p = canvasPos(cx, cy);
+    if (S.mode === 'setup' && dist2(p, S.origin) < 18) S.dragging = true;
+}
+function onPtrMove(cx, cy) {
+    const p = canvasPos(cx, cy);
     S.lastCursorPos = p;
     const w = canvasToWorld(p.x, p.y);
     document.getElementById('st-cursor').textContent =
@@ -731,30 +866,53 @@ ocan.addEventListener('mousemove', e => {
         S.origin = { x: p.x, y: p.y };
         drawOverlay();
     }
-});
-
-ocan.addEventListener('mousedown', e => {
-    const p = canvasPos(e);
-    if (S.mode === 'setup' && dist2(p, S.origin) < 14) S.dragging = true;
-});
-
-ocan.addEventListener('mouseup', e => {
+}
+function onPtrUp(cx, cy) {
     if (S.dragging) { S.dragging = false; return; }
-    const p = canvasPos(e);
+    const p = canvasPos(cx, cy);
     if (S.mode === 'calibration') {
         if (S.calPts.length < 2) { S.calPts.push(p); drawOverlay(); }
         if (S.calPts.length === 2) openCalibrationModal();
         return;
     }
-    if (S.mode === 'tracking' && S.calibrated) addTrackPoint(p);
-});
-
-ocan.addEventListener('mouseleave', () => {
+    if (S.mode === 'tracking') {
+        if (!S.calibrated) {
+            document.getElementById('st-mode').textContent = 'Tracking — calibrate first!';
+            return;
+        }
+        addTrackPoint(p);
+    }
+}
+function onPtrLeave() {
     S.dragging = false;
     document.getElementById('st-cursor').textContent = '—';
-});
+}
 
-// Keyboard shortcuts
+// Mouse
+ocan.addEventListener('mousemove',  e => onPtrMove(e.clientX, e.clientY));
+ocan.addEventListener('mousedown',  e => onPtrDown(e.clientX, e.clientY));
+ocan.addEventListener('mouseup',    e => onPtrUp(e.clientX, e.clientY));
+ocan.addEventListener('mouseleave', onPtrLeave);
+
+// Touch (tablet / mobile)
+ocan.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    onPtrDown(t.clientX, t.clientY);
+}, { passive: false });
+ocan.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    onPtrMove(t.clientX, t.clientY);
+}, { passive: false });
+ocan.addEventListener('touchend', e => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    onPtrUp(t.clientX, t.clientY);
+}, { passive: false });
+ocan.addEventListener('touchcancel', onPtrLeave);
+
+// Keyboard
 window.addEventListener('keydown', e => {
     if (!S.videoLoaded) return;
     if (document.activeElement.tagName === 'INPUT') return;
@@ -778,15 +936,14 @@ function addTrackPoint(cp) {
 
 function undoLastPoint() {
     S.points.pop();
-    if (!S.points.length) {
+    if (!S.points.length)
         ['btn-undo','btn-clear','btn-export'].forEach(id =>
             document.getElementById(id).disabled = true);
-    }
     drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
 }
 
 function clearTracking() {
-    if (!confirm('Clear all tracked points?')) return;
+    if (!confirm('Clear all tracked points and calibration?')) return;
     S.points = []; S.calPts = []; S.calibrated = false; S.scale = 1;
     ['btn-undo','btn-clear','btn-export'].forEach(id =>
         document.getElementById(id).disabled = true);
@@ -808,9 +965,10 @@ function exportCSV() {
 //  CALIBRATION
 // ═══════════════════════════════════════════════════════
 function openCalibrationModal() {
-    const d = dist2(S.calPts[0], S.calPts[1]).toFixed(1);
+    const d    = dist2(S.calPts[0], S.calPts[1]).toFixed(1);
+    const unit = document.getElementById('unit-sel').value;
     document.getElementById('modal-info').textContent =
-        `You marked ${d} px. Enter the real-world distance:`;
+        `You marked ${d} px. Enter the real-world distance in ${unit}:`;
     document.getElementById('modal-input').value = '';
     document.getElementById('modal-overlay').classList.add('open');
     document.getElementById('modal-input').focus();
@@ -830,13 +988,15 @@ function confirmCalibration() {
     updateTableHeader(); drawOverlay(); drawGraphX(); drawGraphY(); updateStatus();
 }
 document.getElementById('modal-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') confirmCalibration();
+    if (e.key === 'Enter')  confirmCalibration();
     if (e.key === 'Escape') cancelCalibration();
 });
 
 // ═══════════════════════════════════════════════════════
 //  OVERLAY DRAWING
 // ═══════════════════════════════════════════════════════
+function isLightTheme() { return document.documentElement.dataset.theme === 'light'; }
+
 function drawOverlay() {
     octx.clearRect(0, 0, S.CW, S.CH);
     drawAxes();
@@ -845,33 +1005,37 @@ function drawOverlay() {
 }
 
 function drawAxes() {
+    const light = isLightTheme();
+    const xCol  = light ? 'rgba(192,57,43,'   : 'rgba(233,69,96,';
+    const yCol  = light ? 'rgba(21,101,192,'  : 'rgba(79,195,247,';
     const u = Math.max(S.CW, S.CH) * 1.5 / S.scale;
-    const axisLine = (wx1, wy1, wx2, wy2, color) => {
+
+    const axisLine = (wx1, wy1, wx2, wy2, col) => {
         const p1 = worldToCanvas(wx1, wy1), p2 = worldToCanvas(wx2, wy2);
-        octx.strokeStyle = color; octx.lineWidth = 1.5;
+        octx.strokeStyle = col + '0.55)';
+        octx.lineWidth = 1.5;
         octx.setLineDash([6,4]);
         octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
         octx.setLineDash([]);
     };
-    axisLine(-u, 0, u, 0, 'rgba(233,69,96,0.55)');
-    axisLine(0, -u, 0, u, 'rgba(79,195,247,0.55)');
+    axisLine(-u, 0, u, 0, xCol);
+    axisLine(0, -u, 0, u, yCol);
 
-    // Origin handle
     octx.fillStyle = '#fff';
     octx.beginPath(); octx.arc(S.origin.x, S.origin.y, 5, 0, Math.PI*2); octx.fill();
-    octx.strokeStyle = '#e94560'; octx.lineWidth = 1.5; octx.stroke();
+    octx.strokeStyle = light ? '#c0392b' : '#e94560';
+    octx.lineWidth = 1.5; octx.stroke();
 
-    // Axis labels
     const lx = worldToCanvas(75 / S.scale, 0);
     const ly = worldToCanvas(0, 75 / S.scale);
     octx.font = 'bold 14px sans-serif'; octx.textAlign = 'center'; octx.textBaseline = 'middle';
-    octx.fillStyle = 'rgba(233,69,96,0.85)'; octx.fillText('X', lx.x, lx.y);
-    octx.fillStyle = 'rgba(79,195,247,0.85)'; octx.fillText('Y', ly.x, ly.y);
+    octx.fillStyle = xCol + '0.85)'; octx.fillText('X', lx.x, lx.y);
+    octx.fillStyle = yCol + '0.85)'; octx.fillText('Y', ly.x, ly.y);
 
-    drawTicks();
+    drawTicks(xCol, yCol);
 }
 
-function drawTicks() {
+function drawTicks(xCol, yCol) {
     const sc = S.scale;
     const visU = Math.max(S.CW, S.CH) / sc;
     const rough = visU / 8;
@@ -889,25 +1053,23 @@ function drawTicks() {
         const lbl = (Math.abs(v) >= 1000 || (Math.abs(v) < 0.01 && v !== 0))
                     ? v.toExponential(1) : +v.toPrecision(4) + '';
 
-        // X tick
         const px = worldToCanvas(v, 0), perpX = worldToCanvas(v, TICK/sc);
-        octx.strokeStyle = 'rgba(233,69,96,0.6)';
+        octx.strokeStyle = xCol + '0.6)';
         octx.beginPath();
         octx.moveTo(px.x-(perpX.x-px.x), px.y-(perpX.y-px.y));
         octx.lineTo(perpX.x, perpX.y); octx.stroke();
-        octx.fillStyle = 'rgba(233,69,96,0.8)'; octx.font = '10px sans-serif';
-        octx.textAlign = 'center'; octx.textBaseline = 'middle';
+        octx.fillStyle = xCol + '0.8)';
+        octx.font = '10px sans-serif'; octx.textAlign = 'center'; octx.textBaseline = 'middle';
         const lbX = worldToCanvas(v, -TICK*1.8/sc);
         octx.fillText(lbl, lbX.x, lbX.y);
 
-        // Y tick
         const py = worldToCanvas(0, v), perpY = worldToCanvas(TICK/sc, v);
-        octx.strokeStyle = 'rgba(79,195,247,0.6)';
+        octx.strokeStyle = yCol + '0.6)';
         octx.beginPath();
         octx.moveTo(py.x-(perpY.x-py.x), py.y-(perpY.y-py.y));
         octx.lineTo(perpY.x, perpY.y); octx.stroke();
+        octx.fillStyle = yCol + '0.8)';
         const lbY = worldToCanvas(-TICK*1.8/sc, v);
-        octx.fillStyle = 'rgba(79,195,247,0.8)';
         octx.fillText(lbl, lbY.x, lbY.y);
     }
 }
@@ -929,16 +1091,19 @@ function drawCalibration() {
         octx.setLineDash([]);
         [[pts[0],pts[1]],[pts[1],pts[0]]].forEach(([a,b]) => {
             const ang = Math.atan2(b.y-a.y, b.x-a.x) + Math.PI/2;
-            octx.strokeStyle='#ffd700'; octx.lineWidth=2;
+            octx.strokeStyle = '#ffd700'; octx.lineWidth = 2;
             octx.beginPath();
-            octx.moveTo(a.x+6*Math.cos(ang), a.y+6*Math.sin(ang));
-            octx.lineTo(a.x-6*Math.cos(ang), a.y-6*Math.sin(ang)); octx.stroke();
+            octx.moveTo(a.x + 6*Math.cos(ang), a.y + 6*Math.sin(ang));
+            octx.lineTo(a.x - 6*Math.cos(ang), a.y - 6*Math.sin(ang)); octx.stroke();
         });
-        const mx=(pts[0].x+pts[1].x)/2, my=(pts[0].y+pts[1].y)/2;
-        octx.fillStyle='#ffd700'; octx.font='12px sans-serif';
-        octx.textAlign='center'; octx.textBaseline='bottom';
+        const mx = (pts[0].x+pts[1].x)/2, my = (pts[0].y+pts[1].y)/2;
+        octx.fillStyle = '#ffd700'; octx.font = '12px sans-serif';
+        octx.textAlign = 'center'; octx.textBaseline = 'bottom';
         octx.fillText(`${dist2(pts[0],pts[1]).toFixed(1)} px`, mx, my-8);
-        if (S.calibrated) { octx.textBaseline='top'; octx.fillText(`${S.calDist} ${S.unit}`, mx, my+10); }
+        if (S.calibrated) {
+            octx.textBaseline = 'top';
+            octx.fillText(`${S.calDist} ${S.unit}`, mx, my+10);
+        }
     }
 }
 
@@ -953,30 +1118,132 @@ function drawTrackPoints() {
         octx.beginPath(); octx.arc(p.cx, p.cy, 4, 0, Math.PI*2); octx.fill();
         octx.strokeStyle = '#fff'; octx.lineWidth = 1; octx.stroke();
         if (i === 0 || i === S.points.length-1) {
-            octx.fillStyle='#fff'; octx.font='10px sans-serif';
-            octx.textAlign='left'; octx.textBaseline='bottom';
+            octx.fillStyle = '#fff'; octx.font = '10px sans-serif';
+            octx.textAlign = 'left'; octx.textBaseline = 'bottom';
             octx.fillText(i+1, p.cx+5, p.cy-3);
         }
     });
 }
 
 // ═══════════════════════════════════════════════════════
-//  GRAPHS (separate X and Y)
+//  CURVE FITTING
 // ═══════════════════════════════════════════════════════
-function drawGraphSingle(ctx, can, axis) {
+function gaussSolve(A, b) {
+    const n = b.length;
+    const M = A.map((row, i) => [...row, b[i]]);
+    for (let col = 0; col < n; col++) {
+        let maxRow = col;
+        for (let r = col+1; r < n; r++)
+            if (Math.abs(M[r][col]) > Math.abs(M[maxRow][col])) maxRow = r;
+        [M[col], M[maxRow]] = [M[maxRow], M[col]];
+        if (Math.abs(M[col][col]) < 1e-14) return null;
+        for (let r = 0; r < n; r++) {
+            if (r === col) continue;
+            const f = M[r][col] / M[col][col];
+            for (let c = col; c <= n; c++) M[r][c] -= f * M[col][c];
+        }
+    }
+    return M.map((row, i) => row[n] / row[i]);
+}
+
+function fitLinear(ts, ys) {
+    const n = ts.length;
+    if (n < 2) return null;
+    const st  = ts.reduce((a,v)=>a+v,0),   sy  = ys.reduce((a,v)=>a+v,0);
+    const st2 = ts.reduce((a,t)=>a+t*t,0), sty = ts.reduce((a,t,i)=>a+t*ys[i],0);
+    const det = n*st2 - st*st;
+    if (Math.abs(det) < 1e-14) return null;
+    const a = (n*sty - st*sy) / det;
+    const b = (sy - a*st) / n;
+    return { fn: t => a*t + b,
+             label: `y = ${fmtC(a)}·t ${b>=0?'+':'−'} ${fmtC(Math.abs(b))}` };
+}
+
+function fitQuadratic(ts, ys) {
+    const n = ts.length;
+    if (n < 3) return null;
+    const s = k => ts.reduce((a,t) => a + Math.pow(t,k), 0);
+    const r = k => ts.reduce((a,t,i) => a + Math.pow(t,k)*ys[i], 0);
+    const A = [[s(4),s(3),s(2)],[s(3),s(2),s(1)],[s(2),s(1),n]];
+    const c = gaussSolve(A, [r(2),r(1),r(0)]);
+    if (!c) return null;
+    const [a, b, d] = c;
+    const pm = v => v >= 0 ? ' + ' : ' − ';
+    return { fn: t => a*t*t + b*t + d,
+             label: `y = ${fmtC(a)}·t²${pm(b)}${fmtC(Math.abs(b))}·t${pm(d)}${fmtC(Math.abs(d))}` };
+}
+
+function fitExponential(ts, ys) {
+    if (ys.some(y => y <= 0)) return null;
+    const lys = ys.map(Math.log);
+    const n   = ts.length;
+    if (n < 2) return null;
+    const st  = ts.reduce((a,v)=>a+v,0),   sy  = lys.reduce((a,v)=>a+v,0);
+    const st2 = ts.reduce((a,t)=>a+t*t,0), sty = ts.reduce((a,t,i)=>a+t*lys[i],0);
+    const det = n*st2 - st*st;
+    if (Math.abs(det) < 1e-14) return null;
+    const B = (n*sty - st*sy) / det;
+    const A = Math.exp((sy - B*st) / n);
+    return { fn: t => A * Math.exp(B*t),
+             label: `y = ${fmtC(A)}·e^(${fmtC(B)}·t)` };
+}
+
+function computeFit(type, ts, ys) {
+    if (type === 'linear') return fitLinear(ts, ys);
+    if (type === 'quad')   return fitQuadratic(ts, ys);
+    if (type === 'exp')    return fitExponential(ts, ys);
+    return null;
+}
+
+function rSquared(ts, ys, fn) {
+    const mean   = ys.reduce((a,b)=>a+b,0) / ys.length;
+    const ssTot  = ys.reduce((a,y)=>a+(y-mean)**2, 0);
+    if (ssTot < 1e-14) return 1;
+    const ssRes  = ts.reduce((a,t,i)=>a+(ys[i]-fn(t))**2, 0);
+    return Math.max(0, 1 - ssRes/ssTot);
+}
+
+function fmtC(v) {
+    if (v === 0) return '0';
+    if (Math.abs(v) >= 1000 || (Math.abs(v) < 0.001)) return v.toExponential(3);
+    return parseFloat(v.toPrecision(4)) + '';
+}
+
+// ═══════════════════════════════════════════════════════
+//  GRAPHS
+// ═══════════════════════════════════════════════════════
+function graphColors(axis) {
+    const light = isLightTheme();
+    return {
+        bg:     light ? '#f8fafc' : '#0d1117',
+        grid:   light ? '#d0dce8' : '#1a2233',
+        zero:   light ? '#a0b0c0' : '#2a3a4a',
+        border: light ? '#aabbc8' : '#334455',
+        tick:   light ? '#7788aa' : '#667788',
+        lbl:    light ? '#445566' : '#8899aa',
+        nodata: light ? '#99aabb' : '#2a2a3a',
+        data:   axis === 'x'
+                ? (light ? '#c0392b' : '#e94560')
+                : (light ? '#1565c0' : '#4fc3f7'),
+        fit_bg: light ? 'rgba(248,250,252,0.88)' : 'rgba(13,17,23,0.82)',
+    };
+}
+
+function drawGraphSingle(ctx, can, axis, fitType) {
     const W = can.width, H = can.height;
     if (!W || !H) return;
-    const pad = { t:14, r:10, b:28, l:44 };
-    const pw = W - pad.l - pad.r;
-    const ph = H - pad.t - pad.b;
+    const pad = { t:14, r:10, b:28, l:46 };
+    const pw  = W - pad.l - pad.r;
+    const ph  = H - pad.t - pad.b;
+    const C   = graphColors(axis);
 
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#0d1117';
+    ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
 
     const pts = S.points;
     if (!pts.length) {
-        ctx.fillStyle = '#2a2a3a'; ctx.font = '11px sans-serif';
+        ctx.fillStyle = C.nodata; ctx.font = '11px sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText('No data yet — start tracking', W/2, H/2);
         return;
@@ -984,11 +1251,10 @@ function drawGraphSingle(ctx, can, axis) {
 
     const times = pts.map(p => p.time);
     const vals  = pts.map(p => axis === 'x' ? p.wx : p.wy);
-    const color = axis === 'x' ? '#e94560' : '#4fc3f7';
 
     const tMin = Math.min(...times), tMax = Math.max(...times);
     const vMin = Math.min(...vals),  vMax = Math.max(...vals);
-    const tSpan = tMax - tMin || 1, vSpan = vMax - vMin || 1;
+    const tSpan = tMax - tMin || 1,  vSpan = vMax - vMin || 1;
     const t0 = tMin - tSpan*.04, t1 = tMax + tSpan*.12;
     const v0 = vMin - vSpan*.12, v1 = vMax + vSpan*.18;
 
@@ -996,7 +1262,7 @@ function drawGraphSingle(ctx, can, axis) {
     const ty = v => pad.t + (1-(v-v0)/(v1-v0))*ph;
 
     // Grid
-    ctx.strokeStyle = '#1a2233'; ctx.lineWidth = 1;
+    ctx.strokeStyle = C.grid; ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
         ctx.beginPath(); ctx.moveTo(pad.l+i*pw/4, pad.t); ctx.lineTo(pad.l+i*pw/4, pad.t+ph); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(pad.l, pad.t+i*ph/4); ctx.lineTo(pad.l+pw, pad.t+i*ph/4); ctx.stroke();
@@ -1005,17 +1271,17 @@ function drawGraphSingle(ctx, can, axis) {
     // Zero line
     if (v0 < 0 && v1 > 0) {
         const zy = ty(0);
-        ctx.strokeStyle = '#2a3a4a'; ctx.setLineDash([3,3]);
+        ctx.strokeStyle = C.zero; ctx.setLineDash([3,3]);
         ctx.beginPath(); ctx.moveTo(pad.l, zy); ctx.lineTo(pad.l+pw, zy); ctx.stroke();
         ctx.setLineDash([]);
     }
 
     // Border
-    ctx.strokeStyle = '#334'; ctx.lineWidth = 1;
+    ctx.strokeStyle = C.border; ctx.lineWidth = 1;
     ctx.strokeRect(pad.l, pad.t, pw, ph);
 
     // Tick labels
-    ctx.fillStyle = '#667'; ctx.font = '9px sans-serif';
+    ctx.fillStyle = C.tick; ctx.font = '9px sans-serif';
     ctx.textBaseline = 'middle'; ctx.textAlign = 'right';
     for (let i = 0; i <= 3; i++)
         ctx.fillText(fmtNum(v1-(v1-v0)*i/3), pad.l-3, pad.t+i*ph/3);
@@ -1024,7 +1290,7 @@ function drawGraphSingle(ctx, can, axis) {
         ctx.fillText((t0+(t1-t0)*i/3).toFixed(2), pad.l+i*pw/3, pad.t+ph+2);
 
     // Axis labels
-    ctx.fillStyle = '#889'; ctx.font = '9px sans-serif';
+    ctx.fillStyle = C.lbl; ctx.font = '9px sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     ctx.fillText('t (s)', pad.l+pw/2, H-1);
     ctx.save();
@@ -1032,9 +1298,38 @@ function drawGraphSingle(ctx, can, axis) {
     ctx.fillText(axis === 'x' ? `X (${S.unit})` : `Y (${S.unit})`, 0, 0);
     ctx.restore();
 
-    // Line
+    // Fit curve
+    let fitResult = null;
+    if (fitType && fitType !== 'none' && pts.length >= 2) {
+        fitResult = computeFit(fitType, times, vals);
+        if (fitResult) {
+            ctx.save();
+            ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
+            ctx.strokeStyle = C.data;
+            ctx.globalAlpha = 0.65;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5,3]);
+            ctx.beginPath();
+            let started = false;
+            const N = Math.max(80, Math.floor(pw));
+            for (let i = 0; i <= N; i++) {
+                const tVal = t0 + (t1-t0)*i/N;
+                const yVal = fitResult.fn(tVal);
+                if (!isFinite(yVal)) { started = false; continue; }
+                const sx = pad.l + i*(pw/N);
+                const sy = ty(yVal);
+                if (!started) { ctx.moveTo(sx, sy); started = true; }
+                else ctx.lineTo(sx, sy);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+    }
+
+    // Data line
     if (pts.length > 1) {
-        ctx.strokeStyle = color; ctx.lineWidth = 2;
+        ctx.strokeStyle = C.data; ctx.lineWidth = 2;
         ctx.beginPath();
         pts.forEach((p, i) => {
             const x = tx(p.time), y = ty(vals[i]);
@@ -1044,14 +1339,27 @@ function drawGraphSingle(ctx, can, axis) {
     }
 
     // Dots
-    ctx.fillStyle = color;
+    ctx.fillStyle = C.data;
     pts.forEach((p, i) => {
         ctx.beginPath(); ctx.arc(tx(p.time), ty(vals[i]), 3, 0, Math.PI*2); ctx.fill();
     });
+
+    // Fit equation + R²
+    if (fitResult) {
+        const r2  = rSquared(times, vals, fitResult.fn);
+        const lbl = `${fitResult.label}   R² = ${r2.toFixed(4)}`;
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+        const tw = ctx.measureText(lbl).width + 8;
+        ctx.fillStyle = C.fit_bg;
+        ctx.fillRect(pad.l + pw - tw, pad.t + 2, tw, 14);
+        ctx.fillStyle = C.data;
+        ctx.fillText(lbl, pad.l + pw - 3, pad.t + 4);
+    }
 }
 
-function drawGraphX() { drawGraphSingle(gxctx, gxcan, 'x'); }
-function drawGraphY() { drawGraphSingle(gyctx, gycan, 'y'); }
+function drawGraphX() { drawGraphSingle(gxctx, gxcan, 'x', S.fitX); }
+function drawGraphY() { drawGraphSingle(gyctx, gycan, 'y', S.fitY); }
 
 // ═══════════════════════════════════════════════════════
 //  DATA TABLE
