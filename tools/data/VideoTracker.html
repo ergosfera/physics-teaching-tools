@@ -98,6 +98,7 @@ body {
 .tb-sep { width: 1px; height: 24px; background: var(--border); margin: 0 1px; flex-shrink: 0; }
 .tb-group { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
 label.tb-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+#zoom-display { font-size: 11px; color: var(--text-muted); min-width: 36px; text-align: center; display: inline-block; }
 
 button {
     padding: 4px 9px;
@@ -294,6 +295,15 @@ tbody tr:hover { background: var(--bg-panel); }
     <label class="tb-label">Rotate:</label>
     <button id="btn-rot-ccw" onclick="rotateVideo(-90)" disabled title="90° counter-clockwise">&#8634; 90°</button>
     <button id="btn-rot-cw"  onclick="rotateVideo(+90)" disabled title="90° clockwise">90° &#8635;</button>
+  </div>
+  <div class="tb-sep"></div>
+
+  <div class="tb-group">
+    <label class="tb-label">Zoom:</label>
+    <button id="btn-zoom-out" onclick="zoomStep(1/1.3)" disabled title="Zoom out">&#8722;</button>
+    <span id="zoom-display">100%</span>
+    <button id="btn-zoom-in"  onclick="zoomStep(1.3)"   disabled title="Zoom in">&#43;</button>
+    <button id="btn-zoom-fit" onclick="resetView()"     disabled title="Reset to fit">1:1</button>
   </div>
   <div class="tb-sep"></div>
 
@@ -496,6 +506,7 @@ const S = {
     loop: false,
     showAxes: true,
     showCal: true,
+    vp: { zoom: 1, panX: 0, panY: 0 },
 };
 
 // ═══════════════════════════════════════════════════════
@@ -593,9 +604,12 @@ function initVideo() {
     dropHint.style.display = 'none';
 
     ['btn-play-pause','btn-stop','btn-rew','btn-loop','btn-trim-s','btn-trim-e',
-     'btn-rot-ccw','btn-rot-cw','btn-cal','btn-track'].forEach(id => {
+     'btn-rot-ccw','btn-rot-cw','btn-cal','btn-track',
+     'btn-zoom-in','btn-zoom-out','btn-zoom-fit'].forEach(id => {
         document.getElementById(id).disabled = false;
     });
+    S.vp = { zoom: 1, panX: 0, panY: 0 };
+    updateZoomDisplay();
     seekTo(0);
 }
 
@@ -665,8 +679,11 @@ function onSeeked() {
 
 function drawVideoFrame() {
     const rot = S.videoRotation;
+    const z = S.vp.zoom;
     vctx.save();
     vctx.clearRect(0, 0, S.CW, S.CH);
+    vctx.scale(z, z);
+    vctx.translate(-S.vp.panX, -S.vp.panY);
     if (rot === 0) {
         vctx.drawImage(video, 0, 0, S.CW, S.CH);
     } else if (rot === 90) {
@@ -804,6 +821,8 @@ function rotateVideo(delta) {
     if (!S.videoLoaded) return;
     S.videoRotation = ((S.videoRotation + delta) % 360 + 360) % 360;
     resizeVideoCanvas();
+    S.vp = { zoom: 1, panX: 0, panY: 0 };
+    updateZoomDisplay();
     seekTo(S.frameIndex);
 }
 
@@ -903,20 +922,66 @@ function worldToCanvas(wx, wy) {
 }
 
 // ═══════════════════════════════════════════════════════
+//  VIEWPORT (ZOOM / PAN)
+// ═══════════════════════════════════════════════════════
+function clampPan() {
+    const z = S.vp.zoom;
+    S.vp.panX = Math.max(0, Math.min(S.CW * (1 - 1/z), S.vp.panX));
+    S.vp.panY = Math.max(0, Math.min(S.CH * (1 - 1/z), S.vp.panY));
+}
+
+function resetView() {
+    S.vp.zoom = 1; S.vp.panX = 0; S.vp.panY = 0;
+    updateZoomDisplay();
+    if (S.videoLoaded) { drawVideoFrame(); drawOverlay(); }
+}
+
+function zoomAt(sx, sy, factor) {
+    const z0 = S.vp.zoom;
+    const z1 = Math.max(1, Math.min(16, z0 * factor));
+    if (z1 === z0) return;
+    const cx = sx / z0 + S.vp.panX;
+    const cy = sy / z0 + S.vp.panY;
+    S.vp.zoom = z1;
+    S.vp.panX = cx - sx / z1;
+    S.vp.panY = cy - sy / z1;
+    clampPan();
+    updateZoomDisplay();
+    if (S.videoLoaded) { drawVideoFrame(); drawOverlay(); }
+}
+
+function zoomStep(factor) {
+    zoomAt(S.CW / 2, S.CH / 2, factor);
+}
+
+function updateZoomDisplay() {
+    const el = document.getElementById('zoom-display');
+    if (el) el.textContent = Math.round(S.vp.zoom * 100) + '%';
+}
+
+// ═══════════════════════════════════════════════════════
 //  POINTER HELPERS — unified mouse + touch
 // ═══════════════════════════════════════════════════════
-function canvasPos(clientX, clientY) {
+function screenPos(clientX, clientY) {
     const r = ocan.getBoundingClientRect();
     return {
         x: (clientX - r.left) * (ocan.width  / r.width),
         y: (clientY - r.top)  * (ocan.height / r.height),
     };
 }
+
+function canvasPos(clientX, clientY) {
+    const s = screenPos(clientX, clientY);
+    return {
+        x: s.x / S.vp.zoom + S.vp.panX,
+        y: s.y / S.vp.zoom + S.vp.panY,
+    };
+}
 function dist2(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
 function onPtrDown(cx, cy) {
     const p = canvasPos(cx, cy);
-    if (S.mode === 'setup' && dist2(p, S.origin) < 18) S.dragging = true;
+    if (S.mode === 'setup' && dist2(p, S.origin) < 18 / S.vp.zoom) S.dragging = true;
 }
 function onPtrMove(cx, cy) {
     const p = canvasPos(cx, cy);
@@ -951,29 +1016,90 @@ function onPtrLeave() {
     document.getElementById('st-cursor').textContent = '—';
 }
 
+// Pan drag state (right/middle-click)
+let _panDrag = null;
+// Pinch-zoom state (two-finger touch)
+let _pinch = null;
+
 // Mouse
-ocan.addEventListener('mousemove',  e => onPtrMove(e.clientX, e.clientY));
-ocan.addEventListener('mousedown',  e => onPtrDown(e.clientX, e.clientY));
-ocan.addEventListener('mouseup',    e => onPtrUp(e.clientX, e.clientY));
-ocan.addEventListener('mouseleave', onPtrLeave);
+ocan.addEventListener('contextmenu', e => e.preventDefault());
+ocan.addEventListener('mousedown', e => {
+    if (e.button === 1 || e.button === 2) {
+        const s = screenPos(e.clientX, e.clientY);
+        _panDrag = { sx: s.x, sy: s.y, px: S.vp.panX, py: S.vp.panY };
+        e.preventDefault();
+        return;
+    }
+    onPtrDown(e.clientX, e.clientY);
+});
+ocan.addEventListener('mousemove', e => {
+    if (_panDrag) {
+        const s = screenPos(e.clientX, e.clientY);
+        S.vp.panX = _panDrag.px + (_panDrag.sx - s.x) / S.vp.zoom;
+        S.vp.panY = _panDrag.py + (_panDrag.sy - s.y) / S.vp.zoom;
+        clampPan();
+        drawVideoFrame(); drawOverlay();
+        return;
+    }
+    onPtrMove(e.clientX, e.clientY);
+});
+ocan.addEventListener('mouseup', e => {
+    if (_panDrag) { _panDrag = null; return; }
+    onPtrUp(e.clientX, e.clientY);
+});
+ocan.addEventListener('mouseleave', () => { _panDrag = null; onPtrLeave(); });
+ocan.addEventListener('wheel', e => {
+    e.preventDefault();
+    const s = screenPos(e.clientX, e.clientY);
+    zoomAt(s.x, s.y, e.deltaY < 0 ? 1.15 : 1/1.15);
+}, { passive: false });
 
 // Touch (tablet / mobile)
 ocan.addEventListener('touchstart', e => {
     e.preventDefault();
-    const t = e.touches[0];
-    onPtrDown(t.clientX, t.clientY);
+    if (e.touches.length === 1) {
+        _pinch = null;
+        onPtrDown(e.touches[0].clientX, e.touches[0].clientY);
+    } else if (e.touches.length >= 2) {
+        S.dragging = false;
+        const t0 = e.touches[0], t1 = e.touches[1];
+        const d = Math.hypot(t1.clientX-t0.clientX, t1.clientY-t0.clientY);
+        const midX = (t0.clientX+t1.clientX)/2, midY = (t0.clientY+t1.clientY)/2;
+        const ms = screenPos(midX, midY);
+        _pinch = { d0: d, z0: S.vp.zoom, sx0: ms.x, sy0: ms.y,
+                   px0: S.vp.panX, py0: S.vp.panY };
+    }
 }, { passive: false });
 ocan.addEventListener('touchmove', e => {
     e.preventDefault();
-    const t = e.touches[0];
-    onPtrMove(t.clientX, t.clientY);
+    if (e.touches.length >= 2 && _pinch) {
+        const t0 = e.touches[0], t1 = e.touches[1];
+        const newDist = Math.hypot(t1.clientX-t0.clientX, t1.clientY-t0.clientY);
+        const midX = (t0.clientX+t1.clientX)/2, midY = (t0.clientY+t1.clientY)/2;
+        const ms = screenPos(midX, midY);
+        const newZoom = Math.max(1, Math.min(16, _pinch.z0 * (newDist / _pinch.d0)));
+        // Keep initial pinch midpoint canvas coord under current midpoint
+        const cx = _pinch.sx0 / _pinch.z0 + _pinch.px0;
+        const cy = _pinch.sy0 / _pinch.z0 + _pinch.py0;
+        S.vp.zoom = newZoom;
+        S.vp.panX = cx - ms.x / newZoom;
+        S.vp.panY = cy - ms.y / newZoom;
+        clampPan();
+        drawVideoFrame(); drawOverlay();
+        updateZoomDisplay();
+    } else if (e.touches.length === 1 && !_pinch) {
+        onPtrMove(e.touches[0].clientX, e.touches[0].clientY);
+    }
 }, { passive: false });
 ocan.addEventListener('touchend', e => {
     e.preventDefault();
-    const t = e.changedTouches[0];
-    onPtrUp(t.clientX, t.clientY);
+    if (_pinch && e.touches.length < 2) { _pinch = null; return; }
+    if (!_pinch && e.touches.length === 0) {
+        const t = e.changedTouches[0];
+        onPtrUp(t.clientX, t.clientY);
+    }
 }, { passive: false });
-ocan.addEventListener('touchcancel', onPtrLeave);
+ocan.addEventListener('touchcancel', () => { _pinch = null; onPtrLeave(); });
 
 // Keyboard
 window.addEventListener('keydown', e => {
@@ -1062,13 +1188,19 @@ document.getElementById('modal-input').addEventListener('keydown', e => {
 function isLightTheme() { return document.documentElement.dataset.theme === 'light'; }
 
 function drawOverlay() {
+    const z = S.vp.zoom;
     octx.clearRect(0, 0, S.CW, S.CH);
-    if (S.showAxes) drawAxes();
-    if (S.showCal && (S.mode === 'calibration' || S.calPts.length)) drawCalibration();
-    drawTrackPoints();
+    octx.save();
+    octx.scale(z, z);
+    octx.translate(-S.vp.panX, -S.vp.panY);
+    if (S.showAxes) drawAxes(z);
+    if (S.showCal && (S.mode === 'calibration' || S.calPts.length)) drawCalibration(z);
+    drawTrackPoints(z);
+    octx.restore();
 }
 
-function drawAxes() {
+function drawAxes(z) {
+    const iz = 1 / z;
     const light = isLightTheme();
     const xCol  = light ? 'rgba(192,57,43,'   : 'rgba(233,69,96,';
     const yCol  = light ? 'rgba(21,101,192,'  : 'rgba(79,195,247,';
@@ -1077,8 +1209,8 @@ function drawAxes() {
     const axisLine = (wx1, wy1, wx2, wy2, col) => {
         const p1 = worldToCanvas(wx1, wy1), p2 = worldToCanvas(wx2, wy2);
         octx.strokeStyle = col + '0.55)';
-        octx.lineWidth = 1.5;
-        octx.setLineDash([6,4]);
+        octx.lineWidth = 1.5 * iz;
+        octx.setLineDash([6*iz, 4*iz]);
         octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
         octx.setLineDash([]);
     };
@@ -1086,30 +1218,31 @@ function drawAxes() {
     axisLine(0, -u, 0, u, yCol);
 
     octx.fillStyle = '#fff';
-    octx.beginPath(); octx.arc(S.origin.x, S.origin.y, 5, 0, Math.PI*2); octx.fill();
+    octx.beginPath(); octx.arc(S.origin.x, S.origin.y, 5*iz, 0, Math.PI*2); octx.fill();
     octx.strokeStyle = light ? '#c0392b' : '#e94560';
-    octx.lineWidth = 1.5; octx.stroke();
+    octx.lineWidth = 1.5 * iz; octx.stroke();
 
     const lx = worldToCanvas(75 / S.scale, 0);
     const ly = worldToCanvas(0, 75 / S.scale);
-    octx.font = 'bold 14px sans-serif'; octx.textAlign = 'center'; octx.textBaseline = 'middle';
+    octx.font = `bold ${14*iz}px sans-serif`; octx.textAlign = 'center'; octx.textBaseline = 'middle';
     octx.fillStyle = xCol + '0.85)'; octx.fillText('X', lx.x, lx.y);
     octx.fillStyle = yCol + '0.85)'; octx.fillText('Y', ly.x, ly.y);
 
-    drawTicks(xCol, yCol);
+    drawTicks(xCol, yCol, z);
 }
 
-function drawTicks(xCol, yCol) {
+function drawTicks(xCol, yCol, z) {
+    const iz = 1 / z;
     const sc = S.scale;
-    const visU = Math.max(S.CW, S.CH) / sc;
+    const visU = Math.max(S.CW, S.CH) / (sc * z);
     const rough = visU / 8;
     const mag = Math.pow(10, Math.floor(Math.log10(rough || 1)));
     let step = mag;
     if (rough / mag > 5) step = mag * 5;
     else if (rough / mag > 2) step = mag * 2;
     const maxT = Math.ceil(visU / step) + 1;
-    const TICK = 5;
-    octx.lineWidth = 1;
+    const TICK = 5 * iz;
+    octx.lineWidth = iz;
 
     for (let i = -maxT; i <= maxT; i++) {
         if (i === 0) continue;
@@ -1123,7 +1256,7 @@ function drawTicks(xCol, yCol) {
         octx.moveTo(px.x-(perpX.x-px.x), px.y-(perpX.y-px.y));
         octx.lineTo(perpX.x, perpX.y); octx.stroke();
         octx.fillStyle = xCol + '0.8)';
-        octx.font = '10px sans-serif'; octx.textAlign = 'center'; octx.textBaseline = 'middle';
+        octx.font = `${10*iz}px sans-serif`; octx.textAlign = 'center'; octx.textBaseline = 'middle';
         const lbX = worldToCanvas(v, -TICK*1.8/sc);
         octx.fillText(lbl, lbX.x, lbX.y);
 
@@ -1138,53 +1271,55 @@ function drawTicks(xCol, yCol) {
     }
 }
 
-function drawCalibration() {
+function drawCalibration(z) {
+    const iz = 1 / z;
     const pts = S.calPts;
     pts.forEach((p, i) => {
         octx.fillStyle = '#ffd700';
-        octx.beginPath(); octx.arc(p.x, p.y, 6, 0, Math.PI*2); octx.fill();
-        octx.fillStyle = '#000'; octx.font = 'bold 11px sans-serif';
+        octx.beginPath(); octx.arc(p.x, p.y, 6*iz, 0, Math.PI*2); octx.fill();
+        octx.fillStyle = '#000'; octx.font = `bold ${11*iz}px sans-serif`;
         octx.textAlign = 'center'; octx.textBaseline = 'middle';
         octx.fillText(i+1, p.x, p.y);
     });
     if (pts.length === 2) {
-        octx.strokeStyle = '#ffd700'; octx.lineWidth = 2;
-        octx.setLineDash([5,4]);
+        octx.strokeStyle = '#ffd700'; octx.lineWidth = 2*iz;
+        octx.setLineDash([5*iz, 4*iz]);
         octx.beginPath(); octx.moveTo(pts[0].x, pts[0].y);
         octx.lineTo(pts[1].x, pts[1].y); octx.stroke();
         octx.setLineDash([]);
         [[pts[0],pts[1]],[pts[1],pts[0]]].forEach(([a,b]) => {
             const ang = Math.atan2(b.y-a.y, b.x-a.x) + Math.PI/2;
-            octx.strokeStyle = '#ffd700'; octx.lineWidth = 2;
+            octx.strokeStyle = '#ffd700'; octx.lineWidth = 2*iz;
             octx.beginPath();
-            octx.moveTo(a.x + 6*Math.cos(ang), a.y + 6*Math.sin(ang));
-            octx.lineTo(a.x - 6*Math.cos(ang), a.y - 6*Math.sin(ang)); octx.stroke();
+            octx.moveTo(a.x + 6*iz*Math.cos(ang), a.y + 6*iz*Math.sin(ang));
+            octx.lineTo(a.x - 6*iz*Math.cos(ang), a.y - 6*iz*Math.sin(ang)); octx.stroke();
         });
         const mx = (pts[0].x+pts[1].x)/2, my = (pts[0].y+pts[1].y)/2;
-        octx.fillStyle = '#ffd700'; octx.font = '12px sans-serif';
+        octx.fillStyle = '#ffd700'; octx.font = `${12*iz}px sans-serif`;
         octx.textAlign = 'center'; octx.textBaseline = 'bottom';
-        octx.fillText(`${dist2(pts[0],pts[1]).toFixed(1)} px`, mx, my-8);
+        octx.fillText(`${dist2(pts[0],pts[1]).toFixed(1)} px`, mx, my-8*iz);
         if (S.calibrated) {
             octx.textBaseline = 'top';
-            octx.fillText(`${S.calDist} ${S.unit}`, mx, my+10);
+            octx.fillText(`${S.calDist} ${S.unit}`, mx, my+10*iz);
         }
     }
 }
 
-function drawTrackPoints() {
+function drawTrackPoints(z) {
+    const iz = 1 / z;
     S.points.forEach((p, i) => {
         if (i > 0) {
             const prev = S.points[i-1];
-            octx.strokeStyle = 'rgba(255,215,0,0.45)'; octx.lineWidth = 1.5;
+            octx.strokeStyle = 'rgba(255,215,0,0.45)'; octx.lineWidth = 1.5*iz;
             octx.beginPath(); octx.moveTo(prev.cx, prev.cy); octx.lineTo(p.cx, p.cy); octx.stroke();
         }
         octx.fillStyle = '#ffd700';
-        octx.beginPath(); octx.arc(p.cx, p.cy, 4, 0, Math.PI*2); octx.fill();
-        octx.strokeStyle = '#fff'; octx.lineWidth = 1; octx.stroke();
+        octx.beginPath(); octx.arc(p.cx, p.cy, 4*iz, 0, Math.PI*2); octx.fill();
+        octx.strokeStyle = '#fff'; octx.lineWidth = iz; octx.stroke();
         if (i === 0 || i === S.points.length-1) {
-            octx.fillStyle = '#fff'; octx.font = '10px sans-serif';
+            octx.fillStyle = '#fff'; octx.font = `${10*iz}px sans-serif`;
             octx.textAlign = 'left'; octx.textBaseline = 'bottom';
-            octx.fillText(i+1, p.cx+5, p.cy-3);
+            octx.fillText(i+1, p.cx+5*iz, p.cy-3*iz);
         }
     });
 }
