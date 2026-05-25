@@ -827,6 +827,7 @@ document.getElementById('angle-slider').addEventListener('input', e => {
     document.getElementById('angle-num').value = deg;
     S.angle = deg * Math.PI / 180;
     drawOverlay();
+    recomputeWorldCoords();
 });
 document.getElementById('angle-num').addEventListener('change', e => {
     let deg = Math.max(-180, Math.min(180, parseFloat(e.target.value) || 0));
@@ -834,6 +835,7 @@ document.getElementById('angle-num').addEventListener('change', e => {
     document.getElementById('angle-num').value    = deg;
     S.angle = deg * Math.PI / 180;
     drawOverlay();
+    recomputeWorldCoords();
 });
 document.getElementById('unit-sel').addEventListener('change', e => {
     S.unit = e.target.value;
@@ -874,6 +876,19 @@ function setMode(mode) {
 // ═══════════════════════════════════════════════════════
 //  COORDINATE TRANSFORMS
 // ═══════════════════════════════════════════════════════
+
+// Recompute stored wx/wy for every tracked point from their fixed
+// canvas coordinates using the current origin, angle and scale.
+// Must be called whenever any of those transform parameters change.
+function recomputeWorldCoords() {
+    S.points.forEach(p => {
+        const w = canvasToWorld(p.cx, p.cy);
+        p.wx = w.x;
+        p.wy = w.y;
+    });
+    drawGraphX(); drawGraphY(); updateDataTable();
+}
+
 function canvasToWorld(px, py) {
     const dx = px - S.origin.x, dy = -(py - S.origin.y);
     const c = Math.cos(S.angle), s = Math.sin(S.angle);
@@ -912,6 +927,7 @@ function onPtrMove(cx, cy) {
     if (S.mode === 'setup' && S.dragging) {
         S.origin = { x: p.x, y: p.y };
         drawOverlay();
+        recomputeWorldCoords();
     }
 }
 function onPtrUp(cx, cy) {
@@ -1032,6 +1048,7 @@ function confirmCalibration() {
     S.unit       = document.getElementById('unit-sel').value;
     S.calibrated = true;
     document.getElementById('modal-overlay').classList.remove('open');
+    recomputeWorldCoords();
     updateTableHeader(); drawOverlay(); drawGraphX(); drawGraphY(); updateStatus();
 }
 document.getElementById('modal-input').addEventListener('keydown', e => {
