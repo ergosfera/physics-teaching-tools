@@ -311,6 +311,17 @@ tbody tr:hover { background: var(--bg-panel); }
   <div class="tb-sep"></div>
 
   <div class="tb-group">
+    <label class="tb-label">Show:</label>
+    <label class="tb-label" style="display:flex;align-items:center;gap:3px;cursor:pointer">
+      <input type="checkbox" id="cb-axes" checked onchange="S.showAxes=this.checked;drawOverlay()" style="accent-color:var(--btn-act-bg)"> Axes
+    </label>
+    <label class="tb-label" style="display:flex;align-items:center;gap:3px;cursor:pointer">
+      <input type="checkbox" id="cb-cal-overlay" checked onchange="S.showCal=this.checked;drawOverlay()" style="accent-color:var(--btn-act-bg)"> Cal
+    </label>
+  </div>
+  <div class="tb-sep"></div>
+
+  <div class="tb-group">
     <label class="tb-label">Axis:</label>
     <input type="range" id="angle-slider" min="-180" max="180" value="0" style="width:80px">
     <input type="number" id="angle-num" value="0" min="-180" max="180" step="0.5" style="width:52px">
@@ -483,6 +494,8 @@ const S = {
     fitX: 'none',
     fitY: 'none',
     loop: false,
+    showAxes: true,
+    showCal: true,
 };
 
 // ═══════════════════════════════════════════════════════
@@ -1023,8 +1036,8 @@ function isLightTheme() { return document.documentElement.dataset.theme === 'lig
 
 function drawOverlay() {
     octx.clearRect(0, 0, S.CW, S.CH);
-    drawAxes();
-    if (S.mode === 'calibration' || S.calPts.length) drawCalibration();
+    if (S.showAxes) drawAxes();
+    if (S.showCal && (S.mode === 'calibration' || S.calPts.length)) drawCalibration();
     drawTrackPoints();
 }
 
