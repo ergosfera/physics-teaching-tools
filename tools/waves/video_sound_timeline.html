@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Sound Timeline</title>
+    <style>
+        :root {
+            --bg-gradient-1: #667eea;
+            --bg-gradient-2: #764ba2;
+            --container-bg: white;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --text-muted: #999;
+            --input-border: #ddd;
+            --input-bg: white;
+            --canvas-bg: #f9f9f9;
+            --wave-color: #764ba2;
+            --wave-fill: rgba(118, 75, 162, 0.25);
+            --grid-color: #e2e2e2;
+            --playhead: #ff7043;
+            --marker-a: #2196f3;
+            --marker-b: #e91e63;
+            --accent: #667eea;
+        }
+
+        body.dark {
+            --bg-gradient-1: #1a1a2e;
+            --bg-gradient-2: #0f3460;
+            --container-bg: #16213e;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --text-muted: #777;
+            --input-border: #444;
+            --input-bg: #2a2a3e;
+            --canvas-bg: #11162a;
+            --wave-color: #8e7cc3;
+            --wave-fill: rgba(142, 124, 195, 0.30);
+            --grid-color: #2a3050;
+            --playhead: #ff8a65;
+            --marker-a: #64b5f6;
+            --marker-b: #f06292;
+            --accent: #8e9bff;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 24px 12px;
+            background: linear-gradient(135deg, var(--bg-gradient-1) 0%, var(--bg-gradient-2) 100%);
+            transition: background 0.3s ease;
+        }
+
+        .container {
+            background: var(--container-bg);
+            color: var(--text-primary);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            padding: 28px;
+            max-width: 960px;
+            width: 100%;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+
+        h1 {
+            color: var(--text-primary);
+            margin: 0;
+            font-size: 1.55rem;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            margin: 6px 0 20px;
+            font-size: 0.92rem;
+            line-height: 1.4;
+        }
+
+        .theme-btn {
+            background: var(--input-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            line-height: 1;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .file-label {
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: bold;
+        }
+        .file-label input { display: none; }
+
+        button.action {
+            background: var(--input-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            padding: 9px 14px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        button.action:disabled { opacity: 0.45; cursor: not-allowed; }
+        button.action:not(:disabled):hover { border-color: var(--accent); }
+
+        video {
+            width: 100%;
+            max-height: 50vh;
+            background: #000;
+            border-radius: 8px;
+            display: block;
+        }
+
+        .wave-wrap {
+            position: relative;
+            margin-top: 14px;
+        }
+        canvas#wave {
+            width: 100%;
+            height: 220px;
+            background: var(--canvas-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            display: block;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .hint {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 8px;
+        }
+
+        .readout {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-top: 16px;
+        }
+        .stat {
+            flex: 1 1 140px;
+            background: var(--canvas-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            padding: 12px 14px;
+            text-align: center;
+        }
+        .stat .label {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+        .stat .value {
+            font-size: 1.35rem;
+            font-weight: bold;
+            margin-top: 4px;
+            font-variant-numeric: tabular-nums;
+        }
+        .stat.a .value { color: var(--marker-a); }
+        .stat.b .value { color: var(--marker-b); }
+        .stat.dt .value { color: var(--accent); }
+        .stat.loud .value { color: var(--playhead); }
+
+        .spacer { flex: 1 1 auto; }
+
+        .status {
+            margin-top: 14px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            min-height: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-row">
+            <h1>🔊 Video Sound Timeline</h1>
+            <button class="theme-btn" id="themeBtn" title="Toggle dark mode">🌙</button>
+        </div>
+        <p class="subtitle">
+            Load a short video and see its <strong>loudness over time</strong> drawn beneath it.
+            Click two points on the graph to drop markers <strong>A</strong> and <strong>B</strong> and
+            measure the time interval between two sounds (claps, echoes, beats, bounces…).
+        </p>
+
+        <div class="controls">
+            <label class="file-label">
+                📂 Load video
+                <input type="file" id="fileInput" accept="video/*">
+            </label>
+            <button class="action" id="playBtn" disabled>▶︎ Play / Pause</button>
+            <button class="action" id="clearBtn" disabled>✕ Clear markers</button>
+            <span class="spacer"></span>
+            <button class="action" id="zoomInBtn" disabled title="Zoom in">🔍＋</button>
+            <button class="action" id="zoomOutBtn" disabled title="Zoom out">🔍－</button>
+            <button class="action" id="fitBtn" disabled title="Fit whole clip">⤢ Fit</button>
+        </div>
+
+        <video id="video" controls playsinline></video>
+
+        <div class="wave-wrap">
+            <canvas id="wave"></canvas>
+        </div>
+        <div class="hint">Tap to place markers · drag a marker to refine (video follows) · scroll/buttons to zoom · drag empty space to pan</div>
+
+        <div class="readout">
+            <div class="stat a">
+                <div class="label">Marker A</div>
+                <div class="value" id="valA">—</div>
+            </div>
+            <div class="stat b">
+                <div class="label">Marker B</div>
+                <div class="value" id="valB">—</div>
+            </div>
+            <div class="stat dt">
+                <div class="label">Δt = B − A</div>
+                <div class="value" id="valDt">—</div>
+            </div>
+            <div class="stat loud">
+                <div class="label">Loudness @ playhead</div>
+                <div class="value" id="valLoud">—</div>
+            </div>
+        </div>
+
+        <div class="status" id="status">No video loaded.</div>
+    </div>
+
+    <script>
+    (function () {
+        const video   = document.getElementById('video');
+        const canvas  = document.getElementById('wave');
+        const ctx     = canvas.getContext('2d');
+        const fileInp = document.getElementById('fileInput');
+        const playBtn = document.getElementById('playBtn');
+        const clearBtn= document.getElementById('clearBtn');
+        const themeBtn= document.getElementById('themeBtn');
+        const zoomInBtn  = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const fitBtn     = document.getElementById('fitBtn');
+        const statusEl= document.getElementById('status');
+        const valA = document.getElementById('valA');
+        const valB = document.getElementById('valB');
+        const valDt= document.getElementById('valDt');
+        const valLoud = document.getElementById('valLoud');
+
+        let envelope = null;     // Float32Array, normalized 0..1
+        let audioDur = 0;        // seconds (decoded audio duration)
+        let markerA = null;      // time in seconds
+        let markerB = null;
+        let dpr = window.devicePixelRatio || 1;
+
+        // Visible time window [viewStart, viewEnd] for zoom/pan.
+        let viewStart = 0, viewEnd = 0;
+        const MIN_SPAN = 0.02;   // s — closest you can zoom in
+
+        // Pointer interaction state.
+        let mode = null;         // 'dragMarker' | 'pending' | 'pan'
+        let dragTarget = null;   // 'A' | 'B'
+        let downX = 0, downViewStart = 0, downViewEnd = 0;
+        const HIT_PX = 12;       // marker grab radius (CSS px)
+        const MOVE_PX = 5;       // px before a tap becomes a drag
+
+        // ---------- Theme ----------
+        themeBtn.addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+            themeBtn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
+            draw();
+        });
+
+        function css(name) {
+            return getComputedStyle(document.body).getPropertyValue(name).trim();
+        }
+        function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+        function span() { return viewEnd - viewStart; }
+
+        // ---------- Canvas sizing ----------
+        function resizeCanvas() {
+            dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width  = Math.max(1, Math.round(rect.width  * dpr));
+            canvas.height = Math.max(1, Math.round(rect.height * dpr));
+            draw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // ---------- File loading ----------
+        fileInp.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            markerA = markerB = null;
+            updateReadout();
+            envelope = null;
+            video.src = URL.createObjectURL(file);
+            statusEl.textContent = 'Loading video…';
+
+            // Decode the audio track for the waveform.
+            try {
+                statusEl.textContent = 'Analyzing audio…';
+                const buf = await file.arrayBuffer();
+                const AC = window.AudioContext || window.webkitAudioContext;
+                const actx = new AC();
+                const audioBuf = await actx.decodeAudioData(buf);
+                actx.close();
+                buildEnvelope(audioBuf);
+                viewStart = 0; viewEnd = audioDur;
+                statusEl.textContent =
+                    'Ready · audio ' + audioDur.toFixed(2) + ' s · tap the graph to measure.';
+            } catch (err) {
+                envelope = null;
+                viewStart = 0; viewEnd = 0;
+                statusEl.textContent =
+                    '⚠️ Could not read an audio track from this file. ' +
+                    'The video still plays, but no waveform is available.';
+            }
+            playBtn.disabled = clearBtn.disabled = false;
+            zoomInBtn.disabled = zoomOutBtn.disabled = fitBtn.disabled = !envelope;
+            resizeCanvas();
+        });
+
+        // ---------- RMS envelope ----------
+        function buildEnvelope(audioBuf) {
+            audioDur = audioBuf.duration;
+            const chs = audioBuf.numberOfChannels;
+            const len = audioBuf.length;
+
+            // Target a dense bucket set so deep zoom still shows detail.
+            const buckets = Math.min(8000, Math.max(1000, Math.floor(len / 32)));
+            const env = new Float32Array(buckets);
+            const samplesPer = len / buckets;
+
+            const data = [];
+            for (let c = 0; c < chs; c++) data.push(audioBuf.getChannelData(c));
+
+            let peak = 1e-9;
+            for (let i = 0; i < buckets; i++) {
+                const start = Math.floor(i * samplesPer);
+                const end   = Math.min(len, Math.floor((i + 1) * samplesPer));
+                let sumSq = 0, n = 0;
+                for (let s = start; s < end; s++) {
+                    let v = 0;
+                    for (let c = 0; c < chs; c++) v += data[c][s];
+                    v /= chs;
+                    sumSq += v * v;
+                    n++;
+                }
+                const rms = n ? Math.sqrt(sumSq / n) : 0;
+                env[i] = rms;
+                if (rms > peak) peak = rms;
+            }
+            for (let i = 0; i < buckets; i++) env[i] /= peak;
+            envelope = env;
+        }
+
+        // Sample the normalized envelope at an arbitrary time.
+        function envAt(t) {
+            if (!envelope || audioDur <= 0) return 0;
+            const idx = clamp(Math.round((t / audioDur) * (envelope.length - 1)),
+                              0, envelope.length - 1);
+            return envelope[idx];
+        }
+
+        // ---------- View <-> pixel mapping (zoom aware) ----------
+        function timeToX(t, w) { return ((t - viewStart) / span()) * w; }
+        function xToTime(x, w) { return viewStart + (x / w) * span(); }
+
+        // ---------- Zoom & pan ----------
+        function zoomAround(tCenter, factor) {
+            if (!envelope) return;
+            const newSpan = clamp(span() * factor, MIN_SPAN, audioDur);
+            const frac = (tCenter - viewStart) / span();
+            viewStart = tCenter - frac * newSpan;
+            viewEnd = viewStart + newSpan;
+            clampView();
+            draw();
+        }
+        function clampView() {
+            let s = span();
+            if (s > audioDur) { viewStart = 0; viewEnd = audioDur; return; }
+            if (viewStart < 0) { viewStart = 0; viewEnd = s; }
+            if (viewEnd > audioDur) { viewEnd = audioDur; viewStart = audioDur - s; }
+        }
+
+        canvas.addEventListener('wheel', (e) => {
+            if (!envelope) return;
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * dpr;
+            zoomAround(xToTime(x, canvas.width), e.deltaY < 0 ? 0.8 : 1.25);
+        }, { passive: false });
+
+        zoomInBtn.addEventListener('click', () => zoomAround((viewStart + viewEnd) / 2, 0.6));
+        zoomOutBtn.addEventListener('click', () => zoomAround((viewStart + viewEnd) / 2, 1.7));
+        fitBtn.addEventListener('click', () => { viewStart = 0; viewEnd = audioDur; draw(); });
+
+        // ---------- Drawing ----------
+        function draw() {
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+            if (viewEnd <= viewStart) viewEnd = (audioDur || video.duration || 0);
+
+            // Background grid + time ticks (over the visible window).
+            const vis = span();
+            ctx.strokeStyle = css('--grid-color');
+            ctx.fillStyle = css('--text-muted');
+            ctx.lineWidth = 1;
+            ctx.font = (11 * dpr) + 'px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+
+            if (vis > 0) {
+                const step = niceStep(vis, 8);
+                const dec = step < 0.1 ? 3 : (step < 1 ? 2 : (step < 10 ? 1 : 0));
+                const first = Math.ceil(viewStart / step) * step;
+                for (let t = first; t <= viewEnd + 1e-9; t += step) {
+                    const x = timeToX(t, w);
+                    ctx.globalAlpha = 0.6;
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, h);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                    ctx.fillText(t.toFixed(dec) + 's', x, h - 4);
+                }
+            }
+
+            // Waveform — iterate canvas columns so it's resolution/zoom independent.
+            if (envelope && envelope.length) {
+                const mid = h / 2;
+                const amp = h * 0.42;
+                ctx.fillStyle = css('--wave-fill');
+                ctx.strokeStyle = css('--wave-color');
+                ctx.lineWidth = 1.2 * dpr;
+
+                ctx.beginPath();
+                for (let px = 0; px <= w; px++) {
+                    const v = envAt(xToTime(px, w));
+                    const y = mid - v * amp;
+                    px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y);
+                }
+                for (let px = w; px >= 0; px--) {
+                    const v = envAt(xToTime(px, w));
+                    ctx.lineTo(px, mid + v * amp);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            } else if (!envelope) {
+                ctx.fillStyle = css('--text-muted');
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.font = (14 * dpr) + 'px Arial';
+                ctx.fillText(video.src ? 'No audio waveform available' :
+                                          'Load a video to see its sound', w / 2, h / 2);
+            }
+
+            // Shaded interval between A and B.
+            if (markerA != null && markerB != null) {
+                const xa = timeToX(markerA, w), xb = timeToX(markerB, w);
+                ctx.fillStyle = css('--accent');
+                ctx.globalAlpha = 0.12;
+                ctx.fillRect(Math.min(xa, xb), 0, Math.abs(xb - xa), h);
+                ctx.globalAlpha = 1;
+            }
+
+            // Markers.
+            if (markerA != null) drawMarker(markerA, css('--marker-a'), 'A', w, h);
+            if (markerB != null) drawMarker(markerB, css('--marker-b'), 'B', w, h);
+
+            // Playhead.
+            const xp = timeToX(video.currentTime, w);
+            ctx.strokeStyle = css('--playhead');
+            ctx.lineWidth = 2 * dpr;
+            ctx.beginPath();
+            ctx.moveTo(xp, 0);
+            ctx.lineTo(xp, h);
+            ctx.stroke();
+
+            updateLoudness();
+        }
+
+        function drawMarker(t, color, label, w, h) {
+            const x = timeToX(t, w);
+            if (x < -20 || x > w + 20) return;   // off-screen when zoomed
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2 * dpr;
+            ctx.setLineDash([6 * dpr, 4 * dpr]);
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, h);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            const fw = 18 * dpr, fh = 16 * dpr;
+            ctx.fillStyle = color;
+            ctx.fillRect(x, 0, fw, fh);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold ' + (11 * dpr) + 'px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, x + fw / 2, fh / 2 + dpr);
+        }
+
+        function niceStep(spanV, target) {
+            const raw = spanV / target;
+            const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+            const norm = raw / mag;
+            let step;
+            if (norm < 1.5) step = 1;
+            else if (norm < 3) step = 2;
+            else if (norm < 7) step = 5;
+            else step = 10;
+            return step * mag;
+        }
+
+        // ---------- Pointer interaction (place / drag / pan) ----------
+        function pointerX(e) {
+            const rect = canvas.getBoundingClientRect();
+            return (e.clientX - rect.left) * dpr;
+        }
+        function markerHit(x) {
+            const w = canvas.width;
+            const tol = HIT_PX * dpr;
+            if (markerB != null && Math.abs(timeToX(markerB, w) - x) <= tol) return 'B';
+            if (markerA != null && Math.abs(timeToX(markerA, w) - x) <= tol) return 'A';
+            return null;
+        }
+
+        canvas.addEventListener('pointerdown', (e) => {
+            if (!video.src) return;
+            canvas.setPointerCapture(e.pointerId);
+            const x = pointerX(e);
+            downX = x;
+            downViewStart = viewStart;
+            downViewEnd = viewEnd;
+            const hit = markerHit(x);
+            if (hit) { mode = 'dragMarker'; dragTarget = hit; canvas.style.cursor = 'ew-resize'; }
+            else { mode = 'pending'; }
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (!mode) {
+                // Hover feedback only.
+                if (video.src) canvas.style.cursor = markerHit(pointerX(e)) ? 'ew-resize' : 'crosshair';
+                return;
+            }
+            const x = pointerX(e);
+            if (mode === 'dragMarker') {
+                const t = clamp(xToTime(x, canvas.width), 0, audioDur);
+                if (dragTarget === 'A') markerA = t; else markerB = t;
+                seek(t);
+                updateReadout();
+                draw();
+            } else if (mode === 'pending') {
+                if (Math.abs(x - downX) > MOVE_PX * dpr) { mode = 'pan'; canvas.style.cursor = 'grabbing'; }
+            }
+            if (mode === 'pan') {
+                const dt = ((x - downX) / canvas.width) * (downViewEnd - downViewStart);
+                viewStart = downViewStart - dt;
+                viewEnd = downViewEnd - dt;
+                clampView();
+                draw();
+            }
+        });
+
+        function endPointer(e) {
+            if (mode === 'pending') {
+                // A genuine tap → place the next marker and seek there.
+                const t = clamp(xToTime(pointerX(e), canvas.width), 0, audioDur);
+                if (markerA == null || (markerA != null && markerB != null)) {
+                    markerA = t; markerB = null;
+                } else {
+                    markerB = t;
+                }
+                seek(t);
+                updateReadout();
+                draw();
+            }
+            mode = null; dragTarget = null;
+            canvas.style.cursor = video.src ? 'crosshair' : 'default';
+        }
+        canvas.addEventListener('pointerup', endPointer);
+        canvas.addEventListener('pointercancel', () => { mode = null; dragTarget = null; });
+
+        function seek(t) { try { video.currentTime = t; } catch (e) {} }
+
+        // ---------- Readouts ----------
+        function updateReadout() {
+            valA.textContent = markerA != null ? markerA.toFixed(3) + ' s' : '—';
+            valB.textContent = markerB != null ? markerB.toFixed(3) + ' s' : '—';
+            valDt.textContent = (markerA != null && markerB != null)
+                ? Math.abs(markerB - markerA).toFixed(3) + ' s' : '—';
+        }
+        function updateLoudness() {
+            valLoud.textContent = envelope
+                ? Math.round(envAt(video.currentTime) * 100) + ' %' : '—';
+        }
+
+        clearBtn.addEventListener('click', () => {
+            markerA = markerB = null;
+            updateReadout();
+            draw();
+        });
+        playBtn.addEventListener('click', () => {
+            if (video.paused) video.play(); else video.pause();
+        });
+
+        // ---------- Sync playhead ----------
+        function loop() {
+            if (!video.paused && !video.ended) draw();
+            requestAnimationFrame(loop);
+        }
+        video.addEventListener('seeked', draw);
+        video.addEventListener('timeupdate', draw);
+        video.addEventListener('loadedmetadata', resizeCanvas);
+        requestAnimationFrame(loop);
+
+        resizeCanvas();
+    })();
+    </script>
+</body>
+</html>
