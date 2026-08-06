@@ -1,469 +1,578 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="dark">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Video Tracker — Physics Analysis</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Video Tracker</title>
+
 <style>
-/* ── THEME VARIABLES ── */
-:root {
-    --bg:          #1a1a2e;
-    --bg-panel:    #16213e;
-    --bg-input:    #0a0a1a;
-    --bg-right:    #0d1117;
-    --border:      #0f3460;
-    --sep:         #1a2233;
-    --text:        #eee;
-    --text-muted:  #aaa;
-    --text-dim:    #666;
-    --btn-bg:      #0f3460;
-    --btn-hover:   #1a4a8a;
-    --btn-act-bg:  #e94560;
-    --btn-act-bdr: #c73050;
-    --btn-play:    #1a7f37;
-    --btn-play-h:  #22a347;
-    --btn-pause:   #b07a10;
-    --gx:          #e94560;
-    --gy:          #4fc3f7;
-    --gt:          #3fb950;
-    --g-bg:        #0d1117;
-    --g-grid:      #1a2233;
-    --g-zero:      #2a3a4a;
-    --g-border:    #334455;
-    --g-tick:      #667788;
-    --g-lbl:       #8899aa;
-    --g-nodata:    #2a2a3a;
-    --overlay-err: rgba(10,10,20,0.93);
-    --bg-video:    #000;
-    --hint-text:   #888;
-    --hint-sub:    #555;
-}
-html[data-theme="light"] {
-    --bg:          #f0f4f8;
-    --bg-panel:    #dde6ef;
-    --bg-input:    #ffffff;
-    --bg-right:    #f8fafc;
-    --border:      #90aac8;
-    --sep:         #c8d8e8;
-    --text:        #1a1a2e;
-    --text-muted:  #445;
-    --text-dim:    #889;
-    --btn-bg:      #2a5a90;
-    --btn-hover:   #1a4a80;
-    --btn-act-bg:  #c0392b;
-    --btn-act-bdr: #a02010;
-    --btn-play:    #1a7f37;
-    --btn-play-h:  #22a347;
-    --btn-pause:   #a06010;
-    --gx:          #c0392b;
-    --gy:          #1565c0;
-    --gt:          #2d7a3a;
-    --g-bg:        #f8fafc;
-    --g-grid:      #d0dce8;
-    --g-zero:      #a0b0c0;
-    --g-border:    #aabbc8;
-    --g-tick:      #7788aa;
-    --g-lbl:       #445566;
-    --g-nodata:    #99aabb;
-    --overlay-err: rgba(240,244,248,0.95);
-    --bg-video:    #c8d8e8;
-    --hint-text:   #445;
-    --hint-sub:    #778;
-}
+  :root{
+    --desktop:#008080;
+    --face:#C0C0C0;
+    --hi:#FFFFFF;
+    --light:#DFDFDF;
+    --shadow:#808080;
+    --dark:#000000;
+    --title:#000080;
+    --sel:#000080;
+    --field:#FFFFFF;
+    --ui:Tahoma,"MS Sans Serif",Verdana,Geneva,sans-serif;
+    --fixed:"Lucida Console","Courier New",monospace;
+    --gx:#800000;
+    --gy:#000080;
+    --gt:#006400;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{
+    background:var(--desktop);
+    font-family:var(--ui);font-size:14px;color:#000;
+    -webkit-font-smoothing:none;
+    display:flex;flex-direction:column;
+    padding:4px 4px calc(48px + env(safe-area-inset-bottom)) 4px;
+    user-select:none;-webkit-user-select:none;
+  }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    user-select: none;
-    -webkit-user-select: none;
-}
+  /* ---- Win95 bevels ---- */
+  .raised{
+    background:var(--face);
+    box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--light);
+  }
+  .sunken{
+    background:var(--face);
+    box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
+  }
+  .thin-sunken{
+    box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow);
+  }
 
-/* ── TOOLBAR ── */
-#toolbar {
-    background: var(--bg-panel);
-    padding: 6px 10px;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
-    flex-shrink: 0;
-}
-.tb-sep { width: 1px; height: 24px; background: var(--border); margin: 0 1px; flex-shrink: 0; }
-.tb-group { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
-label.tb-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
-#zoom-display { font-size: 11px; color: var(--text-muted); min-width: 36px; text-align: center; display: inline-block; }
+  /* ---- window ---- */
+  .window{flex:1;display:flex;flex-direction:column;padding:3px;min-height:0;max-width:100%}
+  .titlebar{
+    background:var(--title);color:#fff;
+    display:flex;align-items:center;gap:5px;
+    padding:2px 2px 2px 3px;margin-bottom:2px;flex-shrink:0;
+  }
+  .titlebar .t{
+    font-weight:700;font-size:15px;flex:1;letter-spacing:.01em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .titlebar svg{display:block;flex:none}
+  .tbtn{
+    width:24px;height:22px;padding:0;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--ui);font-size:13px;font-weight:700;line-height:1;
+    background:var(--face);border:0;color:#000;cursor:pointer;
+    box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--light);
+  }
+  .tbtn:active{box-shadow:inset 1px 1px 0 var(--dark),inset 2px 2px 0 var(--shadow);padding:1px 0 0 1px}
 
-button {
-    padding: 4px 9px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: var(--btn-bg);
-    color: var(--text);
-    cursor: pointer;
-    font-size: 12px;
-    transition: background 0.15s;
-    white-space: nowrap;
-    -webkit-tap-highlight-color: transparent;
-}
-button:hover:not(:disabled) { background: var(--btn-hover); }
-button.active  { background: var(--btn-act-bg); border-color: var(--btn-act-bdr); }
-button:disabled { opacity: 0.35; cursor: not-allowed; }
-button.btn-play { background: var(--btn-play); border-color: var(--btn-play); }
-button.btn-play:hover:not(:disabled) { background: var(--btn-play-h); }
-button.btn-play.playing { background: var(--btn-pause); border-color: var(--btn-pause); }
+  /* ---- buttons ---- */
+  button.b95{
+    font-family:var(--ui);font-size:12px;color:#000;background:var(--face);
+    border:0;padding:5px 10px;min-height:26px;cursor:pointer;white-space:nowrap;
+    box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--light);
+  }
+  button.b95:active,button.b95.pressed{
+    box-shadow:inset 1px 1px 0 var(--shadow),inset 2px 2px 0 var(--dark);
+    padding:6px 9px 4px 11px;
+  }
+  button.b95:disabled{color:var(--shadow);text-shadow:1px 1px 0 var(--hi);cursor:default}
 
-input[type=number] {
-    width: 56px; padding: 3px 5px;
-    border: 1px solid var(--border); border-radius: 4px;
-    background: var(--bg-input); color: var(--text); font-size: 12px;
-}
-input[type=range] { cursor: pointer; accent-color: var(--btn-act-bg); }
-#scrubber { width: 110px; }
-select {
-    padding: 3px 5px;
-    border: 1px solid var(--border); border-radius: 4px;
-    background: var(--bg-input); color: var(--text); font-size: 12px;
-}
+  /* ---- toolbar ---- */
+  #toolbar{
+    background:var(--face);
+    padding:12px 4px 4px;
+    display:flex;align-items:stretch;gap:4px;flex-wrap:nowrap;flex-shrink:0;
+    border-bottom:1px solid var(--shadow);
+  }
+  .tb-sep{width:1px;height:22px;background:var(--shadow);box-shadow:1px 0 0 var(--hi);margin:0 1px;flex-shrink:0}
+  .tb-group{display:flex;align-items:center;gap:4px;flex-shrink:0}
+  label.tb-label{font-size:11px;color:#000;white-space:nowrap}
 
-/* ── MAIN ── */
-#main { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+  /* ---- step panels ---- */
+  .step-panel{
+    position:relative;
+    border:1px solid var(--shadow);
+    box-shadow:1px 1px 0 var(--hi);
+    padding:14px 6px 4px;
+    flex:1 1 0;min-width:0;
+    display:flex;flex-direction:column;
+  }
+  .step-head{
+    position:absolute;top:-8px;left:6px;
+    background:var(--face);padding:0 4px;
+    font-size:11px;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;gap:3px;
+    white-space:nowrap;
+  }
+  .step-num{
+    display:inline-flex;align-items:center;justify-content:center;
+    background:var(--shadow);color:#fff;
+    min-width:14px;height:14px;font-size:9px;font-weight:700;
+    padding:0 2px;
+  }
+  .step-active .step-num{background:#800000}
+  .step-done .step-num{background:#006400}
+  .step-body{
+    border:0;padding:0;margin:0;min-inline-size:auto;
+    display:flex;align-items:center;gap:4px;flex-wrap:wrap;
+    justify-content:center;flex:1;
+  }
+  .step-body:disabled{opacity:0.4}
+  .step-hint{font-size:10px;color:var(--shadow);font-style:italic}
+  .ctrl-group{display:flex;align-items:center;gap:3px;flex-shrink:0}
+  .step-done-btn{margin-top:auto;align-self:flex-end}
 
-/* ── VIDEO PANEL 70% ── */
-#video-panel {
-    flex: 7;
-    position: relative;
-    background: var(--bg-video);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-#canvas-container { position: relative; flex-shrink: 0; }
-#video-canvas { display: block; }
-#overlay-canvas { position: absolute; top: 0; left: 0; touch-action: none; }
+  /* sunken field inputs */
+  input[type=number],select{
+    font-family:var(--fixed);font-size:12px;color:#000;
+    background:var(--field);border:0;padding:3px 4px;
+    box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
+  }
+  input[type=number]{width:52px}
+  input[type=range]{cursor:pointer}
+  #scrubber{width:100px}
+  #zoom-display{font-family:var(--fixed);font-size:11px;min-width:36px;text-align:center;display:inline-block}
 
-#drop-hint {
-    position: absolute; inset: 0;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    color: var(--hint-text); pointer-events: none; gap: 10px;
-}
-#drop-hint .icon { font-size: 52px; }
-#drop-hint .text { font-size: 15px; }
-#drop-hint .sub  { font-size: 12px; color: var(--hint-sub); }
+  /* ---- main ---- */
+  #main{flex:1;display:flex;overflow:hidden;min-height:0}
 
-#format-error {
-    display: none;
-    position: absolute; inset: 0;
-    background: var(--overlay-err);
-    flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 12px; text-align: center; padding: 30px;
-    z-index: 10;
-}
-#format-error .fe-icon  { font-size: 44px; }
-#format-error .fe-title { font-size: 18px; color: var(--btn-act-bg); font-weight: 600; }
-#format-error .fe-msg   { font-size: 13px; color: var(--text-muted); line-height: 1.7; max-width: 420px; }
-#format-error .fe-close { font-size: 12px; color: #4fc3f7; cursor: pointer; margin-top: 6px; }
-#format-error .fe-close:hover { text-decoration: underline; }
+  /* ---- video panel ---- */
+  #video-panel{
+    flex:7;position:relative;
+    background:var(--face);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+    box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
+    margin:3px;
+  }
+  #canvas-container{position:relative;flex-shrink:0}
+  #video-canvas{display:block}
+  #overlay-canvas{position:absolute;top:0;left:0;touch-action:none}
 
-/* ── RIGHT PANEL 30% ── */
-#right-panel {
-    flex: 3;
-    min-width: 240px;
-    background: var(--bg-right);
-    border-left: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-.graph-section {
-    flex: 1; min-height: 0;
-    display: flex; flex-direction: column;
-    border-bottom: 1px solid var(--sep);
-    transition: flex 0.2s;
-}
-.graph-section.collapsed { flex: 0; }
-.graph-section:last-child { border-bottom: none; }
-.graph-section-header {
-    padding: 3px 8px; font-size: 11px; color: var(--text-muted);
-    flex-shrink: 0; background: var(--bg-panel);
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; gap: 5px;
-}
-.graph-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.graph-wrap { flex: 1; min-height: 0; position: relative; }
-.graph-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.graph-section.collapsed .graph-wrap { display: none; }
+  #drop-hint{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    color:var(--shadow);pointer-events:none;gap:8px;
+  }
+  #drop-hint .icon{font-size:42px}
+  #drop-hint .text{font-size:14px}
+  #drop-hint .sub{font-size:11px;color:var(--shadow)}
 
-.graph-cb { cursor: pointer; accent-color: var(--btn-act-bg); flex-shrink: 0; }
-.fit-sel {
-    margin-left: auto;
-    font-size: 10px;
-    padding: 1px 3px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    background: var(--bg-input);
-    color: var(--text-muted);
-    flex-shrink: 0;
-}
+  #format-error{
+    display:none;position:absolute;inset:0;
+    background:rgba(192,192,192,0.95);
+    flex-direction:column;align-items:center;justify-content:center;
+    gap:10px;text-align:center;padding:20px;z-index:10;
+  }
+  #format-error .fe-icon{font-size:36px}
+  #format-error .fe-title{font-size:16px;color:#800000;font-weight:700}
+  #format-error .fe-msg{font-size:12px;color:#000;line-height:1.6;max-width:400px}
+  #format-error .fe-close{font-size:12px;color:var(--sel);cursor:pointer;margin-top:4px}
+  #format-error .fe-close:hover{text-decoration:underline}
 
-#data-scroll { flex: 1; overflow-y: auto; min-height: 0; }
-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-thead th {
-    background: var(--bg-panel); padding: 3px 7px;
-    text-align: right; color: var(--text-muted);
-    position: sticky; top: 0; z-index: 1;
-    border-bottom: 1px solid var(--border);
-}
-thead th:first-child { text-align: left; }
-tbody td { padding: 2px 7px; text-align: right; border-bottom: 1px solid var(--bg); color: var(--text); }
-tbody td:first-child { text-align: left; }
-tbody tr:hover { background: var(--bg-panel); }
+  /* ---- right panel ---- */
+  #right-panel{
+    flex:3;min-width:220px;
+    background:var(--face);
+    border-left:1px solid var(--shadow);
+    display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+  .graph-section{
+    flex:1;min-height:0;
+    display:flex;flex-direction:column;
+    border-bottom:1px solid var(--shadow);box-shadow:0 1px 0 var(--hi);
+    transition:flex 0.2s;
+  }
+  .graph-section.collapsed{flex:0 0 auto}
+  .graph-section:last-child{border-bottom:none;box-shadow:none}
+  .graph-section-header{
+    padding:2px 6px;font-size:13px;color:#000;
+    flex-shrink:0;background:var(--face);
+    border-bottom:1px solid var(--shadow);
+    display:flex;align-items:center;gap:4px;
+    cursor:pointer;user-select:none;
+  }
+  .graph-collapse{font-size:10px;margin-left:auto;font-weight:700;color:var(--shadow)}
+  .graph-section.collapsed .graph-collapse::after{content:'▼'}
+  .graph-section:not(.collapsed) .graph-collapse::after{content:'▲'}
+  .graph-dot{width:8px;height:8px;flex-shrink:0}
+  .graph-wrap{
+    flex:1;min-height:0;position:relative;margin:2px;
+    box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
+    background:var(--field);
+  }
+  .graph-wrap canvas{position:absolute;inset:0;width:100%;height:100%}
+  .graph-section.collapsed .graph-wrap,
+  .graph-section.collapsed #data-scroll{display:none}
 
-/* ── STATUS BAR ── */
-#status-bar {
-    background: var(--bg-panel);
-    padding: 3px 12px;
-    border-top: 1px solid var(--border);
-    display: flex; gap: 18px;
-    font-size: 11px; color: var(--text-dim);
-    flex-shrink: 0; flex-wrap: wrap;
-}
-.st-item b { color: var(--text); font-weight: normal; }
+  .graph-cb{cursor:pointer;flex-shrink:0}
+  .fit-sel{
+    margin-left:auto;font-family:var(--ui);font-size:10px;
+    padding:1px 2px;
+    background:var(--field);border:0;color:#000;
+    box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
+    flex-shrink:0;
+  }
 
-/* ── MODAL ── */
-#modal-overlay {
-    display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.65); z-index: 100;
-    align-items: center; justify-content: center;
-}
-#modal-overlay.open { display: flex; }
-#modal-box {
-    background: var(--bg-panel); border: 1px solid var(--border);
-    border-radius: 8px; padding: 24px 28px;
-    min-width: 280px; display: flex; flex-direction: column; gap: 14px;
-}
-#modal-box h4 { font-size: 15px; color: var(--text); }
-#modal-box p  { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
-#modal-input {
-    padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px;
-    background: var(--bg-input); color: var(--text); font-size: 14px; width: 100%;
-}
-.modal-buttons { display: flex; gap: 8px; justify-content: flex-end; }
+  #data-scroll{flex:1;overflow-y:auto;min-height:0;background:var(--field);margin:0 2px 2px}
+  #data-scroll::-webkit-scrollbar{width:16px}
+  #data-scroll::-webkit-scrollbar-track{
+    background-color:var(--hi);
+    background-image:linear-gradient(45deg,var(--face) 25%,transparent 25%,transparent 75%,var(--face) 75%),
+                     linear-gradient(45deg,var(--face) 25%,transparent 25%,transparent 75%,var(--face) 75%);
+    background-size:2px 2px;background-position:0 0,1px 1px;
+  }
+  #data-scroll::-webkit-scrollbar-thumb{
+    background:var(--face);
+    box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--light);
+  }
+
+  table{width:100%;border-collapse:collapse;font-size:13px;font-family:var(--fixed)}
+  thead th{
+    background:var(--face);padding:2px 6px;
+    text-align:right;color:#000;font-weight:700;
+    position:sticky;top:0;z-index:1;
+    border-bottom:1px solid var(--shadow);
+  }
+  thead th:first-child{text-align:left}
+  tbody td{padding:2px 6px;text-align:right;border-bottom:1px solid var(--light);color:#000}
+  tbody td:first-child{text-align:left}
+  tbody tr:hover{background:var(--light)}
+
+  /* ---- status bar ---- */
+  .status{display:flex;gap:3px;padding:3px 3px 0;flex-shrink:0}
+  .status div{
+    font-family:var(--fixed);font-size:11px;padding:3px 6px;
+    box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow);
+  }
+  .status .s1{flex:1}
+
+  /* ---- modal ---- */
+  #modal-overlay{
+    display:none;position:fixed;inset:0;
+    background:rgba(0,0,0,.35);z-index:100;
+    align-items:center;justify-content:center;
+  }
+  #modal-overlay.open{display:flex}
+  .dlg{width:100%;max-width:340px;padding:3px}
+  .dlg .titlebar{margin-bottom:0}
+  .dlg .dlgbody{padding:10px;display:flex;flex-direction:column;gap:10px}
+  .dlg .dlgbody p{font-size:13px;line-height:1.4}
+  #modal-input{
+    font-family:var(--fixed);font-size:14px;width:100%;padding:5px 6px;
+    background:var(--field);border:0;color:#000;
+    box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
+  }
+  .modal-buttons{display:flex;gap:6px;justify-content:flex-end}
+  .modal-buttons button{min-width:80px}
+
+  /* ---- taskbar ---- */
+  .taskbar{
+    position:fixed;left:0;right:0;bottom:0;height:44px;
+    background:var(--face);display:flex;align-items:center;gap:4px;
+    padding:4px 4px calc(4px + env(safe-area-inset-bottom));
+    box-shadow:inset 0 1px 0 var(--hi),inset 0 2px 0 var(--light);
+    z-index:200;
+  }
+  .taskbtn{
+    display:flex;align-items:center;gap:6px;font-weight:700;
+    padding:6px 10px;min-height:34px;font-size:12px;
+  }
+  .tray{
+    margin-left:auto;font-family:var(--fixed);font-size:14px;padding:8px 12px;
+    box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
+  }
 </style>
-</head>
-<body>
 
-<!-- ═══ TOOLBAR ═══ -->
-<div id="toolbar">
+<!-- ═══ WINDOW ═══ -->
+<div class="window raised">
+  <div class="titlebar">
+    <svg width="17" height="17" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+      <rect x="2" y="2" width="12" height="12" fill="#C0C0C0"/>
+      <rect x="3" y="3" width="10" height="10" fill="#000080"/>
+      <rect x="4" y="4" width="3" height="6" fill="#808080"/>
+      <rect x="5" y="5" width="1" height="4" fill="#FFFF00"/>
+      <rect x="9" y="4" width="3" height="6" fill="#808080"/>
+      <rect x="10" y="5" width="1" height="4" fill="#FFFF00"/>
+      <rect x="7" y="7" width="2" height="1" fill="#FF0000"/>
+      <rect x="7" y="8" width="1" height="2" fill="#FF0000"/>
+      <rect x="8" y="6" width="1" height="1" fill="#FF0000"/>
+    </svg>
+    <span class="t">Video Tracker</span>
+    <button class="tbtn" title="Minimize">_</button>
+    <button class="tbtn" title="Maximize">&#9633;</button>
+    <button class="tbtn" title="Close">&#10005;</button>
+  </div>
 
-  <div class="tb-group">
-    <button onclick="document.getElementById('file-input').click()">&#128194; Load</button>
+  <!-- ═══ TOOLBAR — 5 STEP PANELS ═══ -->
+  <div id="toolbar">
     <input type="file" id="file-input" accept="video/*" style="display:none">
-  </div>
-  <div class="tb-sep"></div>
 
-  <div class="tb-group">
-    <button id="btn-rew"  onclick="rewindToStart()" disabled title="Rewind to start">&#9664;&#9664;</button>
-    <button id="btn-play-pause" class="btn-play" onclick="togglePlayback()" disabled>&#9654; Play</button>
-    <button id="btn-stop" onclick="stopPlayback()" disabled>&#9646;&#9646; Stop</button>
-    <button id="btn-loop" onclick="toggleLoop()"   disabled title="Loop between trim points">&#8635; Loop</button>
-  </div>
-  <div class="tb-group">
-    <input type="range" id="scrubber" min="0" max="100" value="0" step="1" disabled>
-  </div>
-  <div class="tb-sep"></div>
-
-  <div class="tb-group">
-    <label class="tb-label">Trim:</label>
-    <button id="btn-trim-s" onclick="setTrimStart()" disabled title="Set start to current frame">&#9654; Start</button>
-    <input type="number" id="trim-s-in" value="0" min="0" step="1" style="width:52px" title="Start frame">
-    <button id="btn-trim-e" onclick="setTrimEnd()" disabled title="Set end to current frame">End &#9664;</button>
-    <input type="number" id="trim-e-in" value="0" min="0" step="1" style="width:52px" title="End frame">
-  </div>
-  <div class="tb-sep"></div>
-
-  <div class="tb-group">
-    <label class="tb-label">Rotate:</label>
-    <button id="btn-rot-ccw" onclick="rotateVideo(-90)" disabled title="90° counter-clockwise">&#8634; 90°</button>
-    <button id="btn-rot-cw"  onclick="rotateVideo(+90)" disabled title="90° clockwise">90° &#8635;</button>
-  </div>
-  <div class="tb-sep"></div>
-
-  <div class="tb-group">
-    <label class="tb-label">Zoom:</label>
-    <button id="btn-zoom-out" onclick="zoomStep(1/1.3)" disabled title="Zoom out">&#8722;</button>
-    <span id="zoom-display">100%</span>
-    <button id="btn-zoom-in"  onclick="zoomStep(1.3)"   disabled title="Zoom in">&#43;</button>
-    <button id="btn-zoom-fit" onclick="resetView()"     disabled title="Reset to fit">1:1</button>
-  </div>
-  <div class="tb-sep"></div>
-
-  <div class="tb-group">
-    <label class="tb-label">FPS:</label>
-    <input type="number" id="fps-input" value="30" min="1" max="240" step="0.001">
-  </div>
-  <div class="tb-sep"></div>
-
-  <div class="tb-group">
-    <button id="btn-setup" class="active" onclick="setMode('setup')">&#9881; Setup</button>
-    <button id="btn-cal"   onclick="setMode('calibration')" disabled>&#128207; Calibrate</button>
-    <button id="btn-track" onclick="setMode('tracking')"    disabled>&#127919; Track</button>
-  </div>
-  <div class="tb-sep"></div>
-
-  <div class="tb-group">
-    <label class="tb-label">Show:</label>
-    <label class="tb-label" style="display:flex;align-items:center;gap:3px;cursor:pointer">
-      <input type="checkbox" id="cb-axes" checked onchange="S.showAxes=this.checked;drawOverlay()" style="accent-color:var(--btn-act-bg)"> Axes
-    </label>
-    <label class="tb-label" style="display:flex;align-items:center;gap:3px;cursor:pointer">
-      <input type="checkbox" id="cb-cal-overlay" checked onchange="S.showCal=this.checked;drawOverlay()" style="accent-color:var(--btn-act-bg)"> Cal
-    </label>
-  </div>
-  <div class="tb-sep"></div>
-
-  <div class="tb-group">
-    <label class="tb-label">Axis:</label>
-    <input type="range" id="angle-slider" min="-180" max="180" value="0" style="width:80px">
-    <input type="number" id="angle-num" value="0" min="-180" max="180" step="0.5" style="width:52px">
-    <label class="tb-label">&#176;</label>
-  </div>
-  <div class="tb-sep"></div>
-
-  <div class="tb-group">
-    <label class="tb-label">Unit:</label>
-    <select id="unit-sel"><option value="cm">cm</option><option value="m">m</option></select>
-  </div>
-  <div class="tb-sep"></div>
-
-  <div class="tb-group">
-    <button id="btn-undo"   onclick="undoLastPoint()" disabled>&#8630; Undo</button>
-    <button id="btn-clear"  onclick="clearTracking()"  disabled>&#128465; Clear</button>
-    <button id="btn-export" onclick="exportCSV()"      disabled>&#11015; CSV</button>
-  </div>
-  <div class="tb-sep"></div>
-
-  <div class="tb-group">
-    <button id="btn-theme" onclick="toggleTheme()" title="Toggle light/dark mode">&#9728; Light</button>
-  </div>
-
-</div>
-
-<!-- ═══ MAIN ═══ -->
-<div id="main">
-
-  <div id="video-panel"
-       ondragover="event.preventDefault();this.style.outline='2px solid #e94560'"
-       ondragleave="this.style.outline=''"
-       ondrop="handleDrop(event)">
-    <div id="canvas-container">
-      <canvas id="video-canvas"></canvas>
-      <canvas id="overlay-canvas"></canvas>
+    <!-- STEP 1 — Load Video -->
+    <div class="step-panel step-active" id="step-1">
+      <div class="step-head" onclick="activateStep(1)"><span class="step-num" id="sn-1">1</span> Load Video</div>
+      <fieldset class="step-body" id="step-1-body">
+        <button class="b95" onclick="document.getElementById('file-input').click()">&#128194; Load</button>
+        <label class="tb-label">FPS:</label>
+        <input type="number" id="fps-input" value="30" min="1" max="240" step="0.001">
+      </fieldset>
     </div>
-    <div id="drop-hint">
-      <div class="icon">&#127909;</div>
-      <div class="text">Load or drop a video file</div>
-      <div class="sub">MP4, MOV, WebM work best &nbsp;·&nbsp; AVI/MPEG need conversion</div>
+
+    <!-- STEP 2 — Trim & Preview -->
+    <div class="step-panel" id="step-2">
+      <div class="step-head" onclick="activateStep(2)"><span class="step-num" id="sn-2">2</span> Trim</div>
+      <fieldset class="step-body" id="step-2-body" disabled>
+        <span class="ctrl-group">
+          <button class="b95" id="btn-rew" onclick="rewindToStart()" title="Rewind">&#9664;&#9664;</button>
+          <button class="b95" id="btn-play-pause" onclick="togglePlayback()">&#9654; Play</button>
+          <button class="b95" id="btn-stop" onclick="stopPlayback()">&#9632; Stop</button>
+          <button class="b95" id="btn-loop" onclick="toggleLoop()" title="Loop">&#128260; Loop</button>
+        </span>
+        <input type="range" id="scrubber" min="0" max="100" value="0" step="1" style="flex:1 1 40px;min-width:40px">
+        <span class="ctrl-group">
+          <button class="b95" id="btn-trim-s" onclick="setTrimStart()" title="Set start">&#9654;In</button>
+          <input type="number" id="trim-s-in" value="0" min="0" step="1" style="width:44px">
+          <button class="b95" id="btn-trim-e" onclick="setTrimEnd()" title="Set end">Out&#9664;</button>
+          <input type="number" id="trim-e-in" value="0" min="0" step="1" style="width:44px">
+        </span>
+        <span class="ctrl-group">
+          <button class="b95" id="btn-rot-ccw" onclick="rotateVideo(-90)" title="Rotate CCW">&#8630; Rot</button>
+          <button class="b95" id="btn-rot-cw" onclick="rotateVideo(+90)" title="Rotate CW">Rot &#8631;</button>
+        </span>
+        <button class="b95 step-done-btn" id="btn-step2-done" onclick="completeStep(2)">Done &#10003;</button>
+      </fieldset>
     </div>
-    <div id="format-error">
-      <div class="fe-icon">&#9888;&#65039;</div>
-      <div class="fe-title">Format Not Supported</div>
-      <div class="fe-msg" id="fe-msg">This video format cannot be played by your browser.<br>
-        Please convert it to <strong>MP4 (H.264)</strong> or <strong>WebM</strong>.<br><br>
-        Free tools: <strong>HandBrake</strong> (desktop app) &nbsp;·&nbsp; <strong>CloudConvert.com</strong> (browser)</div>
-      <div class="fe-close" onclick="dismissFormatError()">&#10005; Dismiss and try another file</div>
+
+    <!-- STEP 3 — Calibrate -->
+    <div class="step-panel" id="step-3">
+      <div class="step-head" onclick="activateStep(3)"><span class="step-num" id="sn-3">3</span> Calibrate</div>
+      <fieldset class="step-body" id="step-3-body" disabled>
+        <label class="tb-label">Unit:</label>
+        <select id="unit-sel"><option value="cm">cm</option><option value="m">m</option></select>
+        <div class="tb-sep"></div>
+        <span class="step-hint" id="cal-hint">Click 2 points on video</span>
+        <label class="tb-label" style="display:flex;align-items:center;gap:3px;cursor:pointer">
+          <input type="checkbox" id="cb-cal-overlay" onchange="S.showCal=this.checked;drawOverlay()"> Show
+        </label>
+      </fieldset>
+    </div>
+
+    <!-- STEP 4 — Set Origin -->
+    <div class="step-panel" id="step-4">
+      <div class="step-head" onclick="activateStep(4)"><span class="step-num" id="sn-4">4</span> Origin</div>
+      <fieldset class="step-body" id="step-4-body" disabled>
+        <span class="ctrl-group">
+          <span class="step-hint">Drag origin on video</span>
+        </span>
+        <span class="ctrl-group">
+          <label class="tb-label">Axis:</label>
+          <input type="range" id="angle-slider" min="-180" max="180" value="0" style="width:50px">
+          <input type="number" id="angle-num" value="0" min="-180" max="180" step="0.5" style="width:44px">
+          <label class="tb-label">&#176;</label>
+          <label class="tb-label" style="display:flex;align-items:center;gap:3px;cursor:pointer">
+            <input type="checkbox" id="cb-axes" onchange="S.showAxes=this.checked;drawOverlay()"> Axes
+          </label>
+        </span>
+        <span class="ctrl-group">
+          <button class="b95" id="btn-zoom-out" onclick="zoomStep(1/1.3)">&#8722;</button>
+          <span id="zoom-display">100%</span>
+          <button class="b95" id="btn-zoom-in" onclick="zoomStep(1.3)">&#43;</button>
+          <button class="b95" id="btn-zoom-fit" onclick="resetView()">1:1</button>
+        </span>
+        <button class="b95 step-done-btn" id="btn-step4-done" onclick="completeStep(4)">Done &#10003;</button>
+      </fieldset>
+    </div>
+
+    <!-- STEP 5 — Track -->
+    <div class="step-panel" id="step-5">
+      <div class="step-head" onclick="activateStep(5)"><span class="step-num" id="sn-5">5</span> Track</div>
+      <fieldset class="step-body" id="step-5-body" disabled>
+        <span class="step-hint">Click object each frame</span>
+        <div class="tb-sep"></div>
+        <button class="b95" id="btn-undo" onclick="undoLastPoint()" disabled>&#8630; Undo</button>
+        <button class="b95" id="btn-clear" onclick="clearTracking()" disabled>&#128465; Clear</button>
+        <button class="b95" id="btn-export" onclick="exportCSV()" disabled>&#11015; CSV</button>
+      </fieldset>
     </div>
   </div>
 
-  <div id="right-panel">
-
-    <!-- X vs t -->
-    <div class="graph-section" id="section-x">
-      <div class="graph-section-header">
-        <input type="checkbox" class="graph-cb" id="cb-x" checked onchange="toggleGraph('x')">
-        <div class="graph-dot" style="background:var(--gx)"></div>
-        X position vs. Time
-        <select class="fit-sel" id="fit-x" onchange="S.fitX=this.value;drawGraphX()">
-          <option value="none">No fit</option>
-          <option value="linear">Linear</option>
-          <option value="quad">Quadratic</option>
-          <option value="exp">Exponential</option>
-        </select>
+  <!-- ═══ MAIN ═══ -->
+  <div id="main">
+    <div id="video-panel"
+         ondragover="event.preventDefault();this.style.outline='2px solid #000080'"
+         ondragleave="this.style.outline=''"
+         ondrop="handleDrop(event)">
+      <div id="canvas-container">
+        <canvas id="video-canvas"></canvas>
+        <canvas id="overlay-canvas"></canvas>
       </div>
-      <div class="graph-wrap" id="graph-x-wrap">
-        <canvas id="graph-x-canvas"></canvas>
+      <div id="drop-hint">
+        <div class="icon">&#127909;</div>
+        <div class="text">Load or drop a video file</div>
+        <div class="sub">MP4, MOV, WebM work best &middot; AVI/MPEG need conversion</div>
       </div>
-    </div>
-
-    <!-- Y vs t -->
-    <div class="graph-section" id="section-y">
-      <div class="graph-section-header">
-        <input type="checkbox" class="graph-cb" id="cb-y" checked onchange="toggleGraph('y')">
-        <div class="graph-dot" style="background:var(--gy)"></div>
-        Y position vs. Time
-        <select class="fit-sel" id="fit-y" onchange="S.fitY=this.value;drawGraphY()">
-          <option value="none">No fit</option>
-          <option value="linear">Linear</option>
-          <option value="quad">Quadratic</option>
-          <option value="exp">Exponential</option>
-        </select>
-      </div>
-      <div class="graph-wrap" id="graph-y-wrap">
-        <canvas id="graph-y-canvas"></canvas>
+      <div id="format-error">
+        <div class="fe-icon">&#9888;&#65039;</div>
+        <div class="fe-title">Format Not Supported</div>
+        <div class="fe-msg" id="fe-msg">This video format cannot be played by your browser.<br>
+          Please convert it to <strong>MP4 (H.264)</strong> or <strong>WebM</strong>.<br><br>
+          Free tools: <strong>HandBrake</strong> (desktop) &middot; <strong>CloudConvert.com</strong> (browser)</div>
+        <div class="fe-close" onclick="dismissFormatError()">&#10005; Dismiss and try another file</div>
       </div>
     </div>
 
-    <!-- Data table -->
-    <div class="graph-section" id="table-section">
-      <div class="graph-section-header">
-        <div class="graph-dot" style="background:var(--gt)"></div>Data Table
+    <div id="right-panel">
+      <!-- X vs t -->
+      <div class="graph-section" id="section-x">
+        <div class="graph-section-header" onclick="collapseGraph('x',event)">
+          <div class="graph-dot" style="background:var(--gx)"></div>
+          X position vs. Time
+          <select class="fit-sel" id="fit-x" onclick="event.stopPropagation()" onchange="S.fitX=this.value;drawGraphX()">
+            <option value="none">No fit</option>
+            <option value="linear">Linear</option>
+            <option value="quad">Quadratic</option>
+            <option value="exp">Exponential</option>
+          </select>
+          <span class="graph-collapse"></span>
+        </div>
+        <div class="graph-wrap" id="graph-x-wrap">
+          <canvas id="graph-x-canvas"></canvas>
+        </div>
       </div>
-      <div id="data-scroll">
-        <table>
-          <thead><tr><th>#</th><th>t (s)</th><th id="th-x">X</th><th id="th-y">Y</th><th></th></tr></thead>
-          <tbody id="data-tbody"></tbody>
-        </table>
+
+      <!-- Y vs t -->
+      <div class="graph-section" id="section-y">
+        <div class="graph-section-header" onclick="collapseGraph('y',event)">
+          <div class="graph-dot" style="background:var(--gy)"></div>
+          Y position vs. Time
+          <select class="fit-sel" id="fit-y" onclick="event.stopPropagation()" onchange="S.fitY=this.value;drawGraphY()">
+            <option value="none">No fit</option>
+            <option value="linear">Linear</option>
+            <option value="quad">Quadratic</option>
+            <option value="exp">Exponential</option>
+          </select>
+          <span class="graph-collapse"></span>
+        </div>
+        <div class="graph-wrap" id="graph-y-wrap">
+          <canvas id="graph-y-canvas"></canvas>
+        </div>
+      </div>
+
+      <!-- Data table -->
+      <div class="graph-section" id="table-section">
+        <div class="graph-section-header" onclick="collapseGraph('table',event)">
+          <div class="graph-dot" style="background:var(--gt)"></div>Data Table
+          <span class="graph-collapse"></span>
+        </div>
+        <div id="data-scroll">
+          <table>
+            <thead><tr><th>#</th><th>t (s)</th><th id="th-x">X</th><th id="th-y">Y</th><th></th></tr></thead>
+            <tbody id="data-tbody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
-
   </div>
-</div>
 
-<!-- ═══ STATUS BAR ═══ -->
-<div id="status-bar">
-  <div class="st-item">Frame: <b id="st-frame">—</b></div>
-  <div class="st-item">Time: <b id="st-time">—</b></div>
-  <div class="st-item">Mode: <b id="st-mode">Setup</b></div>
-  <div class="st-item">Scale: <b id="st-scale">Not calibrated</b></div>
-  <div class="st-item">Cursor: <b id="st-cursor">—</b></div>
-  <div class="st-item">Points: <b id="st-pts">0</b></div>
+  <!-- ═══ STATUS BAR ═══ -->
+  <div class="status">
+    <div class="s1">Frame: <b id="st-frame">&mdash;</b></div>
+    <div>Time: <b id="st-time">&mdash;</b></div>
+    <div>Mode: <b id="st-mode">Setup</b></div>
+    <div>Scale: <b id="st-scale">Not calibrated</b></div>
+    <div>Cursor: <b id="st-cursor">&mdash;</b></div>
+    <div>Points: <b id="st-pts">0</b></div>
+  </div>
 </div>
 
 <!-- ═══ CALIBRATION MODAL ═══ -->
 <div id="modal-overlay">
-  <div id="modal-box">
-    <h4>&#128207; Distance Calibration</h4>
-    <p id="modal-info">Enter the real-world distance between the two points you placed:</p>
-    <input type="number" id="modal-input" placeholder="e.g. 100" min="0.0001" step="any">
-    <div class="modal-buttons">
-      <button onclick="cancelCalibration()" style="background:var(--bg)">Cancel</button>
-      <button onclick="confirmCalibration()" style="background:var(--btn-bg)">Confirm</button>
+  <div class="dlg raised">
+    <div class="titlebar">
+      <svg width="17" height="17" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+        <rect x="2" y="2" width="12" height="12" fill="#C0C0C0"/>
+        <rect x="3" y="3" width="10" height="10" fill="#000080"/>
+        <rect x="6" y="5" width="4" height="1" fill="#FFFF00"/>
+        <rect x="6" y="9" width="4" height="1" fill="#FFFF00"/>
+        <rect x="5" y="6" width="1" height="3" fill="#FFFF00"/>
+        <rect x="10" y="6" width="1" height="3" fill="#FFFF00"/>
+      </svg>
+      <span class="t">Distance Calibration</span>
+    </div>
+    <div class="dlgbody">
+      <p id="modal-info">Enter the real-world distance between the two points you placed:</p>
+      <input type="number" id="modal-input" placeholder="e.g. 100" min="0.0001" step="any">
+      <div class="modal-buttons">
+        <button class="b95" onclick="cancelCalibration()">Cancel</button>
+        <button class="b95" onclick="confirmCalibration()">Confirm</button>
+      </div>
     </div>
   </div>
 </div>
 
+<!-- ═══ EXPORT DIALOG ═══ -->
+<div id="export-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:100;align-items:center;justify-content:center">
+  <div class="dlg raised">
+    <div class="titlebar">
+      <svg width="17" height="17" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+        <rect x="2" y="2" width="12" height="12" fill="#C0C0C0"/>
+        <rect x="3" y="3" width="10" height="10" fill="#000080"/>
+        <rect x="5" y="5" width="6" height="1" fill="#FFFF00"/>
+        <rect x="5" y="7" width="6" height="1" fill="#FFFF00"/>
+        <rect x="5" y="9" width="4" height="1" fill="#FFFF00"/>
+      </svg>
+      <span class="t">Export CSV</span>
+    </div>
+    <div class="dlgbody">
+      <p style="font-size:13px">Select variables to export:</p>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-frame" checked> Frame number</label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-time" checked> Time (s)</label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-x" checked> X position</label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-y" checked> Y position</label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-px"> Pixel X</label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-py"> Pixel Y</label>
+      <div class="modal-buttons">
+        <button class="b95" onclick="closeExportDialog()">Cancel</button>
+        <button class="b95" onclick="doExportCSV()">Export</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TASKBAR ═══ -->
+<div class="taskbar">
+  <button class="b95 taskbtn pressed">
+    <svg width="17" height="17" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+      <rect x="2" y="2" width="12" height="12" fill="#C0C0C0"/>
+      <rect x="3" y="3" width="10" height="10" fill="#000080"/>
+      <rect x="4" y="4" width="3" height="6" fill="#808080"/>
+      <rect x="5" y="5" width="1" height="4" fill="#FFFF00"/>
+      <rect x="9" y="4" width="3" height="6" fill="#808080"/>
+      <rect x="10" y="5" width="1" height="4" fill="#FFFF00"/>
+      <rect x="7" y="7" width="2" height="1" fill="#FF0000"/>
+      <rect x="7" y="8" width="1" height="2" fill="#FF0000"/>
+      <rect x="8" y="6" width="1" height="1" fill="#FF0000"/>
+    </svg>
+    Video Tracker
+  </button>
+  <div class="tray" id="trayClock"></div>
+</div>
+
 <!--
   Video element: NOT display:none — iOS Safari refuses to seek/draw hidden elements.
-  Positioned off-screen at 1×1 with near-zero opacity so it is technically "rendered".
+  Positioned off-screen at 1x1 with near-zero opacity so it is technically "rendered".
   playsinline + muted allow autoplay and frame capture without user gesture on iOS.
 -->
 <video id="hv"
@@ -475,6 +584,55 @@ tbody tr:hover { background: var(--bg-panel); }
 </video>
 
 <script>
+// ═══════════════════════════════════════════════════════
+//  TRAY CLOCK
+// ═══════════════════════════════════════════════════════
+function updateTray(){
+  const d=new Date(),h=d.getHours(),m=d.getMinutes();
+  document.getElementById('trayClock').textContent=
+    (h%12||12)+':'+String(m).padStart(2,'0')+' '+(h<12?'AM':'PM');
+}
+updateTray(); setInterval(updateTray,20000);
+
+// ═══════════════════════════════════════════════════════
+//  STEP MANAGEMENT
+// ═══════════════════════════════════════════════════════
+const stepUnlocked = [true, true, false, false, false, false]; // index 0 unused
+
+function activateStep(n) {
+    if (!stepUnlocked[n]) return;
+    // highlight active panel
+    for (let i = 1; i <= 5; i++)
+        document.getElementById('step-' + i).classList.toggle('step-active', i === n);
+    // set mode based on step
+    if (n === 3) {
+        S.mode = 'calibration'; S.calPts = [];
+        S.showCal = true; document.getElementById('cb-cal-overlay').checked = true;
+    } else if (n === 4) {
+        S.mode = 'setup';
+        S.showAxes = true; document.getElementById('cb-axes').checked = true;
+    } else if (n === 5) S.mode = 'tracking';
+    else S.mode = 'setup';
+    updateStepStatus();
+    drawOverlay();
+}
+
+function completeStep(n) {
+    // mark done
+    document.getElementById('step-' + n).classList.add('step-done');
+    // unlock next
+    if (n < 5) {
+        stepUnlocked[n + 1] = true;
+        document.getElementById('step-' + (n + 1) + '-body').disabled = false;
+        activateStep(n + 1);
+    }
+}
+
+function updateStepStatus() {
+    const labels = { setup: 'Origin Setup', calibration: 'Calibration', tracking: 'Tracking' };
+    document.getElementById('st-mode').textContent = labels[S.mode] || S.mode;
+}
+
 // ═══════════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════════
@@ -504,8 +662,8 @@ const S = {
     fitX: 'none',
     fitY: 'none',
     loop: false,
-    showAxes: true,
-    showCal: true,
+    showAxes: false,
+    showCal: false,
     vp: { zoom: 1, panX: 0, panY: 0 },
 };
 
@@ -526,17 +684,6 @@ const formatErr  = document.getElementById('format-error');
 const container  = document.getElementById('canvas-container');
 const videoPanel = document.getElementById('video-panel');
 const scrubber   = document.getElementById('scrubber');
-
-// ═══════════════════════════════════════════════════════
-//  THEME
-// ═══════════════════════════════════════════════════════
-function toggleTheme() {
-    const html = document.documentElement;
-    const toLight = html.dataset.theme !== 'light';
-    html.dataset.theme = toLight ? 'light' : 'dark';
-    document.getElementById('btn-theme').innerHTML = toLight ? '&#9790; Dark' : '&#9728; Light';
-    drawOverlay(); drawGraphX(); drawGraphY();
-}
 
 // ═══════════════════════════════════════════════════════
 //  VIDEO LOADING
@@ -569,7 +716,7 @@ function onVideoError() {
     document.getElementById('fe-msg').innerHTML =
         `<strong>${ext}</strong> files cannot be played by your browser.<br>
          Please convert to <strong>MP4 (H.264)</strong> or <strong>WebM</strong> first.<br><br>
-         Free tools: <strong>HandBrake</strong> (desktop) &nbsp;·&nbsp; <strong>CloudConvert.com</strong> (browser)`;
+         Free tools: <strong>HandBrake</strong> (desktop) &middot; <strong>CloudConvert.com</strong> (browser)`;
     formatErr.style.display = 'flex';
     dropHint.style.display = 'none';
 }
@@ -603,13 +750,9 @@ function initVideo() {
     resizeVideoCanvas();
     dropHint.style.display = 'none';
 
-    ['btn-play-pause','btn-stop','btn-rew','btn-loop','btn-trim-s','btn-trim-e',
-     'btn-rot-ccw','btn-rot-cw','btn-cal','btn-track',
-     'btn-zoom-in','btn-zoom-out','btn-zoom-fit'].forEach(id => {
-        document.getElementById(id).disabled = false;
-    });
     S.vp = { zoom: 1, panX: 0, panY: 0 };
     updateZoomDisplay();
+    completeStep(1);
     seekTo(0);
 }
 
@@ -648,7 +791,6 @@ function seekTo(frameIdx) {
     const t = frameIdx / S.fps;
     if (t > S.videoDuration) return;
 
-    // Cancel any pending seek: remove old listener and timer
     if (_seekTimer)   { clearTimeout(_seekTimer); _seekTimer = null; }
     if (_seekHandler) { video.removeEventListener('seeked', _seekHandler); _seekHandler = null; }
 
@@ -739,7 +881,7 @@ function rewindToStart() {
 
 function toggleLoop() {
     S.loop = !S.loop;
-    document.getElementById('btn-loop').classList.toggle('active', S.loop);
+    document.getElementById('btn-loop').classList.toggle('pressed', S.loop);
 }
 
 function togglePlayback() {
@@ -776,10 +918,10 @@ function updatePlayBtn() {
     const btn = document.getElementById('btn-play-pause');
     if (S.isPlaying) {
         btn.innerHTML = '&#9646;&#9646; Pause';
-        btn.classList.add('playing');
+        btn.classList.add('pressed');
     } else {
         btn.innerHTML = '&#9654; Play';
-        btn.classList.remove('playing');
+        btn.classList.remove('pressed');
     }
 }
 
@@ -866,39 +1008,24 @@ document.getElementById('unit-sel').addEventListener('change', e => {
 // ═══════════════════════════════════════════════════════
 //  GRAPH VISIBILITY TOGGLE
 // ═══════════════════════════════════════════════════════
-function toggleGraph(axis) {
-    const show = document.getElementById('cb-' + axis).checked;
-    S['show' + axis.toUpperCase()] = show;
-    document.getElementById('section-' + axis).classList.toggle('collapsed', !show);
+function collapseGraph(axis, e) {
+    if (e && e.target.tagName === 'SELECT') return;
+    const id = axis === 'table' ? 'table-section' : 'section-' + axis;
+    const sec = document.getElementById(id);
+    sec.classList.toggle('collapsed');
+    if (axis !== 'table') {
+        S['show' + axis.toUpperCase()] = !sec.classList.contains('collapsed');
+        if (axis === 'x') drawGraphX(); else drawGraphY();
+    }
 }
 
 // ═══════════════════════════════════════════════════════
-//  MODE SWITCHING
+//  MODE SWITCHING (driven by step activation)
 // ═══════════════════════════════════════════════════════
-function setMode(mode) {
-    S.mode = mode;
-    ['setup','cal','track'].forEach(m =>
-        document.getElementById('btn-' + m).classList.remove('active'));
-    const btnId = mode === 'calibration' ? 'btn-cal'
-                : mode === 'tracking'    ? 'btn-track'
-                :                          'btn-setup';
-    document.getElementById(btnId).classList.add('active');
-    if (mode === 'calibration') S.calPts = [];
-    document.getElementById('st-mode').textContent =
-        mode === 'setup'       ? 'Setup Axis' :
-        mode === 'calibration' ? 'Calibration — click 2 points' :
-        S.calibrated           ? 'Tracking — click on object' :
-                                 'Tracking — calibrate first!';
-    drawOverlay();
-}
 
 // ═══════════════════════════════════════════════════════
 //  COORDINATE TRANSFORMS
 // ═══════════════════════════════════════════════════════
-
-// Recompute stored wx/wy for every tracked point from their fixed
-// canvas coordinates using the current origin, angle and scale.
-// Must be called whenever any of those transform parameters change.
 function recomputeWorldCoords() {
     S.points.forEach(p => {
         const w = canvasToWorld(p.cx, p.cy);
@@ -1005,7 +1132,7 @@ function onPtrUp(cx, cy) {
     }
     if (S.mode === 'tracking') {
         if (!S.calibrated) {
-            document.getElementById('st-mode').textContent = 'Tracking — calibrate first!';
+            document.getElementById('st-mode').textContent = 'Calibrate first!';
             return;
         }
         addTrackPoint(p);
@@ -1078,7 +1205,6 @@ ocan.addEventListener('touchmove', e => {
         const midX = (t0.clientX+t1.clientX)/2, midY = (t0.clientY+t1.clientY)/2;
         const ms = screenPos(midX, midY);
         const newZoom = Math.max(1, Math.min(16, _pinch.z0 * (newDist / _pinch.d0)));
-        // Keep initial pinch midpoint canvas coord under current midpoint
         const cx = _pinch.sx0 / _pinch.z0 + _pinch.px0;
         const cy = _pinch.sy0 / _pinch.z0 + _pinch.py0;
         S.vp.zoom = newZoom;
@@ -1141,13 +1267,32 @@ function clearTracking() {
 }
 
 function exportCSV() {
-    const hdr  = `frame,time_s,x_${S.unit},y_${S.unit}\n`;
-    const rows = S.points.map(p =>
-        `${p.frame},${p.time.toFixed(4)},${p.wx.toFixed(4)},${p.wy.toFixed(4)}`).join('\n');
+    document.getElementById('export-overlay').style.display = 'flex';
+}
+function closeExportDialog() {
+    document.getElementById('export-overlay').style.display = 'none';
+}
+function doExportCSV() {
+    const cols = [];
+    const ids = [
+        ['exp-frame', 'frame',      p => p.frame],
+        ['exp-time',  'time_s',     p => p.time.toFixed(4)],
+        ['exp-x',     'x_'+S.unit,  p => p.wx.toFixed(4)],
+        ['exp-y',     'y_'+S.unit,  p => p.wy.toFixed(4)],
+        ['exp-px',    'px_x',       p => p.cx.toFixed(1)],
+        ['exp-py',    'px_y',       p => p.cy.toFixed(1)],
+    ];
+    ids.forEach(([id, hdr, fn]) => {
+        if (document.getElementById(id).checked) cols.push({hdr, fn});
+    });
+    if (!cols.length) { alert('Select at least one variable.'); return; }
+    const hdr  = cols.map(c => c.hdr).join(',') + '\n';
+    const rows = S.points.map(p => cols.map(c => c.fn(p)).join(',')).join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([hdr + rows], { type: 'text/csv' }));
     a.download = 'tracking_data.csv';
     a.click();
+    closeExportDialog();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1174,8 +1319,10 @@ function confirmCalibration() {
     S.unit       = document.getElementById('unit-sel').value;
     S.calibrated = true;
     document.getElementById('modal-overlay').classList.remove('open');
+    document.getElementById('cal-hint').textContent = S.calDist + ' ' + S.unit + ' set';
     recomputeWorldCoords();
     updateTableHeader(); drawOverlay(); drawGraphX(); drawGraphY(); updateStatus();
+    completeStep(3);
 }
 document.getElementById('modal-input').addEventListener('keydown', e => {
     if (e.key === 'Enter')  confirmCalibration();
@@ -1185,8 +1332,6 @@ document.getElementById('modal-input').addEventListener('keydown', e => {
 // ═══════════════════════════════════════════════════════
 //  OVERLAY DRAWING
 // ═══════════════════════════════════════════════════════
-function isLightTheme() { return document.documentElement.dataset.theme === 'light'; }
-
 function drawOverlay() {
     const z = S.vp.zoom;
     octx.clearRect(0, 0, S.CW, S.CH);
@@ -1201,14 +1346,13 @@ function drawOverlay() {
 
 function drawAxes(z) {
     const iz = 1 / z;
-    const light = isLightTheme();
-    const xCol  = light ? 'rgba(192,57,43,'   : 'rgba(233,69,96,';
-    const yCol  = light ? 'rgba(21,101,192,'  : 'rgba(79,195,247,';
+    const xCol  = 'rgba(128,0,0,';
+    const yCol  = 'rgba(0,0,128,';
     const u = Math.max(S.CW, S.CH) * 1.5 / S.scale;
 
     const axisLine = (wx1, wy1, wx2, wy2, col) => {
         const p1 = worldToCanvas(wx1, wy1), p2 = worldToCanvas(wx2, wy2);
-        octx.strokeStyle = col + '0.55)';
+        octx.strokeStyle = col + '0.7)';
         octx.lineWidth = 1.5 * iz;
         octx.setLineDash([6*iz, 4*iz]);
         octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
@@ -1219,14 +1363,14 @@ function drawAxes(z) {
 
     octx.fillStyle = '#fff';
     octx.beginPath(); octx.arc(S.origin.x, S.origin.y, 5*iz, 0, Math.PI*2); octx.fill();
-    octx.strokeStyle = light ? '#c0392b' : '#e94560';
+    octx.strokeStyle = '#800000';
     octx.lineWidth = 1.5 * iz; octx.stroke();
 
     const lx = worldToCanvas(75 / S.scale, 0);
     const ly = worldToCanvas(0, 75 / S.scale);
     octx.font = `bold ${14*iz}px sans-serif`; octx.textAlign = 'center'; octx.textBaseline = 'middle';
-    octx.fillStyle = xCol + '0.85)'; octx.fillText('X', lx.x, lx.y);
-    octx.fillStyle = yCol + '0.85)'; octx.fillText('Y', ly.x, ly.y);
+    octx.fillStyle = xCol + '0.9)'; octx.fillText('X', lx.x, lx.y);
+    octx.fillStyle = yCol + '0.9)'; octx.fillText('Y', ly.x, ly.y);
 
     drawTicks(xCol, yCol, z);
 }
@@ -1251,21 +1395,21 @@ function drawTicks(xCol, yCol, z) {
                     ? v.toExponential(1) : +v.toPrecision(4) + '';
 
         const px = worldToCanvas(v, 0), perpX = worldToCanvas(v, TICK/sc);
-        octx.strokeStyle = xCol + '0.6)';
+        octx.strokeStyle = xCol + '0.7)';
         octx.beginPath();
         octx.moveTo(px.x-(perpX.x-px.x), px.y-(perpX.y-px.y));
         octx.lineTo(perpX.x, perpX.y); octx.stroke();
-        octx.fillStyle = xCol + '0.8)';
+        octx.fillStyle = xCol + '0.85)';
         octx.font = `${10*iz}px sans-serif`; octx.textAlign = 'center'; octx.textBaseline = 'middle';
         const lbX = worldToCanvas(v, -TICK*1.8/sc);
         octx.fillText(lbl, lbX.x, lbX.y);
 
         const py = worldToCanvas(0, v), perpY = worldToCanvas(TICK/sc, v);
-        octx.strokeStyle = yCol + '0.6)';
+        octx.strokeStyle = yCol + '0.7)';
         octx.beginPath();
         octx.moveTo(py.x-(perpY.x-py.x), py.y-(perpY.y-py.y));
         octx.lineTo(perpY.x, perpY.y); octx.stroke();
-        octx.fillStyle = yCol + '0.8)';
+        octx.fillStyle = yCol + '0.85)';
         const lbY = worldToCanvas(-TICK*1.8/sc, v);
         octx.fillText(lbl, lbY.x, lbY.y);
     }
@@ -1355,7 +1499,7 @@ function fitLinear(ts, ys) {
     const a = (n*sty - st*sy) / det;
     const b = (sy - a*st) / n;
     return { fn: t => a*t + b,
-             label: `y = ${fmtC(a)}·t ${b>=0?'+':'−'} ${fmtC(Math.abs(b))}` };
+             label: `y = ${fmtC(a)}*t ${b>=0?'+':'−'} ${fmtC(Math.abs(b))}` };
 }
 
 function fitQuadratic(ts, ys) {
@@ -1369,7 +1513,7 @@ function fitQuadratic(ts, ys) {
     const [a, b, d] = c;
     const pm = v => v >= 0 ? ' + ' : ' − ';
     return { fn: t => a*t*t + b*t + d,
-             label: `y = ${fmtC(a)}·t²${pm(b)}${fmtC(Math.abs(b))}·t${pm(d)}${fmtC(Math.abs(d))}` };
+             label: `y = ${fmtC(a)}*t^2${pm(b)}${fmtC(Math.abs(b))}*t${pm(d)}${fmtC(Math.abs(d))}` };
 }
 
 function fitExponential(ts, ys) {
@@ -1384,7 +1528,7 @@ function fitExponential(ts, ys) {
     const B = (n*sty - st*sy) / det;
     const A = Math.exp((sy - B*st) / n);
     return { fn: t => A * Math.exp(B*t),
-             label: `y = ${fmtC(A)}·e^(${fmtC(B)}·t)` };
+             label: `y = ${fmtC(A)}*e^(${fmtC(B)}*t)` };
 }
 
 function computeFit(type, ts, ys) {
@@ -1412,19 +1556,16 @@ function fmtC(v) {
 //  GRAPHS
 // ═══════════════════════════════════════════════════════
 function graphColors(axis) {
-    const light = isLightTheme();
     return {
-        bg:     light ? '#f8fafc' : '#0d1117',
-        grid:   light ? '#d0dce8' : '#1a2233',
-        zero:   light ? '#a0b0c0' : '#2a3a4a',
-        border: light ? '#aabbc8' : '#334455',
-        tick:   light ? '#7788aa' : '#667788',
-        lbl:    light ? '#445566' : '#8899aa',
-        nodata: light ? '#99aabb' : '#2a2a3a',
-        data:   axis === 'x'
-                ? (light ? '#c0392b' : '#e94560')
-                : (light ? '#1565c0' : '#4fc3f7'),
-        fit_bg: light ? 'rgba(248,250,252,0.88)' : 'rgba(13,17,23,0.82)',
+        bg:     '#FFFFFF',
+        grid:   '#DFDFDF',
+        zero:   '#808080',
+        border: '#808080',
+        tick:   '#000000',
+        lbl:    '#000000',
+        nodata: '#808080',
+        data:   axis === 'x' ? '#800000' : '#000080',
+        fit_bg: 'rgba(255,255,255,0.88)',
     };
 }
 
@@ -1444,7 +1585,7 @@ function drawGraphSingle(ctx, can, axis, fitType) {
     if (!pts.length) {
         ctx.fillStyle = C.nodata; ctx.font = '11px sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('No data yet — start tracking', W/2, H/2);
+        ctx.fillText('No data yet', W/2, H/2);
         return;
     }
 
@@ -1526,32 +1667,21 @@ function drawGraphSingle(ctx, can, axis, fitType) {
         }
     }
 
-    // Data line
-    if (pts.length > 1) {
-        ctx.strokeStyle = C.data; ctx.lineWidth = 2;
-        ctx.beginPath();
-        pts.forEach((p, i) => {
-            const x = tx(p.time), y = ty(vals[i]);
-            i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
-        });
-        ctx.stroke();
-    }
-
     // Dots
     ctx.fillStyle = C.data;
     pts.forEach((p, i) => {
         ctx.beginPath(); ctx.arc(tx(p.time), ty(vals[i]), 3, 0, Math.PI*2); ctx.fill();
     });
 
-    // Fit equation + R²
+    // Fit equation + R^2
     if (fitResult) {
         const r2  = rSquared(times, vals, fitResult.fn);
-        const lbl = `${fitResult.label}   R² = ${r2.toFixed(4)}`;
-        ctx.font = '9px sans-serif';
+        const lbl = `${fitResult.label}   R^2 = ${r2.toFixed(4)}`;
+        ctx.font = '13px sans-serif';
         ctx.textAlign = 'right'; ctx.textBaseline = 'top';
-        const tw = ctx.measureText(lbl).width + 8;
+        const tw = ctx.measureText(lbl).width + 10;
         ctx.fillStyle = C.fit_bg;
-        ctx.fillRect(pad.l + pw - tw, pad.t + 2, tw, 14);
+        ctx.fillRect(pad.l + pw - tw, pad.t + 2, tw, 18);
         ctx.fillStyle = C.data;
         ctx.fillText(lbl, pad.l + pw - 3, pad.t + 4);
     }
@@ -1578,7 +1708,7 @@ function updateDataTable() {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${i+1}</td><td>${p.time.toFixed(3)}</td><td>${p.wx.toFixed(3)}</td><td>${p.wy.toFixed(3)}</td>`
             + `<td style="text-align:center;padding:0 4px"><span onclick="removePoint(${i})" `
-            + `style="cursor:pointer;color:var(--btn-act-bg);font-size:13px;line-height:1" title="Remove point">×</span></td>`;
+            + `style="cursor:pointer;color:#800000;font-size:13px;line-height:1" title="Remove point">×</span></td>`;
         tbody.appendChild(tr);
     });
     const ds = document.getElementById('data-scroll');
@@ -1626,5 +1756,3 @@ function fmtNum(v) {
 // Init
 drawGraphX(); drawGraphY(); updateStatus();
 </script>
-</body>
-</html>

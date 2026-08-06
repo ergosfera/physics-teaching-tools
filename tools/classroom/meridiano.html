@@ -1,0 +1,1270 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meridiano</title>
+
+<style>
+  :root{
+    --desktop:#008080;
+    --face:#C0C0C0;
+    --hi:#FFFFFF;
+    --light:#DFDFDF;
+    --shadow:#808080;
+    --dark:#000000;
+    --title:#000080;
+    --title-off:#808080;
+    --sel:#000080;
+    --field:#FFFFFF;
+    --ui:Tahoma,"MS Sans Serif",Verdana,Geneva,sans-serif;
+    --fixed:"Lucida Console","Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    background:var(--desktop);
+    font-family:var(--ui);
+    font-size:14px;
+    color:#000;
+    -webkit-font-smoothing:none;
+    padding:8px 8px calc(54px + env(safe-area-inset-bottom));
+    overscroll-behavior-y:contain;
+  }
+
+  /* ---- Win95 bevels ---- */
+  .raised{
+    background:var(--face);
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow), inset 2px 2px 0 var(--light);
+  }
+  .sunken{
+    background:var(--face);
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+  }
+  .thin-sunken{
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow);
+  }
+
+  /* ---- window ---- */
+  .window{max-width:820px;margin:0 auto;padding:3px}
+  .window.hidden{display:none}
+  .titlebar{
+    background:var(--title);color:#fff;
+    display:flex;align-items:center;gap:5px;
+    padding:2px 2px 2px 3px;margin-bottom:2px;
+  }
+  .titlebar .t{
+    font-weight:700;font-size:15px;flex:1;letter-spacing:.01em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .titlebar svg{display:block;flex:none}
+  .tbtn{
+    width:24px;height:22px;padding:0;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--ui);font-size:13px;font-weight:700;line-height:1;
+    background:var(--face);border:0;color:#000;cursor:pointer;
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow), inset 2px 2px 0 var(--light);
+  }
+  .tbtn:active{box-shadow:inset 1px 1px 0 var(--dark), inset 2px 2px 0 var(--shadow);padding:1px 0 0 1px}
+  .tbtn:focus-visible{outline:1px dotted #fff;outline-offset:-4px}
+
+  .body{padding:6px}
+
+  /* ---- toolbar ---- */
+  .toolbar{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:6px}
+  button.b95{
+    font-family:var(--ui);font-size:14px;color:#000;background:var(--face);
+    border:0;padding:7px 13px;min-height:32px;cursor:pointer;
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow), inset 2px 2px 0 var(--light);
+  }
+  button.b95:active,button.b95.pressed{
+    box-shadow:inset 1px 1px 0 var(--shadow), inset 2px 2px 0 var(--dark);
+    padding:8px 12px 6px 14px;
+  }
+  button.b95:focus-visible{outline:1px dotted #000;outline-offset:-4px}
+  button.b95:disabled{color:var(--shadow);text-shadow:1px 1px 0 var(--hi);cursor:default}
+  .daybox{display:flex;align-items:center;gap:4px}
+  .daybox .lbl{
+    font-family:var(--fixed);font-size:14px;background:var(--field);
+    padding:7px 10px;min-width:128px;text-align:center;
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+  }
+  .grow{flex:1}
+
+  /* ---- timeline ---- */
+  .well{padding:5px;position:relative}
+  .timeline{position:relative;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+  .timeline:focus-visible{outline:1px dotted #000;outline-offset:2px}
+  .row{padding:8px 5px 6px}
+  .row+.row{border-top:1px solid var(--shadow);box-shadow:0 1px 0 var(--hi) inset}
+  .rowhead{display:flex;align-items:center;gap:7px;margin-bottom:7px;flex-wrap:wrap}
+  .city{font-weight:700;font-size:16px}
+  .badge{
+    font-size:11px;font-weight:700;background:var(--sel);color:#fff;
+    padding:2px 6px;letter-spacing:.06em;
+  }
+  .meta{font-family:var(--fixed);font-size:12px;color:#000;white-space:nowrap}
+  .meta em{font-style:normal;color:var(--shadow)}
+  .rowtime{margin-left:auto;display:flex;align-items:baseline;gap:6px}
+  .rowtime b{font-family:var(--fixed);font-size:22px;font-weight:400;letter-spacing:-.01em}
+  .daydiff{font-family:var(--fixed);font-size:12px;color:#800000;font-weight:700}
+  .rowacts{display:flex;gap:4px}
+  .rowacts button{padding:4px 9px;min-height:0;font-size:13px}
+  .rowacts button:active{padding:5px 8px 3px 10px}
+
+  .band{position:relative;height:36px;padding:2px;background:var(--face)}
+  .band canvas{display:block;width:100%;height:32px;image-rendering:pixelated}
+  .ticks{position:relative;height:16px;margin-top:3px}
+  .ticks span{position:absolute;top:0;transform:translateX(-50%);font-family:var(--fixed);font-size:11px;white-space:nowrap}
+  .ticks span.minor{display:none}
+  @media(min-width:760px){.ticks span.minor{display:block;color:var(--shadow)}}
+
+  .vline{position:absolute;top:0;bottom:0;width:0;pointer-events:none}
+  .vline i{position:absolute;top:0;bottom:14px;left:-1px;width:2px;display:block}
+  #nowline i{background:#FF0000}
+  #scrubline i{
+    width:1px;left:0;
+    background:repeating-linear-gradient(180deg,#000 0 2px,#fff 2px 4px);
+  }
+  .hidden{display:none}
+
+  /* ---- legend ---- */
+  .legend{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .legend canvas{flex:1;height:14px;display:block;width:100%;image-rendering:pixelated}
+  .legend span{font-size:12px;font-family:var(--fixed)}
+
+  /* ---- add-city dialog ---- */
+  .modal{
+    position:fixed;inset:0;z-index:50;
+    display:flex;align-items:center;justify-content:center;padding:12px;
+    background:rgba(0,0,0,.35);
+  }
+  .modal.hidden{display:none}
+  .dlg{width:100%;max-width:420px;padding:3px;display:flex;flex-direction:column;max-height:88vh}
+  .dlg .dlgbody{padding:10px;display:flex;flex-direction:column;min-height:0}
+  .dlg label{display:block;font-size:14px;margin-bottom:6px}
+  .dlgbtns{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:10px}
+  .dlgbtns button{min-width:88px}
+  .dlgcount{margin-right:auto;font-family:var(--fixed);font-size:12px;color:var(--shadow)}
+  input[type=search]{
+    width:100%;font-family:var(--ui);font-size:15px;padding:7px 7px;
+    background:var(--field);border:0;outline:none;color:#000;
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+  }
+  input[type=search]:focus{outline:none}
+  .results{
+    margin-top:8px;flex:1;min-height:140px;overflow-y:auto;background:var(--field);
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+  }
+  .results button{
+    display:flex;width:100%;align-items:baseline;gap:8px;text-align:left;
+    border:0;background:transparent;padding:8px 8px;font-family:var(--ui);
+    font-size:14px;color:#000;cursor:pointer;
+  }
+  .results button:hover{background:var(--light)}
+  .results button.sel,.results button.sel:hover{background:var(--sel);color:#fff}
+  .results button:focus{outline:1px dotted #000;outline-offset:-2px}
+  .results button.sel:focus{outline-color:#fff}
+  .results button .r-meta{margin-left:auto;font-family:var(--fixed);font-size:12px}
+  .results .none{padding:10px;font-size:14px;color:var(--shadow)}
+  .results::-webkit-scrollbar{width:16px}
+  .results::-webkit-scrollbar-track{
+    background-color:var(--hi);
+    background-image:linear-gradient(45deg,var(--face) 25%,transparent 25%,transparent 75%,var(--face) 75%),
+                     linear-gradient(45deg,var(--face) 25%,transparent 25%,transparent 75%,var(--face) 75%);
+    background-size:2px 2px;background-position:0 0,1px 1px;
+  }
+  .results::-webkit-scrollbar-thumb{
+    background:var(--face);
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow), inset 2px 2px 0 var(--light);
+  }
+
+  /* ---- status bar ---- */
+  .status{display:flex;gap:3px;margin-top:8px}
+  .status div{
+    font-size:13px;padding:5px 8px;
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow);
+  }
+  .status .s1{flex:1;font-family:var(--fixed)}
+
+  /* ---- desktop icon ---- */
+  .icon{
+    width:78px;text-align:center;padding:4px;cursor:pointer;background:transparent;border:0;
+    display:none;
+  }
+  .icon.show{display:block}
+  .icon .cap{
+    color:#fff;font-family:var(--ui);font-size:12px;margin-top:3px;display:inline-block;padding:1px 3px;
+    text-shadow:1px 1px 0 #000;
+  }
+  .icon:focus-visible .cap{outline:1px dotted #fff;background:var(--sel)}
+
+  /* ---- taskbar ---- */
+  .taskbar{
+    position:fixed;left:0;right:0;bottom:0;height:44px;
+    background:var(--face);display:flex;align-items:center;gap:4px;
+    padding:4px 4px calc(4px + env(safe-area-inset-bottom));
+    box-shadow:inset 0 1px 0 var(--hi), inset 0 2px 0 var(--light);
+  }
+  .taskbtn{
+    display:flex;align-items:center;gap:6px;font-weight:700;padding:6px 10px;min-height:34px;
+  }
+  .tray{
+    margin-left:auto;font-family:var(--fixed);font-size:14px;padding:8px 12px;
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+  }
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<button class="icon" id="deskIcon">
+  <svg width="32" height="32" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+    <rect x="1" y="1" width="14" height="14" fill="#C0C0C0"/>
+    <rect x="1" y="1" width="14" height="1" fill="#FFF"/><rect x="1" y="1" width="1" height="14" fill="#FFF"/>
+    <rect x="1" y="14" width="14" height="1" fill="#000"/><rect x="14" y="1" width="1" height="14" fill="#000"/>
+    <rect x="3" y="3" width="10" height="10" fill="#000080"/>
+    <rect x="7" y="5" width="1" height="4" fill="#FFFF00"/><rect x="8" y="8" width="3" height="1" fill="#FFFF00"/>
+  </svg>
+  <span class="cap">Meridiano</span>
+</button>
+
+<div class="window raised" id="win">
+  <div class="titlebar">
+    <svg width="17" height="17" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+      <rect x="2" y="2" width="12" height="12" fill="#C0C0C0"/>
+      <rect x="3" y="3" width="10" height="10" fill="#000080"/>
+      <rect x="7" y="5" width="1" height="4" fill="#FFFF00"/><rect x="8" y="8" width="3" height="1" fill="#FFFF00"/>
+    </svg>
+    <span class="t">Meridiano</span>
+    <button class="tbtn" id="btnMin" title="Minimize" aria-label="Minimize">_</button>
+    <button class="tbtn" id="btnWide" title="Maximize" aria-label="Toggle width">□</button>
+    <button class="tbtn" id="btnClose" title="Close" aria-label="Close">✕</button>
+  </div>
+
+  <div class="body" id="winBody">
+    <div class="toolbar">
+      <div class="daybox">
+        <button class="b95" id="dayPrev" aria-label="Previous day">◄</button>
+        <span class="lbl" id="dayLabel">—</span>
+        <button class="b95" id="dayNext" aria-label="Next day">►</button>
+      </div>
+      <button class="b95" id="nowBtn">Now</button>
+      <button class="b95" id="fmtBtn">24h</button>
+      <button class="b95" id="addBtn">Add city...</button>
+      <span class="grow"></span>
+      <button class="b95" id="copyBtn">Copy times</button>
+    </div>
+
+    <div class="well sunken">
+      <div class="timeline" id="timeline" tabindex="0" role="group"
+           aria-label="Hour bands. Drag across, or use the arrow keys, to compare one moment in every city.">
+        <div id="rows"></div>
+        <div class="vline" id="nowline"><i></i></div>
+        <div class="vline hidden" id="scrubline"><i></i></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span>night</span><canvas id="legendC" height="10"></canvas><span>day</span>
+    </div>
+
+    <div class="status">
+      <div class="s1 sunken-t" id="statusText">—</div>
+      <div id="statusCount">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+  <div class="dlg raised">
+    <div class="titlebar">
+      <svg width="17" height="17" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+        <rect x="2" y="2" width="12" height="12" fill="#C0C0C0"/>
+        <rect x="3" y="3" width="10" height="10" fill="#000080"/>
+        <rect x="7" y="5" width="1" height="4" fill="#FFFF00"/><rect x="8" y="8" width="3" height="1" fill="#FFFF00"/>
+      </svg>
+      <span class="t" id="dlgTitle">Add a city</span>
+      <button class="tbtn" id="dlgX" title="Cancel" aria-label="Cancel">✕</button>
+    </div>
+    <div class="dlgbody">
+      <label for="search">City or country:</label>
+      <input id="search" type="search" autocomplete="off" placeholder="Type to filter the list">
+      <div class="results" id="results" role="listbox" aria-label="Available cities"></div>
+      <div class="dlgbtns">
+        <span class="dlgcount" id="dlgCount"></span>
+        <button class="b95" id="dlgAdd" disabled>Add</button>
+        <button class="b95" id="dlgCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="taskbar">
+  <button class="b95 taskbtn" id="taskBtn">
+    <svg width="17" height="17" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+      <rect x="2" y="2" width="12" height="12" fill="#000080"/>
+      <rect x="7" y="5" width="1" height="4" fill="#FFFF00"/><rect x="8" y="8" width="3" height="1" fill="#FFFF00"/>
+    </svg>
+    Meridiano
+  </button>
+  <span class="tray" id="tray">—</span>
+</div>
+
+<script>
+"use strict";
+
+/* ───────── city table: name, country, IANA zone, latitude, longitude ───────── */
+const CITIES = [
+["Abidjan","Côte d’Ivoire","Africa/Abidjan",5.32,-4.03],
+["Abu Dhabi","United Arab Emirates","Asia/Dubai",24.45,54.38],
+["Abuja","Nigeria","Africa/Lagos",9.06,7.5],
+["Accra","Ghana","Africa/Accra",5.55,-0.22],
+["Adak","United States","America/Adak",51.88,-176.66],
+["Addis Ababa","Ethiopia","Africa/Addis_Ababa",9.03,38.7],
+["Adelaide","Australia","Australia/Adelaide",-34.92,138.58],
+["Aden","Yemen","Asia/Aden",12.75,45.2],
+["Alexandria","Egypt","Africa/Cairo",31.2,29.92],
+["Algiers","Algeria","Africa/Algiers",36.78,3.05],
+["Almaty","Kazakhstan","Asia/Almaty",43.25,76.95],
+["Amman","Jordan","Asia/Amman",31.95,35.93],
+["Amsterdam","Netherlands","Europe/Amsterdam",52.37,4.9],
+["Anadyr","Russia","Asia/Anadyr",64.75,177.48],
+["Anchorage","United States","America/Anchorage",61.22,-149.9],
+["Andorra","Andorra","Europe/Andorra",42.5,1.52],
+["Anguilla","Anguilla","America/Anguilla",18.2,-63.07],
+["Ankara","Türkiye","Europe/Istanbul",39.93,32.86],
+["Antananarivo","Madagascar","Indian/Antananarivo",-18.92,47.52],
+["Antigua","Antigua & Barbuda","America/Antigua",17.05,-61.8],
+["Antwerp","Belgium","Europe/Brussels",51.22,4.4],
+["Apia","Samoa (western)","Pacific/Apia",-13.83,-171.73],
+["Aqtau","Kazakhstan","Asia/Aqtau",44.52,50.27],
+["Aqtöbe","Kazakhstan","Asia/Aqtobe",50.28,57.17],
+["Araguaína","Brazil","America/Araguaina",-7.2,-48.2],
+["Aruba","Aruba","America/Aruba",12.5,-69.97],
+["Ashgabat","Turkmenistan","Asia/Ashgabat",37.95,58.38],
+["Asmara","Eritrea","Africa/Asmara",15.33,38.88],
+["Astrakhan","Russia","Europe/Astrakhan",46.35,48.05],
+["Asunción","Paraguay","America/Asuncion",-25.27,-57.67],
+["Athens","Greece","Europe/Athens",37.97,23.72],
+["Atikokan","Canada","America/Atikokan",48.76,-91.62],
+["Atlanta","United States","America/New_York",33.75,-84.39],
+["Atyrau","Kazakhstan","Asia/Atyrau",47.12,51.93],
+["Auckland","New Zealand","Pacific/Auckland",-36.87,174.77],
+["Austin","United States","America/Chicago",30.27,-97.74],
+["Azores","Portugal","Atlantic/Azores",37.73,-25.67],
+["Baghdad","Iraq","Asia/Baghdad",33.35,44.42],
+["Bahia","Brazil","America/Bahia",-12.98,-38.52],
+["Bahia Banderas","Mexico","America/Bahia_Banderas",20.8,-105.25],
+["Bahrain","Bahrain","Asia/Bahrain",26.38,50.58],
+["Baku","Azerbaijan","Asia/Baku",40.38,49.85],
+["Bamako","Mali","Africa/Bamako",12.65,-8.0],
+["Bandung","Indonesia","Asia/Jakarta",-6.92,107.61],
+["Bangkok","Thailand","Asia/Bangkok",13.75,100.52],
+["Bangui","Central African Rep.","Africa/Bangui",4.37,18.58],
+["Banjul","Gambia","Africa/Banjul",13.47,-16.65],
+["Barbados","Barbados","America/Barbados",13.1,-59.62],
+["Barcelona","Spain","Europe/Madrid",41.39,2.17],
+["Barnaul","Russia","Asia/Barnaul",53.37,83.75],
+["Barranquilla","Colombia","America/Bogota",10.96,-74.8],
+["Basel","Switzerland","Europe/Zurich",47.56,7.59],
+["Beijing","China","Asia/Shanghai",39.9,116.41],
+["Beirut","Lebanon","Asia/Beirut",33.88,35.5],
+["Belém","Brazil","America/Belem",-1.45,-48.48],
+["Belgrade","Serbia","Europe/Belgrade",44.83,20.5],
+["Belize","Belize","America/Belize",17.5,-88.2],
+["Bengaluru","India","Asia/Kolkata",12.97,77.59],
+["Bergen","Norway","Europe/Oslo",60.39,5.32],
+["Berlin","Germany","Europe/Berlin",52.5,13.37],
+["Bermuda","Bermuda","Atlantic/Bermuda",32.28,-64.77],
+["Beulah","United States","America/North_Dakota/Beulah",47.26,-101.78],
+["Birmingham","United Kingdom","Europe/London",52.49,-1.89],
+["Bishkek","Kyrgyzstan","Asia/Bishkek",42.9,74.6],
+["Bissau","Guinea-Bissau","Africa/Bissau",11.85,-15.58],
+["Blanc-Sablon","Canada","America/Blanc-Sablon",51.42,-57.12],
+["Blantyre","Malawi","Africa/Blantyre",-15.78,35.0],
+["Boa Vista","Brazil","America/Boa_Vista",2.82,-60.67],
+["Bogotá","Colombia","America/Bogota",4.6,-74.08],
+["Boise","United States","America/Boise",43.61,-116.2],
+["Boston","United States","America/New_York",42.36,-71.06],
+["Bougainville","Papua New Guinea","Pacific/Bougainville",-6.22,155.57],
+["Brasília","Brazil","America/Sao_Paulo",-15.79,-47.88],
+["Bratislava","Slovakia","Europe/Bratislava",48.15,17.12],
+["Brazzaville","Congo (Rep.)","Africa/Brazzaville",-4.27,15.28],
+["Brisbane","Australia","Australia/Brisbane",-27.47,153.03],
+["Broken Hill","Australia","Australia/Broken_Hill",-31.95,141.45],
+["Brunei","Brunei","Asia/Brunei",4.93,114.92],
+["Brussels","Belgium","Europe/Brussels",50.83,4.33],
+["Bucaramanga","Colombia","America/Bogota",7.12,-73.13],
+["Bucharest","Romania","Europe/Bucharest",44.43,26.1],
+["Budapest","Hungary","Europe/Budapest",47.5,19.08],
+["Buenos Aires","Argentina","America/Argentina/Buenos_Aires",-34.6,-58.45],
+["Bujumbura","Burundi","Africa/Bujumbura",-3.38,29.37],
+["Busan","South Korea","Asia/Seoul",35.18,129.08],
+["Busingen","Germany","Europe/Busingen",47.7,8.68],
+["Cairo","Egypt","Africa/Cairo",30.05,31.25],
+["Calgary","Canada","America/Edmonton",51.05,-114.07],
+["Cali","Colombia","America/Bogota",3.45,-76.53],
+["Cambridge","United Kingdom","Europe/London",52.21,0.12],
+["Cambridge Bay","Canada","America/Cambridge_Bay",69.11,-105.05],
+["Campo Grande","Brazil","America/Campo_Grande",-20.45,-54.62],
+["Canary Islands","Spain","Atlantic/Canary",28.1,-15.4],
+["Canberra","Australia","Australia/Sydney",-35.28,149.13],
+["Cancún","Mexico","America/Cancun",21.08,-86.77],
+["Cape Town","South Africa","Africa/Johannesburg",-33.92,18.42],
+["Cape Verde","Cape Verde","Atlantic/Cape_Verde",14.92,-23.52],
+["Caracas","Venezuela","America/Caracas",10.5,-66.93],
+["Cartagena","Colombia","America/Bogota",10.39,-75.51],
+["Casablanca","Morocco","Africa/Casablanca",33.65,-7.58],
+["Casey","Antarctica","Antarctica/Casey",-66.28,110.52],
+["Catamarca","Argentina","America/Argentina/Catamarca",-28.47,-65.78],
+["Cayenne","French Guiana","America/Cayenne",4.93,-52.33],
+["Cayman","Cayman Islands","America/Cayman",19.3,-81.38],
+["Cebu","Philippines","Asia/Manila",10.32,123.89],
+["Center","United States","America/North_Dakota/Center",47.12,-101.3],
+["Ceuta","Spain","Africa/Ceuta",35.88,-5.32],
+["Chagos","British Indian Ocean Territory","Indian/Chagos",-7.33,72.42],
+["Chatham","New Zealand","Pacific/Chatham",-43.95,-176.55],
+["Chengdu","China","Asia/Shanghai",30.57,104.07],
+["Chennai","India","Asia/Kolkata",13.08,80.27],
+["Chiang Mai","Thailand","Asia/Bangkok",18.79,98.99],
+["Chicago","United States","America/Chicago",41.85,-87.65],
+["Chihuahua","Mexico","America/Chihuahua",28.63,-106.08],
+["Chișinău","Moldova","Europe/Chisinau",47.0,28.83],
+["Chita","Russia","Asia/Chita",52.05,113.47],
+["Christchurch","New Zealand","Pacific/Auckland",-43.53,172.64],
+["Christmas","Christmas Island","Indian/Christmas",-10.42,105.72],
+["Chuuk","Micronesia","Pacific/Chuuk",7.42,151.78],
+["Ciudad Juarez","Mexico","America/Ciudad_Juarez",31.73,-106.48],
+["Cocos","Cocos (Keeling) Islands","Indian/Cocos",-12.17,96.92],
+["Cologne","Germany","Europe/Berlin",50.94,6.96],
+["Colombo","Sri Lanka","Asia/Colombo",6.93,79.85],
+["Comoro","Comoros","Indian/Comoro",-11.68,43.27],
+["Conakry","Guinea","Africa/Conakry",9.52,-13.72],
+["Copenhagen","Denmark","Europe/Copenhagen",55.67,12.58],
+["Córdoba","Argentina","America/Argentina/Cordoba",-31.4,-64.18],
+["Costa Rica","Costa Rica","America/Costa_Rica",9.93,-84.08],
+["Coyhaique","Chile","America/Coyhaique",-45.57,-72.07],
+["Creston","Canada","America/Creston",49.1,-116.52],
+["Cuiabá","Brazil","America/Cuiaba",-15.58,-56.08],
+["Curaçao","Curaçao","America/Curacao",12.18,-69.0],
+["Cusco","Peru","America/Lima",-13.53,-71.97],
+["Da Nang","Vietnam","Asia/Ho_Chi_Minh",16.05,108.21],
+["Dakar","Senegal","Africa/Dakar",14.67,-17.43],
+["Dallas","United States","America/Chicago",32.78,-96.8],
+["Damascus","Syria","Asia/Damascus",33.5,36.3],
+["Danmarkshavn","Greenland","America/Danmarkshavn",76.77,-18.67],
+["Dar es Salaam","Tanzania","Africa/Dar_es_Salaam",-6.8,39.28],
+["Darwin","Australia","Australia/Darwin",-12.47,130.83],
+["Davis","Antarctica","Antarctica/Davis",-68.58,77.97],
+["Dawson","Canada","America/Dawson",64.07,-139.42],
+["Dawson Creek","Canada","America/Dawson_Creek",55.77,-120.23],
+["Denver","United States","America/Denver",39.74,-104.98],
+["Detroit","United States","America/Detroit",42.33,-83.05],
+["Dhaka","Bangladesh","Asia/Dhaka",23.72,90.42],
+["Dili","East Timor","Asia/Dili",-8.55,125.58],
+["Djibouti","Djibouti","Africa/Djibouti",11.6,43.15],
+["Dominica","Dominica","America/Dominica",15.3,-61.4],
+["Douala","Cameroon","Africa/Douala",4.05,9.7],
+["Dubai","United Arab Emirates","Asia/Dubai",25.3,55.3],
+["Dublin","Ireland","Europe/Dublin",53.33,-6.25],
+["Dumont d'Urville","Antarctica","Antarctica/DumontDUrville",-66.67,140.02],
+["Durban","South Africa","Africa/Johannesburg",-29.86,31.02],
+["Dushanbe","Tajikistan","Asia/Dushanbe",38.58,68.8],
+["Easter Island","Chile","Pacific/Easter",-27.15,-109.43],
+["Edinburgh","United Kingdom","Europe/London",55.95,-3.19],
+["Edmonton","Canada","America/Edmonton",53.55,-113.47],
+["Efate","Vanuatu","Pacific/Efate",-17.67,168.42],
+["Eirunepe","Brazil","America/Eirunepe",-6.67,-69.87],
+["El Aaiun","Western Sahara","Africa/El_Aaiun",27.15,-13.2],
+["El Salvador","El Salvador","America/El_Salvador",13.7,-89.2],
+["Eucla","Australia","Australia/Eucla",-31.72,128.87],
+["Fakaofo","Tokelau","Pacific/Fakaofo",-9.37,-171.23],
+["Famagusta","Cyprus","Asia/Famagusta",35.12,33.95],
+["Fiji","Fiji","Pacific/Fiji",-18.13,178.42],
+["Florence","Italy","Europe/Rome",43.77,11.26],
+["Fort Nelson","Canada","America/Fort_Nelson",58.8,-122.7],
+["Fortaleza","Brazil","America/Fortaleza",-3.72,-38.5],
+["Frankfurt","Germany","Europe/Berlin",50.11,8.68],
+["Freetown","Sierra Leone","Africa/Freetown",8.5,-13.25],
+["Funafuti","Tuvalu","Pacific/Funafuti",-8.52,179.22],
+["Gaborone","Botswana","Africa/Gaborone",-24.65,25.92],
+["Galápagos","Ecuador","Pacific/Galapagos",-0.9,-89.6],
+["Gambier","French Polynesia","Pacific/Gambier",-23.13,-134.95],
+["Gaza","Palestine","Asia/Gaza",31.5,34.47],
+["Geneva","Switzerland","Europe/Zurich",46.2,6.14],
+["Gibraltar","Gibraltar","Europe/Gibraltar",36.13,-5.35],
+["Glace Bay","Canada","America/Glace_Bay",46.2,-59.95],
+["Glasgow","United Kingdom","Europe/London",55.86,-4.25],
+["Gold Coast","Australia","Australia/Brisbane",-28.02,153.4],
+["Goose Bay","Canada","America/Goose_Bay",53.33,-60.42],
+["Gothenburg","Sweden","Europe/Stockholm",57.71,11.97],
+["Grand Turk","Turks & Caicos Is","America/Grand_Turk",21.47,-71.13],
+["Grenada","Grenada","America/Grenada",12.05,-61.75],
+["Guadalajara","Mexico","America/Mexico_City",20.67,-103.35],
+["Guadalcanal","Solomon Islands","Pacific/Guadalcanal",-9.53,160.2],
+["Guadeloupe","Guadeloupe","America/Guadeloupe",16.23,-61.53],
+["Guam","Guam","Pacific/Guam",13.47,144.75],
+["Guangzhou","China","Asia/Shanghai",23.13,113.26],
+["Guatemala","Guatemala","America/Guatemala",14.63,-90.52],
+["Guayaquil","Ecuador","America/Guayaquil",-2.17,-79.83],
+["Guernsey","Guernsey","Europe/Guernsey",49.45,-2.54],
+["Guyana","Guyana","America/Guyana",6.8,-58.17],
+["Halifax","Canada","America/Halifax",44.65,-63.6],
+["Hamburg","Germany","Europe/Berlin",53.55,9.99],
+["Hanoi","Vietnam","Asia/Ho_Chi_Minh",21.03,105.85],
+["Harare","Zimbabwe","Africa/Harare",-17.83,31.05],
+["Havana","Cuba","America/Havana",23.13,-82.37],
+["Hebron","Palestine","Asia/Hebron",31.53,35.09],
+["Helsinki","Finland","Europe/Helsinki",60.17,24.97],
+["Hermosillo","Mexico","America/Hermosillo",29.07,-110.97],
+["Ho Chi Minh City","Vietnam","Asia/Ho_Chi_Minh",10.75,106.67],
+["Hobart","Australia","Australia/Hobart",-42.88,147.32],
+["Hong Kong","Hong Kong","Asia/Hong_Kong",22.28,114.15],
+["Honolulu","United States","Pacific/Honolulu",21.31,-157.86],
+["Houston","United States","America/Chicago",29.76,-95.37],
+["Hovd","Mongolia","Asia/Hovd",48.02,91.65],
+["Hyderabad","India","Asia/Kolkata",17.39,78.49],
+["Indianapolis","United States","America/Indiana/Indianapolis",39.77,-86.16],
+["Inuvik","Canada","America/Inuvik",68.35,-133.72],
+["Iqaluit","Canada","America/Iqaluit",63.73,-68.47],
+["Irkutsk","Russia","Asia/Irkutsk",52.27,104.33],
+["Islamabad","Pakistan","Asia/Karachi",33.69,73.06],
+["Isle of Man","Isle of Man","Europe/Isle_of_Man",54.15,-4.47],
+["Istanbul","Turkey","Europe/Istanbul",41.02,28.97],
+["Jakarta","Indonesia","Asia/Jakarta",-6.17,106.8],
+["Jamaica","Jamaica","America/Jamaica",17.97,-76.79],
+["Jayapura","Indonesia","Asia/Jayapura",-2.53,140.7],
+["Jeddah","Saudi Arabia","Asia/Riyadh",21.49,39.19],
+["Jersey","Jersey","Europe/Jersey",49.18,-2.11],
+["Jerusalem","Israel","Asia/Jerusalem",31.78,35.22],
+["Johannesburg","South Africa","Africa/Johannesburg",-26.25,28.0],
+["Juba","South Sudan","Africa/Juba",4.85,31.62],
+["Jujuy","Argentina","America/Argentina/Jujuy",-24.18,-65.3],
+["Juneau","United States","America/Juneau",58.3,-134.42],
+["Kabul","Afghanistan","Asia/Kabul",34.52,69.2],
+["Kaliningrad","Russia","Europe/Kaliningrad",54.72,20.5],
+["Kamchatka","Russia","Asia/Kamchatka",53.02,158.65],
+["Kampala","Uganda","Africa/Kampala",0.32,32.42],
+["Kanton","Kiribati","Pacific/Kanton",-2.78,-171.72],
+["Karachi","Pakistan","Asia/Karachi",24.87,67.05],
+["Kathmandu","Nepal","Asia/Kathmandu",27.72,85.32],
+["Kerguelen","French S. Terr.","Indian/Kerguelen",-49.35,70.22],
+["Khandyga","Russia","Asia/Khandyga",62.66,135.55],
+["Khartoum","Sudan","Africa/Khartoum",15.6,32.53],
+["Kigali","Rwanda","Africa/Kigali",-1.95,30.07],
+["Kinshasa","Congo (Dem. Rep.)","Africa/Kinshasa",-4.3,15.3],
+["Kiritimati","Kiribati","Pacific/Kiritimati",1.87,-157.33],
+["Kirov","Russia","Europe/Kirov",58.6,49.65],
+["Knox","United States","America/Indiana/Knox",41.3,-86.62],
+["Kolkata","India","Asia/Kolkata",22.53,88.37],
+["Kosrae","Micronesia","Pacific/Kosrae",5.32,162.98],
+["Kraków","Poland","Europe/Warsaw",50.06,19.94],
+["Kralendijk","Caribbean NL","America/Kralendijk",12.15,-68.28],
+["Krasnoyarsk","Russia","Asia/Krasnoyarsk",56.02,92.83],
+["Kuala Lumpur","Malaysia","Asia/Kuala_Lumpur",3.17,101.7],
+["Kuching","Malaysia","Asia/Kuching",1.55,110.33],
+["Kuwait","Kuwait","Asia/Kuwait",29.33,47.98],
+["Kwajalein","Marshall Islands","Pacific/Kwajalein",9.08,167.33],
+["Kyiv","Ukraine","Europe/Kyiv",50.43,30.52],
+["Kyoto","Japan","Asia/Tokyo",35.01,135.77],
+["La Paz","Bolivia","America/La_Paz",-16.5,-68.15],
+["La Rioja","Argentina","America/Argentina/La_Rioja",-29.43,-66.85],
+["Lagos","Nigeria","Africa/Lagos",6.45,3.4],
+["Lahore","Pakistan","Asia/Karachi",31.55,74.34],
+["Las Vegas","United States","America/Los_Angeles",36.17,-115.14],
+["Leticia","Colombia","America/Bogota",-4.21,-69.94],
+["Libreville","Gabon","Africa/Libreville",0.38,9.45],
+["Lima","Peru","America/Lima",-12.05,-77.05],
+["Lindeman","Australia","Australia/Lindeman",-20.27,149.0],
+["Lisbon","Portugal","Europe/Lisbon",38.72,-9.13],
+["Ljubljana","Slovenia","Europe/Ljubljana",46.05,14.52],
+["Lome","Togo","Africa/Lome",6.13,1.22],
+["London","Britain (UK)","Europe/London",51.51,-0.13],
+["Longyearbyen","Svalbard & Jan Mayen","Arctic/Longyearbyen",78.0,16.0],
+["Lord Howe","Australia","Australia/Lord_Howe",-31.55,159.08],
+["Los Angeles","United States","America/Los_Angeles",34.05,-118.24],
+["Louisville","United States","America/Kentucky/Louisville",38.25,-85.76],
+["Lower Princes","St Maarten (Dutch)","America/Lower_Princes",18.05,-63.05],
+["Luanda","Angola","Africa/Luanda",-8.8,13.23],
+["Lubumbashi","Congo (Dem. Rep.)","Africa/Lubumbashi",-11.67,27.47],
+["Lusaka","Zambia","Africa/Lusaka",-15.42,28.28],
+["Luxembourg","Luxembourg","Europe/Luxembourg",49.6,6.15],
+["Lyon","France","Europe/Paris",45.76,4.84],
+["Macau","Macau","Asia/Macau",22.2,113.54],
+["Maceió","Brazil","America/Maceio",-9.67,-35.72],
+["Macquarie","Australia","Antarctica/Macquarie",-54.5,158.95],
+["Madeira","Portugal","Atlantic/Madeira",32.63,-16.9],
+["Madrid","Spain","Europe/Madrid",40.4,-3.68],
+["Magadan","Russia","Asia/Magadan",59.57,150.8],
+["Mahe","Seychelles","Indian/Mahe",-4.67,55.47],
+["Majuro","Marshall Islands","Pacific/Majuro",7.15,171.2],
+["Makassar","Indonesia","Asia/Makassar",-5.12,119.4],
+["Malabo","Equatorial Guinea","Africa/Malabo",3.75,8.78],
+["Maldives","Maldives","Indian/Maldives",4.17,73.5],
+["Malta","Malta","Europe/Malta",35.9,14.52],
+["Managua","Nicaragua","America/Managua",12.15,-86.28],
+["Manaus","Brazil","America/Manaus",-3.13,-60.02],
+["Manchester","United Kingdom","Europe/London",53.48,-2.24],
+["Manila","Philippines","Asia/Manila",14.59,120.97],
+["Maputo","Mozambique","Africa/Maputo",-25.97,32.58],
+["Marengo","United States","America/Indiana/Marengo",38.38,-86.34],
+["Mariehamn","Åland Islands","Europe/Mariehamn",60.1,19.95],
+["Marigot","St Martin (French)","America/Marigot",18.07,-63.08],
+["Marquesas","French Polynesia","Pacific/Marquesas",-9.0,-139.5],
+["Marrakesh","Morocco","Africa/Casablanca",31.63,-8.01],
+["Marseille","France","Europe/Paris",43.3,5.37],
+["Martinique","Martinique","America/Martinique",14.6,-61.08],
+["Maseru","Lesotho","Africa/Maseru",-29.47,27.5],
+["Matamoros","Mexico","America/Matamoros",25.83,-97.5],
+["Mauritius","Mauritius","Indian/Mauritius",-20.17,57.5],
+["Mawson","Antarctica","Antarctica/Mawson",-67.6,62.88],
+["Mayotte","Mayotte","Indian/Mayotte",-12.78,45.23],
+["Mazatlán","Mexico","America/Mazatlan",23.22,-106.42],
+["Mbabane","Eswatini (Swaziland)","Africa/Mbabane",-26.3,31.1],
+["McMurdo","Antarctica","Antarctica/McMurdo",-77.83,166.6],
+["Mecca","Saudi Arabia","Asia/Riyadh",21.39,39.86],
+["Medellín","Colombia","America/Bogota",6.24,-75.58],
+["Medley","United States","America/New_York",25.82,-80.33],
+["Melbourne","Australia","Australia/Melbourne",-37.82,144.97],
+["Mendoza","Argentina","America/Argentina/Mendoza",-32.88,-68.82],
+["Menominee","United States","America/Menominee",45.11,-87.61],
+["Mérida","Mexico","America/Merida",20.97,-89.62],
+["Metlakatla","United States","America/Metlakatla",55.13,-131.58],
+["Mexico City","Mexico","America/Mexico_City",19.4,-99.15],
+["Miami","United States","America/New_York",25.76,-80.19],
+["Midway","US minor outlying islands","Pacific/Midway",28.22,-177.37],
+["Milan","Italy","Europe/Rome",45.46,9.19],
+["Minneapolis","United States","America/Chicago",44.98,-93.27],
+["Minsk","Belarus","Europe/Minsk",53.9,27.57],
+["Miquelon","St Pierre & Miquelon","America/Miquelon",47.05,-56.33],
+["Mogadishu","Somalia","Africa/Mogadishu",2.07,45.37],
+["Mombasa","Kenya","Africa/Nairobi",-4.04,39.67],
+["Monaco","Monaco","Europe/Monaco",43.7,7.38],
+["Moncton","Canada","America/Moncton",46.1,-64.78],
+["Monrovia","Liberia","Africa/Monrovia",6.3,-10.78],
+["Monterrey","Mexico","America/Monterrey",25.67,-100.32],
+["Montevideo","Uruguay","America/Montevideo",-34.91,-56.21],
+["Monticello","United States","America/Kentucky/Monticello",36.83,-84.85],
+["Montreal","Canada","America/Toronto",45.5,-73.57],
+["Montserrat","Montserrat","America/Montserrat",16.72,-62.22],
+["Moscow","Russia","Europe/Moscow",55.76,37.62],
+["Mumbai","India","Asia/Kolkata",19.08,72.88],
+["Munich","Germany","Europe/Berlin",48.14,11.58],
+["Muscat","Oman","Asia/Muscat",23.6,58.58],
+["N'Djamena","Chad","Africa/Ndjamena",12.12,15.05],
+["Nairobi","Kenya","Africa/Nairobi",-1.28,36.82],
+["Naples","Italy","Europe/Rome",40.85,14.27],
+["Nassau","Bahamas","America/Nassau",25.08,-77.35],
+["Nauru","Nauru","Pacific/Nauru",-0.52,166.92],
+["New Delhi","India","Asia/Kolkata",28.61,77.21],
+["New Orleans","United States","America/Chicago",29.95,-90.07],
+["New Salem","United States","America/North_Dakota/New_Salem",46.84,-101.41],
+["New York","United States","America/New_York",40.71,-74.01],
+["Niamey","Niger","Africa/Niamey",13.52,2.12],
+["Nice","France","Europe/Paris",43.7,7.27],
+["Nicosia","Cyprus","Asia/Nicosia",35.17,33.37],
+["Niue","Niue","Pacific/Niue",-19.02,-169.92],
+["Nome","United States","America/Nome",64.5,-165.41],
+["Norfolk","Norfolk Island","Pacific/Norfolk",-29.05,167.97],
+["Noronha","Brazil","America/Noronha",-3.85,-32.42],
+["Nouakchott","Mauritania","Africa/Nouakchott",18.1,-15.95],
+["Noumea","New Caledonia","Pacific/Noumea",-22.27,166.45],
+["Novokuznetsk","Russia","Asia/Novokuznetsk",53.75,87.12],
+["Novosibirsk","Russia","Asia/Novosibirsk",55.03,82.92],
+["Nuuk","Greenland","America/Nuuk",64.18,-51.73],
+["Ojinaga","Mexico","America/Ojinaga",29.57,-104.42],
+["Omsk","Russia","Asia/Omsk",55.0,73.4],
+["Oral","Kazakhstan","Asia/Oral",51.22,51.35],
+["Orlando","United States","America/New_York",28.54,-81.38],
+["Osaka","Japan","Asia/Tokyo",34.69,135.5],
+["Oslo","Norway","Europe/Oslo",59.92,10.75],
+["Ottawa","Canada","America/Toronto",45.42,-75.7],
+["Ouagadougou","Burkina Faso","Africa/Ouagadougou",12.37,-1.52],
+["Oxford","United Kingdom","Europe/London",51.75,-1.26],
+["Pago Pago","Samoa (American)","Pacific/Pago_Pago",-14.27,-170.7],
+["Palau","Palau","Pacific/Palau",7.33,134.48],
+["Palmer","Antarctica","Antarctica/Palmer",-64.8,-64.1],
+["Panama","Panama","America/Panama",8.97,-79.53],
+["Paramaribo","Suriname","America/Paramaribo",5.83,-55.17],
+["Paris","France","Europe/Paris",48.87,2.33],
+["Perth","Australia","Australia/Perth",-31.95,115.85],
+["Petersburg","United States","America/Indiana/Petersburg",38.49,-87.28],
+["Philadelphia","United States","America/New_York",39.95,-75.17],
+["Phnom Penh","Cambodia","Asia/Phnom_Penh",11.55,104.92],
+["Phoenix","United States","America/Phoenix",33.45,-112.07],
+["Pitcairn","Pitcairn","Pacific/Pitcairn",-25.07,-130.08],
+["Podgorica","Montenegro","Europe/Podgorica",42.43,19.27],
+["Pohnpei","Micronesia","Pacific/Pohnpei",6.97,158.22],
+["Pontianak","Indonesia","Asia/Pontianak",-0.03,109.33],
+["Port Moresby","Papua New Guinea","Pacific/Port_Moresby",-9.5,147.17],
+["Port of Spain","Trinidad & Tobago","America/Port_of_Spain",10.65,-61.52],
+["Port-au-Prince","Haiti","America/Port-au-Prince",18.53,-72.33],
+["Portland","United States","America/Los_Angeles",45.52,-122.68],
+["Porto","Portugal","Europe/Lisbon",41.15,-8.61],
+["Porto Velho","Brazil","America/Porto_Velho",-8.77,-63.9],
+["Porto-Novo","Benin","Africa/Porto-Novo",6.48,2.62],
+["Prague","Czech Republic","Europe/Prague",50.08,14.43],
+["Pretoria","South Africa","Africa/Johannesburg",-25.75,28.19],
+["Puerto Rico","Puerto Rico","America/Puerto_Rico",18.47,-66.11],
+["Punta Arenas","Chile","America/Punta_Arenas",-53.15,-70.92],
+["Pyongyang","Korea (North)","Asia/Pyongyang",39.02,125.75],
+["Qatar","Qatar","Asia/Qatar",25.28,51.53],
+["Qostanay","Kazakhstan","Asia/Qostanay",53.2,63.62],
+["Quito","Ecuador","America/Guayaquil",-0.18,-78.47],
+["Qyzylorda","Kazakhstan","Asia/Qyzylorda",44.8,65.47],
+["Rankin Inlet","Canada","America/Rankin_Inlet",62.82,-92.08],
+["Rarotonga","Cook Islands","Pacific/Rarotonga",-21.23,-159.77],
+["Recife","Brazil","America/Recife",-8.05,-34.9],
+["Regina","Canada","America/Regina",50.4,-104.65],
+["Resolute","Canada","America/Resolute",74.7,-94.83],
+["Reunion","Réunion","Indian/Reunion",-20.87,55.47],
+["Reykjavík","Iceland","Atlantic/Reykjavik",64.15,-21.85],
+["Riga","Latvia","Europe/Riga",56.95,24.1],
+["Rio Branco","Brazil","America/Rio_Branco",-9.97,-67.8],
+["Rio de Janeiro","Brazil","America/Sao_Paulo",-22.91,-43.17],
+["Rio Gallegos","Argentina","America/Argentina/Rio_Gallegos",-51.63,-69.22],
+["Riyadh","Saudi Arabia","Asia/Riyadh",24.63,46.72],
+["Rome","Italy","Europe/Rome",41.9,12.48],
+["Rothera","Antarctica","Antarctica/Rothera",-67.57,-68.13],
+["Rotterdam","Netherlands","Europe/Amsterdam",51.92,4.48],
+["Saint Petersburg","Russia","Europe/Moscow",59.93,30.34],
+["Saipan","Northern Mariana Islands","Pacific/Saipan",15.2,145.75],
+["Sakhalin","Russia","Asia/Sakhalin",46.97,142.7],
+["Salt Lake City","United States","America/Denver",40.76,-111.89],
+["Salta","Argentina","America/Argentina/Salta",-24.78,-65.42],
+["Salvador","Brazil","America/Bahia",-12.97,-38.5],
+["Samara","Russia","Europe/Samara",53.2,50.15],
+["Samarkand","Uzbekistan","Asia/Samarkand",39.67,66.8],
+["San Diego","United States","America/Los_Angeles",32.72,-117.16],
+["San Francisco","United States","America/Los_Angeles",37.77,-122.42],
+["San Juan","Argentina","America/Argentina/San_Juan",-31.53,-68.52],
+["San Luis","Argentina","America/Argentina/San_Luis",-33.32,-66.35],
+["San Marino","San Marino","Europe/San_Marino",43.92,12.47],
+["Santarém","Brazil","America/Santarem",-2.43,-54.87],
+["Santiago","Chile","America/Santiago",-33.45,-70.67],
+["Santo Domingo","Dominican Republic","America/Santo_Domingo",18.47,-69.9],
+["São Paulo","Brazil","America/Sao_Paulo",-23.53,-46.62],
+["São Tomé","Sao Tome & Principe","Africa/Sao_Tome",0.33,6.73],
+["Sapporo","Japan","Asia/Tokyo",43.06,141.35],
+["Sarajevo","Bosnia & Herzegovina","Europe/Sarajevo",43.87,18.42],
+["Saratov","Russia","Europe/Saratov",51.57,46.03],
+["Scoresbysund","Greenland","America/Scoresbysund",70.48,-21.97],
+["Seattle","United States","America/Los_Angeles",47.61,-122.33],
+["Seoul","Korea (South)","Asia/Seoul",37.55,126.97],
+["Sevilla","Spain","Europe/Madrid",37.39,-6.0],
+["Shanghai","China","Asia/Shanghai",31.23,121.47],
+["Shenzhen","China","Asia/Shanghai",22.54,114.06],
+["Simferopol","Russia","Europe/Simferopol",44.95,34.1],
+["Singapore","Singapore","Asia/Singapore",1.28,103.85],
+["Sitka","United States","America/Sitka",57.18,-135.3],
+["Skopje","North Macedonia","Europe/Skopje",41.98,21.43],
+["Sofia","Bulgaria","Europe/Sofia",42.68,23.32],
+["South Georgia","South Georgia & the South Sandwich Islands","Atlantic/South_Georgia",-54.27,-36.53],
+["Srednekolymsk","Russia","Asia/Srednekolymsk",67.47,153.72],
+["St Barthelemy","St Barthelemy","America/St_Barthelemy",17.88,-62.85],
+["St Helena","St Helena","Atlantic/St_Helena",-15.92,-5.7],
+["St Kitts","St Kitts & Nevis","America/St_Kitts",17.3,-62.72],
+["St Lucia","St Lucia","America/St_Lucia",14.02,-61.0],
+["St Thomas","Virgin Islands (US)","America/St_Thomas",18.35,-64.93],
+["St Vincent","St Vincent","America/St_Vincent",13.15,-61.23],
+["St. John's","Canada","America/St_Johns",47.57,-52.72],
+["Stanley","Falkland Islands","Atlantic/Stanley",-51.7,-57.85],
+["Stockholm","Sweden","Europe/Stockholm",59.33,18.05],
+["Surabaya","Indonesia","Asia/Jakarta",-7.25,112.75],
+["Swift Current","Canada","America/Swift_Current",50.28,-107.83],
+["Sydney","Australia","Australia/Sydney",-33.87,151.22],
+["Syowa","Antarctica","Antarctica/Syowa",-69.01,39.59],
+["Tahiti","French Polynesia","Pacific/Tahiti",-17.53,-149.57],
+["Taipei","Taiwan","Asia/Taipei",25.05,121.5],
+["Tallinn","Estonia","Europe/Tallinn",59.42,24.75],
+["Tarawa","Kiribati","Pacific/Tarawa",1.42,173.0],
+["Tashkent","Uzbekistan","Asia/Tashkent",41.33,69.3],
+["Tbilisi","Georgia","Asia/Tbilisi",41.72,44.82],
+["Tegucigalpa","Honduras","America/Tegucigalpa",14.1,-87.22],
+["Tehran","Iran","Asia/Tehran",35.67,51.43],
+["Tel Aviv","Israel","Asia/Jerusalem",32.08,34.78],
+["Tell City","United States","America/Indiana/Tell_City",37.95,-86.76],
+["Thessaloniki","Greece","Europe/Athens",40.64,22.94],
+["Thimphu","Bhutan","Asia/Thimphu",27.47,89.65],
+["Thule","Greenland","America/Thule",76.57,-68.78],
+["Tijuana","Mexico","America/Tijuana",32.53,-117.02],
+["Tirane","Albania","Europe/Tirane",41.33,19.83],
+["Tokyo","Japan","Asia/Tokyo",35.65,139.74],
+["Tomsk","Russia","Asia/Tomsk",56.5,84.97],
+["Tongatapu","Tonga","Pacific/Tongatapu",-21.13,-175.2],
+["Toronto","Canada","America/Toronto",43.65,-79.38],
+["Tórshavn","Faroe Islands","Atlantic/Faroe",62.02,-6.77],
+["Tortola","Virgin Islands (UK)","America/Tortola",18.45,-64.62],
+["Toulouse","France","Europe/Paris",43.6,1.44],
+["Tripoli","Libya","Africa/Tripoli",32.9,13.18],
+["Troll","Antarctica","Antarctica/Troll",-72.01,2.53],
+["Tucumán","Argentina","America/Argentina/Tucuman",-26.82,-65.22],
+["Tunis","Tunisia","Africa/Tunis",36.8,10.18],
+["Ulaanbaatar","Mongolia","Asia/Ulaanbaatar",47.92,106.88],
+["Ulyanovsk","Russia","Europe/Ulyanovsk",54.33,48.4],
+["Urumqi","China","Asia/Urumqi",43.8,87.58],
+["Ushuaia","Argentina","America/Argentina/Ushuaia",-54.8,-68.3],
+["Ust-Nera","Russia","Asia/Ust-Nera",64.56,143.23],
+["UTC","Coordinated Universal Time","UTC",0.0,0.0],
+["Vaduz","Liechtenstein","Europe/Vaduz",47.15,9.52],
+["Valencia","Spain","Europe/Madrid",39.47,-0.38],
+["Valparaíso","Chile","America/Santiago",-33.05,-71.61],
+["Vancouver","Canada","America/Vancouver",49.27,-123.12],
+["Vatican","Vatican City","Europe/Vatican",41.9,12.45],
+["Venice","Italy","Europe/Rome",45.44,12.32],
+["Vevay","United States","America/Indiana/Vevay",38.75,-85.07],
+["Vienna","Austria","Europe/Vienna",48.22,16.33],
+["Vientiane","Laos","Asia/Vientiane",17.97,102.6],
+["Villa de Leyva","Colombia","America/Bogota",5.63,-73.52],
+["Vilnius","Lithuania","Europe/Vilnius",54.68,25.32],
+["Vincennes","United States","America/Indiana/Vincennes",38.68,-87.53],
+["Vladivostok","Russia","Asia/Vladivostok",43.17,131.93],
+["Volgograd","Russia","Europe/Volgograd",48.73,44.42],
+["Vostok","Antarctica","Antarctica/Vostok",-78.4,106.9],
+["Wake","US minor outlying islands","Pacific/Wake",19.28,166.62],
+["Wallis","Wallis & Futuna","Pacific/Wallis",-13.3,-176.17],
+["Warsaw","Poland","Europe/Warsaw",52.25,21.0],
+["Washington DC","United States","America/New_York",38.91,-77.04],
+["Wellington","New Zealand","Pacific/Auckland",-41.29,174.78],
+["Whitehorse","Canada","America/Whitehorse",60.72,-135.05],
+["Winamac","United States","America/Indiana/Winamac",41.05,-86.6],
+["Windhoek","Namibia","Africa/Windhoek",-22.57,17.1],
+["Winnipeg","Canada","America/Winnipeg",49.88,-97.15],
+["Yakutat","United States","America/Yakutat",59.55,-139.73],
+["Yakutsk","Russia","Asia/Yakutsk",62.0,129.67],
+["Yangon","Myanmar (Burma)","Asia/Yangon",16.78,96.17],
+["Yekaterinburg","Russia","Asia/Yekaterinburg",56.85,60.6],
+["Yerevan","Armenia","Asia/Yerevan",40.18,44.5],
+["Zagreb","Croatia","Europe/Zagreb",45.8,15.97],
+["Zürich","Switzerland","Europe/Zurich",47.38,8.53]
+];
+const byKey = {};
+CITIES.forEach((c,i)=>{ byKey[c[0]+"|"+c[2]] = i; });
+
+/* ───────── storage: sandbox-safe, falls back to memory ───────── */
+const memCache = {};
+const store = {
+  async get(k){
+    try{ if(window.storage){ const r = await window.storage.get(k,false); if(r) return JSON.parse(r.value); } }catch(e){}
+    return (k in memCache) ? memCache[k] : null;
+  },
+  async set(k,v){
+    memCache[k] = v;
+    try{ if(window.storage) await window.storage.set(k, JSON.stringify(v), false); }catch(e){}
+  }
+};
+
+const HOUR = 3600000, DAY = 86400000;
+const DEFAULTS = ["Bogotá|America/Bogota","London|Europe/London","New York|America/New_York"];
+let state = { cities:[], home:0, h24:true };
+state.cities = DEFAULTS.map(k => byKey[k]).filter(i => i !== undefined);
+if(!state.cities.length) state.cities = [0];
+state.home = state.cities[0];
+let dayShift = 0, scrubFrac = null, winStart = 0;
+
+/* ───────── time helpers ───────── */
+const partCache = new Map();
+function getParts(ms, tz){
+  const key = tz + "@" + Math.floor(ms/60000);
+  if(partCache.has(key)) return partCache.get(key);
+  const f = new Intl.DateTimeFormat("en-US",{timeZone:tz,hour12:false,weekday:"short",
+    year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+  const o = {};
+  for(const p of f.formatToParts(new Date(ms))) o[p.type] = p.value;
+  const MON = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+  const H = (+o.hour) % 24;
+  const asUTC = Date.UTC(+o.year, MON[o.month], +o.day, H, +o.minute);
+  const res = { y:+o.year, mo:MON[o.month], d:+o.day, h:H, mi:+o.minute, wd:o.weekday, mon:o.month,
+                off:Math.round((asUTC - Math.floor(ms/60000)*60000)/60000) };
+  if(partCache.size > 4000) partCache.clear();
+  partCache.set(key,res);
+  return res;
+}
+function offLabel(off){
+  const s = off < 0 ? "-" : "+", a = Math.abs(off);
+  const h = Math.floor(a/60), m = a % 60;
+  return "UTC" + s + h + (m ? ":" + String(m).padStart(2,"0") : "");
+}
+function fmtTime(p){
+  if(state.h24) return String(p.h).padStart(2,"0") + ":" + String(p.mi).padStart(2,"0");
+  const ap = p.h < 12 ? "am" : "pm", h12 = p.h % 12 === 0 ? 12 : p.h % 12;
+  return h12 + ":" + String(p.mi).padStart(2,"0") + ap;
+}
+function localMidnight(tz, shiftDays){
+  const t = Date.now() + shiftDays*DAY;
+  const p = getParts(t, tz);
+  const p2 = getParts(Date.UTC(p.y,p.mo,p.d) - p.off*60000, tz);
+  return Date.UTC(p.y, p.mo, p.d) - p2.off*60000;
+}
+function dayDelta(a,b){ return Math.sign(Date.UTC(b.y,b.mo,b.d) - Date.UTC(a.y,a.mo,a.d)); }
+
+/* ───────── solar geometry ───────── */
+function solarElevation(ms, lat, lon){
+  const yStart = Date.UTC(new Date(ms).getUTCFullYear(), 0, 1);
+  const n = (ms - yStart)/DAY + 1;
+  const B = 2*Math.PI*(n - 81)/364;
+  const eot = 9.87*Math.sin(2*B) - 7.53*Math.cos(B) - 1.5*Math.sin(B);
+  const decl = (23.44*Math.PI/180) * Math.sin(2*Math.PI*(n - 81)/365);
+  const utcH = ((ms/HOUR) % 24 + 24) % 24;
+  const Ha = ((utcH + lon/15 + eot/60) - 12) * 15 * Math.PI/180;
+  const phi = lat*Math.PI/180;
+  const s = Math.sin(phi)*Math.sin(decl) + Math.cos(phi)*Math.cos(decl)*Math.cos(Ha);
+  return Math.asin(Math.max(-1, Math.min(1, s))) * 180/Math.PI;
+}
+
+/* ───────── 16-colour ordered dithering ─────────
+   Anchors use only Windows 95 native palette entries. Between two anchors the
+   pixels are dithered with a 4x4 Bayer matrix, the way the shell faked gradients. */
+const RAMP = [
+  [-30, [0,0,0]],        // black
+  [-15, [0,0,128]],      // navy
+  [ -7, [128,0,128]],    // purple
+  [ -2, [128,0,0]],      // maroon
+  [  1, [255,0,0]],      // red
+  [  7, [255,255,0]],    // yellow
+  [ 20, [255,255,255]]   // white
+];
+const BAYER = [0,8,2,10, 12,4,14,6, 3,11,1,9, 15,7,13,5];
+function rampAt(e){
+  if(e <= RAMP[0][0]) return [RAMP[0][1], RAMP[0][1], 0];
+  for(let i=1;i<RAMP.length;i++){
+    if(e <= RAMP[i][0]){
+      const t = (e - RAMP[i-1][0])/(RAMP[i][0] - RAMP[i-1][0]);
+      return [RAMP[i-1][1], RAMP[i][1], t];
+    }
+  }
+  const last = RAMP[RAMP.length-1][1];
+  return [last, last, 0];
+}
+function paintBand(cv, lat, lon){
+  const W = Math.max(1, Math.round(cv.clientWidth || 300)), H = 32;
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d");
+  const img = ctx.createImageData(W, H);
+  const d = img.data;
+  for(let x=0;x<W;x++){
+    const [a,b,t] = rampAt(solarElevation(winStart + (x/W)*DAY, lat, lon));
+    for(let y=0;y<H;y++){
+      const th = (BAYER[(y%4)*4 + (x%4)] + 0.5)/16;
+      const c = t > th ? b : a;
+      const o = (y*W + x)*4;
+      d[o]=c[0]; d[o+1]=c[1]; d[o+2]=c[2]; d[o+3]=255;
+    }
+  }
+  ctx.putImageData(img,0,0);
+}
+function paintLegend(){
+  const cv = document.getElementById("legendC");
+  const W = Math.max(1, Math.round(cv.clientWidth || 200)), H = 14;
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d");
+  const img = ctx.createImageData(W,H), d = img.data;
+  for(let x=0;x<W;x++){
+    const e = -30 + (x/(W-1))*55;
+    const [a,b,t] = rampAt(e);
+    for(let y=0;y<H;y++){
+      const th = (BAYER[(y%4)*4 + (x%4)] + 0.5)/16;
+      const c = t > th ? b : a, o = (y*W + x)*4;
+      d[o]=c[0]; d[o+1]=c[1]; d[o+2]=c[2]; d[o+3]=255;
+    }
+  }
+  ctx.putImageData(img,0,0);
+}
+
+/* ───────── rendering ───────── */
+const $ = id => document.getElementById(id);
+const rowsEl = $("rows");
+
+function render(){
+  const home = CITIES[state.home];
+  winStart = localMidnight(home[2], dayShift);
+  rowsEl.innerHTML = "";
+  for(const idx of state.cities) rowsEl.appendChild(buildRow(idx));
+  const hp = getParts(winStart + 12*HOUR, home[2]);
+  $("dayLabel").textContent = hp.wd + " " + String(hp.d).padStart(2,"0") + " " + hp.mon;
+  $("statusCount").textContent = state.cities.length + (state.cities.length === 1 ? " city" : " cities");
+  requestAnimationFrame(paintAll);
+  positionNow();
+  updateReadouts();
+}
+function paintAll(){
+  for(const row of rowsEl.children){
+    const c = CITIES[+row.dataset.idx];
+    paintBand(row.querySelector("canvas"), c[3], c[4]);
+  }
+  paintLegend();
+}
+
+function buildRow(idx){
+  const c = CITIES[idx], name = c[0], country = c[1], tz = c[2];
+  const row = document.createElement("div");
+  row.className = "row";
+  row.dataset.idx = idx;
+
+  const p = getParts(winStart + 12*HOUR, tz);
+  const head = document.createElement("div");
+  head.className = "rowhead";
+  head.innerHTML = '<span class="city"></span>' +
+    (idx === state.home ? '<span class="badge">HOME</span>' : "") +
+    '<span class="meta"></span>' +
+    '<span class="rowtime"><b class="tval">--:--</b><span class="daydiff"></span></span>';
+  head.querySelector(".city").textContent = name;
+  const meta = head.querySelector(".meta");
+  meta.textContent = offLabel(p.off);
+  const em = document.createElement("em");
+  em.textContent = "  " + country;
+  meta.appendChild(em);
+
+  if(idx !== state.home){
+    const acts = document.createElement("span");
+    acts.className = "rowacts";
+    const bh = document.createElement("button");
+    bh.className = "b95"; bh.textContent = "Home"; bh.setAttribute("aria-label","Set " + name + " as home");
+    bh.onclick = e => { e.stopPropagation(); state.home = idx; save(); render(); };
+    const bx = document.createElement("button");
+    bx.className = "b95"; bx.textContent = "✕"; bx.setAttribute("aria-label","Remove " + name);
+    bx.onclick = e => { e.stopPropagation(); state.cities = state.cities.filter(i => i !== idx); save(); render(); };
+    acts.append(bh,bx);
+    head.querySelector(".rowtime").after(acts);
+  }
+
+  const band = document.createElement("div");
+  band.className = "band sunken";
+  band.appendChild(document.createElement("canvas"));
+
+  const ticks = document.createElement("div");
+  ticks.className = "ticks";
+  const startLocal = winStart + p.off*60000;
+  for(let t = Math.ceil(startLocal/HOUR)*HOUR; t < startLocal + DAY; t += HOUR){
+    const h = new Date(t).getUTCHours();
+    const frac = (t - startLocal)/DAY;
+    const s = document.createElement("span");
+    if(frac < 0.02){ s.style.left = "0"; s.style.transform = "none"; }
+    else if(frac > 0.96){ s.style.left = "100%"; s.style.transform = "translateX(-100%)"; }
+    else s.style.left = (frac*100).toFixed(3) + "%";
+    s.textContent = state.h24 ? String(h).padStart(2,"0")
+                              : (h % 12 === 0 ? 12 : h % 12) + (h < 12 ? "a" : "p");
+    if(h % 3 !== 0) s.className = "minor";
+    ticks.appendChild(s);
+  }
+
+  row.append(head, band, ticks);
+  return row;
+}
+
+const currentInstant = () => scrubFrac === null ? Date.now() : winStart + scrubFrac*DAY;
+
+function updateReadouts(){
+  const t = currentInstant(), home = CITIES[state.home];
+  const hp = getParts(t, home[2]);
+  $("statusText").textContent = home[0] + "  " + hp.wd + " " + String(hp.d).padStart(2,"0") + " " + hp.mon + " " + hp.y
+                                + (scrubFrac === null ? "" : "  (selected)");
+  $("tray").textContent = fmtTime(getParts(Date.now(), home[2]));
+  for(const row of rowsEl.children){
+    const c = CITIES[+row.dataset.idx], p = getParts(t, c[2]);
+    row.querySelector(".tval").textContent = fmtTime(p);
+    const dd = dayDelta(hp,p);
+    row.querySelector(".daydiff").textContent = dd === 0 ? "" : (dd > 0 ? "+1d" : "-1d");
+  }
+  $("nowBtn").classList.toggle("pressed", scrubFrac === null && dayShift === 0);
+}
+function positionNow(){
+  const f = (Date.now() - winStart)/DAY, el = $("nowline");
+  if(f < 0 || f > 1){ el.classList.add("hidden"); return; }
+  el.classList.remove("hidden");
+  el.style.left = (f*100) + "%";
+}
+
+/* ───────── scrubbing ───────── */
+const tl = $("timeline");
+function setScrub(clientX){
+  const r = tl.getBoundingClientRect();
+  scrubFrac = Math.max(0, Math.min(1, (clientX - r.left)/r.width));
+  const sl = $("scrubline");
+  sl.classList.remove("hidden");
+  sl.style.left = (scrubFrac*100) + "%";
+  updateReadouts();
+}
+let dragging = false;
+tl.addEventListener("pointerdown", e => {
+  if(e.target.closest("button")) return;
+  dragging = true; tl.setPointerCapture(e.pointerId); setScrub(e.clientX);
+});
+tl.addEventListener("pointermove", e => { if(dragging) setScrub(e.clientX); });
+tl.addEventListener("pointerup", () => dragging = false);
+tl.addEventListener("pointercancel", () => dragging = false);
+tl.addEventListener("keydown", e => {
+  if(e.key === "ArrowRight" || e.key === "ArrowLeft"){
+    e.preventDefault();
+    const step = e.shiftKey ? 1/96 : 1/24;
+    const base = scrubFrac === null ? (Date.now()-winStart)/DAY : scrubFrac;
+    scrubFrac = Math.max(0, Math.min(1, base + (e.key === "ArrowRight" ? step : -step)));
+    const sl = $("scrubline"); sl.classList.remove("hidden"); sl.style.left = (scrubFrac*100) + "%";
+    updateReadouts();
+  }
+  if(e.key === "Escape") resetNow();
+});
+function clearScrub(){ scrubFrac = null; $("scrubline").classList.add("hidden"); }
+function resetNow(){ clearScrub(); dayShift = 0; render(); }
+
+/* ───────── controls ───────── */
+$("nowBtn").onclick = resetNow;
+$("dayPrev").onclick = () => { dayShift--; clearScrub(); render(); };
+$("dayNext").onclick = () => { dayShift++; clearScrub(); render(); };
+$("fmtBtn").onclick = () => { state.h24 = !state.h24; $("fmtBtn").textContent = state.h24 ? "24h" : "12h"; save(); render(); };
+$("copyBtn").onclick = async () => {
+  const t = currentInstant(), hp = getParts(t, CITIES[state.home][2]);
+  const lines = [hp.wd + ", " + hp.d + " " + hp.mon + " " + hp.y];
+  for(const idx of state.cities){
+    const c = CITIES[idx], p = getParts(t, c[2]), dd = dayDelta(hp,p);
+    lines.push(c[0] + "  " + fmtTime(p) + (dd === 0 ? "" : dd > 0 ? " (+1 day)" : " (-1 day)"));
+  }
+  try{ await navigator.clipboard.writeText(lines.join("\n")); flash("Times copied"); }
+  catch(e){ flash("Copy blocked — select the text instead"); }
+};
+let flashTimer;
+function flash(msg){
+  const el = $("statusText"), old = el.textContent;
+  el.textContent = msg;
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(updateReadouts, 1800);
+}
+
+/* ───────── window chrome ───────── */
+const win = $("win"), winBody = $("winBody"), deskIcon = $("deskIcon");
+let minimized = false, closed = false, wide = false;
+function showWindow(){ closed = false; minimized = false; win.classList.remove("hidden"); winBody.style.display = ""; deskIcon.classList.remove("show"); requestAnimationFrame(paintAll); }
+$("btnMin").onclick = () => { minimized = !minimized; winBody.style.display = minimized ? "none" : ""; if(!minimized) requestAnimationFrame(paintAll); };
+$("btnWide").onclick = () => { wide = !wide; win.style.maxWidth = wide ? "100%" : "820px"; requestAnimationFrame(paintAll); };
+$("btnClose").onclick = () => { closed = true; win.classList.add("hidden"); deskIcon.classList.add("show"); };
+deskIcon.onclick = showWindow;
+$("taskBtn").onclick = () => {
+  if(closed) return showWindow();
+  minimized = !minimized;
+  winBody.style.display = minimized ? "none" : "";
+  if(!minimized) requestAnimationFrame(paintAll);
+};
+
+/* ───────── add-city dialog ───────── */
+const searchEl = $("search"), resultsEl = $("results"), modal = $("modal");
+const norm = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+let picked = null;
+
+function fillList(){
+  const q = norm(searchEl.value.trim());
+  resultsEl.innerHTML = "";
+  const hits = [];
+  for(let i=0;i<CITIES.length;i++){
+    if(state.cities.includes(i)) continue;
+    const c = CITIES[i];
+    if(!q || norm(c[0]).includes(q) || norm(c[1]).includes(q) || norm(c[2]).includes(q)) hits.push(i);
+  }
+  if(!hits.length){
+    resultsEl.innerHTML = '<div class="none">No city matches that. Try the country instead.</div>';
+    $("dlgCount").textContent = "0 of " + CITIES.length;
+    setPicked(null);
+    return;
+  }
+  $("dlgCount").textContent = hits.length + " of " + CITIES.length;
+  for(const i of hits){
+    const c = CITIES[i];
+    const b = document.createElement("button");
+    b.type = "button"; b.dataset.idx = i; b.setAttribute("role","option");
+    b.innerHTML = '<span class="r-name"></span><span class="r-meta"></span>';
+    b.querySelector(".r-name").textContent = c[0] + ", " + c[1];
+    b.querySelector(".r-meta").textContent = offLabel(getParts(Date.now(), c[2]).off);
+    b.onclick = () => setPicked(i);
+    b.ondblclick = () => { setPicked(i); commitAdd(); };
+    resultsEl.appendChild(b);
+  }
+  if(q && hits.length === 1) setPicked(hits[0]); else setPicked(null);
+}
+function setPicked(i){
+  picked = i;
+  for(const b of resultsEl.querySelectorAll("button")){
+    const on = +b.dataset.idx === i;
+    b.classList.toggle("sel", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  }
+  $("dlgAdd").disabled = (i === null);
+}
+function openDialog(){
+  searchEl.value = "";
+  fillList();
+  modal.classList.remove("hidden");
+  setTimeout(() => searchEl.focus(), 0);
+}
+function closeDialog(){
+  modal.classList.add("hidden");
+  setPicked(null);
+  $("addBtn").focus();
+}
+function commitAdd(){
+  if(picked === null) return;
+  state.cities.push(picked);
+  closeDialog();
+  save();
+  render();
+}
+$("addBtn").onclick = openDialog;
+$("dlgAdd").onclick = commitAdd;
+$("dlgCancel").onclick = closeDialog;
+$("dlgX").onclick = closeDialog;
+searchEl.addEventListener("input", fillList);
+searchEl.addEventListener("keydown", e => {
+  if(e.key === "Enter"){ e.preventDefault(); commitAdd(); }
+  if(e.key === "ArrowDown"){
+    e.preventDefault();
+    const first = resultsEl.querySelector("button");
+    if(first){ first.focus(); setPicked(+first.dataset.idx); }
+  }
+});
+resultsEl.addEventListener("keydown", e => {
+  const items = [...resultsEl.querySelectorAll("button")];
+  const at = items.indexOf(document.activeElement);
+  if(e.key === "ArrowDown" || e.key === "ArrowUp"){
+    e.preventDefault();
+    const next = items[at + (e.key === "ArrowDown" ? 1 : -1)];
+    if(next){ next.focus(); setPicked(+next.dataset.idx); }
+    else if(e.key === "ArrowUp") searchEl.focus();
+  }
+  if(e.key === "Enter"){ e.preventDefault(); commitAdd(); }
+});
+modal.addEventListener("keydown", e => { if(e.key === "Escape") closeDialog(); });
+
+/* ───────── persistence ───────── */
+function save(){
+  store.set("meridiano:v1", {
+    cities: state.cities.map(i => CITIES[i][0] + "|" + CITIES[i][2]),
+    home: CITIES[state.home][0] + "|" + CITIES[state.home][2],
+    h24: state.h24
+  });
+}
+async function load(){
+  const s = await store.get("meridiano:v1");
+  if(!s) return;
+  const list = (s.cities || []).map(k => byKey[k]).filter(i => i !== undefined);
+  if(list.length) state.cities = list;
+  state.home = (byKey[s.home] !== undefined && state.cities.includes(byKey[s.home])) ? byKey[s.home] : state.cities[0];
+  if(typeof s.h24 === "boolean") state.h24 = s.h24;
+  $("fmtBtn").textContent = state.h24 ? "24h" : "12h";
+}
+
+/* ───────── go ───────── */
+(async () => {
+  await load();
+  render();
+  setInterval(() => { positionNow(); updateReadouts(); }, 20000);
+  let rt;
+  window.addEventListener("resize", () => {
+    positionNow();
+    clearTimeout(rt);
+    rt = setTimeout(paintAll, 120);
+  });
+})();
+</script>

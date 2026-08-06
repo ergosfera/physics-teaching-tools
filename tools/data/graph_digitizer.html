@@ -1,515 +1,580 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Graph Digitizer</title>
+
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: 'Segoe UI', Tahoma, sans-serif;
-    background: #ecf0f1;
-    color: #2c3e50;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+  :root{
+    --desktop:#008080;
+    --face:#C0C0C0;
+    --hi:#FFFFFF;
+    --light:#DFDFDF;
+    --shadow:#808080;
+    --dark:#000000;
+    --title:#000080;
+    --title-off:#808080;
+    --sel:#000080;
+    --field:#FFFFFF;
+    --ui:Tahoma,"MS Sans Serif",Verdana,Geneva,sans-serif;
+    --fixed:"Lucida Console","Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    background:var(--desktop);
+    font-family:var(--ui);
+    font-size:14px;
+    color:#000;
+    -webkit-font-smoothing:none;
+    padding:4px 4px calc(48px + env(safe-area-inset-bottom));
+    overscroll-behavior-y:contain;
+    overflow:hidden;
   }
 
-  header {
-    background: #2c3e50;
-    color: #ecf0f1;
-    padding: 10px 20px;
-    font-size: 1.1em;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+  /* ---- Win95 bevels ---- */
+  .raised{
+    background:var(--face);
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow), inset 2px 2px 0 var(--light);
   }
-  header span.sub {
-    font-weight: 400;
-    font-size: 0.8em;
-    color: #95a5a6;
+  .sunken{
+    background:var(--face);
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
   }
 
-  .main { display: flex; flex: 1; overflow: hidden; }
+  /* ---- window ---- */
+  .window{
+    display:flex;flex-direction:column;
+    height:calc(100vh - 8px - 48px - env(safe-area-inset-bottom));
+    padding:3px;
+  }
+  .titlebar{
+    background:var(--title);color:#fff;
+    display:flex;align-items:center;gap:5px;
+    padding:2px 2px 2px 3px;margin-bottom:2px;
+    flex-shrink:0;
+  }
+  .titlebar .t{
+    font-weight:700;font-size:15px;flex:1;letter-spacing:.01em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .titlebar .sub{font-weight:400;font-size:12px;color:#aac}
+  .titlebar svg{display:block;flex:none}
+  .tbtn{
+    width:24px;height:22px;padding:0;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--ui);font-size:13px;font-weight:700;line-height:1;
+    background:var(--face);border:0;color:#000;cursor:pointer;
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow), inset 2px 2px 0 var(--light);
+  }
+  .tbtn:active{box-shadow:inset 1px 1px 0 var(--dark), inset 2px 2px 0 var(--shadow);padding:1px 0 0 1px}
 
-  /* ── Left Panel ── */
-  .left-panel {
-    width: 280px;
-    min-width: 220px;
-    background: #fff;
-    border-right: 2px solid #dde3e9;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    padding: 14px 12px;
-    gap: 16px;
-    flex-shrink: 0;
-  }
+  /* ---- main layout ---- */
+  .main{display:flex;flex:1;overflow:hidden}
 
-  .section-label {
-    font-size: 0.68em;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #95a5a6;
-    margin-bottom: 6px;
+  /* ---- buttons ---- */
+  button.b95{
+    font-family:var(--ui);font-size:13px;color:#000;background:var(--face);
+    border:0;padding:5px 10px;min-height:24px;cursor:pointer;
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow), inset 2px 2px 0 var(--light);
   }
+  button.b95:active,button.b95.pressed{
+    box-shadow:inset 1px 1px 0 var(--shadow), inset 2px 2px 0 var(--dark);
+    padding:6px 9px 4px 11px;
+  }
+  button.b95:focus-visible{outline:1px dotted #000;outline-offset:-4px}
+  button.b95:disabled{color:var(--shadow);text-shadow:1px 1px 0 var(--hi);cursor:default}
+  button.b95.primary{font-weight:700}
+  .btn-block{width:100%;margin-top:4px}
 
-  /* Upload zone */
-  #drop-zone {
-    border: 2px dashed #bdc3c7;
-    border-radius: 8px;
-    padding: 18px 10px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    font-size: 0.82em;
-    color: #7f8c8d;
-  }
-  #drop-zone.hover { border-color: #3498db; background: #eaf4fb; }
-  #drop-zone input { display: none; }
-
-  /* Step blocks */
-  .step-block {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 10px 12px;
-    border: 1px solid #e0e6ed;
-  }
-  .step-block.active {
-    border-color: #3498db;
-    background: #eaf4fb;
-  }
-  .step-block.done {
-    border-color: #27ae60;
-    background: #eafaf1;
-  }
-
-  .step-title {
-    font-size: 0.78em;
-    font-weight: 700;
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .badge {
-    background: #bdc3c7;
-    color: #fff;
-    border-radius: 50%;
-    width: 18px; height: 18px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75em;
-    flex-shrink: 0;
-  }
-  .step-block.active .badge { background: #3498db; }
-  .step-block.done .badge { background: #27ae60; }
-
-  .step-desc {
-    font-size: 0.74em;
-    color: #7f8c8d;
-    margin-bottom: 8px;
-    line-height: 1.4;
+  /* ---- left panel ---- */
+  .left-panel{
+    width:270px;min-width:220px;
+    background:var(--face);
+    border-right:2px solid var(--shadow);
+    display:flex;flex-direction:column;
+    overflow-y:auto;
+    padding:6px;
+    gap:8px;
+    flex-shrink:0;
   }
 
-  button {
-    cursor: pointer;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.8em;
-    font-weight: 600;
-    padding: 7px 12px;
-    transition: background 0.15s, opacity 0.15s;
-  }
-  button:disabled { opacity: 0.4; cursor: default; }
-
-  .btn-primary { background: #3498db; color: #fff; }
-  .btn-primary:not(:disabled):hover { background: #2980b9; }
-  .btn-success { background: #27ae60; color: #fff; }
-  .btn-success:not(:disabled):hover { background: #229954; }
-  .btn-danger  { background: #e74c3c; color: #fff; }
-  .btn-danger:not(:disabled):hover  { background: #c0392b; }
-  .btn-neutral { background: #ecf0f1; color: #2c3e50; border: 1px solid #bdc3c7; }
-  .btn-neutral:not(:disabled):hover { background: #dde3e9; }
-  .btn-block { width: 100%; margin-top: 4px; }
-
-  /* Ref point rows */
-  .ref-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 6px;
-  }
-  .ref-row label {
-    font-size: 0.75em;
-    font-weight: 600;
-    width: 24px;
-    flex-shrink: 0;
-  }
-  .ref-row input[type=number] {
-    width: 68px;
-    padding: 4px 6px;
-    border: 1px solid #bdc3c7;
-    border-radius: 5px;
-    font-size: 0.78em;
-    color: #2c3e50;
-  }
-  .ref-status {
-    font-size: 0.7em;
-    flex: 1;
-    text-align: right;
-    color: #95a5a6;
-  }
-  .ref-status.set { color: #27ae60; font-weight: 700; }
-
-  /* Data table */
-  .table-wrap {
-    max-height: 220px;
-    overflow-y: auto;
-    border: 1px solid #e0e6ed;
-    border-radius: 6px;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.76em;
-  }
-  thead { position: sticky; top: 0; background: #2c3e50; color: #ecf0f1; }
-  thead th { padding: 5px 6px; font-weight: 700; text-align: right; }
-  thead th:first-child { text-align: left; }
-  tbody tr:nth-child(even) { background: #f4f6f8; }
-  tbody td { padding: 4px 6px; text-align: right; }
-  tbody td:first-child { text-align: left; color: #7f8c8d; font-size: 0.9em; }
-  .del-btn {
-    background: none;
-    border: none;
-    color: #e74c3c;
-    font-size: 0.95em;
-    cursor: pointer;
-    padding: 0 2px;
-    font-weight: 700;
-  }
-  .no-data {
-    text-align: center;
-    color: #bdc3c7;
-    padding: 12px;
-    font-size: 0.78em;
-    font-style: italic;
+  .section-label{
+    font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.6px;
+    color:#000;margin-bottom:3px;
   }
 
-  .row-actions {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
+  /* ---- upload zone ---- */
+  #drop-zone{
+    border:2px dashed var(--shadow);
+    padding:14px 10px;
+    text-align:center;cursor:pointer;
+    font-size:13px;color:var(--shadow);
+    background:var(--field);
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow);
+  }
+  #drop-zone.hover{border-color:var(--title);background:#d0d8ff}
+  #drop-zone input{display:none}
+
+  /* ---- step blocks ---- */
+  .step-block{
+    background:var(--face);
+    padding:8px 8px;
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+  }
+  .step-block.active{
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--title);
+  }
+  .step-block.done{
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 #006400;
   }
 
-  /* ── Canvas area ── */
-  .canvas-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    background: #dde3e9;
-    position: relative;
+  .step-title{
+    font-size:13px;font-weight:700;
+    margin-bottom:4px;display:flex;align-items:center;gap:5px;
+  }
+  .badge{
+    background:var(--shadow);color:#fff;
+    width:18px;height:18px;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;flex-shrink:0;
+  }
+  .step-block.active .badge{background:var(--title)}
+  .step-block.done .badge{background:#006400}
+
+  .step-desc{
+    font-size:12px;color:var(--shadow);
+    margin-bottom:6px;line-height:1.4;
   }
 
-  .canvas-wrap {
-    position: relative;
-    display: inline-block;
-    cursor: crosshair;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-    max-width: 100%;
-    max-height: 100%;
-    overflow: hidden;
+  /* ---- ref point rows ---- */
+  .ref-row{
+    display:flex;align-items:center;gap:5px;margin-bottom:5px;
+  }
+  .ref-row label{
+    font-size:12px;font-weight:700;width:22px;flex-shrink:0;
+  }
+  .ref-row input[type=number]{
+    width:62px;padding:3px 5px;border:0;
+    font-size:12px;color:#000;background:var(--field);
+    font-family:var(--fixed);
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+  }
+  .ref-row input[type=number]:focus{outline:none}
+  .ref-status{
+    font-size:11px;flex:1;text-align:right;color:var(--shadow);
+    font-family:var(--fixed);
+  }
+  .ref-status.set{color:#006400;font-weight:700}
+
+  /* ---- data table ---- */
+  .table-wrap{
+    max-height:200px;overflow-y:auto;
+    background:var(--field);
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+  }
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  thead{
+    position:sticky;top:0;
+    background:var(--face);color:#000;
+  }
+  thead th{
+    padding:4px 5px;font-weight:700;text-align:right;
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--hi);
+  }
+  thead th:first-child{text-align:left}
+  tbody tr:nth-child(even){background:#d8d8d8}
+  tbody td{padding:3px 5px;text-align:right;font-family:var(--fixed);font-size:12px}
+  tbody td:first-child{text-align:left;color:var(--shadow);font-size:11px}
+  .del-btn{
+    background:none;border:none;color:var(--shadow);
+    font-size:12px;cursor:pointer;padding:0 2px;font-weight:700;
+  }
+  .del-btn:hover{color:#800000}
+  .no-data{
+    text-align:center;color:var(--shadow);
+    padding:10px;font-size:12px;font-style:italic;
+  }
+  .row-actions{display:flex;gap:4px;flex-wrap:wrap}
+
+  /* ---- column labels ---- */
+  .col-labels{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px}
+  .col-labels label{font-size:11px;color:var(--shadow);display:block;margin-bottom:2px}
+  .col-labels input{
+    width:100%;padding:3px 5px;border:0;
+    font-size:12px;color:#000;background:var(--field);
+    font-family:var(--ui);
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+  }
+  .col-labels input:focus{outline:none}
+
+  /* ---- canvas area ---- */
+  .canvas-area{
+    flex:1;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    overflow:hidden;background:var(--face);
+    position:relative;
   }
 
-  #main-canvas {
-    display: block;
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+  .canvas-wrap{
+    position:relative;display:inline-block;
+    cursor:crosshair;
+    max-width:100%;max-height:100%;overflow:hidden;
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+    padding:3px;background:var(--field);
   }
 
-  #overlay-canvas {
-    position: absolute;
-    top: 0; left: 0;
-    pointer-events: none;
+  #main-canvas{display:block;max-width:100%;max-height:100%;object-fit:contain}
+  #overlay-canvas{position:absolute;top:3px;left:3px;pointer-events:none}
+
+  .crosshair-h,.crosshair-v{
+    position:absolute;background:rgba(128,0,0,0.5);pointer-events:none;
+  }
+  .crosshair-h{height:1px;left:0;right:0}
+  .crosshair-v{width:1px;top:0;bottom:0}
+
+  #empty-msg{text-align:center;color:var(--shadow);font-size:14px}
+  #empty-msg p{margin-bottom:6px}
+
+  /* ---- status bar ---- */
+  #status-bar{
+    position:absolute;bottom:6px;left:8px;right:8px;
+    display:flex;gap:3px;
+  }
+  #status-bar div{
+    font-size:12px;padding:3px 6px;font-family:var(--fixed);
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow);
+    background:var(--face);
+  }
+  #status-bar .s1{flex:1}
+
+  /* ---- mode chip ---- */
+  #mode-chip{
+    position:absolute;top:6px;right:8px;
+    font-size:11px;font-weight:700;
+    padding:3px 8px;
+    text-transform:uppercase;letter-spacing:.5px;
+  }
+  .chip-calib{
+    background:#804000;color:#fff;
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 #c08040;
+  }
+  .chip-digit{
+    background:#006400;color:#fff;
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 #40a040;
+  }
+  .chip-idle{
+    background:var(--shadow);color:#fff;
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--light);
   }
 
-  .crosshair-h, .crosshair-v {
-    position: absolute;
-    background: rgba(231,76,60,0.5);
-    pointer-events: none;
+  /* ---- modal ---- */
+  #modal-overlay{
+    display:none;position:fixed;inset:0;
+    background:rgba(0,0,0,0.35);z-index:100;
+    align-items:center;justify-content:center;
   }
-  .crosshair-h { height: 1px; left: 0; right: 0; }
-  .crosshair-v { width: 1px; top: 0; bottom: 0; }
+  #modal-overlay.show{display:flex}
+  #modal-box{
+    background:var(--face);padding:3px;
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow), inset 2px 2px 0 var(--light);
+    min-width:260px;
+  }
+  .modal-titlebar{
+    background:var(--title);color:#fff;
+    padding:2px 3px;margin-bottom:2px;
+    display:flex;align-items:center;gap:5px;
+  }
+  .modal-titlebar .t{font-weight:700;font-size:14px;flex:1}
+  .modal-body{padding:10px}
+  .modal-field{margin-bottom:8px}
+  .modal-field label{font-size:12px;display:block;margin-bottom:3px;color:#000}
+  .modal-field input{
+    width:100%;padding:4px 6px;border:0;
+    font-size:13px;font-family:var(--fixed);color:#000;
+    background:var(--field);
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+  }
+  .modal-field input:focus{outline:none}
+  .modal-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:10px}
 
-  #empty-msg {
-    text-align: center;
-    color: #95a5a6;
-    font-size: 0.9em;
+  /* ---- taskbar ---- */
+  .taskbar{
+    position:fixed;left:0;right:0;bottom:0;height:40px;
+    background:var(--face);display:flex;align-items:center;gap:4px;
+    padding:4px 4px calc(4px + env(safe-area-inset-bottom));
+    box-shadow:inset 0 1px 0 var(--hi), inset 0 2px 0 var(--light);
   }
-  #empty-msg p { margin-bottom: 6px; }
-
-  #status-bar {
-    position: absolute;
-    bottom: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(44,62,80,0.85);
-    color: #ecf0f1;
-    font-size: 0.74em;
-    padding: 4px 14px;
-    border-radius: 20px;
-    pointer-events: none;
-    white-space: nowrap;
+  .taskbtn{
+    display:flex;align-items:center;gap:6px;font-weight:700;padding:4px 10px;min-height:30px;
+  }
+  .tray{
+    margin-left:auto;font-family:var(--fixed);font-size:13px;padding:5px 10px;
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
   }
 
-  /* Mode chip */
-  #mode-chip {
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    font-size: 0.72em;
-    font-weight: 700;
-    padding: 3px 10px;
-    border-radius: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+  /* scrollbar */
+  .left-panel::-webkit-scrollbar,.table-wrap::-webkit-scrollbar{width:16px}
+  .left-panel::-webkit-scrollbar-track,.table-wrap::-webkit-scrollbar-track{
+    background-color:var(--hi);
+    background-image:linear-gradient(45deg,var(--face) 25%,transparent 25%,transparent 75%,var(--face) 75%),
+                     linear-gradient(45deg,var(--face) 25%,transparent 25%,transparent 75%,var(--face) 75%);
+    background-size:2px 2px;background-position:0 0,1px 1px;
   }
-  .chip-calib { background: #f39c12; color: #fff; }
-  .chip-digit { background: #27ae60; color: #fff; }
-  .chip-idle  { background: #bdc3c7; color: #fff; }
+  .left-panel::-webkit-scrollbar-thumb,.table-wrap::-webkit-scrollbar-thumb{
+    background:var(--face);
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow), inset 2px 2px 0 var(--light);
+  }
 
-  /* Modal */
-  #modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.45);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
-  }
-  #modal-overlay.show { display: flex; }
-  #modal-box {
-    background: #fff;
-    border-radius: 10px;
-    padding: 22px 24px;
-    min-width: 260px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-  }
-  #modal-box h3 { font-size: 0.95em; margin-bottom: 12px; color: #2c3e50; }
-  .modal-field { margin-bottom: 10px; }
-  .modal-field label { font-size: 0.8em; display: block; margin-bottom: 4px; color: #7f8c8d; }
-  .modal-field input {
-    width: 100%;
-    padding: 6px 8px;
-    border: 1px solid #bdc3c7;
-    border-radius: 5px;
-    font-size: 0.88em;
-  }
-  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
-</head>
-<body>
 
-<header>
-  Graph Digitizer
-  <span class="sub">Upload a graph image &rarr; calibrate axes &rarr; click to collect data</span>
-</header>
+<!-- ═══════════════ WINDOW ═══════════════ -->
+<div class="window raised" id="win">
+  <div class="titlebar">
+    <svg width="17" height="17" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+      <rect x="2" y="2" width="12" height="12" fill="#C0C0C0"/>
+      <rect x="3" y="3" width="10" height="10" fill="#000080"/>
+      <rect x="4" y="5" width="8" height="1" fill="#00FF00"/>
+      <rect x="4" y="7" width="5" height="1" fill="#FFFF00"/>
+      <rect x="4" y="9" width="7" height="1" fill="#00FF00"/>
+      <rect x="11" y="4" width="1" height="3" fill="#FF0000"/>
+      <rect x="10" y="6" width="1" height="1" fill="#FF0000"/>
+    </svg>
+    <span class="t">Graph Digitizer</span>
+    <button class="tbtn" title="Minimize" aria-label="Minimize">_</button>
+    <button class="tbtn" title="Maximize" aria-label="Maximize">□</button>
+    <button class="tbtn" title="Close" aria-label="Close">✕</button>
+  </div>
 
-<div class="main">
+  <div class="main">
 
-  <!-- ── LEFT PANEL ── -->
-  <div class="left-panel">
+    <!-- ── LEFT PANEL ── -->
+    <div class="left-panel">
 
-    <!-- Upload -->
-    <div>
-      <div class="section-label">Image</div>
-      <div id="drop-zone">
-        <input type="file" id="file-input" accept="image/*">
-        <div>&#128247; Drop image here<br>or <u style="color:#3498db;cursor:pointer" onclick="document.getElementById('file-input').click()">browse</u></div>
-      </div>
-    </div>
-
-    <!-- Step 1: Calibration -->
-    <div class="step-block" id="step1-block">
-      <div class="step-title">
-        <span class="badge">1</span> Calibrate Axes
-      </div>
-      <div class="step-desc">
-        Click two known points on the graph. Enter their real (x, y) coordinates.
-      </div>
-
-      <div id="ref1-row" class="ref-row">
-        <label>P1</label>
-        <input type="number" id="p1x" placeholder="x₁" step="any">
-        <input type="number" id="p1y" placeholder="y₁" step="any">
-        <span class="ref-status" id="p1-status">not set</span>
-      </div>
-      <div id="ref2-row" class="ref-row">
-        <label>P2</label>
-        <input type="number" id="p2x" placeholder="x₂" step="any">
-        <input type="number" id="p2y" placeholder="y₂" step="any">
-        <span class="ref-status" id="p2-status">not set</span>
+      <!-- Upload -->
+      <div>
+        <div class="section-label">Image</div>
+        <div id="drop-zone">
+          <input type="file" id="file-input" accept="image/*">
+          <div>Drop image here<br>or <u style="cursor:pointer" onclick="document.getElementById('file-input').click()">browse</u></div>
+        </div>
       </div>
 
-      <div style="display:flex;gap:6px;margin-top:6px;">
-        <button class="btn-primary" id="btn-pick-p1" disabled>Pick P1</button>
-        <button class="btn-primary" id="btn-pick-p2" disabled>Pick P2</button>
-      </div>
-      <button class="btn-success btn-block" id="btn-done-calib" disabled>Start Digitizing &#8594;</button>
-      <button class="btn-neutral btn-block" id="btn-recalib" style="display:none">Re-calibrate</button>
-    </div>
+      <!-- Step 1: Calibration -->
+      <div class="step-block" id="step1-block">
+        <div class="step-title">
+          <span class="badge">1</span> Calibrate Axes
+        </div>
+        <div class="step-desc">
+          Click two known points on the graph. Enter their real (x, y) coordinates.
+        </div>
 
-    <!-- Step 2: Digitize -->
-    <div class="step-block" id="step2-block">
-      <div class="step-title">
-        <span class="badge">2</span> Digitize
-      </div>
-      <div class="step-desc" id="step2-desc">
-        Click on data points in the graph to record them.
-      </div>
-      <div class="section-label" style="margin-top:4px">Data points</div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th id="th-x">x</th>
-              <th id="th-y">y</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="data-tbody">
-            <tr><td colspan="4" class="no-data">No points yet</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="row-actions" style="margin-top:8px">
-        <button class="btn-danger" id="btn-clear" disabled>Clear All</button>
-        <button class="btn-success" id="btn-export" disabled>Export CSV</button>
-        <button class="btn-neutral" id="btn-undo" disabled>Undo</button>
+        <div id="ref1-row" class="ref-row">
+          <label>P1</label>
+          <input type="number" id="p1x" placeholder="x1" step="any">
+          <input type="number" id="p1y" placeholder="y1" step="any">
+          <span class="ref-status" id="p1-status">not set</span>
+        </div>
+        <div id="ref2-row" class="ref-row">
+          <label>P2</label>
+          <input type="number" id="p2x" placeholder="x2" step="any">
+          <input type="number" id="p2y" placeholder="y2" step="any">
+          <span class="ref-status" id="p2-status">not set</span>
+        </div>
+
+        <div style="display:flex;gap:4px;margin-top:5px">
+          <button class="b95" id="btn-pick-p1" disabled>Pick P1</button>
+          <button class="b95" id="btn-pick-p2" disabled>Pick P2</button>
+        </div>
+        <button class="b95 primary btn-block" id="btn-done-calib" disabled>Start Digitizing &#8594;</button>
+        <button class="b95 btn-block" id="btn-recalib" style="display:none">Re-calibrate</button>
       </div>
 
-      <!-- Axis labels for CSV header -->
-      <div style="margin-top:10px">
-        <div class="section-label">Column labels (for CSV)</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <!-- Step 2: Digitize -->
+      <div class="step-block" id="step2-block">
+        <div class="step-title">
+          <span class="badge">2</span> Digitize
+        </div>
+        <div class="step-desc" id="step2-desc">
+          Click on data points in the graph to record them.
+        </div>
+        <div class="section-label" style="margin-top:4px">Data points</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th id="th-x">x</th>
+                <th id="th-y">y</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="data-tbody">
+              <tr><td colspan="4" class="no-data">No points yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="row-actions" style="margin-top:6px">
+          <button class="b95" id="btn-clear" disabled>Clear All</button>
+          <button class="b95 primary" id="btn-export" disabled>Export CSV</button>
+          <button class="b95" id="btn-undo" disabled>Undo</button>
+        </div>
+
+        <!-- Axis labels for CSV header -->
+        <div class="col-labels">
           <div>
-            <label style="font-size:0.72em;color:#7f8c8d;display:block;margin-bottom:2px">x column</label>
-            <input type="text" id="label-x" value="x" style="width:100%;padding:4px 6px;border:1px solid #bdc3c7;border-radius:5px;font-size:0.78em;box-sizing:border-box">
+            <label>x column</label>
+            <input type="text" id="label-x" value="x" spellcheck="false">
           </div>
           <div>
-            <label style="font-size:0.72em;color:#7f8c8d;display:block;margin-bottom:2px">y column</label>
-            <input type="text" id="label-y" value="y" style="width:100%;padding:4px 6px;border:1px solid #bdc3c7;border-radius:5px;font-size:0.78em;box-sizing:border-box">
+            <label>y column</label>
+            <input type="text" id="label-y" value="y" spellcheck="false">
           </div>
         </div>
       </div>
+
+    </div><!-- end left-panel -->
+
+    <!-- ── CANVAS AREA ── -->
+    <div class="canvas-area" id="canvas-area">
+      <div id="empty-msg">
+        <p style="font-size:1.6em">&#128202;</p>
+        <p>Upload a graph image to begin</p>
+      </div>
+
+      <div class="canvas-wrap" id="canvas-wrap" style="display:none">
+        <canvas id="main-canvas"></canvas>
+        <canvas id="overlay-canvas"></canvas>
+        <div class="crosshair-h" id="ch-h" style="display:none"></div>
+        <div class="crosshair-v" id="ch-v" style="display:none"></div>
+      </div>
+
+      <div id="mode-chip" class="chip-idle">idle</div>
+      <div id="status-bar">
+        <div class="s1" id="status-text">Upload an image to begin</div>
+      </div>
     </div>
 
-  </div><!-- end left-panel -->
-
-  <!-- ── CANVAS AREA ── -->
-  <div class="canvas-area" id="canvas-area">
-    <div id="empty-msg">
-      <p style="font-size:2em">&#128202;</p>
-      <p>Upload a graph image to begin</p>
-    </div>
-
-    <div class="canvas-wrap" id="canvas-wrap" style="display:none">
-      <canvas id="main-canvas"></canvas>
-      <canvas id="overlay-canvas"></canvas>
-      <div class="crosshair-h" id="ch-h" style="display:none"></div>
-      <div class="crosshair-v" id="ch-v" style="display:none"></div>
-    </div>
-
-    <div id="mode-chip" class="chip-idle">idle</div>
-    <div id="status-bar">Upload an image to begin</div>
   </div>
-
 </div>
 
-<!-- Modal for entering coordinates after picking a point -->
+<!-- ═══════════════ MODAL ═══════════════ -->
 <div id="modal-overlay">
   <div id="modal-box">
-    <h3 id="modal-title">Enter coordinates for P1</h3>
-    <div class="modal-field">
-      <label>x value</label>
-      <input type="number" id="modal-x" step="any" placeholder="e.g. 0">
+    <div class="modal-titlebar">
+      <svg width="17" height="17" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+        <rect x="2" y="2" width="12" height="12" fill="#C0C0C0"/>
+        <rect x="3" y="3" width="10" height="10" fill="#000080"/>
+        <rect x="4" y="5" width="8" height="1" fill="#00FF00"/>
+        <rect x="4" y="7" width="5" height="1" fill="#FFFF00"/>
+        <rect x="4" y="9" width="7" height="1" fill="#00FF00"/>
+      </svg>
+      <span class="t" id="modal-title">Enter coordinates for P1</span>
     </div>
-    <div class="modal-field">
-      <label>y value</label>
-      <input type="number" id="modal-y" step="any" placeholder="e.g. 0">
-    </div>
-    <div class="modal-actions">
-      <button class="btn-neutral" id="modal-cancel">Cancel</button>
-      <button class="btn-primary" id="modal-ok">OK</button>
+    <div class="modal-body">
+      <div class="modal-field">
+        <label>x value</label>
+        <input type="number" id="modal-x" step="any" placeholder="e.g. 0">
+      </div>
+      <div class="modal-field">
+        <label>y value</label>
+        <input type="number" id="modal-y" step="any" placeholder="e.g. 0">
+      </div>
+      <div class="modal-actions">
+        <button class="b95" id="modal-cancel">Cancel</button>
+        <button class="b95 primary" id="modal-ok">OK</button>
+      </div>
     </div>
   </div>
+</div>
+
+<!-- ═══════════════ TASKBAR ═══════════════ -->
+<div class="taskbar">
+  <button class="b95 taskbtn" id="taskBtn">
+    <svg width="17" height="17" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+      <rect x="2" y="2" width="12" height="12" fill="#000080"/>
+      <rect x="4" y="5" width="8" height="1" fill="#00FF00"/>
+      <rect x="4" y="7" width="5" height="1" fill="#FFFF00"/>
+      <rect x="4" y="9" width="7" height="1" fill="#00FF00"/>
+    </svg>
+    Graph Digitizer
+  </button>
+  <span class="tray" id="tray">—</span>
 </div>
 
 <script>
+"use strict";
+
+/* ── Tray clock ── */
+function updateTray(){
+  const d = new Date();
+  document.getElementById('tray').textContent =
+    d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+}
+updateTray(); setInterval(updateTray, 30000);
+
 /* ── State ── */
 const state = {
-  mode: 'idle',        // idle | pick_p1 | pick_p2 | digitize
+  mode: 'idle',
   img: null,
   imgW: 0, imgH: 0,
-  // calibration ref points (pixel coords)
   p1px: null, p1py: null,
   p2px: null, p2py: null,
-  // calibration ref points (data coords)
   p1dx: null, p1dy: null,
   p2dx: null, p2dy: null,
-  // collected data
   points: [],
 };
 
 /* ── Elements ── */
-const dropZone    = document.getElementById('drop-zone');
-const fileInput   = document.getElementById('file-input');
-const mainCanvas  = document.getElementById('main-canvas');
+const dropZone      = document.getElementById('drop-zone');
+const fileInput     = document.getElementById('file-input');
+const mainCanvas    = document.getElementById('main-canvas');
 const overlayCanvas = document.getElementById('overlay-canvas');
-const canvasWrap  = document.getElementById('canvas-wrap');
-const emptyMsg    = document.getElementById('empty-msg');
-const modeChip    = document.getElementById('mode-chip');
-const statusBar   = document.getElementById('status-bar');
-const chH         = document.getElementById('ch-h');
-const chV         = document.getElementById('ch-v');
-const ctx         = mainCanvas.getContext('2d');
-const octx        = overlayCanvas.getContext('2d');
+const canvasWrap    = document.getElementById('canvas-wrap');
+const emptyMsg      = document.getElementById('empty-msg');
+const modeChip      = document.getElementById('mode-chip');
+const statusText    = document.getElementById('status-text');
+const chH           = document.getElementById('ch-h');
+const chV           = document.getElementById('ch-v');
+const ctx           = mainCanvas.getContext('2d');
+const octx          = overlayCanvas.getContext('2d');
 
-const btnPickP1   = document.getElementById('btn-pick-p1');
-const btnPickP2   = document.getElementById('btn-pick-p2');
-const btnDoneCalib= document.getElementById('btn-done-calib');
-const btnRecalib  = document.getElementById('btn-recalib');
-const p1Status    = document.getElementById('p1-status');
-const p2Status    = document.getElementById('p2-status');
-const step1Block  = document.getElementById('step1-block');
-const step2Block  = document.getElementById('step2-block');
-const dataTbody   = document.getElementById('data-tbody');
-const btnClear    = document.getElementById('btn-clear');
-const btnExport   = document.getElementById('btn-export');
-const btnUndo     = document.getElementById('btn-undo');
-const labelX      = document.getElementById('label-x');
-const labelY      = document.getElementById('label-y');
+const btnPickP1     = document.getElementById('btn-pick-p1');
+const btnPickP2     = document.getElementById('btn-pick-p2');
+const btnDoneCalib  = document.getElementById('btn-done-calib');
+const btnRecalib    = document.getElementById('btn-recalib');
+const p1Status      = document.getElementById('p1-status');
+const p2Status      = document.getElementById('p2-status');
+const step1Block    = document.getElementById('step1-block');
+const step2Block    = document.getElementById('step2-block');
+const dataTbody     = document.getElementById('data-tbody');
+const btnClear      = document.getElementById('btn-clear');
+const btnExport     = document.getElementById('btn-export');
+const btnUndo       = document.getElementById('btn-undo');
+const labelX        = document.getElementById('label-x');
+const labelY        = document.getElementById('label-y');
 
-const modalOverlay= document.getElementById('modal-overlay');
-const modalTitle  = document.getElementById('modal-title');
-const modalX      = document.getElementById('modal-x');
-const modalY      = document.getElementById('modal-y');
-const modalOk     = document.getElementById('modal-ok');
-const modalCancel = document.getElementById('modal-cancel');
+const modalOverlay  = document.getElementById('modal-overlay');
+const modalTitle    = document.getElementById('modal-title');
+const modalX        = document.getElementById('modal-x');
+const modalY        = document.getElementById('modal-y');
+const modalOk       = document.getElementById('modal-ok');
+const modalCancel   = document.getElementById('modal-cancel');
 
 /* ── Drag & drop ── */
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('hover'); });
@@ -549,8 +614,8 @@ function loadImage(file) {
 /* ── Render image ── */
 function renderImage() {
   const area = document.getElementById('canvas-area');
-  const maxW = area.clientWidth - 20;
-  const maxH = area.clientHeight - 20;
+  const maxW = area.clientWidth - 24;
+  const maxH = area.clientHeight - 40;
   const scale = Math.min(maxW / state.imgW, maxH / state.imgH, 1);
   const dw = Math.round(state.imgW * scale);
   const dh = Math.round(state.imgH * scale);
@@ -653,7 +718,7 @@ function confirmModal() {
     state.p1dx = xv; state.p1dy = yv;
     document.getElementById('p1x').value = xv;
     document.getElementById('p1y').value = yv;
-    p1Status.textContent = '✓ set';
+    p1Status.textContent = 'OK';
     p1Status.className = 'ref-status set';
     setMode('idle');
     setStatus('P1 set. Now pick P2.');
@@ -664,7 +729,7 @@ function confirmModal() {
     state.p2dx = xv; state.p2dy = yv;
     document.getElementById('p2x').value = xv;
     document.getElementById('p2y').value = yv;
-    p2Status.textContent = '✓ set';
+    p2Status.textContent = 'OK';
     p2Status.className = 'ref-status set';
     setMode('idle');
     checkCalibReady();
@@ -754,7 +819,7 @@ function updateTable() {
       <td>${i + 1}</td>
       <td>${fmt(p.dx)}</td>
       <td>${fmt(p.dy)}</td>
-      <td><button class="del-btn" onclick="deletePoint(${i})" title="Delete">&#x2715;</button></td>
+      <td><button class="del-btn" onclick="deletePoint(${i})" title="Delete">×</button></td>
     </tr>
   `).join('');
 }
@@ -792,30 +857,28 @@ function redrawOverlay() {
     octx.stroke();
     if (label) {
       octx.fillStyle = color;
-      octx.font = 'bold 11px Segoe UI, sans-serif';
+      octx.font = 'bold 11px Tahoma, sans-serif';
       octx.fillText(label, px + 8, py - 6);
     }
     octx.restore();
   };
 
-  // Calibration points
   if (state.p1px !== null)
-    drawMarker(state.p1px, state.p1py, '#e67e22', 'P1');
+    drawMarker(state.p1px, state.p1py, '#804000', 'P1');
   if (state.p2px !== null)
-    drawMarker(state.p2px, state.p2py, '#8e44ad', 'P2');
+    drawMarker(state.p2px, state.p2py, '#800080', 'P2');
 
-  // Data points
   state.points.forEach((p, i) => {
     octx.save();
-    octx.fillStyle = '#e74c3c';
-    octx.strokeStyle = '#c0392b';
+    octx.fillStyle = '#800000';
+    octx.strokeStyle = '#400000';
     octx.lineWidth = 1.5;
     octx.beginPath();
     octx.arc(p.px, p.py, 4, 0, 2 * Math.PI);
     octx.fill();
     octx.stroke();
-    octx.fillStyle = '#2c3e50';
-    octx.font = '10px Segoe UI, sans-serif';
+    octx.fillStyle = '#000';
+    octx.font = '10px Tahoma, sans-serif';
     octx.fillText(i + 1, p.px + 6, p.py - 4);
     octx.restore();
   });
@@ -836,11 +899,10 @@ function setMode(m) {
   step1Block.classList.toggle('active', m === 'pick_p1' || m === 'pick_p2');
 }
 
-function setStatus(msg) { statusBar.textContent = msg; }
+function setStatus(msg) { statusText.textContent = msg; }
 
 function fmt(v) {
   if (v === null || v === undefined) return '';
-  // Show up to 5 sig figs without unnecessary trailing zeros
   const s = parseFloat(v.toPrecision(5));
   return String(s);
 }
@@ -860,8 +922,6 @@ function resetCalibration() {
   updateTable();
 }
 
-/* ── Resize: re-render image to fit ── */
+/* ── Resize ── */
 window.addEventListener('resize', () => { if (state.img) renderImage(); });
 </script>
-</body>
-</html>

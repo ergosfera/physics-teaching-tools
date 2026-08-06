@@ -1,187 +1,287 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Blink Comparator</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Blink Comparator</title>
 
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      font-size: 12px;
-      background: #111;
-      color: #ccc;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-    }
+<style>
+  :root{
+    --desktop:#008080;
+    --face:#C0C0C0;
+    --hi:#FFFFFF;
+    --light:#DFDFDF;
+    --shadow:#808080;
+    --dark:#000000;
+    --title:#000080;
+    --sel:#000080;
+    --field:#FFFFFF;
+    --ui:Tahoma,"MS Sans Serif",Verdana,Geneva,sans-serif;
+    --fixed:"Lucida Console","Courier New",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;margin:0;padding:0}
+  body{
+    background:var(--desktop);
+    font-family:var(--ui);
+    font-size:13px;
+    color:#000;
+    -webkit-font-smoothing:none;
+    padding:4px 4px calc(48px + env(safe-area-inset-bottom));
+    overflow:hidden;
+  }
 
-    #controls {
-      background: #1e1e1e;
-      border-bottom: 1px solid #333;
-      padding: 5px 10px;
-      flex-shrink: 0;
-    }
+  /* ---- Win95 bevels ---- */
+  .raised{
+    background:var(--face);
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow), inset 2px 2px 0 var(--light);
+  }
+  .sunken{
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+  }
 
-    .row {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 5px;
-      padding: 3px 0;
-    }
+  /* ---- window ---- */
+  .window{
+    display:flex;flex-direction:column;
+    height:calc(100vh - 8px - 48px - env(safe-area-inset-bottom));
+    padding:3px;
+  }
+  .titlebar{
+    background:var(--title);color:#fff;
+    display:flex;align-items:center;gap:5px;
+    padding:2px 2px 2px 3px;margin-bottom:2px;
+    flex-shrink:0;
+  }
+  .titlebar .t{
+    font-weight:700;font-size:15px;flex:1;letter-spacing:.01em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .titlebar svg{display:block;flex:none}
+  .tbtn{
+    width:24px;height:22px;padding:0;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--ui);font-size:13px;font-weight:700;line-height:1;
+    background:var(--face);border:0;color:#000;cursor:pointer;
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow), inset 2px 2px 0 var(--light);
+  }
+  .tbtn:active{box-shadow:inset 1px 1px 0 var(--dark), inset 2px 2px 0 var(--shadow);padding:1px 0 0 1px}
 
-    .sep { width: 1px; height: 16px; background: #444; margin: 0 4px; }
+  /* ---- body ---- */
+  .wbody{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:2px}
 
-    button {
-      padding: 3px 9px;
-      background: #2c2c2c;
-      border: 1px solid #484848;
-      color: #ccc;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 11px;
-      white-space: nowrap;
-    }
-    button:hover:not(:disabled) { background: #3a3a3a; border-color: #666; }
-    button:disabled { opacity: 0.35; cursor: default; }
+  /* ---- toolbar area ---- */
+  #controls{
+    background:var(--face);
+    padding:3px 4px;flex-shrink:0;
+  }
+  .row{
+    display:flex;align-items:center;flex-wrap:wrap;
+    gap:4px;padding:2px 0;
+  }
+  .sep{width:2px;height:18px;margin:0 2px;
+    box-shadow:inset -1px 0 0 var(--hi), inset 1px 0 0 var(--shadow);
+  }
 
-    #btn-blink {
-      background: #1b5e20;
-      border-color: #2e7d32;
-      color: #a5d6a7;
-      font-weight: bold;
-      font-size: 12px;
-      padding: 4px 14px;
-    }
-    #btn-blink:hover:not(:disabled) { background: #2e7d32; }
-    #btn-blink.stop { background: #7f0000; border-color: #b71c1c; color: #ef9a9a; }
+  /* ---- buttons ---- */
+  button.b95{
+    font-family:var(--ui);font-size:12px;color:#000;background:var(--face);
+    border:0;padding:4px 9px;min-height:22px;cursor:pointer;white-space:nowrap;
+    box-shadow:inset -1px -1px 0 var(--dark), inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow), inset 2px 2px 0 var(--light);
+  }
+  button.b95:active,button.b95.pressed{
+    box-shadow:inset 1px 1px 0 var(--shadow), inset 2px 2px 0 var(--dark);
+    padding:5px 8px 3px 10px;
+  }
+  button.b95:disabled{color:var(--shadow);text-shadow:1px 1px 0 var(--hi);cursor:default}
 
-    .badge {
-      background: #2c2c2c;
-      border: 1px solid #444;
-      border-radius: 10px;
-      padding: 1px 8px;
-      font-size: 11px;
-      color: #888;
-    }
+  #btn-blink{font-weight:700;font-size:13px;padding:4px 14px}
+  #btn-blink.stop{background:#C0C0C0;color:#800000;font-weight:700}
 
-    label { color: #999; font-size: 11px; }
+  /* ---- badge ---- */
+  .badge{
+    font-size:11px;font-weight:700;background:var(--sel);color:#fff;
+    padding:2px 7px;letter-spacing:.04em;
+  }
 
-    input[type=range] {
-      width: 120px;
-      accent-color: #4fc3f7;
-      cursor: pointer;
-    }
-    input[type=number] {
-      width: 42px;
-      background: #2c2c2c;
-      border: 1px solid #484848;
-      color: #ccc;
-      border-radius: 3px;
-      padding: 2px 4px;
-      font-size: 11px;
-      text-align: center;
-    }
+  /* ---- labels ---- */
+  label{color:#000;font-size:12px}
+  .file-label{font-family:var(--fixed);font-size:12px;color:var(--shadow)}
+  .file-label.loaded{color:#000}
 
-    #status-bar {
-      font-size: 11px;
-      color: #888;
-      padding: 2px 0;
-      min-height: 18px;
-    }
+  /* ---- inputs ---- */
+  input[type=range]{
+    width:100px;cursor:pointer;accent-color:var(--title);
+  }
+  input[type=number]{
+    width:40px;padding:2px 4px;border:0;
+    font-size:12px;text-align:center;
+    font-family:var(--fixed);color:#000;
+    background:var(--field);
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow);
+  }
+  input[type=number]:focus{outline:none}
+  .lbl-val{font-family:var(--fixed);font-size:12px;color:var(--title);min-width:28px}
+  .lbl-off{font-family:var(--fixed);font-size:12px;color:var(--title)}
 
-    #canvas-wrap {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-    }
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
+  /* ---- status bar ---- */
+  .status-wrap{display:flex;gap:3px;padding:2px 0;flex-shrink:0}
+  .status-wrap div{
+    font-size:12px;padding:3px 6px;font-family:var(--fixed);
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow);
+    background:var(--face);
+  }
+  .status-wrap .s1{flex:1}
 
-    .lbl-val { color: #4fc3f7; min-width: 30px; }
-    .lbl-off { color: #4fc3f7; }
-  </style>
-</head>
-<body>
+  /* ---- canvas ---- */
+  #canvas-wrap{
+    flex:1;position:relative;overflow:hidden;
+    background:#000;
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+  }
+  canvas{display:block;width:100%;height:100%}
 
-<div id="controls">
+  /* ---- taskbar ---- */
+  .taskbar{
+    position:fixed;left:0;right:0;bottom:0;height:40px;
+    background:var(--face);display:flex;align-items:center;gap:4px;
+    padding:4px 4px calc(4px + env(safe-area-inset-bottom));
+    box-shadow:inset 0 1px 0 var(--hi), inset 0 2px 0 var(--light);
+  }
+  .taskbtn{
+    display:flex;align-items:center;gap:6px;font-weight:700;padding:4px 10px;min-height:30px;
+  }
+  .tray{
+    margin-left:auto;font-family:var(--fixed);font-size:13px;padding:5px 10px;
+    box-shadow:inset -1px -1px 0 var(--hi), inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light), inset 2px 2px 0 var(--dark);
+  }
 
-  <!-- Row 1: Load -->
-  <div class="row">
-    <button onclick="pickFile(1)">Load Image 1</button>
-    <span id="lbl1" style="color:#555">— no image —</span>
-    <div class="sep"></div>
-    <button onclick="pickFile(2)">Load Image 2</button>
-    <span id="lbl2" style="color:#555">— no image —</span>
+  /* hidden file inputs */
+  .hidden-file{display:none}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<!-- ═══════════════ WINDOW ═══════════════ -->
+<div class="window raised" id="win">
+  <div class="titlebar">
+    <svg width="17" height="17" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+      <rect x="2" y="2" width="12" height="12" fill="#C0C0C0"/>
+      <rect x="3" y="3" width="10" height="10" fill="#000080"/>
+      <rect x="5" y="5" width="3" height="3" fill="#FFFF00"/>
+      <rect x="9" y="5" width="3" height="3" fill="#808080"/>
+      <rect x="5" y="9" width="3" height="3" fill="#808080"/>
+      <rect x="9" y="9" width="3" height="3" fill="#FFFF00"/>
+    </svg>
+    <span class="t">Blink Comparator</span>
+    <button class="tbtn" title="Minimize" aria-label="Minimize">_</button>
+    <button class="tbtn" title="Maximize" aria-label="Maximize">□</button>
+    <button class="tbtn" title="Close" aria-label="Close">✕</button>
   </div>
 
-  <!-- Row 2: Alignment -->
-  <div class="row">
-    <button id="btn-add"    onclick="addPair()"      disabled>Add Reference Point</button>
-    <button id="btn-remove" onclick="removeLast()"   disabled>Remove Last</button>
-    <button id="btn-apply"  onclick="applyAlign()"   disabled>Apply Alignment</button>
-    <button id="btn-reset"  onclick="resetAlignment()" disabled>Reset</button>
-    <span id="badge" class="badge">0 pairs</span>
+  <div class="wbody">
+    <div id="controls">
+
+      <!-- Row 1: Load -->
+      <div class="row">
+        <button class="b95" onclick="pickFile(1)">Load Image 1</button>
+        <span id="lbl1" class="file-label">— no image —</span>
+        <div class="sep"></div>
+        <button class="b95" onclick="pickFile(2)">Load Image 2</button>
+        <span id="lbl2" class="file-label">— no image —</span>
+      </div>
+
+      <!-- Row 2: Alignment -->
+      <div class="row">
+        <button class="b95" id="btn-add" onclick="addPair()" disabled>Add Ref Point</button>
+        <button class="b95" id="btn-remove" onclick="removeLast()" disabled>Remove Last</button>
+        <button class="b95" id="btn-apply" onclick="applyAlign()" disabled>Apply Alignment</button>
+        <button class="b95" id="btn-reset" onclick="resetAlignment()" disabled>Reset</button>
+        <span id="badge" class="badge">0 pairs</span>
+      </div>
+
+      <!-- Row 3: Nudge + timing + blink -->
+      <div class="row">
+        <label>Nudge:</label>
+        <button class="b95" onclick="nudge(-1,0)">&larr;</button>
+        <button class="b95" onclick="nudge( 1,0)">&rarr;</button>
+        <button class="b95" onclick="nudge( 0,-1)">&uarr;</button>
+        <button class="b95" onclick="nudge( 0, 1)">&darr;</button>
+        <label>step</label>
+        <input type="number" id="step" value="1" min="1" max="100">
+        <span id="lbl-off" class="lbl-off">dx=0 dy=0</span>
+
+        <div class="sep"></div>
+
+        <label>Img1 ms:</label>
+        <input type="range" id="t1" min="50" max="3000" step="50" value="500" oninput="syncTiming()">
+        <span id="v1" class="lbl-val">500</span>
+
+        <label>Img2 ms:</label>
+        <input type="range" id="t2" min="50" max="3000" step="50" value="500" oninput="syncTiming()">
+        <span id="v2" class="lbl-val">500</span>
+
+        <div class="sep"></div>
+        <button class="b95" id="btn-blink" onclick="toggleBlink()" disabled>Start Blinking</button>
+      </div>
+
+      <!-- Status -->
+      <div class="status-wrap">
+        <div class="s1" id="status-bar">Load both images to begin.</div>
+      </div>
+
+    </div>
+
+    <div id="canvas-wrap">
+      <canvas id="cv"></canvas>
+    </div>
   </div>
-
-  <!-- Row 3: Nudge + timing + blink -->
-  <div class="row">
-    <label>Nudge img2:</label>
-    <button onclick="nudge(-1,0)">←</button>
-    <button onclick="nudge( 1,0)">→</button>
-    <button onclick="nudge( 0,-1)">↑</button>
-    <button onclick="nudge( 0, 1)">↓</button>
-    <label>step</label>
-    <input type="number" id="step" value="1" min="1" max="100">
-    <span id="lbl-off" class="lbl-off">dx=0 dy=0</span>
-
-    <div class="sep"></div>
-
-    <label>Img 1 (ms):</label>
-    <input type="range" id="t1" min="50" max="3000" step="50" value="500" oninput="syncTiming()">
-    <span id="v1" class="lbl-val">500</span>
-
-    <label>Img 2 (ms):</label>
-    <input type="range" id="t2" min="50" max="3000" step="50" value="500" oninput="syncTiming()">
-    <span id="v2" class="lbl-val">500</span>
-
-    <div class="sep"></div>
-    <button id="btn-blink" onclick="toggleBlink()" disabled>Start Blinking</button>
-  </div>
-
-  <!-- Status -->
-  <div id="status-bar">Load both images to begin.</div>
-
 </div>
 
-<div id="canvas-wrap">
-  <canvas id="cv"></canvas>
+<!-- ═══════════════ TASKBAR ═══════════════ -->
+<div class="taskbar">
+  <button class="b95 taskbtn" id="taskBtn">
+    <svg width="17" height="17" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+      <rect x="2" y="2" width="12" height="12" fill="#000080"/>
+      <rect x="5" y="5" width="3" height="3" fill="#FFFF00"/>
+      <rect x="9" y="5" width="3" height="3" fill="#808080"/>
+      <rect x="5" y="9" width="3" height="3" fill="#808080"/>
+      <rect x="9" y="9" width="3" height="3" fill="#FFFF00"/>
+    </svg>
+    Blink Comparator
+  </button>
+  <span class="tray" id="tray">—</span>
 </div>
 
 <!-- Hidden file inputs -->
-<input type="file" id="fi1" accept="image/*" style="display:none" onchange="onFile(1)">
-<input type="file" id="fi2" accept="image/*" style="display:none" onchange="onFile(2)">
+<input type="file" id="fi1" accept="image/*" class="hidden-file" onchange="onFile(1)">
+<input type="file" id="fi2" accept="image/*" class="hidden-file" onchange="onFile(2)">
 
 <script>
+"use strict";
+
+/* ── Tray clock ── */
+function updateTray(){
+  const d = new Date();
+  document.getElementById('tray').textContent =
+    d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+}
+updateTray(); setInterval(updateTray, 30000);
+
 // ─── State ────────────────────────────────────────────────────────────────────
 const S = {
-  img1: null, img2: null,       // HTMLImageElement originals
+  img1: null, img2: null,
   w1:0, h1:0, w2:0, h2:0,
 
-  img2Aligned: null,            // HTMLCanvasElement: affine-warped img2
-  img2Display: null,            // HTMLCanvasElement: aligned + nudge
+  img2Aligned: null,
+  img2Display: null,
 
-  points1: [], points2: [],     // [{x,y}] in original image coords
-  alignMode: null,              // null | 'pick1' | 'pick2'
-  sbsOn: false,                 // side-by-side mode active
+  points1: [], points2: [],
+  alignMode: null,
+  sbsOn: false,
 
-  L: null, R: null,             // {scale,ox,oy} display transforms per panel
+  L: null, R: null,
 
   nudgeDx: 0, nudgeDy: 0,
 
@@ -216,17 +316,17 @@ function onFile(n) {
   const inp  = document.getElementById('fi' + n);
   const file = inp.files[0];
   if (!file) return;
-  inp.value = '';                    // allow reloading same file
+  inp.value = '';
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.onload = () => {
     URL.revokeObjectURL(url);
     if (n === 1) {
       S.img1 = img; S.w1 = img.naturalWidth; S.h1 = img.naturalHeight;
-      el('lbl1').textContent = file.name; el('lbl1').style.color = '#ccc';
+      el('lbl1').textContent = file.name; el('lbl1').className = 'file-label loaded';
     } else {
       S.img2 = img; S.w2 = img.naturalWidth; S.h2 = img.naturalHeight;
-      el('lbl2').textContent = file.name; el('lbl2').style.color = '#ccc';
+      el('lbl2').textContent = file.name; el('lbl2').className = 'file-label loaded';
     }
     resetState();
     checkReady();
@@ -249,7 +349,7 @@ function addPair() {
   S.alignMode = 'pick1';
   redraw();
   const i = S.points1.length;
-  status(`Point ${i+1}  ●  Click landmark on  IMAGE 1  (left panel).`, COLORS[i % COLORS.length]);
+  status(`Point ${i+1} — Click landmark on IMAGE 1 (left panel).`);
 }
 
 function removeLast() {
@@ -300,8 +400,7 @@ cv.addEventListener('click', e => {
     S.alignMode = 'pick2';
     redraw();
     const i = S.points1.length - 1;
-    status(`Point ${i+1}  ●  Now click the SAME landmark on  IMAGE 2  (right panel).`,
-           COLORS[i % COLORS.length]);
+    status(`Point ${i+1} — Now click the SAME landmark on IMAGE 2 (right panel).`);
 
   } else if (S.alignMode === 'pick2' && cx > hw + GAP) {
     const ix = (cx - S.R.ox) / S.R.sc;
@@ -322,7 +421,6 @@ function applyAlign() {
   const n = S.points1.length;
   if (n === 0 || S.points2.length !== n) return;
 
-  // Collinearity check (first 3 points)
   if (n >= 3) {
     const p = S.points1;
     const area = Math.abs(
@@ -335,7 +433,6 @@ function applyAlign() {
     }
   }
 
-  // Scale img2 coords if images differ in size
   let p2 = S.points2;
   if (S.w2 !== S.w1 || S.h2 !== S.h1) {
     const sx = S.w1 / S.w2, sy = S.h1 / S.h2;
@@ -343,11 +440,11 @@ function applyAlign() {
   }
 
   const res = computeAffine(S.points1, p2);
-  if (!res) { status('Alignment failed: singular transform.', '#ef9a9a'); return; }
+  if (!res) { status('Alignment failed: singular transform.'); return; }
   const [coeff, modeName] = res;
 
   S.img2Aligned = warpImage(S.img2, coeff, S.w1, S.h1);
-  if (!S.img2Aligned) { status('Transform failed (degenerate).', '#ef9a9a'); return; }
+  if (!S.img2Aligned) { status('Transform failed (degenerate).'); return; }
   S.img2Display = S.img2Aligned;
   S.nudgeDx = 0; S.nudgeDy = 0;
   el('lbl-off').textContent = 'dx=0 dy=0';
@@ -358,13 +455,10 @@ function applyAlign() {
          `Blend preview shown — nudge or arrow keys to fine-tune, then Start Blinking.`);
 }
 
-// Warp img2 into img1 coordinate space using (a,b,c,d,e,f) backward-map coefficients
 function warpImage(srcImg, C, w1, h1) {
   const [a, b, c, d, e, f] = C;
   const det = a * e - b * d;
   if (Math.abs(det) < 1e-10) return null;
-  // Inverse transform (forward: img2→img1 output)
-  // Canvas setTransform(A,B,C,D,E,F): maps (u,v) → (A*u+C*v+E, B*u+D*v+F)
   const A = e/det,  B = -d/det;
   const CC = -b/det, D =  a/det;
   const E = (b*f - e*c)/det, F = (d*c - a*f)/det;
@@ -372,7 +466,7 @@ function warpImage(srcImg, C, w1, h1) {
   oc.width = w1; oc.height = h1;
   const ox = oc.getContext('2d');
   ox.setTransform(A, B, CC, D, E, F);
-  ox.drawImage(srcImg, 0, 0, w1, h1);   // draw img2 scaled to img1 dimensions
+  ox.drawImage(srcImg, 0, 0, w1, h1);
   return oc;
 }
 
@@ -383,7 +477,6 @@ function nudge(dx, dy) {
   S.nudgeDx += dx * step;
   S.nudgeDy += dy * step;
   el('lbl-off').textContent = `dx=${S.nudgeDx} dy=${S.nudgeDy}`;
-  const base = S.img2Aligned || S.img2;
   const oc = document.createElement('canvas');
   oc.width = S.w1; oc.height = S.h1;
   const ox = oc.getContext('2d');
@@ -427,7 +520,7 @@ function blinkStep() {
   if (!S.blinking) return;
   if (S.cur === 1) {
     drawSingle(S.img1, S.w1, S.h1);
-    status('▶ Image 1');
+    status('Image 1');
     S.cur = 2;
     S.timer = setTimeout(blinkStep, S.t1);
   } else {
@@ -435,7 +528,7 @@ function blinkStep() {
     const w = src instanceof HTMLCanvasElement ? src.width  : S.w2;
     const h = src instanceof HTMLCanvasElement ? src.height : S.h2;
     drawSingle(src, w, h);
-    status('▶ Image 2');
+    status('Image 2');
     S.cur = 1;
     S.timer = setTimeout(blinkStep, S.t2);
   }
@@ -482,14 +575,12 @@ function drawSBS() {
   const GAP = 6, hw = (W - GAP) / 2;
   ctx.clearRect(0, 0, W, H);
 
-  // Left panel — img1
   const s1 = Math.min(hw / S.w1, H / S.h1);
   const nw1 = S.w1 * s1, nh1 = S.h1 * s1;
   const ox1 = (hw - nw1) / 2, oy1 = (H - nh1) / 2;
   S.L = {sc: s1, ox: ox1, oy: oy1};
   ctx.drawImage(S.img1, ox1, oy1, nw1, nh1);
 
-  // Right panel — img2
   const s2 = Math.min(hw / S.w2, H / S.h2);
   const nw2 = S.w2 * s2, nh2 = S.h2 * s2;
   const ox2 = hw + GAP + (hw - nw2) / 2, oy2 = (H - nh2) / 2;
@@ -497,23 +588,23 @@ function drawSBS() {
   ctx.drawImage(S.img2, ox2, oy2, nw2, nh2);
 
   // Divider
-  ctx.fillStyle = '#333'; ctx.fillRect(hw, 0, GAP, H);
+  ctx.fillStyle = '#808080'; ctx.fillRect(hw, 0, GAP, H);
 
   // Panel labels
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(0, 0, hw, 22); ctx.fillRect(hw+GAP, 0, hw, 22);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
-  ctx.fillText('IMAGE 1  — click here', hw / 2, 14);
-  ctx.fillText('IMAGE 2  — click here', hw + GAP + hw / 2, 14);
+  ctx.fillStyle = 'rgba(0,0,128,0.7)';
+  ctx.fillRect(0, 0, hw, 20); ctx.fillRect(hw+GAP, 0, hw, 20);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Tahoma, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('IMAGE 1 — click here', hw / 2, 14);
+  ctx.fillText('IMAGE 2 — click here', hw + GAP + hw / 2, 14);
   ctx.restore();
 
   // Confirmed pairs
   const n = Math.min(S.points1.length, S.points2.length);
   for (let i = 0; i < n; i++) {
     const col = COLORS[i % COLORS.length];
-    crosshair(...lToC(S.points1[i]), col, `P${i+1}`, 0,       hw,    H);
-    crosshair(...rToC(S.points2[i]), col, `P${i+1}`, hw+GAP,  W,     H);
+    crosshair(...lToC(S.points1[i]), col, `P${i+1}`, 0, hw, H);
+    crosshair(...rToC(S.points2[i]), col, `P${i+1}`, hw+GAP, W, H);
   }
 
   // Pending img1 pick
@@ -522,7 +613,6 @@ function drawSBS() {
     const col = COLORS[i % COLORS.length];
     const [cx, cy] = lToC(S.points1[i]);
     crosshair(cx, cy, col, `P${i+1}`, 0, hw, H);
-    // Faint horizontal hint into right panel
     ctx.save();
     ctx.strokeStyle = col; ctx.globalAlpha = 0.3;
     ctx.setLineDash([4, 8]); ctx.lineWidth = 1;
@@ -544,7 +634,7 @@ function crosshair(cx, cy, col, lbl, xmin, xmax, ch) {
   ctx.setLineDash([]); ctx.lineWidth = 2;
   ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI * 2); ctx.stroke();
   if (lbl) {
-    ctx.fillStyle = col; ctx.font = 'bold 10px system-ui';
+    ctx.fillStyle = col; ctx.font = 'bold 10px Tahoma, sans-serif';
     ctx.fillText(lbl, cx + 10, cy - 8);
   }
   ctx.restore();
@@ -576,7 +666,7 @@ function computeAffine(p1, p2) {
     return [[a, -b, c, b, a, f], 'rotation + scale'];
   }
 
-  // 3+ pairs — full affine via normal equations (least squares)
+  // 3+ pairs — full affine via normal equations
   const ATA = [[0,0,0],[0,0,0],[0,0,0]];
   const bx = [0,0,0], by = [0,0,0];
   for (let i = 0; i < n; i++) {
@@ -612,10 +702,8 @@ function gauss3(A, b) {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function el(id) { return document.getElementById(id); }
 function setDisabled(id, v) { el(id).disabled = v; }
-function status(msg, col) {
-  const bar = el('status-bar');
-  bar.textContent = msg;
-  bar.style.color = col || '#888';
+function status(msg) {
+  el('status-bar').textContent = msg;
 }
 
 document.addEventListener('keydown', e => {
@@ -626,5 +714,3 @@ document.addEventListener('keydown', e => {
 
 fitCanvas();
 </script>
-</body>
-</html>
