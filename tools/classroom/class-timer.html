@@ -7,66 +7,38 @@
   <title>Class Timer</title>
 
   <style>
-    /* ---- Design tokens ---- */
+    /* ---- Design tokens: classic Windows 95, single high-contrast skin ----
+       No dark variant — this runs on a classroom projector, where subtle
+       bevel edges and low-contrast grays disappear under room lighting. */
     :root {
-      --bg:           #f1f5f9;
-      --surface:      #ffffff;
-      --surface-alt:  #f8fafc;
-      --border:       #e2e8f0;
-      --text:         #0f172a;
-      --muted:        #64748b;
-      --subtle:       #94a3b8;
+      --face:         #c0c0c0;
+      --bevel-hi:     #ffffff;
+      --bevel-lt:     #dfdfdf;
+      --bevel-sh:     #808080;
+      --bevel-dk:     #000000;
+      --win-text:     #000000;
+      --disabled:     #808080;
+      --title-from:   #000080;
+      --title-to:     #1084d0;
+      --title-text:   #ffffff;
+      --field-bg:     #ffffff;
+      --field-text:   #000000;
+      --desktop:      #008080;
+      --sem-green:    #006622;
+      --sem-blue:     #003399;
+      --sem-red:      #a00000;
+      --sem-purple:   #4b0082;
 
-      --green:        #059669;
-      --yellow:       #eab308;
-      --red:          #dc2626;
-      --accent:       #4f46e5;
-      --accent-bg:    #eef2ff;
+      --lcd-bg:       #0a1410;
+      --lcd-normal:   #39ff6a;
+      --lcd-yellow:   #ffcc33;
+      --lcd-red:      #ff4433;
 
-      --radius-sm:    10px;
-      --radius:       16px;
-      --radius-lg:    24px;
+      --green:        #2f9e44;
+      --yellow:       #cf9b12;
+      --red:          #b93a2f;
 
-      --shadow:       0 1px 4px rgba(0,0,0,.07), 0 0 1px rgba(0,0,0,.05);
-      --shadow-lg:    0 6px 24px rgba(0,0,0,.08), 0 0 1px rgba(0,0,0,.04);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg:          #0f172a;
-        --surface:     #1e293b;
-        --surface-alt: #293548;
-        --border:      #334155;
-        --text:        #f1f5f9;
-        --muted:       #94a3b8;
-        --subtle:      #64748b;
-        --shadow:      0 1px 4px rgba(0,0,0,.3), 0 0 1px rgba(0,0,0,.2);
-        --shadow-lg:   0 6px 24px rgba(0,0,0,.35), 0 0 1px rgba(0,0,0,.2);
-      }
-    }
-
-    :root.theme-light {
-      --bg:           #f1f5f9;
-      --surface:      #ffffff;
-      --surface-alt:  #f8fafc;
-      --border:       #e2e8f0;
-      --text:         #0f172a;
-      --muted:        #64748b;
-      --subtle:       #94a3b8;
-      --shadow:       0 1px 4px rgba(0,0,0,.07), 0 0 1px rgba(0,0,0,.05);
-      --shadow-lg:    0 6px 24px rgba(0,0,0,.08), 0 0 1px rgba(0,0,0,.04);
-    }
-
-    :root.theme-dark {
-      --bg:          #0f172a;
-      --surface:     #1e293b;
-      --surface-alt: #293548;
-      --border:      #334155;
-      --text:        #f1f5f9;
-      --muted:       #94a3b8;
-      --subtle:      #64748b;
-      --shadow:      0 1px 4px rgba(0,0,0,.3), 0 0 1px rgba(0,0,0,.2);
-      --shadow-lg:   0 6px 24px rgba(0,0,0,.35), 0 0 1px rgba(0,0,0,.2);
+      --font-mono: ui-monospace, 'SF Mono', 'Fira Code', monospace;
     }
 
     /* ---- Reset ---- */
@@ -74,16 +46,88 @@
 
     html, body {
       height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
-      font-size: 15px;
+      margin: 0;
+      background: var(--desktop);
+      color: var(--win-text);
+      font-family: Tahoma, 'MS Sans Serif', Geneva, Verdana, sans-serif;
+      font-size: 14px;
       line-height: 1.5;
+      overflow: hidden;
+    }
+
+    body { display: flex; }
+
+    .bevel-raised {
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+    }
+    .bevel-sunken {
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
+    }
+
+    /* ---- Window chrome ---- */
+    #win95-window {
+      flex: 1;
+      margin: 3px;
+      display: flex;
+      flex-direction: column;
+      background: var(--face);
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+      overflow: hidden;
+    }
+
+    #win95-titlebar {
+      flex-shrink: 0;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 3px 0 6px;
+      background: linear-gradient(90deg, var(--title-from), var(--title-to));
+      color: var(--title-text);
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .tb-icon { font-size: 13px; }
+    .tb-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tb-btns { display: flex; gap: 2px; }
+    .tb-btn {
+      width: 18px; height: 16px; padding: 0;
+      min-width: 0; min-height: 0; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--face); color: var(--win-text);
+      border: none; font-size: 10px; line-height: 1; cursor: pointer;
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+    }
+    .tb-close:hover { background: #c00000; color: #fff; }
+
+    .win95-content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: var(--face);
+      display: flex;
+      flex-direction: column;
     }
 
     /* ---- App shell ---- */
     .app {
-      height: 100%;
+      flex: 1;
       display: flex;
       flex-direction: column;
     }
@@ -94,28 +138,24 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 24px 16px;
-      gap: 16px;
+      padding: 20px 16px;
+      gap: 14px;
     }
 
     /* ---- Timer card ---- */
     .timer-card {
       width: min(900px, 100%);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-lg);
+      background: var(--face);
       overflow: hidden;
     }
-
-    /* Header strip */
+    /* Header strip — its own little title bar */
     .timer-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      padding: 14px 20px;
-      border-bottom: 1px solid var(--border);
+      padding: 8px 14px;
+      background: linear-gradient(90deg, var(--title-from), var(--title-to));
     }
 
     .timer-header-left {
@@ -126,7 +166,7 @@
     }
 
     .header-logo img {
-      max-height: 48px;
+      max-height: 40px;
       width: auto;
       display: block;
       object-fit: contain;
@@ -135,17 +175,17 @@
     .hidden-img { display: none !important; }
 
     .header-title {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 700;
-      letter-spacing: -0.01em;
+      color: var(--title-text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
     .header-subtitle {
-      font-size: 13px;
-      color: var(--muted);
+      font-size: 15px;
+      color: rgba(255,255,255,0.78);
       font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
@@ -153,9 +193,9 @@
     }
 
     .header-clock {
-      font-family: ui-monospace, 'SF Mono', 'Fira Code', monospace;
-      font-size: 12px;
-      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: rgba(255,255,255,0.8);
       text-align: right;
       white-space: pre-line;
       flex: 0 0 auto;
@@ -163,27 +203,35 @@
 
     /* Timer body */
     .timer-body {
-      padding: 36px 24px 28px;
+      padding: 24px 20px 22px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 20px;
+      gap: 18px;
+    }
+
+    /* LCD digit panel */
+    .lcd-panel {
+      width: 100%;
+      background: var(--lcd-bg);
+      padding: 10px 16px;
     }
 
     /* Digits */
     .digits {
-      font-family: ui-monospace, 'SF Mono', 'Fira Code', monospace;
+      font-family: var(--font-mono);
       font-size: min(15vw, 150px);
       line-height: 1;
       letter-spacing: -0.03em;
       user-select: none;
       text-align: center;
-      color: var(--text);
+      color: var(--lcd-normal);
+      text-shadow: 0 0 6px currentColor;
       transition: color 0.4s ease;
     }
 
-    .digits.phase-yellow { color: var(--yellow); }
-    .digits.phase-red    { color: var(--red); }
+    .digits.phase-yellow { color: var(--lcd-yellow); }
+    .digits.phase-red    { color: var(--lcd-red); }
 
     @keyframes blinkFade {
       0%,  49% { opacity: 1;    }
@@ -195,9 +243,8 @@
     /* Progress bar */
     .progress-wrap {
       width: 100%;
-      height: 7px;
-      background: var(--border);
-      border-radius: 999px;
+      height: 10px;
+      background: var(--field-bg);
       overflow: hidden;
     }
 
@@ -205,132 +252,179 @@
       height: 100%;
       width: 100%;
       background: var(--green);
-      border-radius: 999px;
       transition: width 0.25s linear, background 0.4s ease;
     }
 
     /* ---- Controls card ---- */
     .controls {
       width: min(900px, 100%);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow);
-      padding: 20px;
+      background: var(--face);
+      padding: 18px;
     }
 
     .section-label {
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--subtle);
-      margin-bottom: 10px;
+      letter-spacing: 0.08em;
+      color: var(--win-text);
+      margin-bottom: 8px;
     }
 
     .divider {
-      height: 1px;
-      background: var(--border);
+      height: 2px;
       margin: 16px 0;
+      box-shadow: inset 0 1px var(--bevel-sh), inset 0 -1px var(--bevel-hi);
     }
 
     .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
     .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 
-    /* Preset pills */
+    /* Preset buttons */
     .preset-list {
       display: flex;
       flex-wrap: wrap;
-      gap: 7px;
+      gap: 6px;
     }
 
     .preset-item {
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 14px;
-      border: 1.5px solid var(--border);
-      border-radius: 999px;
-      background: var(--surface);
+      padding: 5px 12px;
+      background: var(--face);
       cursor: pointer;
       user-select: none;
-      transition: border-color 0.15s, background 0.15s;
+    }
+    .preset-item { box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
     }
 
     .preset-item:has(input:checked) {
-      border-color: var(--accent);
-      background: var(--accent-bg);
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
     }
 
     .preset-item input { display: none; }
 
     .preset-item span {
       font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
+      font-weight: 700;
+      color: var(--win-text);
     }
-
-    .preset-item:has(input:checked) span { color: var(--accent); }
 
     /* Inputs */
     .input-field { display: flex; flex-direction: column; gap: 6px; }
 
     .input-label {
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
+      letter-spacing: 0.06em;
+      color: var(--win-text);
     }
 
     input[type="number"],
     input[type="text"],
     input[type="file"] {
       width: 100%;
-      padding: 9px 12px;
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm);
-      background: var(--surface);
-      color: var(--text);
+      padding: 6px 8px;
+      border: none;
+      border-radius: 0;
+      background: var(--field-bg);
+      color: var(--field-text);
       font-family: inherit;
-      font-size: 15px;
+      font-size: 13px;
       outline: none;
-      transition: border-color 0.15s;
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
     }
 
     input[type="number"] {
-      font-family: ui-monospace, 'SF Mono', 'Fira Code', monospace;
-      font-size: 28px;
+      font-family: var(--font-mono);
+      font-size: 24px;
       text-align: center;
     }
 
     input[type="text"]  { font-size: 14px; font-weight: 600; }
-    input:focus         { border-color: var(--accent); }
+    input:focus-visible { outline: 1px dotted var(--win-text); outline-offset: -3px; }
+
+    input[type="file"]::file-selector-button {
+      background: var(--face);
+      color: var(--win-text);
+      border: none;
+      font-family: inherit;
+      font-weight: bold;
+      font-size: 11px;
+      padding: 4px 10px;
+      margin-right: 8px;
+      cursor: pointer;
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+    }
+
+    input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 13px; height: 13px;
+      padding: 0; margin: 0;
+      background: var(--field-bg);
+      position: relative;
+      cursor: pointer;
+      flex-shrink: 0;
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
+    }
+    input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute; left: 3px; top: -1px;
+      width: 4px; height: 8px;
+      border: solid var(--field-text);
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
 
     /* Mode segmented toggle */
     .mode-toggle {
       display: inline-flex;
-      background: var(--surface-alt);
-      border: 1.5px solid var(--border);
-      border-radius: 999px;
-      padding: 4px;
-      gap: 4px;
+      gap: 0;
     }
 
     .mode-option {
-      padding: 7px 18px;
-      border-radius: 999px;
+      padding: 8px 18px;
       cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--muted);
-      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--win-text);
+      background: var(--face);
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
     }
 
     .mode-option:has(input:checked) {
-      background: var(--surface);
-      color: var(--text);
-      box-shadow: var(--shadow);
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
     }
 
     .mode-option input { display: none; }
@@ -340,13 +434,13 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
-      color: var(--muted);
+      color: var(--win-text);
       cursor: pointer;
     }
 
-    .checkbox-row input { width: auto; padding: 0; border-radius: 0; }
+    .checkbox-row input { width: 13px; padding: 0; border-radius: 0; }
 
     /* Logo row */
     .logo-row { display: flex; gap: 8px; align-items: center; }
@@ -356,7 +450,7 @@
     .button-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
       justify-content: center;
     }
 
@@ -364,56 +458,66 @@
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      padding: 10px 22px;
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm);
-      font-size: 14px;
+      padding: 9px 20px;
+      border: none;
+      border-radius: 0;
+      font-size: 13px;
       font-weight: 700;
       cursor: pointer;
-      background: var(--surface);
-      color: var(--text);
-      transition: background 0.1s, transform 0.08s;
+      background: var(--face);
+      color: var(--win-text);
+      font-family: inherit;
       white-space: nowrap;
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
     }
 
-    button:hover:not(:disabled)  { background: var(--surface-alt); }
-    button:active:not(:disabled) { transform: scale(0.97); }
-    button:disabled               { opacity: 0.38; cursor: not-allowed; }
+    button:active:not(:disabled) {
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
+      padding: 8px 17px 6px 19px;
+    }
+    button:focus-visible { outline: 1px dotted var(--win-text); outline-offset: -4px; }
+    button:disabled { color: var(--disabled); cursor: default; }
 
-    .btn-play    { background:#ecfdf5; border-color:#6ee7b7; color:#065f46; }
-    .btn-play:hover:not(:disabled)    { background:#d1fae5; }
-    .btn-pause   { background:#eff6ff; border-color:#93c5fd; color:#1e40af; }
-    .btn-pause:hover:not(:disabled)   { background:#dbeafe; }
-    .btn-stop    { background:#fff1f2; border-color:#fda4af; color:#9f1239; }
-    .btn-stop:hover:not(:disabled)    { background:#ffe4e6; }
-    .btn-set     { background:var(--surface-alt); }
-    .btn-present { background:#f5f3ff; border-color:#c4b5fd; color:#5b21b6; }
-    .btn-present:hover:not(:disabled) { background:#ede9fe; }
+    .btn-play    { color: var(--sem-green); }
+    .btn-pause   { color: var(--sem-blue); }
+    .btn-stop    { color: var(--sem-red); }
+    .btn-present { color: var(--sem-purple); }
 
     /* Keyboard hint */
     .hint {
       text-align: center;
       font-size: 12px;
-      color: var(--subtle);
-      margin-top: 14px;
+      color: var(--win-text);
+      margin-top: 12px;
     }
 
     kbd {
       display: inline-block;
       padding: 1px 6px;
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      font-family: ui-monospace, monospace;
-      font-size: 11px;
-      color: var(--muted);
-      background: var(--surface-alt);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--win-text);
+      background: var(--face);
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
     }
 
     /* Footer */
     .footer {
       padding: 10px 0 18px;
       text-align: center;
-      color: var(--subtle);
+      color: var(--win-text);
       font-size: 12px;
     }
 
@@ -425,49 +529,6 @@
 
     .hidden { display: none !important; }
 
-    /* Toggle switch */
-    .toggle-switch {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .toggle-switch input {
-      display: none;
-    }
-
-    .toggle-switch-slider {
-      position: relative;
-      width: 50px;
-      height: 28px;
-      background: var(--border);
-      border-radius: 999px;
-      cursor: pointer;
-      transition: background 0.3s ease;
-      border: 1.5px solid var(--border);
-    }
-
-    .toggle-switch input:checked + .toggle-switch-slider {
-      background: var(--accent);
-      border-color: var(--accent);
-    }
-
-    .toggle-switch-slider::after {
-      content: '';
-      position: absolute;
-      width: 22px;
-      height: 22px;
-      background: var(--surface);
-      border-radius: 50%;
-      top: 2px;
-      left: 2px;
-      transition: left 0.3s ease;
-    }
-
-    .toggle-switch input:checked + .toggle-switch-slider::after {
-      left: 26px;
-    }
-
     /* Responsive */
     @media (max-width: 640px) {
       .grid2, .grid3          { grid-template-columns: 1fr; }
@@ -478,11 +539,24 @@
 </head>
 
 <body>
+
+<div id="win95-window">
+  <div id="win95-titlebar">
+    <span class="tb-icon">&#8987;</span>
+    <span class="tb-title">Class Timer</span>
+    <div class="tb-btns">
+      <button class="tb-btn" tabindex="-1" aria-hidden="true">_</button>
+      <button class="tb-btn" tabindex="-1" aria-hidden="true">&#9633;</button>
+      <button class="tb-btn tb-close" tabindex="-1" aria-hidden="true">&#10005;</button>
+    </div>
+  </div>
+
+  <div class="win95-content">
   <div id="app" class="app">
     <div class="main">
 
       <!-- Timer display -->
-      <div class="timer-card">
+      <div class="timer-card bevel-raised">
         <div class="timer-header">
           <div class="timer-header-left">
             <div class="header-logo">
@@ -497,15 +571,17 @@
         </div>
 
         <div class="timer-body">
-          <div id="digits" class="digits">00:10:00</div>
-          <div class="progress-wrap">
+          <div class="lcd-panel bevel-sunken">
+            <div id="digits" class="digits">00:10:00</div>
+          </div>
+          <div class="progress-wrap bevel-sunken">
             <div id="bar" class="progress-bar"></div>
           </div>
         </div>
       </div>
 
       <!-- Controls -->
-      <div class="controls">
+      <div class="controls bevel-raised">
 
         <!-- Activity & Class presets -->
         <div class="section-label">Activity &amp; Class</div>
@@ -542,26 +618,17 @@
 
         <div class="divider"></div>
 
-        <!-- Mode and Theme selectors -->
+        <!-- Mode selector -->
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
-          <div style="display:flex;align-items:center;gap:16px;flex:1;min-width:200px;">
-            <div class="section-label" style="margin:0;">Mode</div>
-            <div class="mode-toggle" role="group" aria-label="Timer mode">
-              <label class="mode-option">
-                <input type="radio" name="mode" id="modeDuration" value="duration" checked />
-                Duration
-              </label>
-              <label class="mode-option">
-                <input type="radio" name="mode" id="modeEndtime" value="endtime" />
-                End time
-              </label>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;">
-            <div class="section-label" style="margin:0;">Dark mode</div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="themeToggle" />
-              <span class="toggle-switch-slider"></span>
+          <div class="section-label" style="margin:0;">Mode</div>
+          <div class="mode-toggle" role="group" aria-label="Timer mode">
+            <label class="mode-option">
+              <input type="radio" name="mode" id="modeDuration" value="duration" checked />
+              Duration
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" id="modeEndtime" value="endtime" />
+              End time
             </label>
           </div>
         </div>
@@ -633,6 +700,8 @@
       <div class="footer">Tip: Press F11 for full screen before projecting.</div>
     </div>
   </div>
+  </div>
+</div>
 
   <script>
     // ---- Configurable presets ----
@@ -647,9 +716,9 @@
     ];
 
     const LINE2_PRESETS = [
-      "7C",
-      "8C",
-      "9C",
+      "8B",
+      "9B",
+      "AP PreCalc",
       "AP Physics 2",
       "Other",
     ];
@@ -677,7 +746,6 @@
           line1Other:   line1Other.value,
           line2Other:   line2Other.value,
           showClockInfo: showClockInfo.checked,
-          darkMode:     themeToggle.checked,
         }));
       } catch { /* storage unavailable */ }
     }
@@ -736,7 +804,6 @@
     const btnStop        = document.getElementById("stop");
     const btnSet         = document.getElementById("set");
     const btnTogglePresent = document.getElementById("togglePresent");
-    const themeToggle    = document.getElementById("themeToggle");
 
     // ---- Restore saved settings ----
     if (saved.mode === "endtime") modeEndtime.checked = true;
@@ -751,7 +818,6 @@
     if (saved.line1Other) line1Other.value = saved.line1Other;
     if (saved.line2Other) line2Other.value = saved.line2Other;
     if (saved.showClockInfo === false) showClockInfo.checked = false;
-    if (saved.darkMode === true) themeToggle.checked = true;
 
     // Radios are built after DOM insertion, grab them now
     let line1Radios = Array.from(document.querySelectorAll('input[name="line1Preset"]'));
@@ -863,18 +929,6 @@
       presentation = !!on;
       app.classList.toggle("presentation", presentation);
       btnTogglePresent.textContent = presentation ? "⛶ Controls" : "⛶ Presentation";
-    }
-
-    // ---- Theme ----
-    function applyTheme(isDark) {
-      const root = document.documentElement;
-      if (isDark) {
-        root.classList.add("theme-dark");
-        root.classList.remove("theme-light");
-      } else {
-        root.classList.remove("theme-dark");
-        root.classList.remove("theme-light");
-      }
     }
 
     // ---- Timer internals ----
@@ -1085,12 +1139,6 @@
     modeDuration.addEventListener("change", onModeChange);
     modeEndtime.addEventListener("change",  onModeChange);
 
-    // ---- Theme ----
-    themeToggle.addEventListener("change", () => {
-      applyTheme(themeToggle.checked);
-      saveSettings();
-    });
-
     // ---- Threshold inputs (update cached vars on change, not every tick) ----
     elYellowPct.addEventListener("input", () => {
       yellowPct = clampPct(elYellowPct.value, 80);
@@ -1136,7 +1184,6 @@
     updateOtherVisibility();
     renderHeaderText();
     setLogoSrc("");
-    applyTheme(themeToggle.checked);
     updateUI();
   </script>
 </body>

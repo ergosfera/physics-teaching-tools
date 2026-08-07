@@ -8,95 +8,129 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:             #12141a;
-  --toolbar-bg:     #1c2030;
-  --border:         #2a3050;
-  --tlabel:         #7a869a;
-  --btn-bg:         #252c3e;
-  --btn-color:      #c8d4e8;
-  --btn-border:     #2e3a54;
-  --btn-hover-bg:   #2e3a54;
-  --btn-hover-bdr:  #3e4f70;
-  --text:           #dde3f0;
-  --range-bg:       #2a3050;
-  --info-color:     #7a869a;
-  --canvas-bg:      #0d0f14;
-  --empty-msg:      #4a5568;
-  --empty-sub:      #2d3748;
-  --sidebar-bg:     #1c2030;
-  --sb-head-bg:     #1a2240;
-  --scroll-thumb:   #2a3050;
-  --no-meas:        #3a4a5a;
-  --th-bg:          #1e2840;
-  --th-color:       #6b84b0;
-  --th-border:      #2a3050;
-  --td-border:      #1e2535;
-  --row-hover:      #1e2840;
-  --row-sel:        #1a2c50;
-  --statusbar-bg:   #161820;
-  --statusbar-text: #5a6a80;
-  --modal-surface:  #1c2030;
-  --modal-bdr:      #2e3a54;
-  --modal-input-bg: #12141a;
-  --modal-label:    #aabbcc;
-  --modal-muted:    #7a869a;
+  /* "Steel Night" — dark Win95 skin */
+  --desktop:      #086060;
+  --face:         #3b3b3b;
+  --bevel-hi:     #6e6e6e;
+  --bevel-lt:     #545454;
+  --bevel-sh:     #1c1c1c;
+  --bevel-dk:     #000000;
+  --text:         #e8e8e8;
+  --disabled:     #888888;
+  --title-from:   #0a0a5c;
+  --title-to:     #163a70;
+  --title-text:   #ffffff;
+  --field-bg:     #1a1a1a;
+  --field-text:   #e8e8e8;
+  --select-bg:    #1e3a6e;
+  --select-text:  #ffffff;
+  --canvas-bg:    #04302f;
+  --empty-msg:    #9aa0a0;
+  --empty-sub:    #6a7070;
+  --link:         #6fb1ff;
+  --th-color:     #8fb8b0;
 }
 
 body.light {
-  --bg:             #f0f4f8;
-  --toolbar-bg:     #ffffff;
-  --border:         #d0d9e4;
-  --tlabel:         #6b7a8d;
-  --btn-bg:         #eef2f7;
-  --btn-color:      #374151;
-  --btn-border:     #c4cdd8;
-  --btn-hover-bg:   #e2e8f0;
-  --btn-hover-bdr:  #9ab0c8;
-  --text:           #1a2030;
-  --range-bg:       #c8d3de;
-  --info-color:     #6b7a8d;
-  --canvas-bg:      #dde3ea;
-  --empty-msg:      #7a8898;
-  --empty-sub:      #a0b0c0;
-  --sidebar-bg:     #ffffff;
-  --sb-head-bg:     #eef2f7;
-  --scroll-thumb:   #c8d3de;
-  --no-meas:        #8a9aaa;
-  --th-bg:          #f5f8fc;
-  --th-color:       #4a6080;
-  --th-border:      #d0d9e4;
-  --td-border:      #e8eef5;
-  --row-hover:      #eef2f7;
-  --row-sel:        #dbeafe;
-  --statusbar-bg:   #f8fafc;
-  --statusbar-text: #7a8898;
-  --modal-surface:  #ffffff;
-  --modal-bdr:      #d0d9e4;
-  --modal-input-bg: #f0f4f8;
-  --modal-label:    #5a6a80;
-  --modal-muted:    #6b7a8d;
+  /* Classic Windows 95 skin */
+  --desktop:      #008080;
+  --face:         #c0c0c0;
+  --bevel-hi:     #ffffff;
+  --bevel-lt:     #dfdfdf;
+  --bevel-sh:     #808080;
+  --bevel-dk:     #000000;
+  --text:         #000000;
+  --disabled:     #808080;
+  --title-from:   #000080;
+  --title-to:     #1084d0;
+  --title-text:   #ffffff;
+  --field-bg:     #ffffff;
+  --field-text:   #000000;
+  --select-bg:    #000080;
+  --select-text:  #ffffff;
+  --canvas-bg:    #008080;
+  --empty-msg:    #f0f0f0;
+  --empty-sub:    #d8e8e8;
+  --link:         #0000ff;
+  --th-color:     #004040;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: var(--bg);
+  font-family: Tahoma, 'MS Sans Serif', Geneva, Verdana, sans-serif;
+  font-size: 11px;
+  background: var(--desktop);
   color: var(--text);
   height: 100vh;
   display: flex;
-  flex-direction: column;
   overflow: hidden;
   user-select: none;
 }
 
+/* ── Bevel mixins (applied per-component) ─────────────────────────── */
+.raised, button, input[type=range]::-webkit-slider-thumb, .tb-btn {
+  box-shadow:
+    inset -1px -1px var(--bevel-dk),
+    inset  1px  1px var(--bevel-hi),
+    inset -2px -2px var(--bevel-sh),
+    inset  2px  2px var(--bevel-lt);
+}
+.sunken, #canvas-wrap, input[type=range], #sb-scroll, .name-inp:focus,
+#modal input, #modal select, .color-swatch, #statusbar span {
+  box-shadow:
+    inset -1px -1px var(--bevel-hi),
+    inset  1px  1px var(--bevel-dk),
+    inset -2px -2px var(--bevel-lt),
+    inset  2px  2px var(--bevel-sh);
+}
+
+/* ── Window chrome ─────────────────────────────────────────────────── */
+#win95-window {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--face);
+  margin: 3px;
+  box-shadow:
+    inset -1px -1px var(--bevel-dk),
+    inset  1px  1px var(--bevel-hi),
+    inset -2px -2px var(--bevel-sh),
+    inset  2px  2px var(--bevel-lt);
+  overflow: hidden;
+}
+
+#win95-titlebar {
+  flex-shrink: 0;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 3px 0 6px;
+  background: linear-gradient(90deg, var(--title-from), var(--title-to));
+  color: var(--title-text);
+  font-weight: bold;
+  font-size: 12px;
+}
+.tb-icon { font-size: 13px; }
+.tb-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-btns { display: flex; gap: 2px; }
+.tb-btn {
+  width: 18px; height: 16px; padding: 0;
+  min-width: 0; min-height: 0; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--face); color: var(--text);
+  border: none; font-size: 10px; line-height: 1; cursor: pointer;
+}
+.tb-close:hover { background: #c00000; color: #fff; }
+
 #toolbar {
-  background: var(--toolbar-bg);
-  border-bottom: 1px solid var(--border);
-  padding: 6px 10px;
+  background: var(--face);
+  padding: 4px 8px;
   display: flex;
   gap: 6px;
   align-items: center;
   flex-wrap: wrap;
   flex-shrink: 0;
+  box-shadow: inset 0 -1px var(--bevel-sh), inset 0 -2px var(--bevel-lt);
 }
 
 .tgroup {
@@ -104,48 +138,58 @@ body {
   gap: 4px;
   align-items: center;
   padding: 0 8px 0 0;
-  border-right: 1px solid var(--border);
+  margin-right: 2px;
+  border-right: 1px solid var(--bevel-sh);
+  box-shadow: 1px 0 var(--bevel-hi);
 }
-.tgroup:last-child { border-right: none; }
+.tgroup:last-child { border-right: none; box-shadow: none; }
 
-.tlabel { font-size: 11px; color: var(--tlabel); white-space: nowrap; }
+.tlabel { font-size: 11px; color: var(--text); white-space: nowrap; }
 
 button {
-  background: var(--btn-bg);
-  color: var(--btn-color);
-  border: 1px solid var(--btn-border);
-  border-radius: 5px;
-  padding: 5px 10px;
+  background: var(--face);
+  color: var(--text);
+  border: none;
+  border-radius: 0;
+  padding: 4px 9px;
   cursor: pointer;
-  font-size: 12px;
-  transition: background 0.12s, border-color 0.12s;
+  font-family: inherit;
+  font-size: 11px;
   white-space: nowrap;
 }
-button:hover  { background: var(--btn-hover-bg); border-color: var(--btn-hover-bdr); }
-button.active { background: #2563eb; border-color: #3b82f6; color: #fff; }
-button:disabled { opacity: 0.35; cursor: default; }
+button:active, button.active {
+  box-shadow:
+    inset -1px -1px var(--bevel-hi),
+    inset  1px  1px var(--bevel-dk),
+    inset -2px -2px var(--bevel-lt),
+    inset  2px  2px var(--bevel-sh);
+  padding: 5px 8px 3px 10px;
+}
+button:disabled { color: var(--disabled); cursor: default; }
+button:focus-visible { outline: 1px dotted var(--text); outline-offset: -4px; }
 
 input[type=range] {
   -webkit-appearance: none;
-  width: 90px; height: 4px;
-  background: var(--range-bg);
-  border-radius: 2px;
+  width: 90px; height: 6px;
+  background: var(--field-bg);
+  border-radius: 0;
   outline: none;
+  margin: 0 4px;
 }
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 13px; height: 13px;
-  background: #3b82f6;
-  border-radius: 50%;
+  width: 11px; height: 16px;
+  background: var(--face);
+  border-radius: 0;
   cursor: pointer;
 }
 
-#rot-display  { font-size: 12px; color: var(--info-color); min-width: 38px; }
-#zoom-display { font-size: 12px; color: var(--info-color); min-width: 44px; }
-#cal-status   { font-size: 12px; color: var(--info-color); white-space: nowrap; }
+#rot-display  { font-size: 11px; color: var(--text); min-width: 38px; }
+#zoom-display { font-size: 11px; color: var(--text); min-width: 44px; }
+#cal-status   { font-size: 11px; color: var(--text); white-space: nowrap; }
 #btn-theme    { margin-left: 4px; }
 
-#main { display: flex; flex: 1; overflow: hidden; }
+#main { display: flex; flex: 1; overflow: hidden; padding: 4px; gap: 4px; }
 
 #canvas-wrap {
   flex: 1;
@@ -161,112 +205,150 @@ input[type=range]::-webkit-slider-thumb {
   align-items: center; justify-content: center;
   pointer-events: none; gap: 10px;
 }
-#empty-overlay .icon { font-size: 52px; opacity: 0.25; }
-#empty-overlay .msg  { font-size: 15px; color: var(--empty-msg); }
-#empty-overlay .sub  { font-size: 13px; color: var(--empty-sub); }
+#empty-overlay .icon { font-size: 52px; opacity: 0.35; }
+#empty-overlay .msg  { font-size: 14px; color: var(--empty-msg); font-weight: bold; }
+#empty-overlay .sub  { font-size: 12px; color: var(--empty-sub); }
 
 #sidebar {
   width: 300px; min-width: 220px;
-  background: var(--sidebar-bg);
-  border-left: 1px solid var(--border);
+  background: var(--face);
   display: flex; flex-direction: column;
   overflow: hidden;
 }
 #sb-header {
-  padding: 8px 10px;
-  background: var(--sb-head-bg);
-  font-size: 13px; font-weight: 600;
+  padding: 4px 6px;
+  background: var(--face);
+  font-size: 11px; font-weight: bold;
   display: flex; justify-content: space-between; align-items: center;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
+  box-shadow: inset -1px -1px var(--bevel-dk), inset 1px 1px var(--bevel-hi), inset -2px -2px var(--bevel-sh), inset 2px 2px var(--bevel-lt);
+  margin-bottom: 4px;
 }
 #sb-scroll {
   flex: 1; overflow-y: auto;
+  background: var(--field-bg);
   scrollbar-width: thin;
-  scrollbar-color: var(--scroll-thumb) transparent;
+  scrollbar-color: var(--face) var(--field-bg);
+}
+#sb-scroll::-webkit-scrollbar { width: 16px; }
+#sb-scroll::-webkit-scrollbar-track { background: var(--field-bg); }
+#sb-scroll::-webkit-scrollbar-thumb {
+  background: var(--face);
+  box-shadow:
+    inset -1px -1px var(--bevel-dk),
+    inset  1px  1px var(--bevel-hi),
+    inset -2px -2px var(--bevel-sh),
+    inset  2px  2px var(--bevel-lt);
 }
 #no-meas {
   padding: 24px 16px; text-align: center;
-  color: var(--no-meas); font-size: 13px; line-height: 1.7;
+  color: var(--field-text); font-size: 12px; line-height: 1.7;
 }
 
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; background: var(--field-bg); }
 th {
   position: sticky; top: 0;
-  background: var(--th-bg);
-  padding: 6px 8px; text-align: left;
-  color: var(--th-color); font-weight: 600;
-  border-bottom: 1px solid var(--th-border);
+  background: var(--face);
+  padding: 4px 6px; text-align: left;
+  color: var(--text); font-weight: bold;
+  box-shadow: inset -1px -1px var(--bevel-dk), inset 1px 1px var(--bevel-hi), inset -2px -2px var(--bevel-sh), inset 2px 2px var(--bevel-lt);
 }
-td { padding: 5px 8px; border-bottom: 1px solid var(--td-border); vertical-align: middle; }
-tr.mrow:hover td { background: var(--row-hover); cursor: pointer; }
-tr.mrow.sel   td { background: var(--row-sel); }
+td { padding: 4px 6px; color: var(--field-text); border-bottom: 1px solid var(--face); vertical-align: middle; }
+tr.mrow:hover td { background: var(--bevel-lt); cursor: pointer; }
+tr.mrow.sel   td { background: var(--select-bg); color: var(--select-text); }
 
 .del-btn {
-  background: none; border: none;
-  color: #e05252; cursor: pointer;
-  padding: 0 3px; font-size: 13px; line-height: 1;
+  background: none; border: none; box-shadow: none;
+  color: #c00000; cursor: pointer;
+  padding: 0 3px; font-size: 13px; line-height: 1; font-weight: bold;
 }
-.del-btn:hover { color: #f87171; background: none; }
+.del-btn:hover { color: #ff0000; background: none; }
 
 .name-inp {
   background: transparent;
   border: none;
-  border-bottom: 1px solid transparent;
-  color: inherit; font-size: 12px; font-family: inherit;
+  color: inherit; font-size: 11px; font-family: inherit;
   width: 100%; padding: 1px 2px; cursor: text; min-width: 0;
 }
-.name-inp:hover { border-bottom-color: var(--border); }
+.name-inp:hover { background: var(--bevel-lt); }
 .name-inp:focus {
-  outline: none; border-bottom-color: #3b82f6;
-  background: var(--row-hover); border-radius: 2px;
+  outline: none;
+  background: var(--field-bg); color: var(--field-text);
 }
 
 .color-swatch {
   -webkit-appearance: none; appearance: none;
-  width: 16px; height: 16px; padding: 0;
-  border: 1px solid var(--border); border-radius: 3px;
+  width: 15px; height: 15px; padding: 0;
+  border: none; border-radius: 0;
   cursor: pointer; vertical-align: middle; margin-right: 4px;
-  background: none; flex-shrink: 0;
+  background: var(--field-bg); flex-shrink: 0;
 }
-.color-swatch::-webkit-color-swatch-wrapper { padding: 0; }
-.color-swatch::-webkit-color-swatch { border: none; border-radius: 2px; }
+.color-swatch::-webkit-color-swatch-wrapper { padding: 1px; }
+.color-swatch::-webkit-color-swatch { border: none; }
 
 #statusbar {
-  background: var(--statusbar-bg);
-  border-top: 1px solid var(--border);
-  padding: 3px 12px; font-size: 11px;
-  color: var(--statusbar-text);
-  display: flex; gap: 20px; flex-shrink: 0;
+  background: var(--face);
+  padding: 3px 4px;
+  font-size: 11px;
+  color: var(--text);
+  display: flex; gap: 4px; flex-shrink: 0;
+  box-shadow: inset 0 1px var(--bevel-hi);
 }
-#statusbar span { white-space: nowrap; }
+#statusbar span { white-space: nowrap; padding: 2px 8px; }
 
 #modal-bg {
   display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,0.5); z-index: 50;
+  background: rgba(0,0,0,0.35); z-index: 50;
   align-items: center; justify-content: center;
 }
 #modal-bg.show { display: flex; }
 #modal {
-  background: var(--modal-surface);
-  border: 1px solid var(--modal-bdr);
-  border-radius: 10px; padding: 22px 24px;
-  width: 300px; box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  background: var(--face);
+  border-radius: 0; padding: 0;
+  width: 300px;
+  box-shadow:
+    inset -1px -1px var(--bevel-dk),
+    inset  1px  1px var(--bevel-hi),
+    inset -2px -2px var(--bevel-sh),
+    inset  2px  2px var(--bevel-lt),
+    4px 4px 10px rgba(0,0,0,0.4);
 }
-#modal h3 { margin-bottom: 10px; font-size: 15px; color: var(--text); }
-#modal p  { font-size: 12px; color: var(--modal-muted); margin-bottom: 14px; line-height: 1.5; }
-#modal label { display: block; font-size: 12px; color: var(--modal-label); margin-bottom: 4px; }
+#modal h3 {
+  margin: 0; padding: 5px 8px;
+  font-size: 12px; font-weight: bold; color: var(--title-text);
+  background: linear-gradient(90deg, var(--title-from), var(--title-to));
+}
+#modal p  { font-size: 11px; color: var(--text); margin: 12px 14px 12px; line-height: 1.5; }
+#modal label { display: block; font-size: 11px; color: var(--text); margin: 0 14px 4px; }
 #modal input, #modal select {
-  width: 100%; background: var(--modal-input-bg);
-  border: 1px solid var(--modal-bdr); color: var(--text);
-  padding: 7px 9px; border-radius: 5px; margin-bottom: 12px; font-size: 13px;
+  display: block; width: calc(100% - 28px); margin: 0 14px 12px;
+  background: var(--field-bg);
+  border: none; color: var(--field-text);
+  padding: 4px 6px; border-radius: 0; font-size: 12px; font-family: inherit;
 }
-.modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
-.btn-primary { background: #2563eb; border-color: #3b82f6; color: #fff; }
-.btn-primary:hover { background: #1d4ed8; }
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; padding: 0 14px 14px; }
+.btn-primary { font-weight: bold; }
+.btn-primary, .btn-primary:active {
+  box-shadow: 0 0 0 1px var(--bevel-dk),
+    inset -1px -1px var(--bevel-dk),
+    inset  1px  1px var(--bevel-hi),
+    inset -2px -2px var(--bevel-sh),
+    inset  2px  2px var(--bevel-lt);
+}
 </style>
 </head>
 <body>
+
+<div id="win95-window">
+<div id="win95-titlebar">
+  <span class="tb-icon">&#128444;&#65039;</span>
+  <span class="tb-title">Image Measurement Tool</span>
+  <div class="tb-btns">
+    <button class="tb-btn" tabindex="-1" aria-hidden="true">_</button>
+    <button class="tb-btn" tabindex="-1" aria-hidden="true">&#9633;</button>
+    <button class="tb-btn tb-close" tabindex="-1" aria-hidden="true">&#10005;</button>
+  </div>
+</div>
 
 <div id="toolbar">
 
@@ -357,6 +439,8 @@ tr.mrow.sel   td { background: var(--row-sel); }
   <span id="st-xy">x: — &nbsp;y: —</span>
   <span id="st-zoom">Zoom: 100%</span>
   <span id="st-hint">In Pan mode, drag measurement endpoints or shape handles to reposition them.</span>
+</div>
+
 </div>
 
 <div id="modal-bg">
