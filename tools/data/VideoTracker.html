@@ -184,6 +184,30 @@
     display:flex;flex-direction:column;
     overflow:hidden;
   }
+  /* ---- objects bar ---- */
+  #objects-bar{
+    flex-shrink:0;display:flex;align-items:center;gap:4px;flex-wrap:wrap;
+    padding:4px 6px;background:var(--face);
+    border-bottom:1px solid var(--shadow);box-shadow:0 1px 0 var(--hi);
+  }
+  #objects-list{display:flex;gap:4px;flex-wrap:wrap;flex:1;min-width:0}
+  #btn-add-object{font-size:11px;padding:3px 8px;min-height:0;flex-shrink:0}
+  .obj-chip{
+    display:inline-flex;align-items:center;gap:4px;
+    font-family:var(--ui);font-size:11px;color:#000;background:var(--face);
+    border:0;padding:3px 6px;cursor:pointer;white-space:nowrap;
+    box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--light);
+  }
+  .obj-chip.active{
+    box-shadow:inset 1px 1px 0 var(--shadow),inset 2px 2px 0 var(--dark);
+    font-weight:700;padding:4px 6px 2px 7px;
+  }
+  .chip-dot{width:8px;height:8px;flex-shrink:0;border:1px solid rgba(0,0,0,.45)}
+  .chip-del{margin-left:1px;color:var(--shadow);font-weight:700;padding:0 1px}
+  .chip-del:hover{color:#800000}
+  .obj-label{font-size:10px;color:var(--shadow);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
   .graph-section{
     flex:1;min-height:0;
     display:flex;flex-direction:column;
@@ -405,7 +429,7 @@
     <div class="step-panel" id="step-5">
       <div class="step-head" onclick="activateStep(5)"><span class="step-num" id="sn-5">5</span> Track</div>
       <fieldset class="step-body" id="step-5-body" disabled>
-        <span class="step-hint">Click object each frame</span>
+        <span class="step-hint" id="active-obj-hint">Click object each frame</span>
         <div class="tb-sep"></div>
         <button class="b95" id="btn-undo" onclick="undoLastPoint()" disabled>&#8630; Undo</button>
         <button class="b95" id="btn-clear" onclick="clearTracking()" disabled>&#128465; Clear</button>
@@ -440,11 +464,18 @@
     </div>
 
     <div id="right-panel">
+      <!-- Object selector -->
+      <div id="objects-bar">
+        <div id="objects-list"></div>
+        <button class="b95" id="btn-add-object" onclick="addTrack()" title="Track a new object">&#43; Object</button>
+      </div>
+
       <!-- X vs t -->
       <div class="graph-section" id="section-x">
         <div class="graph-section-header" onclick="collapseGraph('x',event)">
           <div class="graph-dot" style="background:var(--gx)"></div>
           X position vs. Time
+          <span class="obj-label" id="obj-label-x"></span>
           <select class="fit-sel" id="fit-x" onclick="event.stopPropagation()" onchange="S.fitX=this.value;drawGraphX()">
             <option value="none">No fit</option>
             <option value="linear">Linear</option>
@@ -463,6 +494,7 @@
         <div class="graph-section-header" onclick="collapseGraph('y',event)">
           <div class="graph-dot" style="background:var(--gy)"></div>
           Y position vs. Time
+          <span class="obj-label" id="obj-label-y"></span>
           <select class="fit-sel" id="fit-y" onclick="event.stopPropagation()" onchange="S.fitY=this.value;drawGraphY()">
             <option value="none">No fit</option>
             <option value="linear">Linear</option>
@@ -480,6 +512,7 @@
       <div class="graph-section" id="table-section">
         <div class="graph-section-header" onclick="collapseGraph('table',event)">
           <div class="graph-dot" style="background:var(--gt)"></div>Data Table
+          <span class="obj-label" id="obj-label-table"></span>
           <span class="graph-collapse"></span>
         </div>
         <div id="data-scroll">
@@ -545,6 +578,9 @@
       <span class="t">Export CSV</span>
     </div>
     <div class="dlgbody">
+      <label style="font-size:12px;display:block;margin-bottom:8px">Object:
+        <select id="exp-track-sel" style="width:100%;margin-top:3px"></select>
+      </label>
       <p style="font-size:13px">Select variables to export:</p>
       <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-frame" checked> Frame number</label>
       <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-time" checked> Time (s)</label>
@@ -662,7 +698,8 @@ const S = {
     calibrated: false,
     calPts: [],
     calDist: 0,
-    points: [],
+    tracks: [{ name: 'Object 1', color: '#ffd700', points: [] }],
+    active: 0,
     dragging: false,
     lastCursorPos: null,
     CW: 640, CH: 480,
@@ -1036,11 +1073,12 @@ function collapseGraph(axis, e) {
 //  COORDINATE TRANSFORMS
 // ═══════════════════════════════════════════════════════
 function recomputeWorldCoords() {
-    S.points.forEach(p => {
+    // Origin/scale changes apply to every object, not just the active one.
+    S.tracks.forEach(t => t.points.forEach(p => {
         const w = canvasToWorld(p.cx, p.cy);
         p.wx = w.x;
         p.wy = w.y;
-    });
+    }));
     drawGraphX(); drawGraphY(); updateDataTable();
 }
 
@@ -1246,36 +1284,130 @@ window.addEventListener('keydown', e => {
 });
 
 // ═══════════════════════════════════════════════════════
+//  OBJECTS (multi-track)
+// ═══════════════════════════════════════════════════════
+const TRACK_COLORS = ['#ffd700','#00bcd4','#ff4081','#8bc34a','#ff9800','#9c27b0','#03a9f4','#e91e63'];
+let _trackSeq = 2; // next default object number (Object 1 already exists)
+
+function activeTrack() { return S.tracks[S.active]; }
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function hexToRgba(hex, alpha) {
+    const h = hex.replace('#','');
+    const r = parseInt(h.substring(0,2),16), g = parseInt(h.substring(2,4),16), b = parseInt(h.substring(4,6),16);
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function addTrack() {
+    const color = TRACK_COLORS[S.tracks.length % TRACK_COLORS.length];
+    S.tracks.push({ name: 'Object ' + (_trackSeq++), color, points: [] });
+    S.active = S.tracks.length - 1;
+    afterTrackChange();
+}
+
+function setActiveTrack(i) {
+    S.active = i;
+    afterTrackChange();
+}
+
+function renameTrack(i) {
+    const t = S.tracks[i];
+    const name = prompt('Rename object:', t.name);
+    if (name && name.trim()) t.name = name.trim().slice(0, 24);
+    renderObjectsBar();
+}
+
+function deleteTrack(i) {
+    if (S.tracks.length <= 1) return;
+    const t = S.tracks[i];
+    if (t.points.length && !confirm(`Delete "${t.name}" and its ${t.points.length} tracked point(s)?`)) return;
+    S.tracks.splice(i, 1);
+    if (S.active >= S.tracks.length) S.active = S.tracks.length - 1;
+    else if (S.active > i) S.active--;
+    afterTrackChange();
+}
+
+function renderObjectsBar() {
+    const wrap = document.getElementById('objects-list');
+    wrap.innerHTML = '';
+    S.tracks.forEach((t, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'obj-chip' + (i === S.active ? ' active' : '');
+        btn.title = 'Double-click to rename';
+        btn.innerHTML = `<span class="chip-dot" style="background:${t.color}"></span>` +
+            `<span class="chip-name">${escapeHtml(t.name)}</span>` +
+            (S.tracks.length > 1 ? `<span class="chip-del" title="Delete object">&times;</span>` : '');
+        btn.addEventListener('click', () => setActiveTrack(i));
+        btn.addEventListener('dblclick', e => { e.stopPropagation(); renameTrack(i); });
+        const del = btn.querySelector('.chip-del');
+        if (del) del.addEventListener('click', e => { e.stopPropagation(); deleteTrack(i); });
+        wrap.appendChild(btn);
+    });
+
+    const t = activeTrack();
+    const hint = document.getElementById('active-obj-hint');
+    hint.innerHTML = `<span class="chip-dot" style="background:${t.color}"></span> ${escapeHtml(t.name)} — click each frame`;
+    ['obj-label-x','obj-label-y','obj-label-table'].forEach(id =>
+        document.getElementById(id).textContent = '— ' + t.name);
+}
+
+function updateTrackButtons() {
+    const hasActive = activeTrack().points.length > 0;
+    const hasAny = S.tracks.some(t => t.points.length > 0);
+    ['btn-undo','btn-clear'].forEach(id => document.getElementById(id).disabled = !hasActive);
+    ['btn-export','btn-export-table'].forEach(id => document.getElementById(id).disabled = !hasAny);
+}
+
+function afterTrackChange() {
+    renderObjectsBar();
+    updateTrackButtons();
+    drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
+}
+
+// ═══════════════════════════════════════════════════════
 //  TRACKING
 // ═══════════════════════════════════════════════════════
 function addTrackPoint(cp) {
     const w = canvasToWorld(cp.x, cp.y);
-    S.points.push({ frame: S.frameIndex, time: S.frameIndex / S.fps,
+    activeTrack().points.push({ frame: S.frameIndex, time: S.frameIndex / S.fps,
                     cx: cp.x, cy: cp.y, wx: w.x, wy: w.y });
-    ['btn-undo','btn-clear','btn-export','btn-export-table'].forEach(id =>
-        document.getElementById(id).disabled = false);
+    updateTrackButtons();
     drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
     seekTo(S.frameIndex + 1);
 }
 
 function undoLastPoint() {
-    S.points.pop();
-    if (!S.points.length)
-        ['btn-undo','btn-clear','btn-export','btn-export-table'].forEach(id =>
-            document.getElementById(id).disabled = true);
+    activeTrack().points.pop();
+    updateTrackButtons();
     drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
 }
 
 function clearTracking() {
-    if (!confirm('Clear all tracked points and calibration?')) return;
-    S.points = []; S.calPts = []; S.calibrated = false; S.scale = 1;
-    ['btn-undo','btn-clear','btn-export','btn-export-table'].forEach(id =>
-        document.getElementById(id).disabled = true);
-    updateTableHeader();
+    const t = activeTrack();
+    if (!t.points.length) return;
+    if (!confirm(`Clear all tracked points for "${t.name}"? Calibration and origin are not affected.`)) return;
+    t.points = [];
+    updateTrackButtons();
     drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
 }
 
 function exportCSV() {
+    const sel = document.getElementById('exp-track-sel');
+    sel.innerHTML = '';
+    S.tracks.forEach((t, i) => {
+        const o = document.createElement('option');
+        o.value = i; o.textContent = t.name;
+        if (i === S.active) o.selected = true;
+        sel.appendChild(o);
+    });
+    if (S.tracks.length > 1) {
+        const allOpt = document.createElement('option');
+        allOpt.value = '__all__'; allOpt.textContent = 'All objects (combined)';
+        sel.appendChild(allOpt);
+    }
     document.getElementById('export-overlay').style.display = 'flex';
 }
 function closeExportDialog() {
@@ -1295,13 +1427,29 @@ function doExportCSV() {
         if (document.getElementById(id).checked) cols.push({hdr, fn});
     });
     if (!cols.length) { alert('Select at least one variable.'); return; }
-    const hdr  = cols.map(c => c.hdr).join(',') + '\n';
-    const rows = S.points.map(p => cols.map(c => c.fn(p)).join(',')).join('\n');
+
+    const sel = document.getElementById('exp-track-sel').value;
+    let hdr, rows, filename;
+    if (sel === '__all__') {
+        hdr = 'object,' + cols.map(c => c.hdr).join(',') + '\n';
+        rows = S.tracks.flatMap(t =>
+            t.points.map(p => escapeCsv(t.name) + ',' + cols.map(c => c.fn(p)).join(','))
+        ).join('\n');
+        filename = 'tracking_data_all_objects.csv';
+    } else {
+        const t = S.tracks[parseInt(sel, 10)];
+        hdr = cols.map(c => c.hdr).join(',') + '\n';
+        rows = t.points.map(p => cols.map(c => c.fn(p)).join(',')).join('\n');
+        filename = `tracking_data_${t.name.replace(/[^a-z0-9]+/gi,'_')}.csv`;
+    }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([hdr + rows], { type: 'text/csv' }));
-    a.download = 'tracking_data.csv';
+    a.download = filename;
     a.click();
     closeExportDialog();
+}
+function escapeCsv(s) {
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1460,20 +1608,28 @@ function drawCalibration(z) {
 
 function drawTrackPoints(z) {
     const iz = 1 / z;
-    S.points.forEach((p, i) => {
-        if (i > 0) {
-            const prev = S.points[i-1];
-            octx.strokeStyle = 'rgba(255,215,0,0.45)'; octx.lineWidth = 1.5*iz;
-            octx.beginPath(); octx.moveTo(prev.cx, prev.cy); octx.lineTo(p.cx, p.cy); octx.stroke();
-        }
-        octx.fillStyle = '#ffd700';
-        octx.beginPath(); octx.arc(p.cx, p.cy, 4*iz, 0, Math.PI*2); octx.fill();
-        octx.strokeStyle = '#fff'; octx.lineWidth = iz; octx.stroke();
-        if (i === 0 || i === S.points.length-1) {
-            octx.fillStyle = '#fff'; octx.font = `${10*iz}px sans-serif`;
-            octx.textAlign = 'left'; octx.textBaseline = 'bottom';
-            octx.fillText(i+1, p.cx+5*iz, p.cy-3*iz);
-        }
+    S.tracks.forEach((t, ti) => {
+        const isActive = ti === S.active;
+        const pts = t.points;
+        pts.forEach((p, i) => {
+            if (i > 0) {
+                const prev = pts[i-1];
+                octx.strokeStyle = hexToRgba(t.color, isActive ? 0.5 : 0.28);
+                octx.lineWidth = (isActive ? 1.5 : 1) * iz;
+                octx.beginPath(); octx.moveTo(prev.cx, prev.cy); octx.lineTo(p.cx, p.cy); octx.stroke();
+            }
+            const r = (isActive ? 4 : 3) * iz;
+            octx.globalAlpha = isActive ? 1 : 0.7;
+            octx.fillStyle = t.color;
+            octx.beginPath(); octx.arc(p.cx, p.cy, r, 0, Math.PI*2); octx.fill();
+            octx.strokeStyle = '#fff'; octx.lineWidth = iz; octx.stroke();
+            octx.globalAlpha = 1;
+            if (i === 0 || i === pts.length-1) {
+                octx.fillStyle = '#fff'; octx.font = `${10*iz}px sans-serif`;
+                octx.textAlign = 'left'; octx.textBaseline = 'bottom';
+                octx.fillText(i+1, p.cx+5*iz, p.cy-3*iz);
+            }
+        });
     });
 }
 
@@ -1590,7 +1746,7 @@ function drawGraphSingle(ctx, can, axis, fitType) {
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
 
-    const pts = S.points;
+    const pts = activeTrack().points;
     if (!pts.length) {
         ctx.fillStyle = C.nodata; ctx.font = '11px sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1703,17 +1859,15 @@ function drawGraphY() { drawGraphSingle(gyctx, gycan, 'y', S.fitY); }
 //  DATA TABLE
 // ═══════════════════════════════════════════════════════
 function removePoint(i) {
-    S.points.splice(i, 1);
-    if (!S.points.length)
-        ['btn-undo','btn-clear','btn-export','btn-export-table'].forEach(id =>
-            document.getElementById(id).disabled = true);
+    activeTrack().points.splice(i, 1);
+    updateTrackButtons();
     drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
 }
 
 function updateDataTable() {
     const tbody = document.getElementById('data-tbody');
     tbody.innerHTML = '';
-    S.points.forEach((p, i) => {
+    activeTrack().points.forEach((p, i) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${i+1}</td><td>${p.time.toFixed(3)}</td><td>${p.wx.toFixed(3)}</td><td>${p.wy.toFixed(3)}</td>`
             + `<td style="text-align:center;padding:0 4px"><span onclick="removePoint(${i})" `
@@ -1736,7 +1890,7 @@ function updateStatus() {
     document.getElementById('st-frame').textContent = S.videoLoaded ? `${S.frameIndex} / ${total}` : '—';
     document.getElementById('st-time').textContent  = S.videoLoaded ? `${(S.frameIndex/S.fps).toFixed(3)} s` : '—';
     document.getElementById('st-scale').textContent = S.calibrated  ? `${S.scale.toFixed(2)} px/${S.unit}` : 'Not calibrated';
-    document.getElementById('st-pts').textContent   = S.points.length;
+    document.getElementById('st-pts').textContent   = activeTrack().points.length;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1763,5 +1917,6 @@ function fmtNum(v) {
 }
 
 // Init
+renderObjectsBar(); updateTrackButtons();
 drawGraphX(); drawGraphY(); updateStatus();
 </script>
