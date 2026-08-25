@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concavity &amp; Rate of Change</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --border:  #c8d4e0;
+  --text:    #1a2234;
+  --muted:   #607080;
+  --accent:  #1858a8;
+  --surface: #ffffff;
+  --bg:      #f0f4f8;
+  --green:   #16a34a;
+  --red:     #dc2626;
+  --purple:  #7c3aed;
+  --orange:  #ea580c;
+}
+body.dark {
+  --border:  #30363d;
+  --text:    #e6edf3;
+  --muted:   #8b949e;
+  --accent:  #58a6ff;
+  --surface: #161b22;
+  --bg:      #0d1117;
+  --green:   #3fb950;
+  --red:     #f85149;
+  --purple:  #a78bfa;
+  --orange:  #fb923c;
+}
+#theme-toggle {
+  position: fixed; bottom: 10px; right: 10px; z-index: 9999;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 12px; cursor: pointer;
+  font-size: 0.8rem; font-weight: 600; color: var(--muted);
+  transition: border-color .2s, color .2s; user-select: none;
+}
+#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text); background: var(--bg); font-size: 15px; }
+body { display: flex; flex-direction: column; }
+
+/* ── Top bar ── */
+#top-bar {
+  flex-shrink: 0; height: 44px;
+  display: flex; align-items: center; padding: 0 18px; gap: 10px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+}
+#top-bar h1 { font-size: 1.05rem; font-weight: 800; color: var(--text); letter-spacing: .02em; white-space: nowrap; }
+.step-flow { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--muted); flex: 1; justify-content: flex-end; }
+.step-chip { padding: 3px 10px; border-radius: 20px; font-weight: 700; font-size: 0.7rem; letter-spacing: .03em; white-space: nowrap; }
+.step-chip.c1 { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.step-chip.c2 { background: color-mix(in srgb, var(--purple) 15%, transparent); color: var(--purple); }
+.step-chip.c3 { background: color-mix(in srgb, var(--green) 15%, transparent); color: var(--green); }
+.step-chip.c4 { background: color-mix(in srgb, var(--orange) 15%, transparent); color: var(--orange); }
+.step-arrow { color: var(--muted); }
+
+#panels-row { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+
+/* ── Panels ── */
+.panel {
+  height: 100%; display: flex; flex-direction: column;
+  border-right: 1px solid var(--border); background: var(--surface); overflow: hidden;
+}
+.panel.p1 { flex: 0 0 300px; min-width: 300px; --panel-color: var(--accent); }
+.panel.p2 { flex: 0 0 300px; min-width: 300px; --panel-color: var(--purple); }
+.panel-header {
+  flex-shrink: 0; padding: 10px 14px; background: var(--surface); border-bottom: 2px solid var(--border);
+  display: flex; align-items: center; gap: 8px; border-top: 3px solid var(--panel-color, var(--accent));
+}
+.panel-title { font-size: 0.85rem; font-weight: 800; color: var(--panel-color, var(--accent)); letter-spacing: .04em; text-transform: uppercase; flex: 1; }
+
+/* ── Controls panel ── */
+.ctrl-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+.preset-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.preset-btn { flex: 1; min-width: 70px; overflow: hidden; text-overflow: ellipsis; padding-left: 6px; padding-right: 6px; }
+
+.field-label { font-size: 0.78rem; font-weight: 700; color: var(--muted); display: block; margin-bottom: 4px; }
+.field-value { color: var(--text); font-family: 'Courier New', monospace; }
+
+.fx-row { display: flex; gap: 6px; align-items: stretch; }
+.win-field, input.win-field, input[type=text].win-field, input[type=number].win-field {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 10px; color: var(--text); font-family: 'Courier New', monospace; font-size: 0.95rem; outline: none;
+}
+.win-field:focus { border-color: var(--accent); }
+.fx-row .win-field { flex: 1; }
+
+.hint-text { font-size: 0.74rem; color: var(--muted); line-height: 1.5; }
+.error-text { font-size: 0.78rem; color: var(--red); font-weight: 700; display: none; }
+.echo-text { font-size: 0.82rem; color: var(--accent); font-family: 'Courier New', monospace; font-weight: 700; min-height: 1.2em; }
+
+.range-row { display: flex; gap: 10px; }
+.range-row > div { flex: 1; min-width: 0; }
+
+.slider-group { display: flex; flex-direction: column; gap: 5px; }
+.slider-group .field-label { display: flex; justify-content: space-between; margin-bottom: 0; }
+.slider-group input[type=range] { width: 100%; accent-color: var(--accent); }
+
+.chk-row { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--muted); cursor: pointer; }
+.chk-row input { accent-color: var(--accent); cursor: pointer; width: 16px; height: 16px; }
+
+.badge-box {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 10px; font-size: 0.88rem; font-weight: 700; text-align: center; line-height: 1.5;
+}
+.badge-box.up    { background: color-mix(in srgb, var(--green) 12%, transparent); color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, var(--border)); }
+.badge-box.down  { background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, var(--border)); }
+.badge-box.mixed { background: color-mix(in srgb, var(--purple) 12%, transparent); color: var(--purple); border-color: color-mix(in srgb, var(--purple) 40%, var(--border)); }
+.badge-box.flat  { color: var(--muted); }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--muted); font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: inherit;
+  letter-spacing: .02em; transition: background .12s, color .12s, border-color .12s; white-space: nowrap;
+}
+.btn:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); border-color: var(--accent); }
+.btn-plot { flex-shrink: 0; background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-plot:hover { opacity: 0.9; color: #fff; }
+
+/* ── Table ── */
+.tbl-wrap { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 8px 8px; font-size: 0.76rem; font-weight: 700; color: var(--muted); letter-spacing: .03em;
+  font-family: 'Courier New', monospace; text-align: right; white-space: nowrap;
+}
+thead th:first-child { text-align: center; width: 26px; }
+tbody td { padding: 7px 8px; border-bottom: 1px solid var(--border); font-family: 'Courier New', monospace; font-size: 0.88rem; text-align: right; color: var(--text); }
+tbody td:first-child { text-align: center; color: var(--muted); font-size: 0.74rem; }
+tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.cell-dy  { color: var(--orange); }
+.cell-m   { color: var(--accent); font-weight: 700; }
+.cell-d2.pos { color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); }
+.cell-d2.neg { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+
+/* ── Graph panel ── */
+#graph-panel { flex: 1 1 auto; min-width: 320px; height: 100%; display: flex; flex-direction: column; background: var(--bg); --panel-color: var(--orange); }
+.graph-half { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+.graph-half + .graph-half { border-top: 2px solid var(--border); }
+.graph-header {
+  flex-shrink: 0; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface);
+  display: flex; align-items: center; gap: 8px;
+}
+.graph-half:first-child .graph-header { border-top: 3px solid var(--panel-color, var(--orange)); }
+.graph-half + .graph-half .graph-header { border-top: 2px solid var(--border); }
+.graph-title { font-size: 0.85rem; font-weight: 800; color: var(--panel-color, var(--orange)); letter-spacing: .04em; text-transform: uppercase; flex: 1; }
+.graph-wrap { flex: 1 1 0; min-height: 0; position: relative; background: var(--surface); padding: 6px; }
+canvas.chart { display: block; width: 100%; height: 100%; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+  <h1>🌀 Concavity &amp; Rate of Change</h1>
+  <div class="step-flow">
+    <span class="step-chip c1">① Type f(x)</span>
+    <span class="step-arrow">→</span>
+    <span class="step-chip c2">② Slice into intervals</span>
+    <span class="step-arrow">→</span>
+    <span class="step-chip c3">③ Compare Δy</span>
+    <span class="step-arrow">→</span>
+    <span class="step-chip c4">④ Watch the rate change</span>
+  </div>
+</div>
+
+<div id="panels-row">
+
+<!-- Panel 1 — function controls -->
+<div class="panel p1">
+  <div class="panel-header"><span class="panel-title">⚙️ Function</span></div>
+  <div class="ctrl-body">
+    <div class="preset-row">
+      <button class="btn preset-btn" data-preset="up">⌣ Up</button>
+      <button class="btn preset-btn" data-preset="down">⌢ Down</button>
+      <button class="btn preset-btn" data-preset="s">🔄 S-Curve</button>
+    </div>
+
+    <div>
+      <label class="field-label">f(x) =</label>
+      <div class="fx-row">
+        <input type="text" class="win-field" id="fx-input" value="x^2" placeholder="e.g. x^3 - 3x" spellcheck="false" autocomplete="off">
+        <button class="btn btn-plot" id="plot-btn">Plot</button>
+      </div>
+      <div class="hint-text">Type powers with <b>^</b>, e.g. <b>2x^3 - x^2 + 5</b>. Degree up to 8. Press Enter or click Plot.</div>
+      <div class="error-text" id="fx-error"></div>
+      <div class="echo-text" id="eq-echo"></div>
+    </div>
+
+    <div class="range-row">
+      <div>
+        <label class="field-label">x min</label>
+        <input type="number" class="win-field" id="xmin-in" value="-3" step="0.5">
+      </div>
+      <div>
+        <label class="field-label">x max</label>
+        <input type="number" class="win-field" id="xmax-in" value="3" step="0.5">
+      </div>
+    </div>
+
+    <div class="slider-group">
+      <label class="field-label">Intervals (N) <span class="field-value" id="n-val">8</span></label>
+      <input type="range" id="n-slider" min="3" max="16" step="1" value="8">
+    </div>
+
+    <label class="chk-row">
+      <input type="checkbox" id="deriv-toggle"> overlay true derivative f&prime;(x)
+    </label>
+
+    <div class="badge-box" id="concavity-badge">—</div>
+  </div>
+</div>
+
+<!-- Panel 2 — differences table -->
+<div class="panel p2">
+  <div class="panel-header"><span class="panel-title">🔢 Δy per Interval</span></div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>x (mid)</th>
+          <th>Δy</th>
+          <th>m=Δy/Δx</th>
+          <th>Δm</th>
+        </tr>
+      </thead>
+      <tbody id="diff-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Graph panel -->
+<div id="graph-panel">
+  <div class="graph-half">
+    <div class="graph-header"><span class="graph-title">📈 f(x) — Secant Segments</span></div>
+    <div class="graph-wrap" id="fx-wrap">
+      <canvas id="fx-cv" class="chart"></canvas>
+    </div>
+  </div>
+  <div class="graph-half">
+    <div class="graph-header"><span class="graph-title">📊 Rate of Change (Δy/Δx per interval)</span></div>
+    <div class="graph-wrap" id="rate-wrap">
+      <canvas id="rate-cv" class="chart"></canvas>
+    </div>
+  </div>
+</div>
+
+</div><!-- /panels-row -->
+
+<button id="theme-toggle">🌙</button>
+
+<script>
+// ── Polynomial parsing ──────────────────────────────────────
+// Coeffs are indexed by power ascending: coeffs[p] = coefficient of x^p
+function parsePolynomial(raw) {
+  let s = (raw || '').trim().toLowerCase();
+  if (!s) return { error: 'Type a polynomial in x, e.g. x^3 - 3x' };
+  s = s.replace(/^y\s*=\s*/, '').replace(/^f\(x\)\s*=\s*/, '');
+  s = s.replace(/\s+/g, '').replace(/\*\*/g, '^').replace(/\*/g, '');
+  if (!s) return { error: 'Type a polynomial in x, e.g. x^3 - 3x' };
+
+  const signed = (s[0] === '+' || s[0] === '-') ? s : '+' + s;
+  const terms = signed.match(/[+-][^+-]+/g);
+  if (!terms) return { error: 'Could not parse expression' };
+
+  const coeffMap = {};
+  for (const t of terms) {
+    const sign = t[0] === '-' ? -1 : 1;
+    const body = t.slice(1);
+    if (!body) return { error: `Unexpected "${t}"` };
+    const m = body.match(/^(\d*\.?\d*)(x(?:\^(\d+))?)?$/);
+    if (!m || (m[1] === '' && !m[2])) return { error: `Can't parse term "${sign < 0 ? '-' : ''}${body}"` };
+    const hasX = !!m[2];
+    const power = hasX ? (m[3] !== undefined ? parseInt(m[3], 10) : 1) : 0;
+    const coefStr = m[1];
+    let coef = coefStr === '' ? 1 : parseFloat(coefStr);
+    if (isNaN(coef)) return { error: `Can't parse term "${sign < 0 ? '-' : ''}${body}"` };
+    coef *= sign;
+    coeffMap[power] = (coeffMap[power] || 0) + coef;
+  }
+
+  const maxPower = Math.max(0, ...Object.keys(coeffMap).map(Number));
+  if (maxPower > 8) return { error: 'Degree too high (max 8)' };
+  const arr = new Array(maxPower + 1).fill(0);
+  for (const p in coeffMap) arr[p] = coeffMap[p];
+  return { coeffs: arr };
+}
+
+function evalPoly(cs, x) {
+  let r = 0;
+  for (let i = cs.length - 1; i >= 0; i--) r = r * x + cs[i];
+  return r;
+}
+function derivativeCoeffs(cs) {
+  if (cs.length <= 1) return [0];
+  const d = new Array(cs.length - 1);
+  for (let i = 0; i < d.length; i++) d[i] = cs[i + 1] * (i + 1);
+  return d;
+}
+
+const SUP = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹' };
+function toSup(n) { return String(n).split('').map(ch => SUP[ch] || ch).join(''); }
+function formatEq(cs) {
+  const terms = [];
+  for (let p = cs.length - 1; p >= 0; p--) {
+    const coef = cs[p];
+    if (coef === 0) continue;
+    const sign = coef > 0 ? (terms.length ? ' + ' : '') : (terms.length ? ' − ' : '−');
+    const mag = Math.abs(coef);
+    const magStr = (p > 0 && mag === 1) ? '' : parseFloat(mag.toPrecision(4)).toString();
+    const xPart = p === 0 ? '' : (p === 1 ? 'x' : 'x' + toSup(p));
+    terms.push(sign + magStr + xPart);
+  }
+  return 'y = ' + (terms.length ? terms.join('') : '0');
+}
+
+// ── State ───────────────────────────────────────────────────
+let coeffs = [0, 0, 1];           // y = x^2
+let derivC = derivativeCoeffs(coeffs);
+let deriv2C = derivativeCoeffs(derivC);
+let xMin = -3, xMax = 3, N = 8;
+let showDeriv = false;
+
+const f      = x => evalPoly(coeffs, x);
+const fPrime = x => evalPoly(derivC, x);
+const fDouble= x => evalPoly(deriv2C, x);
+
+let points = [], diffs = [];
+
+const presets = { up: 'x^2', down: '-x^2', s: 'x^3 - 3x' };
+function applyPreset(name) {
+  document.getElementById('fx-input').value = presets[name];
+  xMin = -3; xMax = 3;
+  document.getElementById('xmin-in').value = xMin;
+  document.getElementById('xmax-in').value = xMax;
+  tryParseAndApply();
+}
+
+// ── Format ──────────────────────────────────────────────────
+function fmt(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  if (!isFinite(v)) return v > 0 ? '+∞' : '−∞';
+  return parseFloat(v.toPrecision(4)).toString();
+}
+
+// ── Concavity analysis (generalized to any degree) ─────────
+function analyzeConcavity() {
+  const SAMPLES = 400;
+  const pts = [];
+  for (let i = 0; i <= SAMPLES; i++) {
+    const x = xMin + (xMax - xMin) * i / SAMPLES;
+    const v = fDouble(x);
+    const s = Math.abs(v) < 1e-9 ? 0 : Math.sign(v);
+    if (s !== 0) pts.push({ x, s });
+  }
+  if (pts.length === 0) return { type: 'flat' };
+  const allSame = pts.every(p => p.s === pts[0].s);
+  if (allSame) return { type: pts[0].s > 0 ? 'up' : 'down' };
+
+  // Sign changes across the zero-filtered sample sequence — robust even when a
+  // sample lands exactly on the inflection point (e.g. x=0 for x^3-x on this grid).
+  const crossings = [];
+  for (let i = 1; i < pts.length; i++) {
+    if (pts[i].s !== pts[i-1].s) {
+      let lo = pts[i-1].x, hi = pts[i].x;
+      const signLo = pts[i-1].s;
+      for (let k = 0; k < 40; k++) {
+        const mid = (lo + hi) / 2;
+        const vs = Math.sign(fDouble(mid));
+        if (vs === signLo || vs === 0) lo = mid; else hi = mid;
+      }
+      crossings.push((lo + hi) / 2);
+    }
+  }
+  return { type: 'mixed', crossings, firstSign: pts[0].s };
+}
+
+function renderBadge() {
+  const el = document.getElementById('concavity-badge');
+  const r = analyzeConcavity();
+  el.className = 'badge-box ' + r.type;
+  if (r.type === 'flat') {
+    el.textContent = '— No curvature: Δy stays constant —';
+  } else if (r.type === 'up') {
+    el.innerHTML = '⌣ Concave Up<br>rate of change is increasing';
+  } else if (r.type === 'down') {
+    el.innerHTML = '⌢ Concave Down<br>rate of change is decreasing';
+  } else {
+    const dirs = [r.firstSign > 0 ? 'up' : 'down'];
+    for (let i = 1; i <= r.crossings.length; i++) dirs.push(dirs[i-1] === 'up' ? 'down' : 'up');
+    const shown = dirs.slice(0, 4).map(d => d === 'up' ? '⌣' : '⌢').join(' → ') + (dirs.length > 4 ? ' …' : '');
+    const xlist = r.crossings.slice(0, 3).map(x => fmt(Math.abs(x) < 1e-9 ? 0 : x)).join(', ') + (r.crossings.length > 3 ? ', …' : '');
+    el.innerHTML = `🔄 Concavity changes ${r.crossings.length}×<br>${shown}<br>near x ≈ ${xlist}`;
+  }
+}
+
+// ── Compute ─────────────────────────────────────────────────
+function recompute() {
+  points = []; diffs = [];
+  const dx = (xMax - xMin) / N;
+  for (let i = 0; i <= N; i++) {
+    const x = xMin + i*dx;
+    points.push({ x, y: f(x) });
+  }
+  for (let i = 0; i < N; i++) {
+    const dy = points[i+1].y - points[i].y;
+    const m = dx !== 0 ? dy/dx : NaN;
+    diffs.push({ x1: points[i].x, x2: points[i+1].x, xmid: (points[i].x+points[i+1].x)/2, dy, m });
+  }
+  for (let i = 0; i < diffs.length; i++) {
+    diffs[i].dm = i === 0 ? null : diffs[i].m - diffs[i-1].m;
+  }
+  renderBadge();
+  renderTable();
+  drawCharts();
+}
+
+function tryParseAndApply() {
+  const input = document.getElementById('fx-input');
+  const errEl = document.getElementById('fx-error');
+  const echoEl = document.getElementById('eq-echo');
+  const res = parsePolynomial(input.value);
+  if (res.error) {
+    errEl.textContent = '⚠ ' + res.error;
+    errEl.style.display = 'block';
+    echoEl.textContent = '';
+    return;
+  }
+  errEl.style.display = 'none';
+  coeffs = res.coeffs;
+  derivC = derivativeCoeffs(coeffs);
+  deriv2C = derivativeCoeffs(derivC);
+  echoEl.textContent = 'Parsed as: ' + formatEq(coeffs);
+  recompute();
+}
+
+// ── Table ───────────────────────────────────────────────────
+function renderTable() {
+  const tb = document.getElementById('diff-body');
+  tb.innerHTML = '';
+  diffs.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    const d2Class = row.dm === null ? '' : (row.dm > 1e-9 ? 'pos' : (row.dm < -1e-9 ? 'neg' : ''));
+    tr.innerHTML = `
+      <td>${i+1}</td>
+      <td>${fmt(row.xmid)}</td>
+      <td class="cell-dy">${fmt(row.dy)}</td>
+      <td class="cell-m">${fmt(row.m)}</td>
+      <td class="cell-d2 ${d2Class}">${row.dm === null ? '—' : fmt(row.dm)}</td>
+    `;
+    tb.appendChild(tr);
+  });
+}
+
+// ── Charts ──────────────────────────────────────────────────
+const fxCv = document.getElementById('fx-cv');
+const rateCv = document.getElementById('rate-cv');
+
+function sizeCv(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.parentElement.clientWidth;
+  const H = cv.parentElement.clientHeight;
+  cv.width = W*dpr; cv.height = H*dpr;
+  cv.style.width = W+'px'; cv.style.height = H+'px';
+}
+
+function niceAxis(vals) {
+  if (!vals.length) return { min: -1, max: 1, step: 0.5 };
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (lo === hi) { lo -= 1; hi += 1; }
+  const span = hi - lo;
+  const raw = span / 5;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const nice = [1, 2, 2.5, 5, 10].find(fac => fac*mag >= raw) * mag;
+  return { min: Math.floor(lo/nice)*nice, max: Math.ceil(hi/nice)*nice, step: nice };
+}
+
+function cssVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
+
+function drawAxes(ctx, pad, W, H, xR, yR, xLbl, yLbl) {
+  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+  const toX = v => pad.l + (v - xR.min) / (xR.max - xR.min) * pw;
+  const toY = v => pad.t + ph - (v - yR.min) / (yR.max - yR.min) * ph;
+
+  ctx.strokeStyle = cssVar('--border'); ctx.lineWidth = 0.8;
+  for (let v = xR.min; v <= xR.max + xR.step*0.01; v += xR.step) {
+    const px = toX(v);
+    ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, pad.t+ph); ctx.stroke();
+  }
+  for (let v = yR.min; v <= yR.max + yR.step*0.01; v += yR.step) {
+    const py = toY(v);
+    ctx.beginPath(); ctx.moveTo(pad.l, py); ctx.lineTo(pad.l+pw, py); ctx.stroke();
+  }
+
+  ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1.3;
+  if (yR.min <= 0 && yR.max >= 0) {
+    const py0 = toY(0);
+    ctx.beginPath(); ctx.moveTo(pad.l, py0); ctx.lineTo(pad.l+pw, py0); ctx.stroke();
+  }
+  if (xR.min <= 0 && xR.max >= 0) {
+    const px0 = toX(0);
+    ctx.beginPath(); ctx.moveTo(px0, pad.t); ctx.lineTo(px0, pad.t+ph); ctx.stroke();
+  }
+
+  ctx.strokeStyle = cssVar('--border'); ctx.lineWidth = 1.5;
+  ctx.strokeRect(pad.l, pad.t, pw, ph);
+
+  ctx.fillStyle = cssVar('--muted'); ctx.font = '11px Courier New';
+  ctx.textAlign = 'center';
+  for (let v = xR.min; v <= xR.max + xR.step*0.01; v += xR.step)
+    ctx.fillText(parseFloat(v.toPrecision(4)), toX(v), pad.t+ph+15);
+  ctx.textAlign = 'right';
+  for (let v = yR.min; v <= yR.max + yR.step*0.01; v += yR.step)
+    ctx.fillText(parseFloat(v.toPrecision(4)), pad.l-6, toY(v)+4);
+
+  ctx.fillStyle = cssVar('--text'); ctx.font = 'bold 13px Segoe UI';
+  ctx.textAlign = 'center';
+  ctx.fillText(xLbl, pad.l+pw/2, H-6);
+  ctx.save();
+  ctx.translate(15, pad.t+ph/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.fillText(yLbl, 0, 0);
+  ctx.restore();
+
+  return { toX, toY, pw, ph };
+}
+
+function drawFxChart() {
+  sizeCv(fxCv);
+  const dpr = window.devicePixelRatio || 1;
+  const ctx = fxCv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W = fxCv.width/dpr, H = fxCv.height/dpr;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = cssVar('--surface'); ctx.fillRect(0,0,W,H);
+
+  const pad = { l: 56, r: 16, t: 16, b: 38 };
+
+  const SAMPLES = 300;
+  const xs = [], ys = [];
+  for (let i = 0; i <= SAMPLES; i++) {
+    const x = xMin + (xMax-xMin)*i/SAMPLES;
+    xs.push(x); ys.push(f(x));
+  }
+  const allY = ys.concat(points.map(p => p.y)).filter(v => isFinite(v));
+  const xR = niceAxis([xMin, xMax]);
+  const yR = niceAxis(allY);
+  const { toX, toY } = drawAxes(ctx, pad, W, H, xR, yR, 'x', 'y');
+
+  ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  let started = false;
+  xs.forEach((x,i) => {
+    const py = toY(ys[i]);
+    if (!isFinite(py)) { started = false; return; }
+    const px = toX(x);
+    if (!started) { ctx.moveTo(px,py); started = true; } else ctx.lineTo(px,py);
+  });
+  ctx.stroke();
+
+  ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1;
+  ctx.setLineDash([3,3]);
+  points.forEach(p => {
+    const px = toX(p.x);
+    ctx.beginPath(); ctx.moveTo(px, toY(yR.min)); ctx.lineTo(px, toY(p.y)); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = cssVar('--purple'); ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  points.forEach((p,i) => { const px=toX(p.x), py=toY(p.y); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); });
+  ctx.stroke();
+
+  ctx.fillStyle = cssVar('--orange');
+  points.forEach(p => {
+    ctx.beginPath(); ctx.arc(toX(p.x), toY(p.y), 5, 0, Math.PI*2); ctx.fill();
+  });
+}
+
+function drawRateChart() {
+  sizeCv(rateCv);
+  const dpr = window.devicePixelRatio || 1;
+  const ctx = rateCv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W = rateCv.width/dpr, H = rateCv.height/dpr;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = cssVar('--surface'); ctx.fillRect(0,0,W,H);
+
+  const pad = { l: 56, r: 16, t: 16, b: 38 };
+
+  const derivXs = [], derivYs = [];
+  if (showDeriv) {
+    const SAMPLES = 200;
+    for (let i = 0; i <= SAMPLES; i++) {
+      const x = xMin + (xMax-xMin)*i/SAMPLES;
+      derivXs.push(x); derivYs.push(fPrime(x));
+    }
+  }
+
+  const mVals = diffs.map(dd => dd.m).filter(v => isFinite(v));
+  const yVals = (showDeriv ? mVals.concat(derivYs) : mVals).filter(v => isFinite(v));
+  const xR = niceAxis([xMin, xMax]);
+  const yR = niceAxis(yVals.length ? yVals : [-1,1]);
+  const { toX, toY } = drawAxes(ctx, pad, W, H, xR, yR, 'x (interval midpoint)', 'm = Δy/Δx');
+
+  const dx = (xMax - xMin) / N;
+  const barW = Math.max(4, (toX(xMin+dx) - toX(xMin)) * 0.6);
+  diffs.forEach((row, i) => {
+    const prevM = i === 0 ? null : diffs[i-1].m;
+    let color = cssVar('--muted');
+    if (prevM !== null && isFinite(row.m) && isFinite(prevM)) {
+      if (row.m > prevM + 1e-9) color = cssVar('--green');
+      else if (row.m < prevM - 1e-9) color = cssVar('--red');
+    }
+    ctx.fillStyle = color;
+    const px = toX(row.xmid);
+    const py0 = toY(0), py1 = toY(row.m);
+    if (isFinite(py1)) ctx.fillRect(px - barW/2, Math.min(py0,py1), barW, Math.abs(py1-py0));
+  });
+
+  if (showDeriv) {
+    ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2;
+    ctx.setLineDash([6,4]);
+    ctx.beginPath();
+    let started = false;
+    derivXs.forEach((x,i) => {
+      const py = toY(derivYs[i]);
+      if (!isFinite(py)) { started = false; return; }
+      const px = toX(x);
+      if (!started) { ctx.moveTo(px,py); started = true; } else ctx.lineTo(px,py);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawCharts() { drawFxChart(); drawRateChart(); }
+
+// ── Controls wiring ─────────────────────────────────────────
+document.getElementById('plot-btn').addEventListener('click', tryParseAndApply);
+document.getElementById('fx-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); tryParseAndApply(); }
+});
+
+document.getElementById('xmin-in').addEventListener('change', e => {
+  const v = parseFloat(e.target.value);
+  if (!isNaN(v) && v < xMax) { xMin = v; recompute(); } else { e.target.value = xMin; }
+});
+document.getElementById('xmax-in').addEventListener('change', e => {
+  const v = parseFloat(e.target.value);
+  if (!isNaN(v) && v > xMin) { xMax = v; recompute(); } else { e.target.value = xMax; }
+});
+document.getElementById('n-slider').addEventListener('input', e => {
+  N = parseInt(e.target.value, 10);
+  document.getElementById('n-val').textContent = N;
+  recompute();
+});
+document.getElementById('deriv-toggle').addEventListener('change', e => { showDeriv = e.target.checked; drawCharts(); });
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+});
+
+window.addEventListener('resize', drawCharts);
+
+tryParseAndApply();
+</script>
+
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  const saved = localStorage.getItem('theme');
+  if (saved === 'dark') { document.body.classList.add('dark'); btn.textContent = '☀'; }
+  btn.addEventListener('click', () => {
+    const isDark = document.body.classList.toggle('dark');
+    btn.textContent = isDark ? '☀' : '🌙';
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    drawCharts();
+  });
+})();
+</script>
+</body>
+</html>
