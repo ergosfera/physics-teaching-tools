@@ -224,6 +224,12 @@
   }
 
   #data-scroll{flex:1;overflow-y:auto;min-height:0;background:var(--field);margin:0 2px 2px}
+  #table-footer{
+    flex-shrink:0;padding:4px 6px;background:var(--face);
+    border-top:1px solid var(--shadow);box-shadow:0 1px 0 var(--hi);
+    display:flex;justify-content:flex-end;
+  }
+  .graph-section.collapsed #table-footer{display:none}
   #data-scroll::-webkit-scrollbar{width:16px}
   #data-scroll::-webkit-scrollbar-track{
     background-color:var(--hi);
@@ -481,6 +487,9 @@
             <thead><tr><th>#</th><th>t (s)</th><th id="th-x">X</th><th id="th-y">Y</th><th></th></tr></thead>
             <tbody id="data-tbody"></tbody>
           </table>
+        </div>
+        <div id="table-footer">
+          <button class="b95" id="btn-export-table" onclick="exportCSV()" disabled>&#11015; Export CSV&hellip;</button>
         </div>
       </div>
     </div>
@@ -1243,7 +1252,7 @@ function addTrackPoint(cp) {
     const w = canvasToWorld(cp.x, cp.y);
     S.points.push({ frame: S.frameIndex, time: S.frameIndex / S.fps,
                     cx: cp.x, cy: cp.y, wx: w.x, wy: w.y });
-    ['btn-undo','btn-clear','btn-export'].forEach(id =>
+    ['btn-undo','btn-clear','btn-export','btn-export-table'].forEach(id =>
         document.getElementById(id).disabled = false);
     drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
     seekTo(S.frameIndex + 1);
@@ -1252,7 +1261,7 @@ function addTrackPoint(cp) {
 function undoLastPoint() {
     S.points.pop();
     if (!S.points.length)
-        ['btn-undo','btn-clear','btn-export'].forEach(id =>
+        ['btn-undo','btn-clear','btn-export','btn-export-table'].forEach(id =>
             document.getElementById(id).disabled = true);
     drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
 }
@@ -1260,7 +1269,7 @@ function undoLastPoint() {
 function clearTracking() {
     if (!confirm('Clear all tracked points and calibration?')) return;
     S.points = []; S.calPts = []; S.calibrated = false; S.scale = 1;
-    ['btn-undo','btn-clear','btn-export'].forEach(id =>
+    ['btn-undo','btn-clear','btn-export','btn-export-table'].forEach(id =>
         document.getElementById(id).disabled = true);
     updateTableHeader();
     drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
@@ -1696,7 +1705,7 @@ function drawGraphY() { drawGraphSingle(gyctx, gycan, 'y', S.fitY); }
 function removePoint(i) {
     S.points.splice(i, 1);
     if (!S.points.length)
-        ['btn-undo','btn-clear','btn-export'].forEach(id =>
+        ['btn-undo','btn-clear','btn-export','btn-export-table'].forEach(id =>
             document.getElementById(id).disabled = true);
     drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
 }
