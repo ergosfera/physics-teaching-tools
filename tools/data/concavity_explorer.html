@@ -144,13 +144,26 @@ tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); 
 .graph-half + .graph-half { border-top: 2px solid var(--border); }
 .graph-header {
   flex-shrink: 0; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface);
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; row-gap: 4px;
 }
 .graph-half:first-child .graph-header { border-top: 3px solid var(--panel-color, var(--orange)); }
 .graph-half + .graph-half .graph-header { border-top: 2px solid var(--border); }
-.graph-title { font-size: 0.85rem; font-weight: 800; color: var(--panel-color, var(--orange)); letter-spacing: .04em; text-transform: uppercase; flex: 1; }
+.graph-title { font-size: 0.85rem; font-weight: 800; color: var(--panel-color, var(--orange)); letter-spacing: .04em; text-transform: uppercase; }
 .graph-wrap { flex: 1 1 0; min-height: 0; position: relative; background: var(--surface); padding: 6px; }
 canvas.chart { display: block; width: 100%; height: 100%; }
+
+.view-toggle { display: flex; gap: 4px; }
+.view-btn { padding: 4px 9px; font-size: 0.72rem; }
+.view-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.h-row { display: flex; align-items: center; gap: 6px; font-size: 0.74rem; color: var(--muted); }
+.h-row input[type=range] { width: 80px; accent-color: var(--accent); }
+.axis-hint { font-size: 0.68rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
+.cursor-readout {
+  position: absolute; top: 8px; left: 64px; z-index: 2; display: none;
+  font-size: 0.78rem; font-family: 'Courier New', monospace; font-weight: 700; color: var(--accent);
+  background: color-mix(in srgb, var(--surface) 85%, transparent); padding: 3px 9px; border-radius: 6px;
+  pointer-events: none; white-space: nowrap;
+}
 
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -240,13 +253,29 @@ canvas.chart { display: block; width: 100%; height: 100%; }
 <!-- Graph panel -->
 <div id="graph-panel">
   <div class="graph-half">
-    <div class="graph-header"><span class="graph-title">📈 f(x) — Secant Segments</span></div>
+    <div class="graph-header">
+      <span class="graph-title">📈 f(x)</span>
+      <div class="view-toggle" id="fx-view-toggle">
+        <button class="btn view-btn active" data-mode="segments" type="button">▤ Segments</button>
+        <button class="btn view-btn" data-mode="cursor" type="button">✥ Cursor Secant</button>
+      </div>
+      <div class="h-row" id="h-row" style="display:none">
+        <label>h</label>
+        <input type="range" id="h-slider" min="2" max="25" step="1" value="8">
+        <span id="h-val">8%</span>
+      </div>
+      <span class="axis-hint">↔ / ↕ drag chart edges to rescale · dbl-click edge to reset</span>
+    </div>
     <div class="graph-wrap" id="fx-wrap">
       <canvas id="fx-cv" class="chart"></canvas>
+      <div class="cursor-readout" id="cursor-readout"></div>
     </div>
   </div>
   <div class="graph-half">
-    <div class="graph-header"><span class="graph-title">📊 Rate of Change (Δy/Δx per interval)</span></div>
+    <div class="graph-header">
+      <span class="graph-title">📊 Rate of Change (Δy/Δx per interval)</span>
+      <span class="axis-hint">↔ / ↕ drag chart edges to rescale · dbl-click edge to reset</span>
+    </div>
     <div class="graph-wrap" id="rate-wrap">
       <canvas id="rate-cv" class="chart"></canvas>
     </div>
@@ -328,6 +357,16 @@ let derivC = derivativeCoeffs(coeffs);
 let deriv2C = derivativeCoeffs(derivC);
 let xMin = -3, xMax = 3, N = 8;
 let showDeriv = false;
+
+// ── Rate-of-change view mode: fixed interval segments vs. a secant
+//    that follows the cursor along the curve ────────────────────
+let viewMode = 'segments';   // 'segments' | 'cursor'
+let cursorX = null;
+let fxTransform = null;
+
+// ── Independent per-axis manual zoom (click-and-drag on chart edges) ──
+let fxZoom   = { x: 1, y: 1, dragging: null, _start: 0, _startZoom: 1 };
+let rateZoom = { x: 1, y: 1, dragging: null, _start: 0, _startZoom: 1 };
 
 const f      = x => evalPoly(coeffs, x);
 const fPrime = x => evalPoly(derivC, x);
@@ -463,6 +502,7 @@ function renderTable() {
 // ── Charts ──────────────────────────────────────────────────
 const fxCv = document.getElementById('fx-cv');
 const rateCv = document.getElementById('rate-cv');
+const PAD = { l: 56, r: 16, t: 16, b: 38 };
 
 function sizeCv(cv) {
   const dpr = window.devicePixelRatio || 1;
@@ -481,6 +521,36 @@ function niceAxis(vals) {
   const mag = Math.pow(10, Math.floor(Math.log10(raw)));
   const nice = [1, 2, 2.5, 5, 10].find(fac => fac*mag >= raw) * mag;
   return { min: Math.floor(lo/nice)*nice, max: Math.ceil(hi/nice)*nice, step: nice };
+}
+
+// Nice tick step for an explicit (already-decided) min/max range.
+function stepFor(min, max) {
+  const span = (max - min) || 1;
+  const raw = span / 5;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  return [1, 2, 2.5, 5, 10].find(fac => fac*mag >= raw) * mag;
+}
+
+// Shrinks/grows an axis range around its own center by a manual zoom factor
+// (>1 = zoomed in / narrower span, <1 = zoomed out / wider span).
+function applyZoom(range, zoom) {
+  if (!zoom || zoom === 1) return range;
+  const center = (range.min + range.max) / 2;
+  const half = (range.max - range.min) / 2 / zoom;
+  const min = center - half, max = center + half;
+  return { min, max, step: stepFor(min, max) };
+}
+
+// Half-width h (as a fraction of the current x-window) for the cursor secant.
+function getCursorSecant() {
+  if (cursorX === null) return null;
+  const slider = document.getElementById('h-slider');
+  const hFrac = slider ? parseInt(slider.value, 10) / 100 : 0.08;
+  const h = (xMax - xMin) * hFrac;
+  const x1 = cursorX - h, x2 = cursorX + h;
+  const y1 = f(x1), y2 = f(x2);
+  const m = (y2 - y1) / (2*h);
+  return { x: cursorX, y: f(cursorX), x1, y1, x2, y2, m, h };
 }
 
 function cssVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
@@ -542,7 +612,7 @@ function drawFxChart() {
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle = cssVar('--surface'); ctx.fillRect(0,0,W,H);
 
-  const pad = { l: 56, r: 16, t: 16, b: 38 };
+  const pad = PAD;
 
   const SAMPLES = 300;
   const xs = [], ys = [];
@@ -551,9 +621,12 @@ function drawFxChart() {
     xs.push(x); ys.push(f(x));
   }
   const allY = ys.concat(points.map(p => p.y)).filter(v => isFinite(v));
-  const xR = niceAxis([xMin, xMax]);
-  const yR = niceAxis(allY);
+  const xR = applyZoom(niceAxis([xMin, xMax]), fxZoom.x);
+  const yR = applyZoom(niceAxis(allY), fxZoom.y);
   const { toX, toY } = drawAxes(ctx, pad, W, H, xR, yR, 'x', 'y');
+
+  const pw = W - pad.l - pad.r;
+  fxTransform = { pad, W, H, xR, yR, fromX: px => xR.min + (px - pad.l) / pw * (xR.max - xR.min) };
 
   ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2.5;
   ctx.beginPath();
@@ -566,23 +639,45 @@ function drawFxChart() {
   });
   ctx.stroke();
 
-  ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1;
-  ctx.setLineDash([3,3]);
-  points.forEach(p => {
-    const px = toX(p.x);
-    ctx.beginPath(); ctx.moveTo(px, toY(yR.min)); ctx.lineTo(px, toY(p.y)); ctx.stroke();
-  });
-  ctx.setLineDash([]);
+  if (viewMode === 'segments') {
+    ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1;
+    ctx.setLineDash([3,3]);
+    points.forEach(p => {
+      const px = toX(p.x);
+      ctx.beginPath(); ctx.moveTo(px, toY(yR.min)); ctx.lineTo(px, toY(p.y)); ctx.stroke();
+    });
+    ctx.setLineDash([]);
 
-  ctx.strokeStyle = cssVar('--purple'); ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  points.forEach((p,i) => { const px=toX(p.x), py=toY(p.y); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); });
-  ctx.stroke();
+    ctx.strokeStyle = cssVar('--purple'); ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    points.forEach((p,i) => { const px=toX(p.x), py=toY(p.y); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); });
+    ctx.stroke();
 
-  ctx.fillStyle = cssVar('--orange');
-  points.forEach(p => {
-    ctx.beginPath(); ctx.arc(toX(p.x), toY(p.y), 5, 0, Math.PI*2); ctx.fill();
-  });
+    ctx.fillStyle = cssVar('--orange');
+    points.forEach(p => {
+      ctx.beginPath(); ctx.arc(toX(p.x), toY(p.y), 5, 0, Math.PI*2); ctx.fill();
+    });
+  } else {
+    // Cursor-following secant: two close points around the hovered x,
+    // drawn extended a bit beyond the small interval (like a near-tangent).
+    const sec = getCursorSecant();
+    if (sec) {
+      const ext = sec.h * 0.6;
+      const lx1 = sec.x1 - ext, ly1 = sec.y1 - sec.m*ext;
+      const lx2 = sec.x2 + ext, ly2 = sec.y2 + sec.m*ext;
+      ctx.strokeStyle = cssVar('--purple'); ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(toX(lx1), toY(ly1)); ctx.lineTo(toX(lx2), toY(ly2)); ctx.stroke();
+
+      ctx.fillStyle = cssVar('--orange');
+      [[sec.x1, sec.y1], [sec.x2, sec.y2]].forEach(([x,y]) => {
+        ctx.beginPath(); ctx.arc(toX(x), toY(y), 4, 0, Math.PI*2); ctx.fill();
+      });
+
+      ctx.fillStyle = cssVar('--accent');
+      ctx.beginPath(); ctx.arc(toX(sec.x), toY(sec.y), 6, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = cssVar('--surface'); ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
 }
 
 function drawRateChart() {
@@ -594,7 +689,7 @@ function drawRateChart() {
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle = cssVar('--surface'); ctx.fillRect(0,0,W,H);
 
-  const pad = { l: 56, r: 16, t: 16, b: 38 };
+  const pad = PAD;
 
   const derivXs = [], derivYs = [];
   if (showDeriv) {
@@ -607,8 +702,8 @@ function drawRateChart() {
 
   const mVals = diffs.map(dd => dd.m).filter(v => isFinite(v));
   const yVals = (showDeriv ? mVals.concat(derivYs) : mVals).filter(v => isFinite(v));
-  const xR = niceAxis([xMin, xMax]);
-  const yR = niceAxis(yVals.length ? yVals : [-1,1]);
+  const xR = applyZoom(niceAxis([xMin, xMax]), rateZoom.x);
+  const yR = applyZoom(niceAxis(yVals.length ? yVals : [-1,1]), rateZoom.y);
   const { toX, toY } = drawAxes(ctx, pad, W, H, xR, yR, 'x (interval midpoint)', 'm = Δy/Δx');
 
   const dx = (xMax - xMin) / N;
@@ -640,9 +735,37 @@ function drawRateChart() {
     ctx.stroke();
     ctx.setLineDash([]);
   }
+
+  if (viewMode === 'cursor' && cursorX !== null) {
+    const sec = getCursorSecant();
+    const px = toX(sec.x);
+    ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1;
+    ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, H-pad.b); ctx.stroke();
+    ctx.setLineDash([]);
+    if (isFinite(sec.m)) {
+      const py = toY(sec.m);
+      ctx.fillStyle = cssVar('--accent');
+      ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = cssVar('--surface'); ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
 }
 
-function drawCharts() { drawFxChart(); drawRateChart(); }
+function updateCursorReadout() {
+  const el = document.getElementById('cursor-readout');
+  if (viewMode !== 'cursor') { el.style.display = 'none'; return; }
+  if (cursorX === null) {
+    el.textContent = 'Move the cursor over the curve to slide the secant →';
+    el.style.display = 'block';
+    return;
+  }
+  const sec = getCursorSecant();
+  el.textContent = `x ≈ ${fmt(sec.x)}   f(x) ≈ ${fmt(sec.y)}   secant slope m ≈ ${fmt(sec.m)}`;
+  el.style.display = 'block';
+}
+
+function drawCharts() { drawFxChart(); drawRateChart(); updateCursorReadout(); }
 
 // ── Controls wiring ─────────────────────────────────────────
 document.getElementById('plot-btn').addEventListener('click', tryParseAndApply);
@@ -668,6 +791,79 @@ document.getElementById('deriv-toggle').addEventListener('change', e => { showDe
 document.querySelectorAll('.preset-btn').forEach(btn => {
   btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
 });
+
+// ── View mode: fixed segments vs. cursor-following secant ───────────
+document.querySelectorAll('#fx-view-toggle .view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    viewMode = btn.dataset.mode;
+    document.querySelectorAll('#fx-view-toggle .view-btn').forEach(b => b.classList.toggle('active', b === btn));
+    document.getElementById('h-row').style.display = viewMode === 'cursor' ? 'flex' : 'none';
+    if (viewMode === 'segments') cursorX = null;
+    drawCharts();
+  });
+});
+document.getElementById('h-slider').addEventListener('input', e => {
+  document.getElementById('h-val').textContent = e.target.value + '%';
+  if (viewMode === 'cursor') drawCharts();
+});
+
+fxCv.addEventListener('mousemove', e => {
+  if (viewMode !== 'cursor' || fxZoom.dragging || !fxTransform) return;
+  const rect = fxCv.getBoundingClientRect();
+  const px = e.clientX - rect.left, py = e.clientY - rect.top;
+  const { pad, W, H, xR } = fxTransform;
+  if (px < pad.l || px > W - pad.r || py < pad.t || py > H - pad.b) return;
+  cursorX = Math.min(xR.max, Math.max(xR.min, fxTransform.fromX(px)));
+  drawCharts();
+});
+fxCv.addEventListener('mouseleave', () => {
+  if (viewMode !== 'cursor') return;
+  cursorX = null;
+  drawCharts();
+});
+
+// ── Independent click-and-drag axis zoom, on both charts ─────────────
+// Drag the strip below the x-axis to rescale x; drag the strip left of the
+// y-axis to rescale y. Double-click either strip to reset that axis.
+function wireZoomDrag(cv, zoomState, redraw, defaultCursor) {
+  function zoneAt(x, y, w, h) {
+    if (y > h - PAD.b && y < h && x > PAD.l && x < w - PAD.r) return 'x';
+    if (x < PAD.l && x >= 0 && y > PAD.t && y < h - PAD.b) return 'y';
+    return null;
+  }
+  cv.addEventListener('mousemove', e => {
+    if (zoomState.dragging) return;
+    const r = cv.getBoundingClientRect();
+    const zone = zoneAt(e.clientX - r.left, e.clientY - r.top, r.width, r.height);
+    cv.style.cursor = zone === 'x' ? 'ew-resize' : zone === 'y' ? 'ns-resize' : (defaultCursor ? defaultCursor() : 'default');
+  });
+  cv.addEventListener('mousedown', e => {
+    const r = cv.getBoundingClientRect();
+    const zone = zoneAt(e.clientX - r.left, e.clientY - r.top, r.width, r.height);
+    if (!zone) return;
+    e.preventDefault();
+    zoomState.dragging = zone;
+    zoomState._start = zone === 'x' ? e.clientX : e.clientY;
+    zoomState._startZoom = zoomState[zone];
+  });
+  cv.addEventListener('dblclick', e => {
+    const r = cv.getBoundingClientRect();
+    const zone = zoneAt(e.clientX - r.left, e.clientY - r.top, r.width, r.height);
+    if (zone) { zoomState[zone] = 1; redraw(); }
+  });
+  window.addEventListener('mousemove', e => {
+    if (!zoomState.dragging) return;
+    const zone = zoomState.dragging;
+    const cur = zone === 'x' ? e.clientX : e.clientY;
+    let delta = cur - zoomState._start;
+    if (zone === 'y') delta = -delta;
+    zoomState[zone] = Math.min(15, Math.max(0.15, zoomState._startZoom * Math.exp(delta / 150)));
+    redraw();
+  });
+  window.addEventListener('mouseup', () => { zoomState.dragging = null; });
+}
+wireZoomDrag(fxCv, fxZoom, drawFxChart, () => (viewMode === 'cursor' ? 'crosshair' : 'default'));
+wireZoomDrag(rateCv, rateZoom, drawRateChart);
 
 window.addEventListener('resize', drawCharts);
 
