@@ -17,7 +17,7 @@
       --muted: #8b949e;
       --accent: #58a6ff;
       --green: #3fb950;
-      --radius: 14px;
+      --radius: 12px;
     }
 
     body.light {
@@ -83,39 +83,77 @@
     }
     #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
+    /* ── TABS ── */
+    .tab-bar {
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      padding: 0 40px;
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      display: flex; align-items: center; gap: 8px;
+      background: none; border: none; cursor: pointer;
+      padding: 14px 18px 12px;
+      font-family: inherit; font-size: 0.88rem; font-weight: 700;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-btn .tab-count {
+      font-size: 0.68rem; font-weight: 700; color: var(--muted);
+      background: var(--surface2); border-radius: 20px; padding: 1px 7px;
+    }
+    .tab-btn.active .tab-count { color: var(--accent); }
+
     /* ── MAIN ── */
     main {
       flex: 1;
-      padding: 40px;
-      max-width: 1100px;
+      padding: 32px 40px 40px;
+      max-width: 1200px;
       margin: 0 auto;
       width: 100%;
     }
 
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .section + .section { margin-top: 30px; }
+
     .section-label {
+      display: flex; align-items: center; gap: 8px;
       font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.12em;
+      font-weight: 700;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--muted);
-      margin-bottom: 20px;
+      margin-bottom: 12px;
+    }
+    .section-label .count {
+      font-weight: 600; color: var(--muted); text-transform: none; letter-spacing: 0;
+      font-size: 0.72rem;
     }
 
-    /* ── CARDS GRID ── */
+    /* ── CARDS GRID (compact) ── */
     .cards {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 18px;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
     }
 
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 24px;
+      padding: 14px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 8px;
       transition: border-color .2s, transform .15s, box-shadow .2s;
       text-decoration: none;
       color: inherit;
@@ -123,73 +161,56 @@
     .card:hover {
       border-color: var(--accent);
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.2);
     }
 
+    .card-top { display: flex; align-items: center; gap: 8px; }
+
     .card-icon {
-      font-size: 2rem;
+      font-size: 1.3rem;
       line-height: 1;
     }
 
     .card-title {
-      font-size: 1.05rem;
+      font-size: 0.88rem;
       font-weight: 700;
       color: var(--text);
+      line-height: 1.3;
     }
 
     .card-desc {
-      font-size: 0.84rem;
+      font-size: 0.76rem;
       color: var(--muted);
-      line-height: 1.6;
+      line-height: 1.45;
       flex: 1;
-    }
-
-    .card-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    .tag {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      font-size: 0.68rem;
-      font-weight: 600;
-      color: var(--muted);
-      padding: 2px 9px;
-      letter-spacing: 0.04em;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     .card-open {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      background: var(--accent);
-      color: #fff;
-      border-radius: 8px;
-      padding: 7px 16px;
-      font-size: 0.82rem;
+      gap: 4px;
+      font-size: 0.74rem;
       font-weight: 700;
-      text-decoration: none;
+      color: var(--accent);
       align-self: flex-start;
-      transition: opacity .15s, transform .1s;
     }
-    body.light .card-open { color: #fff; }
-    .card:hover .card-open { opacity: 0.9; transform: scale(0.98); }
 
     .badge-dev {
       display: inline-block;
       background: #d29922;
       color: #0d1117;
-      font-size: 0.62rem;
+      font-size: 0.58rem;
       font-weight: 700;
-      padding: 2px 7px;
+      padding: 1px 6px;
       border-radius: 20px;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
       vertical-align: middle;
-      margin-left: 7px;
+      margin-left: 5px;
     }
 
     /* ── FOOTER ── */
@@ -237,375 +258,201 @@
   </div>
 </header>
 
+<nav class="tab-bar" id="tab-bar">
+  <button class="tab-btn active" data-tab="teaching">🏫 Teaching <span class="tab-count">3</span></button>
+  <button class="tab-btn" data-tab="physics">⚛️ Physics <span class="tab-count">16</span></button>
+  <button class="tab-btn" data-tab="math">📐 Math <span class="tab-count">2</span></button>
+</nav>
+
 <main>
-  <p class="section-label">25 tools available</p>
 
-  <!-- CLASSROOM TOOLS -->
-  <p class="section-label" style="margin-bottom:14px;">🏫 Classroom Tools</p>
-  <div class="cards" style="margin-bottom:36px;">
+  <!-- ══════════════ TEACHING ══════════════ -->
+  <div class="tab-panel active" id="tab-teaching">
+    <div class="section">
+      <div class="cards">
 
-    <a class="card" href="tools/classroom/control_board.html">
-      <div class="card-icon">🗂️</div>
-      <div class="card-title">Control Board</div>
-      <div class="card-desc">Personal dashboard for office and teaching work. Includes dual calendars with Colombian holidays, countdown timers for specific events, a task list, and notepads. Supports dark/light mode and JSON export.</div>
-      <div class="card-tags">
-        <span class="tag">Calendars</span>
-        <span class="tag">Tasks</span>
-        <span class="tag">Timers</span>
-        <span class="tag">Notepads</span>
-        <span class="tag">Dark/Light</span>
+        <a class="card" href="tools/teaching/class-timer.html">
+          <div class="card-top"><span class="card-icon">⏲️</span><span class="card-title">Class Timer</span></div>
+          <div class="card-desc">Manage class activity segments — presentations, group work, breaks, exams — each with its own countdown.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+        <a class="card" href="tools/teaching/notebook_calculator.html">
+          <div class="card-top"><span class="card-icon">📒</span><span class="card-title">Notebook &amp; Calculator</span></div>
+          <div class="card-desc">Split-panel freehand notebook with a scientific calculator, for in-class problem solving side by side.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+        <a class="card" href="tools/teaching/field-timer.html">
+          <div class="card-top"><span class="card-icon">⚫</span><span class="card-title">Field</span></div>
+          <div class="card-desc">Minimalist full-screen timer made of a grid of dots (1s–6h). Dots fade out as time runs down — no numbers.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
       </div>
-      <span class="card-open">Open →</span>
-    </a>
+    </div>
+  </div>
 
-    <a class="card" href="tools/classroom/class-timer.html">
-      <div class="card-icon">⏲️</div>
-      <div class="card-title">Class Timer</div>
-      <div class="card-desc">Timer designed for classroom activities. Manage different activity segments — presentations, group work, breaks, exams — each with their own countdown. Keep your class on schedule with clear visual feedback for students and teacher.</div>
-      <div class="card-tags">
-        <span class="tag">Classroom</span>
-        <span class="tag">Activities</span>
-        <span class="tag">Timer</span>
-        <span class="tag">Teaching</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
+  <!-- ══════════════ PHYSICS ══════════════ -->
+  <div class="tab-panel" id="tab-physics">
 
-    <a class="card" href="tools/classroom/notebook_calculator.html">
-      <div class="card-icon">📒</div>
-      <div class="card-title">Notebook &amp; Calculator</div>
-      <div class="card-desc">Split-panel workspace combining a freehand drawing notebook with a scientific calculator. Sketch diagrams, write equations, and calculate side by side — ideal for in-class problem solving without switching tools.</div>
-      <div class="card-tags">
-        <span class="tag">Notebook</span>
-        <span class="tag">Calculator</span>
-        <span class="tag">Freehand Drawing</span>
-        <span class="tag">Dark/Light</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
+    <div class="section">
+      <p class="section-label">🚗 Kinematics <span class="count">(5)</span></p>
+      <div class="cards">
 
-    <a class="card" href="tools/classroom/meridiano.html">
-      <div class="card-icon">🕒</div>
-      <div class="card-title">Meridiano</div>
-      <div class="card-desc">Retro-styled world clock for comparing times across cities. Add cities, drag across the hour bands to see one moment everywhere at once, and copy times for scheduling classes or meetings across time zones.</div>
-      <div class="card-tags">
-        <span class="tag">World Clock</span>
-        <span class="tag">Time Zones</span>
-        <span class="tag">Scheduling</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
+        <a class="card" href="tools/physics/kinematics/car_reference_frame.html">
+          <div class="card-top"><span class="card-icon">🚙</span><span class="card-title">Car — Velocity &amp; Acceleration</span></div>
+          <div class="card-desc">Animated car with labeled velocity and acceleration vectors. Explore reference frames and Newton's laws.</div>
+          <span class="card-open">Open →</span>
+        </a>
 
-    <a class="card" href="tools/classroom/field-timer.html">
-      <div class="card-icon">⚫</div>
-      <div class="card-title">Field</div>
-      <div class="card-desc">Minimalist full-screen timer made of a grid of dots. Drag the field to set anywhere from 1 second to 6 hours, then watch the dots fade from white to gray, bottom to top, as time runs out. No numbers once it starts — just the field.</div>
-      <div class="card-tags">
-        <span class="tag">Timer</span>
-        <span class="tag">Minimalist</span>
-        <span class="tag">Full Screen</span>
+        <a class="card" href="tools/physics/kinematics/car_top_view.html">
+          <div class="card-top"><span class="card-icon">🗺️</span><span class="card-title">Car — Top View</span></div>
+          <div class="card-desc">Top-down 2D motion with configurable path/speed. Shows velocity vector, heading, and trajectory live.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+        <a class="card" href="tools/physics/kinematics/elevator_signs.html">
+          <div class="card-top"><span class="card-icon">🛗</span><span class="card-title">Elevator — Velocity &amp; Acceleration</span></div>
+          <div class="card-desc">Live velocity/acceleration readouts. Explore apparent weight with upward and downward acceleration.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+        <a class="card" href="tools/physics/kinematics/stopwatch.html">
+          <div class="card-top"><span class="card-icon">⏱️</span><span class="card-title">Interval Stopwatch</span></div>
+          <div class="card-desc">Stopwatch for motion experiments. Audible beep at set intervals; export data as CSV.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+        <a class="card" href="tools/physics/kinematics/vt_area.html">
+          <div class="card-top"><span class="card-icon">📉</span><span class="card-title">Distance from v-t Graph</span></div>
+          <div class="card-desc">Displacement as area under a velocity-time curve, decomposed into rectangles/triangles. CSV import.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
       </div>
-      <span class="card-open">Open →</span>
-    </a>
+    </div>
+
+    <div class="section">
+      <p class="section-label">🔬 Lab Tools <span class="count">(8)</span></p>
+      <div class="cards">
+
+        <a class="card" href="tools/physics/lab-tools/meridiano.html">
+          <div class="card-top"><span class="card-icon">🕒</span><span class="card-title">Meridiano</span></div>
+          <div class="card-desc">Retro world clock for comparing times across cities and scheduling across time zones.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+        <a class="card" href="tools/physics/lab-tools/image_measure.html">
+          <div class="card-top"><span class="card-icon">📐</span><span class="card-title">Image Measurement Tool</span></div>
+          <div class="card-desc">Measure distances/angles on an imported image. Calibrate scale, rotate, zoom/pan, export as CSV.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+        <a class="card" href="tools/physics/lab-tools/video_sound_timeline.html">
+          <div class="card-top"><span class="card-icon">🔊</span><span class="card-title">Video Sound Timeline<span class="badge-dev">In Dev</span></span></div>
+          <div class="card-desc">Loudness (RMS) over time under a video. Draggable markers to time sounds — claps, echoes, beats.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+        <a class="card" href="tools/physics/lab-tools/instantaneous_velocity.html">
+          <div class="card-top"><span class="card-icon">⚡</span><span class="card-title">Instantaneous Velocity</span></div>
+          <div class="card-desc">Position-vs-time plotting with tangent lines and limiting secants. CSV import from your own data.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+        <a class="card" href="tools/physics/lab-tools/linear_regression.html">
+          <div class="card-top"><span class="card-icon">📈</span><span class="card-title">Linear Regression Explorer</span></div>
+          <div class="card-desc">Why the best-fit line minimizes residuals — sum of distances above equals the sum below. Add points or a table.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+        <a class="card" href="tools/physics/lab-tools/blink_comparator.html">
+          <div class="card-top"><span class="card-icon">🔭</span><span class="card-title">Blink Comparator</span></div>
+          <div class="card-desc">Classic astronomical tool: alternate two images rapidly to spot moving objects or differences.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+        <a class="card" href="tools/physics/lab-tools/graph_digitizer.html">
+          <div class="card-top"><span class="card-icon">📌</span><span class="card-title">Graph Digitizer</span></div>
+          <div class="card-desc">Extract (x, y) data from a graph image. Calibrate two reference points, click the curve, export CSV.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+        <a class="card" href="tools/physics/lab-tools/VideoTracker.html">
+          <div class="card-top"><span class="card-icon">🎬</span><span class="card-title">Video Tracker<span class="badge-dev">In Dev</span></span></div>
+          <div class="card-desc">Frame-by-frame object tracking in any video, Tracker-inspired. Multi-object support for motion analysis.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+      </div>
+    </div>
+
+    <div class="section">
+      <p class="section-label">〰️ Waves <span class="count">(2)</span></p>
+      <div class="cards">
+
+        <a class="card" href="tools/physics/waves/doppler_effect_simulator.html">
+          <div class="card-top"><span class="card-icon">🔊</span><span class="card-title">Doppler Effect Simulator</span></div>
+          <div class="card-desc">Doppler effect for sound. Adjust source velocity; see frequency/wavelength shift and live wavefronts.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+        <a class="card" href="tools/physics/waves/doppler_light_simulator.html">
+          <div class="card-top"><span class="card-icon">🌈</span><span class="card-title">Relativistic Doppler Effect</span></div>
+          <div class="card-desc">Relativistic Doppler effect for light. Two observers see wavelength/color shift from a moving source.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+      </div>
+    </div>
+
+    <div class="section">
+      <p class="section-label">➡️ Forces <span class="count">(1)</span></p>
+      <div class="cards">
+
+        <a class="card" href="tools/physics/forces/vector_addition.html">
+          <div class="card-top"><span class="card-icon">⊕</span><span class="card-title">Vector Addition — Net Force</span></div>
+          <div class="card-desc">Add force vectors interactively and find the resultant, with components, angles, and a graphical sum.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
+      </div>
+    </div>
 
   </div>
 
-  <!-- KINEMATICS SIMULATIONS -->
-  <p class="section-label" style="margin-bottom:14px;">🚗 Kinematics Simulations</p>
-  <div class="cards" style="margin-bottom:36px;">
+  <!-- ══════════════ MATH ══════════════ -->
+  <div class="tab-panel" id="tab-math">
 
-    <a class="card" href="tools/kinematics/car_reference_frame.html">
-      <div class="card-icon">🚙</div>
-      <div class="card-title">Car — Velocity &amp; Acceleration</div>
-      <div class="card-desc">Animated car with labeled velocity and acceleration vector arrows. Configure speed and acceleration to explore kinematics concepts visually. Ideal for introducing Newton's laws and reference frames in class.</div>
-      <div class="card-tags">
-        <span class="tag">Kinematics</span>
-        <span class="tag">Vectors</span>
-        <span class="tag">Animation</span>
-        <span class="tag">Dark/Light</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
+    <div class="section">
+      <p class="section-label">↗️ Vectors <span class="count">(1)</span></p>
+      <div class="cards">
 
-    <a class="card" href="tools/kinematics/car_top_view.html">
-      <div class="card-icon">🗺️</div>
-      <div class="card-title">Car — Top View</div>
-      <div class="card-desc">Top-down 2D view of a car's motion with configurable path and speed. Shows velocity vector, heading, and trajectory in real time. Good for introducing 2D kinematics and circular or curved motion.</div>
-      <div class="card-tags">
-        <span class="tag">2D Kinematics</span>
-        <span class="tag">Top View</span>
-        <span class="tag">Trajectory</span>
-        <span class="tag">Dark/Light</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
+        <a class="card" href="tools/math/vectors/vector_decomposition.html">
+          <div class="card-top"><span class="card-icon">↗️</span><span class="card-title">Vector Components</span></div>
+          <div class="card-desc">Decompose a vector into (x, y) components. Drag to adjust magnitude/angle; values update instantly.</div>
+          <span class="card-open">Open →</span>
+        </a>
 
-    <a class="card" href="tools/kinematics/elevator_signs.html">
-      <div class="card-icon">🛗</div>
-      <div class="card-title">Elevator — Velocity &amp; Acceleration</div>
-      <div class="card-desc">Elevator animation with real-time velocity and acceleration readouts. Explore how apparent weight changes with upward and downward acceleration. Classic scenario for Newton's second law and non-inertial reference frames.</div>
-      <div class="card-tags">
-        <span class="tag">Kinematics</span>
-        <span class="tag">Newton's Laws</span>
-        <span class="tag">Animation</span>
-        <span class="tag">Dark/Light</span>
       </div>
-      <span class="card-open">Open →</span>
-    </a>
+    </div>
 
-    <a class="card" href="tools/kinematics/rollingball.html">
-      <div class="card-icon">⚽</div>
-      <div class="card-title">Rolling Ball — Inclined Plane</div>
-      <div class="card-desc">Simulation of a ball rolling down an inclined plane with built-in stopwatch and live position vs. time graph. Reproduce the classic Galileo experiment and measure uniformly accelerated motion directly in the browser.</div>
-      <div class="card-tags">
-        <span class="tag">Inclined Plane</span>
-        <span class="tag">Galileo</span>
-        <span class="tag">Graph</span>
-        <span class="tag">Dark/Light</span>
+    <div class="section">
+      <p class="section-label">🌀 Functions <span class="count">(1)</span></p>
+      <div class="cards">
+
+        <a class="card" href="tools/math/functions/concavity_explorer.html">
+          <div class="card-top"><span class="card-icon">🌀</span><span class="card-title">Concavity &amp; Rate of Change</span></div>
+          <div class="card-desc">Slice a polynomial into intervals to watch secant slopes track concavity. Cursor-secant mode, pan/zoom.</div>
+          <span class="card-open">Open →</span>
+        </a>
+
       </div>
-      <span class="card-open">Open →</span>
-    </a>
+    </div>
 
   </div>
 
-  <!-- LAB TOOLS -->
-  <p class="section-label" style="margin-bottom:14px;">🔬 Lab Tools</p>
-  <div class="cards" style="margin-bottom:36px;">
-
-    <a class="card" href="tools/lab/stopwatch.html">
-      <div class="card-icon">⏱️</div>
-      <div class="card-title">Interval Stopwatch</div>
-      <div class="card-desc">Stopwatch designed for physics lab experiments studying motion. Emits an audible beep at customizable intervals. Add experiment metadata when finished and export all data as CSV for analysis.</div>
-      <div class="card-tags">
-        <span class="tag">Physics Lab</span>
-        <span class="tag">Motion</span>
-        <span class="tag">CSV Export</span>
-        <span class="tag">Audio Cue</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-    <a class="card" href="tools/lab/kinematics_stopwatch.html">
-      <div class="card-icon">🏃</div>
-      <div class="card-title">Kinematics Stopwatch</div>
-      <div class="card-desc">Advanced stopwatch for kinematics experiments. Records checkpoints with elapsed time and position, then automatically computes velocity and acceleration at each interval. Export full data as CSV.</div>
-      <div class="card-tags">
-        <span class="tag">Kinematics</span>
-        <span class="tag">Checkpoints</span>
-        <span class="tag">Velocity</span>
-        <span class="tag">CSV Export</span>
-        <span class="tag">Dark/Light</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-    <a class="card" href="tools/lab/two_gate_timer.html">
-      <div class="card-icon">🚦</div>
-      <div class="card-title">Two-Gate Timer</div>
-      <div class="card-desc">Digital timer simulating a two-photogate setup. Measures the time interval between two gates and computes instantaneous velocity and acceleration. Perfect for cart-on-track and free-fall experiments.</div>
-      <div class="card-tags">
-        <span class="tag">Photogate</span>
-        <span class="tag">Velocity</span>
-        <span class="tag">Free Fall</span>
-        <span class="tag">Dark/Light</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-    <a class="card" href="tools/lab/image_measure.html">
-      <div class="card-icon">📐</div>
-      <div class="card-title">Image Measurement Tool</div>
-      <div class="card-desc">Import any image and measure distances and angles directly on it. Set a calibration scale to get real-world units, rotate the image, zoom and pan freely, and export all measurements as CSV.</div>
-      <div class="card-tags">
-        <span class="tag">Image Analysis</span>
-        <span class="tag">Distances</span>
-        <span class="tag">Angles</span>
-        <span class="tag">Calibration</span>
-        <span class="tag">CSV Export</span>
-        <span class="tag">Dark/Light</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-  </div>
-
-  <!-- WAVES & OPTICS -->
-  <p class="section-label" style="margin-bottom:14px;">〰️ Waves &amp; Optics</p>
-  <div class="cards" style="margin-bottom:36px;">
-
-    <a class="card" href="tools/waves/doppler_effect_simulator.html">
-      <div class="card-icon">🔊</div>
-      <div class="card-title">Doppler Effect Simulator</div>
-      <div class="card-desc">Interactive simulation of the Doppler effect for sound waves. Adjust the source velocity and observe how the perceived frequency and wavelength change for a stationary observer. Visualizes wavefronts in real time.</div>
-      <div class="card-tags">
-        <span class="tag">Doppler</span>
-        <span class="tag">Sound Waves</span>
-        <span class="tag">Frequency</span>
-        <span class="tag">Dark/Light</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-    <a class="card" href="tools/waves/doppler_light_simulator.html">
-      <div class="card-icon">🌈</div>
-      <div class="card-title">Relativistic Doppler Effect</div>
-      <div class="card-desc">Simulation of the relativistic Doppler effect for light. Two observers (Aurora and Borealis) receive light from a moving source and show the resulting wavelength and color shifts. Adjust emission wavelength and source velocity.</div>
-      <div class="card-tags">
-        <span class="tag">Relativity</span>
-        <span class="tag">Light</span>
-        <span class="tag">Wavelength</span>
-        <span class="tag">Color Shift</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-    <a class="card" href="tools/waves/video_sound_timeline.html">
-      <div class="card-icon">🔊</div>
-      <div class="card-title">Video Sound Timeline <span class="badge-dev">In Dev</span></div>
-      <div class="card-desc">Load a short video and see its loudness (RMS intensity) plotted over time directly beneath it. Drop two draggable markers on the waveform to measure the time interval between sounds — claps, echoes, beats, bounces. Includes zoom, pan, and a live loudness readout. Ideal for the speed of sound, echo timing, and rhythm experiments.</div>
-      <div class="card-tags">
-        <span class="tag">Sound</span>
-        <span class="tag">Waveform</span>
-        <span class="tag">Video Analysis</span>
-        <span class="tag">Dark/Light</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-  </div>
-
-  <!-- VECTORS & FORCES -->
-  <p class="section-label" style="margin-bottom:14px;">➡️ Vectors &amp; Forces</p>
-  <div class="cards" style="margin-bottom:36px;">
-
-    <a class="card" href="tools/vectors/vector_addition.html">
-      <div class="card-icon">⊕</div>
-      <div class="card-title">Vector Addition — Net Force</div>
-      <div class="card-desc">Add multiple force vectors interactively and find the net resultant. Displays each vector with its components and angle, and draws the resultant graphically. Ideal for statics and Newton's second law problems.</div>
-      <div class="card-tags">
-        <span class="tag">Vectors</span>
-        <span class="tag">Net Force</span>
-        <span class="tag">Components</span>
-        <span class="tag">Dark/Light</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-    <a class="card" href="tools/vectors/vector_decomposition.html">
-      <div class="card-icon">↗️</div>
-      <div class="card-title">Vector Components</div>
-      <div class="card-desc">Decompose any vector into its rectangular (x, y) components. Drag the vector to adjust magnitude and angle, and see both the graphical projection and numerical values update instantly.</div>
-      <div class="card-tags">
-        <span class="tag">Vectors</span>
-        <span class="tag">Decomposition</span>
-        <span class="tag">Components</span>
-        <span class="tag">Dark/Light</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-  </div>
-
-  <!-- DATA & ANALYSIS -->
-  <p class="section-label" style="margin-bottom:14px;">📊 Data &amp; Analysis</p>
-  <div class="cards">
-
-    <a class="card" href="tools/data/instantaneous_velocity.html">
-      <div class="card-icon">⚡</div>
-      <div class="card-title">Instantaneous Velocity</div>
-      <div class="card-desc">Plot position vs. time data and explore the concept of instantaneous velocity by visualizing tangent lines and limiting secants. Import CSV data from your own experiments for analysis.</div>
-      <div class="card-tags">
-        <span class="tag">Kinematics</span>
-        <span class="tag">Tangent Line</span>
-        <span class="tag">CSV Import</span>
-        <span class="tag">Dark/Light</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-    <a class="card" href="tools/data/concavity_explorer.html">
-      <div class="card-icon">🌀</div>
-      <div class="card-title">Concavity &amp; Rate of Change</div>
-      <div class="card-desc">Type any polynomial and slice it into equal-width vertical intervals to watch the secant slopes grow for concave-up regions and shrink for concave-down ones. Try the S-curve preset to see an inflection point flip the trend live.</div>
-      <div class="card-tags">
-        <span class="tag">Concavity</span>
-        <span class="tag">Rate of Change</span>
-        <span class="tag">Finite Differences</span>
-        <span class="tag">Dark/Light</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-    <a class="card" href="tools/data/vt_area.html">
-      <div class="card-icon">📉</div>
-      <div class="card-title">Distance from v-t Graph</div>
-      <div class="card-desc">Visualize displacement as the area under a velocity-time curve, decomposed into rectangles and triangles. Import a CSV with (t, v) data from your experiments and see the geometric interpretation of integration.</div>
-      <div class="card-tags">
-        <span class="tag">v-t Graph</span>
-        <span class="tag">Area</span>
-        <span class="tag">CSV Import</span>
-        <span class="tag">Dark/Light</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-    <a class="card" href="tools/data/linear_regression.html">
-      <div class="card-icon">📈</div>
-      <div class="card-title">Linear Regression Explorer</div>
-      <div class="card-desc">Visualize and understand linear regression intuitively. Shows why the best-fit line minimizes residuals — the sum of vertical distances above equals the sum below. Add points manually or via a data table.</div>
-      <div class="card-tags">
-        <span class="tag">Statistics</span>
-        <span class="tag">Data Viz</span>
-        <span class="tag">Best-Fit Line</span>
-        <span class="tag">Teaching</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-    <a class="card" href="tools/data/blink_comparator.html">
-      <div class="card-icon">🔭</div>
-      <div class="card-title">Blink Comparator</div>
-      <div class="card-desc">The classic astronomical tool used to detect changes between two images by rapidly alternating between them. Align images, adjust blink speed, and spot moving objects, new stars, or differences — just like professional astronomers do.</div>
-      <div class="card-tags">
-        <span class="tag">Astronomy</span>
-        <span class="tag">Image Compare</span>
-        <span class="tag">Motion Detection</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-    <a class="card" href="tools/data/graph_digitizer.html">
-      <div class="card-icon">📌</div>
-      <div class="card-title">Graph Digitizer</div>
-      <div class="card-desc">Extract numerical data from any graph image. Upload a photo or screenshot, calibrate the axes with two reference points, then click directly on the curve to record (x, y) values. Export all points as CSV.</div>
-      <div class="card-tags">
-        <span class="tag">Image Analysis</span>
-        <span class="tag">Data Extraction</span>
-        <span class="tag">Calibration</span>
-        <span class="tag">CSV Export</span>
-      </div>
-      <span class="card-open">Open →</span>
-    </a>
-
-    <a class="card" href="tools/data/VideoTracker.html">
-      <div class="card-icon">🎬</div>
-      <div class="card-title">Video Tracker <span class="badge-dev">In Dev</span></div>
-      <div class="card-desc">Inspired by Douglas Brown's Tracker. Track objects frame by frame in any video, regardless of platform or hardware. Ideal for motion analysis, kinematics, and experimental physics directly in the browser.</div>
-      <div class="card-tags">
-        <span class="tag">Video Analysis</span>
-        <span class="tag">Kinematics</span>
-        <span class="tag">Motion Tracking</span>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <span class="card-open">Open →</span>
-        <span onclick="event.preventDefault();event.stopPropagation();location.href='tools/data/VideoTracker_tutorial.html'"
-              style="font-size:0.75rem;color:var(--muted);border-bottom:1px dashed var(--muted);cursor:pointer;">
-          Tutorial
-        </span>
-      </div>
-    </a>
-
-  </div>
 </main>
 
 <footer>
@@ -627,6 +474,21 @@
   applyTheme(localStorage.getItem('et_theme') === 'light');
   document.getElementById('theme-toggle').addEventListener('click', () =>
     applyTheme(!document.body.classList.contains('light')));
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+      const target = 'tab-' + btn.dataset.tab;
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === target));
+      history.replaceState(null, '', '#' + btn.dataset.tab);
+    });
+  });
+
+  const initialTab = location.hash.replace('#', '');
+  if (initialTab) {
+    const btn = document.querySelector(`.tab-btn[data-tab="${initialTab}"]`);
+    if (btn) btn.click();
+  }
 </script>
 </body>
 </html>
