@@ -141,13 +141,11 @@ tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); 
 /* ── Graph panel ── */
 #graph-panel { flex: 1 1 auto; min-width: 320px; height: 100%; display: flex; flex-direction: column; background: var(--bg); --panel-color: var(--orange); }
 .graph-half { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
-.graph-half + .graph-half { border-top: 2px solid var(--border); }
 .graph-header {
   flex-shrink: 0; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface);
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap; row-gap: 4px;
+  border-top: 3px solid var(--panel-color, var(--orange));
 }
-.graph-half:first-child .graph-header { border-top: 3px solid var(--panel-color, var(--orange)); }
-.graph-half + .graph-half .graph-header { border-top: 2px solid var(--border); }
 .graph-title { font-size: 0.85rem; font-weight: 800; color: var(--panel-color, var(--orange)); letter-spacing: .04em; text-transform: uppercase; }
 .graph-wrap { flex: 1 1 0; min-height: 0; position: relative; background: var(--surface); padding: 6px; }
 canvas.chart { display: block; width: 100%; height: 100%; }
@@ -264,20 +262,11 @@ canvas.chart { display: block; width: 100%; height: 100%; }
         <input type="range" id="h-slider" min="2" max="25" step="1" value="8">
         <span id="h-val">8%</span>
       </div>
-      <span class="axis-hint">↔ / ↕ drag chart edges to rescale · dbl-click edge to reset</span>
+      <span class="axis-hint">🖱 scroll to zoom · drag to pan · dbl-click to reset</span>
     </div>
     <div class="graph-wrap" id="fx-wrap">
       <canvas id="fx-cv" class="chart"></canvas>
       <div class="cursor-readout" id="cursor-readout"></div>
-    </div>
-  </div>
-  <div class="graph-half">
-    <div class="graph-header">
-      <span class="graph-title">📊 Rate of Change (Δy/Δx per interval)</span>
-      <span class="axis-hint">↔ / ↕ drag chart edges to rescale · dbl-click edge to reset</span>
-    </div>
-    <div class="graph-wrap" id="rate-wrap">
-      <canvas id="rate-cv" class="chart"></canvas>
     </div>
   </div>
 </div>
@@ -364,9 +353,10 @@ let viewMode = 'segments';   // 'segments' | 'cursor'
 let cursorX = null;
 let fxTransform = null;
 
-// ── Independent per-axis manual zoom (click-and-drag on chart edges) ──
-let fxZoom   = { x: 1, y: 1, dragging: null, _start: 0, _startZoom: 1 };
-let rateZoom = { x: 1, y: 1, dragging: null, _start: 0, _startZoom: 1 };
+// ── Camera: pixels-per-unit is shared by x and y, so the grid is always
+//    square no matter how far the user has zoomed or panned. Reset to null
+//    to auto-fit again (done whenever the function or domain changes).
+let view = null;   // { cx, cy, pxPerUnit }
 
 const f      = x => evalPoly(coeffs, x);
 const fPrime = x => evalPoly(derivC, x);
@@ -478,6 +468,7 @@ function tryParseAndApply() {
   derivC = derivativeCoeffs(coeffs);
   deriv2C = derivativeCoeffs(derivC);
   echoEl.textContent = 'Parsed as: ' + formatEq(coeffs);
+  view = null;
   recompute();
 }
 
@@ -501,7 +492,6 @@ function renderTable() {
 
 // ── Charts ──────────────────────────────────────────────────
 const fxCv = document.getElementById('fx-cv');
-const rateCv = document.getElementById('rate-cv');
 const PAD = { l: 56, r: 16, t: 16, b: 38 };
 
 function sizeCv(cv) {
@@ -531,13 +521,10 @@ function stepFor(min, max) {
   return [1, 2, 2.5, 5, 10].find(fac => fac*mag >= raw) * mag;
 }
 
-// Shrinks/grows an axis range around its own center by a manual zoom factor
-// (>1 = zoomed in / narrower span, <1 = zoomed out / wider span).
-function applyZoom(range, zoom) {
-  if (!zoom || zoom === 1) return range;
-  const center = (range.min + range.max) / 2;
-  const half = (range.max - range.min) / 2 / zoom;
-  const min = center - half, max = center + half;
+// Builds an axis range of the given half-width (in data units) around a
+// center, at a given pixels-per-unit — used to keep x and y visually square.
+function axisRange(center, halfSpan) {
+  const min = center - halfSpan, max = center + halfSpan;
   return { min, max, step: stepFor(min, max) };
 }
 
@@ -613,31 +600,66 @@ function drawFxChart() {
   ctx.fillStyle = cssVar('--surface'); ctx.fillRect(0,0,W,H);
 
   const pad = PAD;
+  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
 
-  const SAMPLES = 300;
-  const xs = [], ys = [];
-  for (let i = 0; i <= SAMPLES; i++) {
-    const x = xMin + (xMax-xMin)*i/SAMPLES;
-    xs.push(x); ys.push(f(x));
+  if (!view) {
+    const SAMPLES = 300;
+    const domainYs = [];
+    for (let i = 0; i <= SAMPLES; i++) domainYs.push(f(xMin + (xMax-xMin)*i/SAMPLES));
+    const allY = domainYs.concat(points.map(p => p.y)).filter(v => isFinite(v));
+    let yLo = allY.length ? Math.min(...allY) : -1, yHi = allY.length ? Math.max(...allY) : 1;
+    if (yLo === yHi) { yLo -= 1; yHi += 1; }
+    const yPad = (yHi - yLo) * 0.1; yLo -= yPad; yHi += yPad;
+    const xSpan = (xMax - xMin) || 2;
+    const xPadAmt = xSpan * 0.06;
+    const xLo = xMin - xPadAmt, xHi = xMax + xPadAmt;
+    const pxPerUnit = Math.min(pw / (xHi - xLo), ph / (yHi - yLo));
+    view = { cx: (xLo + xHi) / 2, cy: (yLo + yHi) / 2, pxPerUnit };
   }
-  const allY = ys.concat(points.map(p => p.y)).filter(v => isFinite(v));
-  const xR = applyZoom(niceAxis([xMin, xMax]), fxZoom.x);
-  const yR = applyZoom(niceAxis(allY), fxZoom.y);
+
+  const xR = axisRange(view.cx, pw / (2 * view.pxPerUnit));
+  const yR = axisRange(view.cy, ph / (2 * view.pxPerUnit));
   const { toX, toY } = drawAxes(ctx, pad, W, H, xR, yR, 'x', 'y');
 
-  const pw = W - pad.l - pad.r;
-  fxTransform = { pad, W, H, xR, yR, fromX: px => xR.min + (px - pad.l) / pw * (xR.max - xR.min) };
+  fxTransform = {
+    pad, W, H, pw, ph, xR, yR,
+    fromX: px => xR.min + (px - pad.l) / pw * (xR.max - xR.min),
+    fromY: py => yR.min + (pad.t + ph - py) / ph * (yR.max - yR.min),
+  };
 
+  // Sample across whatever is currently visible, so panning/zooming beyond
+  // the original [xMin, xMax] domain still shows the curve.
+  const CSAMPLES = 400;
   ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2.5;
   ctx.beginPath();
   let started = false;
-  xs.forEach((x,i) => {
-    const py = toY(ys[i]);
-    if (!isFinite(py)) { started = false; return; }
+  for (let i = 0; i <= CSAMPLES; i++) {
+    const x = xR.min + (xR.max-xR.min)*i/CSAMPLES;
+    const py = toY(f(x));
+    if (!isFinite(py)) { started = false; continue; }
     const px = toX(x);
     if (!started) { ctx.moveTo(px,py); started = true; } else ctx.lineTo(px,py);
-  });
+  }
   ctx.stroke();
+
+  if (showDeriv) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
+    ctx.strokeStyle = cssVar('--green'); ctx.lineWidth = 2;
+    ctx.setLineDash([6,4]);
+    ctx.beginPath();
+    let started2 = false;
+    for (let i = 0; i <= CSAMPLES; i++) {
+      const x = xR.min + (xR.max-xR.min)*i/CSAMPLES;
+      const py = toY(fPrime(x));
+      if (!isFinite(py)) { started2 = false; continue; }
+      const px = toX(x);
+      if (!started2) { ctx.moveTo(px,py); started2 = true; } else ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
 
   if (viewMode === 'segments') {
     ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1;
@@ -680,78 +702,6 @@ function drawFxChart() {
   }
 }
 
-function drawRateChart() {
-  sizeCv(rateCv);
-  const dpr = window.devicePixelRatio || 1;
-  const ctx = rateCv.getContext('2d');
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  const W = rateCv.width/dpr, H = rateCv.height/dpr;
-  ctx.clearRect(0,0,W,H);
-  ctx.fillStyle = cssVar('--surface'); ctx.fillRect(0,0,W,H);
-
-  const pad = PAD;
-
-  const derivXs = [], derivYs = [];
-  if (showDeriv) {
-    const SAMPLES = 200;
-    for (let i = 0; i <= SAMPLES; i++) {
-      const x = xMin + (xMax-xMin)*i/SAMPLES;
-      derivXs.push(x); derivYs.push(fPrime(x));
-    }
-  }
-
-  const mVals = diffs.map(dd => dd.m).filter(v => isFinite(v));
-  const yVals = (showDeriv ? mVals.concat(derivYs) : mVals).filter(v => isFinite(v));
-  const xR = applyZoom(niceAxis([xMin, xMax]), rateZoom.x);
-  const yR = applyZoom(niceAxis(yVals.length ? yVals : [-1,1]), rateZoom.y);
-  const { toX, toY } = drawAxes(ctx, pad, W, H, xR, yR, 'x (interval midpoint)', 'm = Δy/Δx');
-
-  const dx = (xMax - xMin) / N;
-  const barW = Math.max(4, (toX(xMin+dx) - toX(xMin)) * 0.6);
-  diffs.forEach((row, i) => {
-    const prevM = i === 0 ? null : diffs[i-1].m;
-    let color = cssVar('--muted');
-    if (prevM !== null && isFinite(row.m) && isFinite(prevM)) {
-      if (row.m > prevM + 1e-9) color = cssVar('--green');
-      else if (row.m < prevM - 1e-9) color = cssVar('--red');
-    }
-    ctx.fillStyle = color;
-    const px = toX(row.xmid);
-    const py0 = toY(0), py1 = toY(row.m);
-    if (isFinite(py1)) ctx.fillRect(px - barW/2, Math.min(py0,py1), barW, Math.abs(py1-py0));
-  });
-
-  if (showDeriv) {
-    ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2;
-    ctx.setLineDash([6,4]);
-    ctx.beginPath();
-    let started = false;
-    derivXs.forEach((x,i) => {
-      const py = toY(derivYs[i]);
-      if (!isFinite(py)) { started = false; return; }
-      const px = toX(x);
-      if (!started) { ctx.moveTo(px,py); started = true; } else ctx.lineTo(px,py);
-    });
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  if (viewMode === 'cursor' && cursorX !== null) {
-    const sec = getCursorSecant();
-    const px = toX(sec.x);
-    ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1;
-    ctx.setLineDash([3,3]);
-    ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, H-pad.b); ctx.stroke();
-    ctx.setLineDash([]);
-    if (isFinite(sec.m)) {
-      const py = toY(sec.m);
-      ctx.fillStyle = cssVar('--accent');
-      ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle = cssVar('--surface'); ctx.lineWidth = 2; ctx.stroke();
-    }
-  }
-}
-
 function updateCursorReadout() {
   const el = document.getElementById('cursor-readout');
   if (viewMode !== 'cursor') { el.style.display = 'none'; return; }
@@ -765,7 +715,7 @@ function updateCursorReadout() {
   el.style.display = 'block';
 }
 
-function drawCharts() { drawFxChart(); drawRateChart(); updateCursorReadout(); }
+function drawCharts() { drawFxChart(); updateCursorReadout(); }
 
 // ── Controls wiring ─────────────────────────────────────────
 document.getElementById('plot-btn').addEventListener('click', tryParseAndApply);
@@ -775,11 +725,11 @@ document.getElementById('fx-input').addEventListener('keydown', e => {
 
 document.getElementById('xmin-in').addEventListener('change', e => {
   const v = parseFloat(e.target.value);
-  if (!isNaN(v) && v < xMax) { xMin = v; recompute(); } else { e.target.value = xMin; }
+  if (!isNaN(v) && v < xMax) { xMin = v; view = null; recompute(); } else { e.target.value = xMin; }
 });
 document.getElementById('xmax-in').addEventListener('change', e => {
   const v = parseFloat(e.target.value);
-  if (!isNaN(v) && v > xMin) { xMax = v; recompute(); } else { e.target.value = xMax; }
+  if (!isNaN(v) && v > xMin) { xMax = v; view = null; recompute(); } else { e.target.value = xMax; }
 });
 document.getElementById('n-slider').addEventListener('input', e => {
   N = parseInt(e.target.value, 10);
@@ -799,6 +749,7 @@ document.querySelectorAll('#fx-view-toggle .view-btn').forEach(btn => {
     document.querySelectorAll('#fx-view-toggle .view-btn').forEach(b => b.classList.toggle('active', b === btn));
     document.getElementById('h-row').style.display = viewMode === 'cursor' ? 'flex' : 'none';
     if (viewMode === 'segments') cursorX = null;
+    updateCursorStyle();
     drawCharts();
   });
 });
@@ -807,13 +758,20 @@ document.getElementById('h-slider').addEventListener('input', e => {
   if (viewMode === 'cursor') drawCharts();
 });
 
+// ── Hover: cursor-following secant (only in 'cursor' view mode) ─────
+let panState = null;
+
+function updateCursorStyle() {
+  fxCv.style.cursor = panState ? 'grabbing' : (viewMode === 'cursor' ? 'crosshair' : 'grab');
+}
+
 fxCv.addEventListener('mousemove', e => {
-  if (viewMode !== 'cursor' || fxZoom.dragging || !fxTransform) return;
+  if (viewMode !== 'cursor' || panState || !fxTransform) return;
   const rect = fxCv.getBoundingClientRect();
   const px = e.clientX - rect.left, py = e.clientY - rect.top;
-  const { pad, W, H, xR } = fxTransform;
+  const { pad, W, H } = fxTransform;
   if (px < pad.l || px > W - pad.r || py < pad.t || py > H - pad.b) return;
-  cursorX = Math.min(xR.max, Math.max(xR.min, fxTransform.fromX(px)));
+  cursorX = fxTransform.fromX(px);
   drawCharts();
 });
 fxCv.addEventListener('mouseleave', () => {
@@ -822,48 +780,45 @@ fxCv.addEventListener('mouseleave', () => {
   drawCharts();
 });
 
-// ── Independent click-and-drag axis zoom, on both charts ─────────────
-// Drag the strip below the x-axis to rescale x; drag the strip left of the
-// y-axis to rescale y. Double-click either strip to reset that axis.
-function wireZoomDrag(cv, zoomState, redraw, defaultCursor) {
-  function zoneAt(x, y, w, h) {
-    if (y > h - PAD.b && y < h && x > PAD.l && x < w - PAD.r) return 'x';
-    if (x < PAD.l && x >= 0 && y > PAD.t && y < h - PAD.b) return 'y';
-    return null;
-  }
-  cv.addEventListener('mousemove', e => {
-    if (zoomState.dragging) return;
-    const r = cv.getBoundingClientRect();
-    const zone = zoneAt(e.clientX - r.left, e.clientY - r.top, r.width, r.height);
-    cv.style.cursor = zone === 'x' ? 'ew-resize' : zone === 'y' ? 'ns-resize' : (defaultCursor ? defaultCursor() : 'default');
-  });
-  cv.addEventListener('mousedown', e => {
-    const r = cv.getBoundingClientRect();
-    const zone = zoneAt(e.clientX - r.left, e.clientY - r.top, r.width, r.height);
-    if (!zone) return;
-    e.preventDefault();
-    zoomState.dragging = zone;
-    zoomState._start = zone === 'x' ? e.clientX : e.clientY;
-    zoomState._startZoom = zoomState[zone];
-  });
-  cv.addEventListener('dblclick', e => {
-    const r = cv.getBoundingClientRect();
-    const zone = zoneAt(e.clientX - r.left, e.clientY - r.top, r.width, r.height);
-    if (zone) { zoomState[zone] = 1; redraw(); }
-  });
-  window.addEventListener('mousemove', e => {
-    if (!zoomState.dragging) return;
-    const zone = zoomState.dragging;
-    const cur = zone === 'x' ? e.clientX : e.clientY;
-    let delta = cur - zoomState._start;
-    if (zone === 'y') delta = -delta;
-    zoomState[zone] = Math.min(15, Math.max(0.15, zoomState._startZoom * Math.exp(delta / 150)));
-    redraw();
-  });
-  window.addEventListener('mouseup', () => { zoomState.dragging = null; });
+// ── Pan (click-and-drag) and zoom (scroll wheel) ─────────────────────
+// A single pixels-per-unit value drives both axes, so the grid stays
+// square at any pan position or zoom level. Double-click re-fits the view.
+function zoomAt(px, py, factor) {
+  if (!fxTransform || !view) return;
+  const { pad, pw, ph } = fxTransform;
+  const dataX = fxTransform.fromX(px);
+  const dataY = fxTransform.fromY(py);
+  const pxPerUnit = Math.min(4000, Math.max(2, view.pxPerUnit * factor));
+  const cx = dataX - (px - pad.l - pw/2) / pxPerUnit;
+  const cy = dataY - (pad.t + ph/2 - py) / pxPerUnit;
+  view = { cx, cy, pxPerUnit };
+  drawFxChart();
 }
-wireZoomDrag(fxCv, fxZoom, drawFxChart, () => (viewMode === 'cursor' ? 'crosshair' : 'default'));
-wireZoomDrag(rateCv, rateZoom, drawRateChart);
+
+fxCv.addEventListener('mousedown', e => {
+  if (e.button !== 0 || !view) return;
+  panState = { x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy };
+  updateCursorStyle();
+});
+window.addEventListener('mousemove', e => {
+  if (!panState) return;
+  const dx = e.clientX - panState.x, dy = e.clientY - panState.y;
+  view.cx = panState.cx - dx / view.pxPerUnit;
+  view.cy = panState.cy + dy / view.pxPerUnit;
+  drawFxChart();
+});
+window.addEventListener('mouseup', () => {
+  if (panState) { panState = null; updateCursorStyle(); }
+});
+fxCv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = fxCv.getBoundingClientRect();
+  const factor = Math.exp(-e.deltaY * 0.0015);
+  zoomAt(e.clientX - rect.left, e.clientY - rect.top, factor);
+}, { passive: false });
+fxCv.addEventListener('dblclick', () => { view = null; drawFxChart(); });
+
+updateCursorStyle();
 
 window.addEventListener('resize', drawCharts);
 
