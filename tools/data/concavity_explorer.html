@@ -262,7 +262,7 @@ canvas.chart { display: block; width: 100%; height: 100%; }
         <input type="range" id="h-slider" min="2" max="25" step="1" value="8">
         <span id="h-val">8%</span>
       </div>
-      <span class="axis-hint">🖱 scroll to zoom · drag to pan · dbl-click to reset</span>
+      <span class="axis-hint">🖱 drag inside to pan · drag bottom/left edge to rescale x/y · scroll to zoom · dbl-click to reset</span>
     </div>
     <div class="graph-wrap" id="fx-wrap">
       <canvas id="fx-cv" class="chart"></canvas>
@@ -353,10 +353,10 @@ let viewMode = 'segments';   // 'segments' | 'cursor'
 let cursorX = null;
 let fxTransform = null;
 
-// ── Camera: pixels-per-unit is shared by x and y, so the grid is always
-//    square no matter how far the user has zoomed or panned. Reset to null
-//    to auto-fit again (done whenever the function or domain changes).
-let view = null;   // { cx, cy, pxPerUnit }
+// ── Camera: independent x/y scale (each axis can be rescaled on its own)
+//    plus panning. Reset to null to auto-fit again (done whenever the
+//    function or domain changes).
+let view = null;   // { cx, cy, pxPerUnitX, pxPerUnitY }
 
 const f      = x => evalPoly(coeffs, x);
 const fPrime = x => evalPoly(derivC, x);
@@ -521,11 +521,28 @@ function stepFor(min, max) {
   return [1, 2, 2.5, 5, 10].find(fac => fac*mag >= raw) * mag;
 }
 
-// Builds an axis range of the given half-width (in data units) around a
-// center, at a given pixels-per-unit — used to keep x and y visually square.
+// Builds an axis range of the given half-width (in data units) around a center.
 function axisRange(center, halfSpan) {
   const min = center - halfSpan, max = center + halfSpan;
   return { min, max, step: stepFor(min, max) };
+}
+
+// Auto-fit view: each axis scaled independently to its own data range.
+function computeAutofitView(pw, ph) {
+  const SAMPLES = 300;
+  const domainYs = [];
+  for (let i = 0; i <= SAMPLES; i++) domainYs.push(f(xMin + (xMax-xMin)*i/SAMPLES));
+  const allY = domainYs.concat(points.map(p => p.y)).filter(v => isFinite(v));
+  let yLo = allY.length ? Math.min(...allY) : -1, yHi = allY.length ? Math.max(...allY) : 1;
+  if (yLo === yHi) { yLo -= 1; yHi += 1; }
+  const yPad = (yHi - yLo) * 0.1; yLo -= yPad; yHi += yPad;
+  const xSpan = (xMax - xMin) || 2;
+  const xPadAmt = xSpan * 0.06;
+  const xLo = xMin - xPadAmt, xHi = xMax + xPadAmt;
+  return {
+    cx: (xLo + xHi) / 2, cy: (yLo + yHi) / 2,
+    pxPerUnitX: pw / (xHi - xLo), pxPerUnitY: ph / (yHi - yLo),
+  };
 }
 
 // Half-width h (as a fraction of the current x-window) for the cursor secant.
@@ -602,23 +619,10 @@ function drawFxChart() {
   const pad = PAD;
   const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
 
-  if (!view) {
-    const SAMPLES = 300;
-    const domainYs = [];
-    for (let i = 0; i <= SAMPLES; i++) domainYs.push(f(xMin + (xMax-xMin)*i/SAMPLES));
-    const allY = domainYs.concat(points.map(p => p.y)).filter(v => isFinite(v));
-    let yLo = allY.length ? Math.min(...allY) : -1, yHi = allY.length ? Math.max(...allY) : 1;
-    if (yLo === yHi) { yLo -= 1; yHi += 1; }
-    const yPad = (yHi - yLo) * 0.1; yLo -= yPad; yHi += yPad;
-    const xSpan = (xMax - xMin) || 2;
-    const xPadAmt = xSpan * 0.06;
-    const xLo = xMin - xPadAmt, xHi = xMax + xPadAmt;
-    const pxPerUnit = Math.min(pw / (xHi - xLo), ph / (yHi - yLo));
-    view = { cx: (xLo + xHi) / 2, cy: (yLo + yHi) / 2, pxPerUnit };
-  }
+  if (!view) view = computeAutofitView(pw, ph);
 
-  const xR = axisRange(view.cx, pw / (2 * view.pxPerUnit));
-  const yR = axisRange(view.cy, ph / (2 * view.pxPerUnit));
+  const xR = axisRange(view.cx, pw / (2 * view.pxPerUnitX));
+  const yR = axisRange(view.cy, ph / (2 * view.pxPerUnitY));
   const { toX, toY } = drawAxes(ctx, pad, W, H, xR, yR, 'x', 'y');
 
   fxTransform = {
@@ -759,16 +763,24 @@ document.getElementById('h-slider').addEventListener('input', e => {
 });
 
 // ── Hover: cursor-following secant (only in 'cursor' view mode) ─────
-let panState = null;
+let dragState = null;   // { mode: 'pan'|'zoomX'|'zoomY', ... }
 
-function updateCursorStyle() {
-  fxCv.style.cursor = panState ? 'grabbing' : (viewMode === 'cursor' ? 'crosshair' : 'grab');
+function zoneAt(px, py, w, h) {
+  if (py > h - PAD.b && py < h && px > PAD.l && px < w - PAD.r) return 'x';
+  if (px < PAD.l && px >= 0 && py > PAD.t && py < h - PAD.b) return 'y';
+  return null;
+}
+
+function updateCursorStyle(zone) {
+  if (dragState) { fxCv.style.cursor = dragState.mode === 'pan' ? 'grabbing' : (dragState.mode === 'zoomX' ? 'ew-resize' : 'ns-resize'); return; }
+  fxCv.style.cursor = zone === 'x' ? 'ew-resize' : zone === 'y' ? 'ns-resize' : (viewMode === 'cursor' ? 'crosshair' : 'grab');
 }
 
 fxCv.addEventListener('mousemove', e => {
-  if (viewMode !== 'cursor' || panState || !fxTransform) return;
   const rect = fxCv.getBoundingClientRect();
   const px = e.clientX - rect.left, py = e.clientY - rect.top;
+  if (!dragState) updateCursorStyle(zoneAt(px, py, rect.width, rect.height));
+  if (viewMode !== 'cursor' || dragState || !fxTransform) return;
   const { pad, W, H } = fxTransform;
   if (px < pad.l || px > W - pad.r || py < pad.t || py > H - pad.b) return;
   cursorX = fxTransform.fromX(px);
@@ -780,45 +792,69 @@ fxCv.addEventListener('mouseleave', () => {
   drawCharts();
 });
 
-// ── Pan (click-and-drag) and zoom (scroll wheel) ─────────────────────
-// A single pixels-per-unit value drives both axes, so the grid stays
-// square at any pan position or zoom level. Double-click re-fits the view.
-function zoomAt(px, py, factor) {
-  if (!fxTransform || !view) return;
-  const { pad, pw, ph } = fxTransform;
-  const dataX = fxTransform.fromX(px);
-  const dataY = fxTransform.fromY(py);
-  const pxPerUnit = Math.min(4000, Math.max(2, view.pxPerUnit * factor));
-  const cx = dataX - (px - pad.l - pw/2) / pxPerUnit;
-  const cy = dataY - (pad.t + ph/2 - py) / pxPerUnit;
-  view = { cx, cy, pxPerUnit };
-  drawFxChart();
-}
-
+// ── Pan (drag inside the plot), independent per-axis zoom (drag the
+// bottom/left edge strips), and uniform zoom (scroll wheel). Double-click
+// re-fits the whole view; double-clicking an edge re-fits just that axis.
 fxCv.addEventListener('mousedown', e => {
   if (e.button !== 0 || !view) return;
-  panState = { x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy };
-  updateCursorStyle();
+  const rect = fxCv.getBoundingClientRect();
+  const px = e.clientX - rect.left, py = e.clientY - rect.top;
+  const zone = zoneAt(px, py, rect.width, rect.height);
+  if (zone === 'x') dragState = { mode: 'zoomX', start: e.clientX, startVal: view.pxPerUnitX };
+  else if (zone === 'y') dragState = { mode: 'zoomY', start: e.clientY, startVal: view.pxPerUnitY };
+  else dragState = { mode: 'pan', x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy };
+  updateCursorStyle(zone);
 });
 window.addEventListener('mousemove', e => {
-  if (!panState) return;
-  const dx = e.clientX - panState.x, dy = e.clientY - panState.y;
-  view.cx = panState.cx - dx / view.pxPerUnit;
-  view.cy = panState.cy + dy / view.pxPerUnit;
+  if (!dragState || !view) return;
+  if (dragState.mode === 'pan') {
+    const dx = e.clientX - dragState.x, dy = e.clientY - dragState.y;
+    view.cx = dragState.cx - dx / view.pxPerUnitX;
+    view.cy = dragState.cy + dy / view.pxPerUnitY;
+  } else if (dragState.mode === 'zoomX') {
+    const delta = e.clientX - dragState.start;
+    view.pxPerUnitX = Math.min(4000, Math.max(2, dragState.startVal * Math.exp(delta / 150)));
+  } else if (dragState.mode === 'zoomY') {
+    const delta = -(e.clientY - dragState.start);
+    view.pxPerUnitY = Math.min(4000, Math.max(2, dragState.startVal * Math.exp(delta / 150)));
+  }
   drawFxChart();
 });
 window.addEventListener('mouseup', () => {
-  if (panState) { panState = null; updateCursorStyle(); }
+  if (dragState) { dragState = null; updateCursorStyle(null); }
 });
 fxCv.addEventListener('wheel', e => {
+  if (!fxTransform || !view) return;
   e.preventDefault();
   const rect = fxCv.getBoundingClientRect();
+  const px = e.clientX - rect.left, py = e.clientY - rect.top;
+  const { pad, pw, ph } = fxTransform;
+  const dataX = fxTransform.fromX(px);
+  const dataY = fxTransform.fromY(py);
   const factor = Math.exp(-e.deltaY * 0.0015);
-  zoomAt(e.clientX - rect.left, e.clientY - rect.top, factor);
+  const pxPerUnitX = Math.min(4000, Math.max(2, view.pxPerUnitX * factor));
+  const pxPerUnitY = Math.min(4000, Math.max(2, view.pxPerUnitY * factor));
+  view = {
+    cx: dataX - (px - pad.l - pw/2) / pxPerUnitX,
+    cy: dataY - (pad.t + ph/2 - py) / pxPerUnitY,
+    pxPerUnitX, pxPerUnitY,
+  };
+  drawFxChart();
 }, { passive: false });
-fxCv.addEventListener('dblclick', () => { view = null; drawFxChart(); });
+fxCv.addEventListener('dblclick', e => {
+  const rect = fxCv.getBoundingClientRect();
+  const px = e.clientX - rect.left, py = e.clientY - rect.top;
+  const zone = zoneAt(px, py, rect.width, rect.height);
+  if (!fxTransform) { view = null; drawFxChart(); return; }
+  const { pw, ph } = fxTransform;
+  const fit = computeAutofitView(pw, ph);
+  if (zone === 'x') { view.cx = fit.cx; view.pxPerUnitX = fit.pxPerUnitX; }
+  else if (zone === 'y') { view.cy = fit.cy; view.pxPerUnitY = fit.pxPerUnitY; }
+  else view = null;
+  drawFxChart();
+});
 
-updateCursorStyle();
+updateCursorStyle(null);
 
 window.addEventListener('resize', drawCharts);
 
