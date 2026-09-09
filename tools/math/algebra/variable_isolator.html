@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Isolate the Variable</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0d1117;
+    --surface: #161b22;
+    --surface2:#1c2128;
+    --border:  #30363d;
+    --text:    #e6edf3;
+    --muted:   #8b949e;
+    --accent:  #58a6ff;
+    --green:   #3fb950;
+    --yellow:  #d29922;
+    --red:     #f85149;
+    --radius:  8px;
+  }
+  body.light {
+    --bg:      #f6f8fa;
+    --surface: #ffffff;
+    --surface2:#f0f4f8;
+    --border:  #d0d7de;
+    --text:    #1f2328;
+    --muted:   #656d76;
+    --accent:  #0969da;
+    --green:   #1a7f37;
+    --yellow:  #9a6700;
+    --red:     #cf222e;
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 10px 20px 9px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    gap: 16px;
+  }
+  .header-title h1 { font-size: 0.97rem; font-weight: 700; letter-spacing: -0.3px; }
+  .header-title h1 span { color: var(--accent); }
+  .header-title p { font-size: 0.7rem; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+  .header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+  #theme-toggle, a.back-link {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    transition: border-color .2s, color .2s;
+    user-select: none;
+    flex-shrink: 0;
+    text-decoration: none;
+  }
+  #theme-toggle:hover, a.back-link:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── CONTROLS ── */
+  .controls {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 9px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-wrap: wrap;
+  }
+
+  .category-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+  .chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color .12s, color .12s, background .12s;
+    user-select: none;
+  }
+  .chip.active { color: var(--accent); border-color: var(--accent); background: rgba(88,166,255,.08); }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  .action-buttons { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  button.tool-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 14px;
+    color: var(--text);
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color .12s, color .12s;
+    font-family: inherit;
+  }
+  button.tool-btn:hover { border-color: var(--accent); color: var(--accent); }
+  button.tool-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  body.light button.tool-btn.primary { color: #fff; }
+  button.tool-btn.primary:hover { opacity: 0.88; color: #fff; }
+
+  /* ── STAGE ── */
+  .stage-wrap { flex: 1; min-height: 0; display: flex; align-items: stretch; justify-content: center; padding: 18px; }
+
+  #stage {
+    flex: 1;
+    max-width: 1100px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(14px, 3vh, 34px);
+    padding: 30px 20px;
+    text-align: center;
+    position: relative;
+  }
+  #stage:fullscreen, #stage:-webkit-full-screen { background: var(--bg); border-radius: 0; border: none; max-width: none; }
+
+  .eq-label {
+    font-size: clamp(0.72rem, 1.4vw, 0.9rem);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .eq-label .cat { color: var(--accent); }
+
+  #original-eq {
+    font-size: clamp(1.8rem, 5.2vw, 4rem);
+    color: var(--text);
+  }
+
+  .prompt-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-size: clamp(1.1rem, 2.6vw, 1.8rem);
+    color: var(--muted);
+    font-weight: 600;
+  }
+  #isolate-target { color: var(--green); font-size: clamp(1.4rem, 3.4vw, 2.4rem); }
+
+  #answer-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    min-height: clamp(3.5rem, 9vw, 6rem);
+    justify-content: center;
+  }
+  .answer-caption {
+    font-size: clamp(0.7rem, 1.3vw, 0.85rem);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .answer-caption.shown { opacity: 1; }
+  #answer-eq {
+    font-size: clamp(1.6rem, 4.6vw, 3.4rem);
+    color: var(--green);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity .25s, transform .25s;
+  }
+  #answer-eq.shown { opacity: 1; transform: translateY(0); }
+
+  #reveal-btn {
+    padding: 10px 26px;
+    font-size: 0.85rem;
+  }
+
+  .stage-footer {
+    position: absolute;
+    bottom: 10px;
+    right: 16px;
+    font-size: 0.64rem;
+    color: var(--muted);
+    opacity: 0.7;
+  }
+  #stage:fullscreen .stage-footer, #stage:-webkit-full-screen .stage-footer { display: none; }
+
+  #fullscreen-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <h1>Isolate <span>the Variable</span></h1>
+    <p>Random physics equation, random unknown to isolate. Solve it, then reveal the answer.</p>
+  </div>
+  <div class="header-right">
+    <a class="back-link" href="../../../index.html">← All tools</a>
+    <button id="theme-toggle"><span id="theme-icon">☀</span></button>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="category-chips" id="category-chips"></div>
+  <div class="action-buttons">
+    <button class="tool-btn" id="reset-filters-btn">All topics</button>
+    <button class="tool-btn primary" id="next-btn">🎲 New Problem</button>
+  </div>
+</div>
+
+<div class="stage-wrap">
+  <div id="stage">
+    <button class="tool-btn" id="fullscreen-btn">⛶</button>
+    <p class="eq-label"><span class="cat" id="cat-label"></span> · <span id="name-label"></span></p>
+    <div id="original-eq"></div>
+    <div class="prompt-row">
+      <span>Isolate</span>
+      <span id="isolate-target"></span>
+    </div>
+    <div id="answer-wrap">
+      <button class="tool-btn primary" id="reveal-btn">Show Answer</button>
+      <p class="answer-caption" id="answer-caption">Answer</p>
+      <div id="answer-eq"></div>
+    </div>
+    <p class="stage-footer">Space = reveal / next &nbsp;·&nbsp; N = new problem &nbsp;·&nbsp; F = fullscreen</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ═══════════════════════════════════════════════════
+  //  EQUATION BANK
+  //  Each equation lists its algebraically-isolatable
+  //  variables with pre-derived LaTeX for the answer.
+  // ═══════════════════════════════════════════════════
+  const CATEGORIES = [
+    { slug: 'kinematics',   label: 'Kinematics' },
+    { slug: 'dynamics',     label: 'Dynamics & Forces' },
+    { slug: 'momentum',     label: 'Momentum' },
+    { slug: 'energy',       label: 'Energy & Work' },
+    { slug: 'circular',     label: 'Circular Motion' },
+    { slug: 'gravitation',  label: 'Gravitation' },
+    { slug: 'waves',        label: 'Waves & Oscillations' },
+    { slug: 'electricity',  label: 'Electricity' },
+    { slug: 'thermal',      label: 'Thermal Physics' },
+    { slug: 'fluids',       label: 'Density & Pressure' },
+    { slug: 'optics',       label: 'Optics' },
+  ];
+
+  const EQUATIONS = [
+    // ── KINEMATICS ──
+    { name: 'Velocity–Time Relation', category: 'kinematics', latex: 'v = v_0 + a t',
+      vars: {
+        v:  { sym: 'v',   latex: 'v = v_0 + a t' },
+        v0: { sym: 'v_0', latex: 'v_0 = v - a t' },
+        a:  { sym: 'a',   latex: 'a = \\dfrac{v - v_0}{t}' },
+        t:  { sym: 't',   latex: 't = \\dfrac{v - v_0}{a}' },
+      } },
+    { name: 'Displacement (const. acceleration)', category: 'kinematics', latex: 'd = v_0 t + \\dfrac{1}{2} a t^2',
+      vars: {
+        v0: { sym: 'v_0', latex: 'v_0 = \\dfrac{d - \\frac{1}{2} a t^2}{t}' },
+        a:  { sym: 'a',   latex: 'a = \\dfrac{2(d - v_0 t)}{t^2}' },
+      } },
+    { name: 'Velocity–Displacement Relation', category: 'kinematics', latex: 'v^2 = v_0^2 + 2 a d',
+      vars: {
+        v:  { sym: 'v',  latex: 'v = \\sqrt{v_0^2 + 2 a d}' },
+        v0: { sym: 'v_0', latex: 'v_0 = \\sqrt{v^2 - 2 a d}' },
+        a:  { sym: 'a',  latex: 'a = \\dfrac{v^2 - v_0^2}{2 d}' },
+        d:  { sym: 'd',  latex: 'd = \\dfrac{v^2 - v_0^2}{2 a}' },
+      } },
+    { name: 'Average Velocity', category: 'kinematics', latex: 'v = \\dfrac{d}{t}',
+      vars: {
+        d: { sym: 'd', latex: 'd = v t' },
+        t: { sym: 't', latex: 't = \\dfrac{d}{v}' },
+      } },
+
+    // ── DYNAMICS & FORCES ──
+    { name: "Newton's Second Law", category: 'dynamics', latex: 'F = m a',
+      vars: {
+        m: { sym: 'm', latex: 'm = \\dfrac{F}{a}' },
+        a: { sym: 'a', latex: 'a = \\dfrac{F}{m}' },
+      } },
+    { name: 'Weight', category: 'dynamics', latex: 'W = m g',
+      vars: {
+        m: { sym: 'm', latex: 'm = \\dfrac{W}{g}' },
+        g: { sym: 'g', latex: 'g = \\dfrac{W}{m}' },
+      } },
+    { name: "Hooke's Law", category: 'dynamics', latex: 'F = k x',
+      vars: {
+        k: { sym: 'k', latex: 'k = \\dfrac{F}{x}' },
+        x: { sym: 'x', latex: 'x = \\dfrac{F}{k}' },
+      } },
+    { name: 'Friction Force', category: 'dynamics', latex: 'f = \\mu N',
+      vars: {
+        mu: { sym: '\\mu', latex: '\\mu = \\dfrac{f}{N}' },
+        N:  { sym: 'N',    latex: 'N = \\dfrac{f}{\\mu}' },
+      } },
+
+    // ── MOMENTUM ──
+    { name: 'Momentum', category: 'momentum', latex: 'p = m v',
+      vars: {
+        m: { sym: 'm', latex: 'm = \\dfrac{p}{v}' },
+        v: { sym: 'v', latex: 'v = \\dfrac{p}{m}' },
+      } },
+    { name: 'Impulse', category: 'momentum', latex: 'J = F \\Delta t',
+      vars: {
+        F:  { sym: 'F', latex: 'F = \\dfrac{J}{\\Delta t}' },
+        dt: { sym: '\\Delta t', latex: '\\Delta t = \\dfrac{J}{F}' },
+      } },
+
+    // ── ENERGY & WORK ──
+    { name: 'Kinetic Energy', category: 'energy', latex: 'K = \\dfrac{1}{2} m v^2',
+      vars: {
+        m: { sym: 'm', latex: 'm = \\dfrac{2K}{v^2}' },
+        v: { sym: 'v', latex: 'v = \\sqrt{\\dfrac{2K}{m}}' },
+      } },
+    { name: 'Gravitational Potential Energy', category: 'energy', latex: 'U = m g h',
+      vars: {
+        m: { sym: 'm', latex: 'm = \\dfrac{U}{g h}' },
+        g: { sym: 'g', latex: 'g = \\dfrac{U}{m h}' },
+        h: { sym: 'h', latex: 'h = \\dfrac{U}{m g}' },
+      } },
+    { name: 'Elastic Potential Energy', category: 'energy', latex: 'U_s = \\dfrac{1}{2} k x^2',
+      vars: {
+        k: { sym: 'k', latex: 'k = \\dfrac{2 U_s}{x^2}' },
+        x: { sym: 'x', latex: 'x = \\sqrt{\\dfrac{2 U_s}{k}}' },
+      } },
+    { name: 'Work', category: 'energy', latex: 'W = F d',
+      vars: {
+        F: { sym: 'F', latex: 'F = \\dfrac{W}{d}' },
+        d: { sym: 'd', latex: 'd = \\dfrac{W}{F}' },
+      } },
+    { name: 'Power', category: 'energy', latex: 'P = \\dfrac{W}{t}',
+      vars: {
+        W: { sym: 'W', latex: 'W = P t' },
+        t: { sym: 't', latex: 't = \\dfrac{W}{P}' },
+      } },
+
+    // ── CIRCULAR MOTION ──
+    { name: 'Centripetal Acceleration', category: 'circular', latex: 'a_c = \\dfrac{v^2}{r}',
+      vars: {
+        v: { sym: 'v', latex: 'v = \\sqrt{a_c r}' },
+        r: { sym: 'r', latex: 'r = \\dfrac{v^2}{a_c}' },
+      } },
+    { name: 'Centripetal Force', category: 'circular', latex: 'F_c = \\dfrac{m v^2}{r}',
+      vars: {
+        m: { sym: 'm', latex: 'm = \\dfrac{F_c r}{v^2}' },
+        v: { sym: 'v', latex: 'v = \\sqrt{\\dfrac{F_c r}{m}}' },
+        r: { sym: 'r', latex: 'r = \\dfrac{m v^2}{F_c}' },
+      } },
+
+    // ── GRAVITATION ──
+    { name: "Newton's Law of Gravitation", category: 'gravitation', latex: 'F = \\dfrac{G m_1 m_2}{r^2}',
+      vars: {
+        m1: { sym: 'm_1', latex: 'm_1 = \\dfrac{F r^2}{G m_2}' },
+        m2: { sym: 'm_2', latex: 'm_2 = \\dfrac{F r^2}{G m_1}' },
+        r:  { sym: 'r',   latex: 'r = \\sqrt{\\dfrac{G m_1 m_2}{F}}' },
+      } },
+
+    // ── WAVES & OSCILLATIONS ──
+    { name: 'Wave Speed', category: 'waves', latex: 'v = f \\lambda',
+      vars: {
+        f:      { sym: 'f',        latex: 'f = \\dfrac{v}{\\lambda}' },
+        lambda: { sym: '\\lambda', latex: '\\lambda = \\dfrac{v}{f}' },
+      } },
+    { name: 'Frequency–Period Relation', category: 'waves', latex: 'f = \\dfrac{1}{T}',
+      vars: {
+        T: { sym: 'T', latex: 'T = \\dfrac{1}{f}' },
+      } },
+    { name: 'Pendulum Period', category: 'waves', latex: 'T = 2\\pi \\sqrt{\\dfrac{L}{g}}',
+      vars: {
+        L: { sym: 'L', latex: 'L = g \\left(\\dfrac{T}{2\\pi}\\right)^2' },
+        g: { sym: 'g', latex: 'g = L \\left(\\dfrac{2\\pi}{T}\\right)^2' },
+      } },
+    { name: 'Spring–Mass Period', category: 'waves', latex: 'T = 2\\pi \\sqrt{\\dfrac{m}{k}}',
+      vars: {
+        m: { sym: 'm', latex: 'm = k \\left(\\dfrac{T}{2\\pi}\\right)^2' },
+        k: { sym: 'k', latex: 'k = m \\left(\\dfrac{2\\pi}{T}\\right)^2' },
+      } },
+
+    // ── ELECTRICITY ──
+    { name: "Ohm's Law", category: 'electricity', latex: 'V = I R',
+      vars: {
+        I: { sym: 'I', latex: 'I = \\dfrac{V}{R}' },
+        R: { sym: 'R', latex: 'R = \\dfrac{V}{I}' },
+      } },
+    { name: 'Electric Power', category: 'electricity', latex: 'P = I V',
+      vars: {
+        I: { sym: 'I', latex: 'I = \\dfrac{P}{V}' },
+        V: { sym: 'V', latex: 'V = \\dfrac{P}{I}' },
+      } },
+    { name: 'Electric Power (Resistive)', category: 'electricity', latex: 'P = I^2 R',
+      vars: {
+        I: { sym: 'I', latex: 'I = \\sqrt{\\dfrac{P}{R}}' },
+        R: { sym: 'R', latex: 'R = \\dfrac{P}{I^2}' },
+      } },
+
+    // ── THERMAL PHYSICS ──
+    { name: 'Heat Transfer (Calorimetry)', category: 'thermal', latex: 'Q = m c \\Delta T',
+      vars: {
+        m:  { sym: 'm',        latex: 'm = \\dfrac{Q}{c \\Delta T}' },
+        c:  { sym: 'c',        latex: 'c = \\dfrac{Q}{m \\Delta T}' },
+        dT: { sym: '\\Delta T', latex: '\\Delta T = \\dfrac{Q}{m c}' },
+      } },
+
+    // ── DENSITY & PRESSURE ──
+    { name: 'Density', category: 'fluids', latex: '\\rho = \\dfrac{m}{V}',
+      vars: {
+        m: { sym: 'm', latex: 'm = \\rho V' },
+        V: { sym: 'V', latex: 'V = \\dfrac{m}{\\rho}' },
+      } },
+    { name: 'Pressure', category: 'fluids', latex: 'P = \\dfrac{F}{A}',
+      vars: {
+        F: { sym: 'F', latex: 'F = P A' },
+        A: { sym: 'A', latex: 'A = \\dfrac{F}{P}' },
+      } },
+
+    // ── OPTICS ──
+    { name: 'Thin Lens Equation', category: 'optics', latex: '\\dfrac{1}{f} = \\dfrac{1}{d_o} + \\dfrac{1}{d_i}',
+      vars: {
+        f:  { sym: 'f',   latex: 'f = \\dfrac{d_o d_i}{d_o + d_i}' },
+        do: { sym: 'd_o', latex: 'd_o = \\dfrac{f\\, d_i}{d_i - f}' },
+        di: { sym: 'd_i', latex: 'd_i = \\dfrac{f\\, d_o}{d_o - f}' },
+      } },
+    { name: "Snell's Law", category: 'optics', latex: 'n_1 \\sin\\theta_1 = n_2 \\sin\\theta_2',
+      vars: {
+        n1: { sym: 'n_1', latex: 'n_1 = \\dfrac{n_2 \\sin\\theta_2}{\\sin\\theta_1}' },
+        n2: { sym: 'n_2', latex: 'n_2 = \\dfrac{n_1 \\sin\\theta_1}{\\sin\\theta_2}' },
+      } },
+  ];
+
+  const CATEGORY_LABEL = Object.fromEntries(CATEGORIES.map(c => [c.slug, c.label]));
+
+  // ═══════════════════════════════════════════════════
+  //  STATE
+  // ═══════════════════════════════════════════════════
+  const activeCategories = new Set(CATEGORIES.map(c => c.slug));
+  let current = null; // { eq, varKey }
+  let answerShown = false;
+
+  // ═══════════════════════════════════════════════════
+  //  CATEGORY CHIPS
+  // ═══════════════════════════════════════════════════
+  const chipsWrap = document.getElementById('category-chips');
+  CATEGORIES.forEach(cat => {
+    const chip = document.createElement('button');
+    chip.className = 'chip active';
+    chip.textContent = cat.label;
+    chip.addEventListener('click', () => {
+      if (activeCategories.has(cat.slug)) {
+        if (activeCategories.size === 1) return; // keep at least one topic active
+        activeCategories.delete(cat.slug);
+        chip.classList.remove('active');
+      } else {
+        activeCategories.add(cat.slug);
+        chip.classList.add('active');
+      }
+    });
+    chipsWrap.appendChild(chip);
+  });
+
+  document.getElementById('reset-filters-btn').addEventListener('click', () => {
+    activeCategories.clear();
+    CATEGORIES.forEach(c => activeCategories.add(c.slug));
+    chipsWrap.querySelectorAll('.chip').forEach(c => c.classList.add('active'));
+  });
+
+  // ═══════════════════════════════════════════════════
+  //  PROBLEM SELECTION + RENDERING
+  // ═══════════════════════════════════════════════════
+  function pickRandom() {
+    const pool = EQUATIONS.filter(eq => activeCategories.has(eq.category));
+    if (!pool.length) return null;
+    let eq, varKey, tries = 0;
+    do {
+      eq = pool[Math.floor(Math.random() * pool.length)];
+      const keys = Object.keys(eq.vars);
+      varKey = keys[Math.floor(Math.random() * keys.length)];
+      tries++;
+    } while (current && eq === current.eq && varKey === current.varKey && tries < 15);
+    return { eq, varKey };
+  }
+
+  function render() {
+    if (!current) {
+      document.getElementById('cat-label').textContent = '—';
+      document.getElementById('name-label').textContent = 'No topics selected';
+      katex.render('\\text{Select at least one topic above}', document.getElementById('original-eq'), { displayMode: true, throwOnError: false });
+      document.getElementById('isolate-target').innerHTML = '';
+      return;
+    }
+    const { eq, varKey } = current;
+    document.getElementById('cat-label').textContent = CATEGORY_LABEL[eq.category];
+    document.getElementById('name-label').textContent = eq.name;
+    katex.render(eq.latex, document.getElementById('original-eq'), { displayMode: true, throwOnError: false });
+    katex.render(eq.vars[varKey].sym, document.getElementById('isolate-target'), { displayMode: false, throwOnError: false });
+
+    answerShown = false;
+    const answerEl = document.getElementById('answer-eq');
+    const captionEl = document.getElementById('answer-caption');
+    katex.render(eq.vars[varKey].latex, answerEl, { displayMode: true, throwOnError: false });
+    answerEl.classList.remove('shown');
+    captionEl.classList.remove('shown');
+    document.getElementById('reveal-btn').style.display = '';
+  }
+
+  function newProblem() {
+    current = pickRandom();
+    render();
+  }
+
+  function revealAnswer() {
+    if (!current || answerShown) return;
+    answerShown = true;
+    document.getElementById('answer-eq').classList.add('shown');
+    document.getElementById('answer-caption').classList.add('shown');
+    document.getElementById('reveal-btn').style.display = 'none';
+  }
+
+  document.getElementById('next-btn').addEventListener('click', newProblem);
+  document.getElementById('reveal-btn').addEventListener('click', revealAnswer);
+
+  // ═══════════════════════════════════════════════════
+  //  FULLSCREEN
+  // ═══════════════════════════════════════════════════
+  document.getElementById('fullscreen-btn').addEventListener('click', () => {
+    const stage = document.getElementById('stage');
+    if (!document.fullscreenElement) stage.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  });
+
+  // ═══════════════════════════════════════════════════
+  //  KEYBOARD SHORTCUTS
+  // ═══════════════════════════════════════════════════
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' || e.key === 'Enter') {
+      e.preventDefault();
+      if (!answerShown) revealAnswer(); else newProblem();
+    } else if (e.key === 'n' || e.key === 'N') {
+      newProblem();
+    } else if (e.key === 'f' || e.key === 'F') {
+      document.getElementById('fullscreen-btn').click();
+    }
+  });
+
+  // click the stage itself to reveal/advance (handy on a touch display)
+  document.getElementById('stage').addEventListener('click', e => {
+    if (e.target.closest('button')) return;
+    if (!answerShown) revealAnswer(); else newProblem();
+  });
+
+  // ═══════════════════════════════════════════════════
+  //  INIT
+  // ═══════════════════════════════════════════════════
+  newProblem();
+
+  // ═══════════════════════════════════════════════════
+  //  THEME
+  // ═══════════════════════════════════════════════════
+  (function () {
+    const btn = document.getElementById('theme-toggle');
+    const icon = document.getElementById('theme-icon');
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light') { document.body.classList.add('light'); icon.textContent = '☽'; }
+    btn.addEventListener('click', () => {
+      const isLight = document.body.classList.toggle('light');
+      icon.textContent = isLight ? '☽' : '☀';
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    });
+  })();
+})();
+</script>
+</body>
+</html>
