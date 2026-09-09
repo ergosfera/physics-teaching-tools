@@ -137,15 +137,21 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: clamp(14px, 3vh, 34px);
+    gap: clamp(10px, 2.4vmin, 26px);
     padding: 30px 20px;
     text-align: center;
     position: relative;
+    overflow-y: auto;
   }
   #stage:fullscreen, #stage:-webkit-full-screen { background: var(--bg); border-radius: 0; border: none; max-width: none; }
 
+  /* Font sizes use vmin (bounded by the SMALLER of width/height) rather than
+     vw, so wide-but-short viewports (fullscreen on a 16:9 display) don't
+     blow equations up past the available vertical space and overlap the
+     controls below them. */
+
   .eq-label {
-    font-size: clamp(0.72rem, 1.4vw, 0.9rem);
+    font-size: clamp(0.72rem, 1.6vmin, 0.9rem);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -154,7 +160,7 @@
   .eq-label .cat { color: var(--accent); }
 
   #original-eq {
-    font-size: clamp(1.8rem, 5.2vw, 4rem);
+    font-size: clamp(1.6rem, 4.6vmin, 3.6rem);
     color: var(--text);
   }
 
@@ -162,22 +168,22 @@
     display: flex;
     align-items: baseline;
     gap: 10px;
-    font-size: clamp(1.1rem, 2.6vw, 1.8rem);
+    font-size: clamp(1rem, 2.2vmin, 1.6rem);
     color: var(--muted);
     font-weight: 600;
   }
-  #isolate-target { color: var(--green); font-size: clamp(1.4rem, 3.4vw, 2.4rem); }
+  #isolate-target { color: var(--green); font-size: clamp(1.3rem, 2.8vmin, 2.1rem); }
 
   #answer-wrap {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 10px;
-    min-height: clamp(3.5rem, 9vw, 6rem);
+    min-height: clamp(3.5rem, 7vmin, 5.5rem);
     justify-content: center;
   }
   .answer-caption {
-    font-size: clamp(0.7rem, 1.3vw, 0.85rem);
+    font-size: clamp(0.7rem, 1.5vmin, 0.85rem);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -187,7 +193,7 @@
   }
   .answer-caption.shown { opacity: 1; }
   #answer-eq {
-    font-size: clamp(1.6rem, 4.6vw, 3.4rem);
+    font-size: clamp(1.4rem, 4vmin, 3rem);
     color: var(--green);
     opacity: 0;
     transform: translateY(6px);
@@ -279,29 +285,42 @@
 
   const EQUATIONS = [
     // ── KINEMATICS ──
-    { name: 'Velocity–Time Relation', category: 'kinematics', latex: 'v = v_0 + a t',
+    // d and t here are always net quantities over an interval — Δx and Δt,
+    // with Δx = x_f − x_i and Δt = t_f − t_i. Alongside the delta itself,
+    // each equation also lets students isolate an initial/final component.
+    { name: 'Velocity–Time Relation', category: 'kinematics', latex: 'v = v_0 + a \\Delta t',
       vars: {
-        v:  { sym: 'v',   latex: 'v = v_0 + a t' },
-        v0: { sym: 'v_0', latex: 'v_0 = v - a t' },
-        a:  { sym: 'a',   latex: 'a = \\dfrac{v - v_0}{t}' },
-        t:  { sym: 't',   latex: 't = \\dfrac{v - v_0}{a}' },
+        v:  { sym: 'v',   latex: 'v = v_0 + a \\Delta t' },
+        v0: { sym: 'v_0', latex: 'v_0 = v - a \\Delta t' },
+        a:  { sym: 'a',   latex: 'a = \\dfrac{v - v_0}{\\Delta t}' },
+        dt: { sym: '\\Delta t', latex: '\\Delta t = \\dfrac{v - v_0}{a}' },
+        tf: { sym: 't_f', latex: 't_f = t_i + \\dfrac{v - v_0}{a}' },
+        ti: { sym: 't_i', latex: 't_i = t_f - \\dfrac{v - v_0}{a}' },
       } },
-    { name: 'Displacement (const. acceleration)', category: 'kinematics', latex: 'd = v_0 t + \\dfrac{1}{2} a t^2',
+    { name: 'Displacement (const. acceleration)', category: 'kinematics', latex: '\\Delta x = v_0 \\Delta t + \\dfrac{1}{2} a \\Delta t^2',
       vars: {
-        v0: { sym: 'v_0', latex: 'v_0 = \\dfrac{d - \\frac{1}{2} a t^2}{t}' },
-        a:  { sym: 'a',   latex: 'a = \\dfrac{2(d - v_0 t)}{t^2}' },
+        v0: { sym: 'v_0', latex: 'v_0 = \\dfrac{\\Delta x - \\frac{1}{2} a \\Delta t^2}{\\Delta t}' },
+        a:  { sym: 'a',   latex: 'a = \\dfrac{2(\\Delta x - v_0 \\Delta t)}{\\Delta t^2}' },
+        xf: { sym: 'x_f', latex: 'x_f = x_i + v_0 \\Delta t + \\dfrac{1}{2} a \\Delta t^2' },
+        xi: { sym: 'x_i', latex: 'x_i = x_f - v_0 \\Delta t - \\dfrac{1}{2} a \\Delta t^2' },
       } },
-    { name: 'Velocity–Displacement Relation', category: 'kinematics', latex: 'v^2 = v_0^2 + 2 a d',
+    { name: 'Velocity–Displacement Relation', category: 'kinematics', latex: 'v^2 = v_0^2 + 2 a \\Delta x',
       vars: {
-        v:  { sym: 'v',  latex: 'v = \\sqrt{v_0^2 + 2 a d}' },
-        v0: { sym: 'v_0', latex: 'v_0 = \\sqrt{v^2 - 2 a d}' },
-        a:  { sym: 'a',  latex: 'a = \\dfrac{v^2 - v_0^2}{2 d}' },
-        d:  { sym: 'd',  latex: 'd = \\dfrac{v^2 - v_0^2}{2 a}' },
+        v:  { sym: 'v',   latex: 'v = \\sqrt{v_0^2 + 2 a \\Delta x}' },
+        v0: { sym: 'v_0', latex: 'v_0 = \\sqrt{v^2 - 2 a \\Delta x}' },
+        a:  { sym: 'a',   latex: 'a = \\dfrac{v^2 - v_0^2}{2 \\Delta x}' },
+        dx: { sym: '\\Delta x', latex: '\\Delta x = \\dfrac{v^2 - v_0^2}{2 a}' },
+        xf: { sym: 'x_f', latex: 'x_f = x_i + \\dfrac{v^2 - v_0^2}{2 a}' },
+        xi: { sym: 'x_i', latex: 'x_i = x_f - \\dfrac{v^2 - v_0^2}{2 a}' },
       } },
-    { name: 'Average Velocity', category: 'kinematics', latex: 'v = \\dfrac{d}{t}',
+    { name: 'Average Velocity', category: 'kinematics', latex: 'v = \\dfrac{\\Delta x}{\\Delta t}',
       vars: {
-        d: { sym: 'd', latex: 'd = v t' },
-        t: { sym: 't', latex: 't = \\dfrac{d}{v}' },
+        dx: { sym: '\\Delta x', latex: '\\Delta x = v \\Delta t' },
+        dt: { sym: '\\Delta t', latex: '\\Delta t = \\dfrac{\\Delta x}{v}' },
+        xf: { sym: 'x_f', latex: 'x_f = x_i + v \\Delta t' },
+        xi: { sym: 'x_i', latex: 'x_i = x_f - v \\Delta t' },
+        tf: { sym: 't_f', latex: 't_f = t_i + \\dfrac{\\Delta x}{v}' },
+        ti: { sym: 't_i', latex: 't_i = t_f - \\dfrac{\\Delta x}{v}' },
       } },
 
     // ── DYNAMICS & FORCES ──
