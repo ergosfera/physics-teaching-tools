@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Energy Lab</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0d1117;
+    --surface: #161b22;
+    --surface2:#1c2128;
+    --border:  #30363d;
+    --text:    #e6edf3;
+    --muted:   #8b949e;
+    --accent:  #58a6ff;
+    --green:   #3fb950;
+    --yellow:  #d29922;
+    --red:     #f85149;
+    --radius:  8px;
+  }
+  body.light {
+    --bg:      #f6f8fa;
+    --surface: #ffffff;
+    --surface2:#f0f4f8;
+    --border:  #d0d7de;
+    --text:    #1f2328;
+    --muted:   #656d76;
+    --accent:  #0969da;
+    --green:   #1a7f37;
+    --yellow:  #9a6700;
+    --red:     #cf222e;
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 10px 20px 9px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    gap: 16px;
+  }
+  .header-title h1 { font-size: 0.97rem; font-weight: 700; letter-spacing: -0.3px; }
+  .header-title h1 span { color: var(--accent); }
+  .header-title p { font-size: 0.7rem; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+  .header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+  #theme-toggle {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    transition: border-color .2s, color .2s;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+  a.back-link {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-decoration: none;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+  }
+  a.back-link:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── WORKSPACE ── */
+  .workspace { flex: 1; display: flex; min-height: 0; }
+
+  /* ── LEFT PANEL (25%) ── */
+  .left-panel {
+    width: 25%;
+    min-width: 260px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-section { padding: 10px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .section-label {
+    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px;
+  }
+
+  .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  button.tool-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text);
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color .12s, color .12s;
+    font-family: inherit;
+  }
+  button.tool-btn:hover { border-color: var(--accent); color: var(--accent); }
+  button.tool-btn.primary { color: var(--accent); border-color: var(--accent); }
+
+  .table-scroll { flex: 1; overflow: auto; padding: 0 0 10px; }
+
+  table#data-table { width: 100%; border-collapse: collapse; font-size: 0.74rem; table-layout: fixed; }
+  table#data-table thead th {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    padding: 7px 4px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.68rem;
+  }
+  table#data-table thead th .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px;
+  }
+  table#data-table tbody td {
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    padding: 0;
+    text-align: center;
+  }
+  table#data-table tbody tr:hover { background: var(--surface2); }
+  table#data-table input[type=text].cell-input {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text);
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.75rem;
+    padding: 5px 4px;
+    text-align: center;
+  }
+  table#data-table input[type=text].cell-input:hover { background: var(--surface2); }
+  table#data-table input[type=text].cell-input:focus {
+    outline: none; border-color: var(--accent); background: var(--surface2);
+  }
+
+  td.col-remove { width: 24px; border-right: none; padding: 0; }
+  .row-remove-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 0.8rem; line-height: 1; padding: 2px 4px; border-radius: 4px;
+  }
+  .row-remove-btn:hover { color: var(--red); background: var(--surface2); }
+
+  .add-row-wrap { padding: 8px 12px 0; }
+  #add-row-btn { width: 100%; }
+
+  #csv-file-input { display: none; }
+
+  /* ── RIGHT GRID (75%) ── */
+  .right-grid {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .quadrant {
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .quadrant-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .quadrant-title { font-size: 0.72rem; font-weight: 700; color: var(--text); white-space: nowrap; }
+
+  .overlay-toggles { display: flex; gap: 8px; flex-wrap: wrap; }
+  .overlay-toggles label {
+    display: flex; align-items: center; gap: 3px; font-size: 0.66rem; color: var(--muted);
+    cursor: pointer; user-select: none;
+  }
+  .overlay-toggles input[type=checkbox] { accent-color: var(--accent); cursor: pointer; }
+  .overlay-toggles .dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
+
+  .png-export-btn {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    padding: 3px 8px; color: var(--muted); font-size: 0.66rem; cursor: pointer; font-family: inherit;
+  }
+  .png-export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .quadrant-canvas-wrap { flex: 1; min-height: 0; position: relative; }
+  .quadrant-canvas-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* colored key dots (color set inline via JS) */
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <h1><span>Energy</span> Lab</h1>
+    <p>Track kinetic, gravitational, elastic, and thermal energy over time. Edit the table, then compare curves across quadrants.</p>
+  </div>
+  <div class="header-right">
+    <a class="back-link" href="../../../index.html">← All tools</a>
+    <div id="theme-toggle"><span id="theme-icon">☀</span></div>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- ══════════════ LEFT: DATA TABLE ══════════════ -->
+  <div class="left-panel">
+    <div class="panel-section">
+      <p class="section-label">Data</p>
+      <div class="btn-row">
+        <button class="tool-btn" id="import-btn">⬆ Import CSV</button>
+        <button class="tool-btn" id="export-btn">⬇ Export CSV</button>
+        <input type="file" id="csv-file-input" accept=".csv,text/csv">
+      </div>
+    </div>
+
+    <div class="table-scroll">
+      <table id="data-table">
+        <thead>
+          <tr>
+            <th>t (s)</th>
+            <th><span class="dot" style="background:var(--accent)"></span>K</th>
+            <th><span class="dot" style="background:var(--green)"></span>U<sub>g</sub></th>
+            <th><span class="dot" style="background:var(--yellow)"></span>U<sub>e</sub></th>
+            <th><span class="dot" style="background:var(--red)"></span>E<sub>th</sub></th>
+            <th class="col-remove"></th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+
+    <div class="add-row-wrap">
+      <button class="tool-btn primary" id="add-row-btn">+ Add row</button>
+    </div>
+  </div>
+
+  <!-- ══════════════ RIGHT: 2×2 GRAPH GRID ══════════════ -->
+  <div class="right-grid" id="right-grid"></div>
+
+</div>
+
+<script>
+(function () {
+  // ── SERIES DEFINITIONS ──
+  const SERIES = ['K', 'Ug', 'Ue', 'Eth'];
+  const SERIES_LABEL = { K: 'Kinetic (K)', Ug: 'Gravitational PE (Uₘ)', Ue: 'Elastic PE (Uₑ)', Eth: 'Thermal (Eₜₕ)' };
+  const SERIES_VAR = { K: '--accent', Ug: '--green', Ue: '--yellow', Eth: '--red' };
+
+  function seriesColor(key) {
+    return getComputedStyle(document.body).getPropertyValue(SERIES_VAR[key]).trim();
+  }
+
+  // ── STATE ──
+  let rows = [
+    { t: 0, K: 0,  Ug: 10, Ue: 0, Eth: 0 },
+    { t: 1, K: 5,  Ug: 5,  Ue: 0, Eth: 0 },
+    { t: 2, K: 2,  Ug: 0,  Ue: 0, Eth: 3 }
+  ];
+
+  // quadrant order: K, Ug, Ue, Eth — each starts showing only its own primary series
+  const quadrants = SERIES.map(primary => ({ primary, visible: new Set([primary]) }));
+
+  // ── TABLE RENDERING ──
+  const tbody = document.getElementById('table-body');
+
+  function renderTable() {
+    tbody.innerHTML = '';
+    rows.forEach((row, i) => {
+      const tr = document.createElement('tr');
+
+      ['t', ...SERIES].forEach(key => {
+        const td = document.createElement('td');
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'cell-input';
+        input.inputMode = 'decimal';
+        input.value = row[key];
+        input.addEventListener('input', () => {
+          const v = parseFloat(input.value);
+          if (!isNaN(v)) { row[key] = v; redrawAll(); }
+        });
+        input.addEventListener('blur', () => {
+          input.value = row[key]; // snap back to the last valid number
+        });
+        input.addEventListener('keydown', e => {
+          if (e.key === 'Enter') input.blur();
+        });
+        td.appendChild(input);
+        tr.appendChild(td);
+      });
+
+      const tdRemove = document.createElement('td');
+      tdRemove.className = 'col-remove';
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'row-remove-btn';
+      removeBtn.textContent = '✕';
+      removeBtn.title = 'Remove row';
+      removeBtn.addEventListener('click', () => {
+        rows.splice(i, 1);
+        renderTable();
+        redrawAll();
+      });
+      tdRemove.appendChild(removeBtn);
+      tr.appendChild(tdRemove);
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.getElementById('add-row-btn').addEventListener('click', () => {
+    const lastT = rows.length ? rows[rows.length - 1].t : 0;
+    rows.push({ t: lastT + 1, K: 0, Ug: 0, Ue: 0, Eth: 0 });
+    renderTable();
+    redrawAll();
+  });
+
+  // ── CSV IMPORT / EXPORT ──
+  const fileInput = document.getElementById('csv-file-input');
+  document.getElementById('import-btn').addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const lines = reader.result.split(/\r?\n/).map(l => l.trim()).filter(l => l.length);
+      const parsed = [];
+      lines.forEach(line => {
+        const parts = line.split(',').map(s => s.trim());
+        const nums = parts.map(p => parseFloat(p));
+        if (nums.some(n => isNaN(n))) return; // skip header / malformed rows
+        const [t = 0, K = 0, Ug = 0, Ue = 0, Eth = 0] = nums;
+        parsed.push({ t, K, Ug, Ue, Eth });
+      });
+      if (parsed.length) {
+        rows = parsed;
+        renderTable();
+        redrawAll();
+      }
+      fileInput.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById('export-btn').addEventListener('click', () => {
+    const header = ['t', ...SERIES].join(',');
+    const body = rows.map(r => [r.t, r.K, r.Ug, r.Ue, r.Eth].join(',')).join('\n');
+    const csv = header + '\n' + body + '\n';
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'energy_lab_data.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  // ── QUADRANT / CHART BUILDING ──
+  const grid = document.getElementById('right-grid');
+  const canvases = [];
+
+  quadrants.forEach((q, qi) => {
+    const quad = document.createElement('div');
+    quad.className = 'quadrant';
+
+    const header = document.createElement('div');
+    header.className = 'quadrant-header';
+
+    const title = document.createElement('span');
+    title.className = 'quadrant-title';
+    title.textContent = SERIES_LABEL[q.primary] + ' vs t';
+    header.appendChild(title);
+
+    const toggles = document.createElement('div');
+    toggles.className = 'overlay-toggles';
+    SERIES.forEach(key => {
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = q.visible.has(key);
+      cb.addEventListener('change', () => {
+        if (cb.checked) q.visible.add(key); else q.visible.delete(key);
+        draw(qi);
+      });
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.background = seriesColor(key);
+      label.appendChild(cb);
+      label.appendChild(dot);
+      label.appendChild(document.createTextNode(key));
+      toggles.appendChild(label);
+    });
+    header.appendChild(toggles);
+
+    const pngBtn = document.createElement('button');
+    pngBtn.className = 'png-export-btn';
+    pngBtn.textContent = '⬇ PNG';
+    pngBtn.addEventListener('click', () => exportPng(qi));
+    header.appendChild(pngBtn);
+
+    quad.appendChild(header);
+
+    const canvasWrap = document.createElement('div');
+    canvasWrap.className = 'quadrant-canvas-wrap';
+    const canvas = document.createElement('canvas');
+    canvasWrap.appendChild(canvas);
+    quad.appendChild(canvasWrap);
+
+    grid.appendChild(quad);
+    canvases.push(canvas);
+  });
+
+  function exportPng(qi) {
+    const canvas = canvases[qi];
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${quadrants[qi].primary}_energy_vs_time.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  }
+
+  // ── DRAWING ──
+  function draw(qi) {
+    const canvas = canvases[qi];
+    const wrap = canvas.parentElement;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = wrap.getBoundingClientRect();
+    const w = Math.max(rect.width, 10);
+    const h = Math.max(rect.height, 10);
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const bg = getComputedStyle(document.body).getPropertyValue('--bg').trim();
+    const border = getComputedStyle(document.body).getPropertyValue('--border').trim();
+    const muted = getComputedStyle(document.body).getPropertyValue('--muted').trim();
+    const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim();
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    const visible = Array.from(quadrants[qi].visible);
+    const padL = 46, padR = 14, padT = 14, padB = 30;
+    const plotW = Math.max(w - padL - padR, 10);
+    const plotH = Math.max(h - padT - padB, 10);
+
+    if (!rows.length || !visible.length) {
+      ctx.fillStyle = muted;
+      ctx.font = '11px "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No data / no series selected', w / 2, h / 2);
+      return;
+    }
+
+    const sorted = [...rows].sort((a, b) => a.t - b.t);
+    const tVals = sorted.map(r => r.t);
+    let tMin = Math.min(...tVals), tMax = Math.max(...tVals);
+    if (tMin === tMax) { tMin -= 1; tMax += 1; }
+
+    let yVals = [];
+    visible.forEach(key => sorted.forEach(r => yVals.push(r[key])));
+    yVals.push(0);
+    let yMin = Math.min(...yVals), yMax = Math.max(...yVals);
+    if (yMin === yMax) { yMin -= 1; yMax += 1; }
+    const yPad = (yMax - yMin) * 0.1;
+    yMin -= yPad; yMax += yPad;
+
+    const xToPx = t => padL + ((t - tMin) / (tMax - tMin)) * plotW;
+    const yToPx = v => padT + plotH - ((v - yMin) / (yMax - yMin)) * plotH;
+
+    // gridlines + y ticks
+    ctx.strokeStyle = border;
+    ctx.fillStyle = muted;
+    ctx.font = '9px "Segoe UI", system-ui, sans-serif';
+    ctx.lineWidth = 1;
+    const yTicks = 4;
+    for (let i = 0; i <= yTicks; i++) {
+      const v = yMin + (i / yTicks) * (yMax - yMin);
+      const py = yToPx(v);
+      ctx.beginPath();
+      ctx.moveTo(padL, py);
+      ctx.lineTo(padL + plotW, py);
+      ctx.stroke();
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(v.toFixed(1), padL - 6, py);
+    }
+    const xTicks = Math.max(1, Math.min(5, tVals.length, Math.floor(plotW / 55)));
+    for (let i = 0; i <= xTicks; i++) {
+      const t = tMin + (i / xTicks) * (tMax - tMin);
+      const px = xToPx(t);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(t.toFixed(1), px, padT + plotH + 6);
+    }
+
+    // axes
+    ctx.strokeStyle = muted;
+    ctx.beginPath();
+    ctx.moveTo(padL, padT);
+    ctx.lineTo(padL, padT + plotH);
+    ctx.lineTo(padL + plotW, padT + plotH);
+    ctx.stroke();
+
+    // axis labels
+    ctx.fillStyle = muted;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('t (s)', padL + plotW / 2, h - 4);
+    ctx.save();
+    ctx.translate(10, padT + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Energy (J)', 0, 0);
+    ctx.restore();
+
+    // series lines + markers
+    visible.forEach(key => {
+      const color = seriesColor(key);
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      sorted.forEach((r, i) => {
+        const px = xToPx(r.t), py = yToPx(r[key]);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+      sorted.forEach(r => {
+        const px = xToPx(r.t), py = yToPx(r[key]);
+        ctx.beginPath();
+        ctx.arc(px, py, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+
+    // legend (only when overlaying more than one series)
+    if (visible.length > 1) {
+      let lx = padL + 8, ly = padT + 10;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.font = '9px "Segoe UI", system-ui, sans-serif';
+      visible.forEach(key => {
+        ctx.fillStyle = seriesColor(key);
+        ctx.fillRect(lx, ly - 3, 8, 8);
+        ctx.fillStyle = textColor;
+        ctx.fillText(key, lx + 12, ly + 1);
+        lx += ctx.measureText(key).width + 26;
+      });
+    }
+  }
+
+  function redrawAll() {
+    quadrants.forEach((_, qi) => draw(qi));
+  }
+
+  // ── RESIZE ──
+  const ro = new ResizeObserver(() => redrawAll());
+  canvases.forEach(c => ro.observe(c.parentElement));
+
+  // ── INIT ──
+  renderTable();
+  redrawAll();
+
+  // ── THEME ──
+  (function () {
+    const btn = document.getElementById('theme-toggle');
+    const icon = document.getElementById('theme-icon');
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light') { document.body.classList.add('light'); icon.textContent = '☽'; }
+    btn.addEventListener('click', () => {
+      const isLight = document.body.classList.toggle('light');
+      icon.textContent = isLight ? '☽' : '☀';
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+      redrawAll();
+    });
+  })();
+})();
+</script>
+</body>
+</html>
