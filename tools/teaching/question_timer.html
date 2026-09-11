@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Question Timer</title>
+
+  <style>
+    /* ---- Design tokens: classic Windows 95, single high-contrast skin ----
+       No dark variant — this runs on a classroom projector, where subtle
+       bevel edges and low-contrast grays disappear under room lighting. */
+    :root {
+      --face:         #c0c0c0;
+      --bevel-hi:     #ffffff;
+      --bevel-lt:     #dfdfdf;
+      --bevel-sh:     #808080;
+      --bevel-dk:     #000000;
+      --win-text:     #000000;
+      --disabled:     #808080;
+      --title-from:   #000080;
+      --title-to:     #1084d0;
+      --title-text:   #ffffff;
+      --field-bg:     #ffffff;
+      --field-text:   #000000;
+      --desktop:      #008080;
+
+      --lcd-bg:       #0a1410;
+      --lcd-digit:    #eaf3ee;
+
+      --green:        #2f9e44;
+      --yellow:       #cf9b12;
+      --red:          #b93a2f;
+
+      --font-mono: ui-monospace, 'SF Mono', 'Fira Code', monospace;
+    }
+
+    /* ---- Reset ---- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--desktop);
+      color: var(--win-text);
+      font-family: Tahoma, 'MS Sans Serif', Geneva, Verdana, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      overflow: hidden;
+    }
+
+    body { display: flex; }
+
+    .bevel-raised {
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+    }
+    .bevel-sunken {
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
+    }
+
+    /* ---- Window chrome ---- */
+    #win95-window {
+      flex: 1;
+      margin: 3px;
+      display: flex;
+      flex-direction: column;
+      background: var(--face);
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+      overflow: hidden;
+    }
+
+    #win95-titlebar {
+      flex-shrink: 0;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 3px 0 6px;
+      background: linear-gradient(90deg, var(--title-from), var(--title-to));
+      color: var(--title-text);
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .tb-icon { font-size: 13px; }
+    .tb-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tb-btns { display: flex; gap: 2px; }
+    .tb-btn {
+      width: 18px; height: 16px; padding: 0;
+      min-width: 0; min-height: 0; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--face); color: var(--win-text);
+      border: none; font-size: 10px; line-height: 1; cursor: pointer;
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+    }
+    .tb-close:hover { background: #c00000; color: #fff; }
+
+    .win95-content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: var(--face);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- App shell ---- */
+    .app {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 16px;
+      gap: 14px;
+    }
+
+    /* ---- Timer card ---- */
+    .timer-card {
+      width: min(900px, 100%);
+      background: var(--face);
+      overflow: hidden;
+    }
+
+    .timer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 8px 14px;
+      background: linear-gradient(90deg, var(--title-from), var(--title-to));
+    }
+
+    .header-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--title-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-pace {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    /* Timer body */
+    .timer-body {
+      padding: 24px 20px 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+
+    /* LCD digit panel */
+    .lcd-panel {
+      width: 100%;
+      background: var(--lcd-bg);
+      padding: 10px 16px;
+    }
+
+    .digits {
+      font-family: var(--font-mono);
+      font-size: min(15vw, 150px);
+      line-height: 1;
+      letter-spacing: -0.03em;
+      user-select: none;
+      text-align: center;
+      color: var(--lcd-digit);
+      text-shadow: 0 0 6px rgba(234,243,238,0.35);
+    }
+
+    @keyframes blinkFade {
+      0%,  49% { opacity: 1;    }
+      50%, 100% { opacity: 0.1; }
+    }
+
+    .blink { animation: blinkFade 1s steps(1, end) infinite; }
+
+    /* Progress bar — width = time remaining, anchored left so it "eats away"
+       from the right as the exam runs. Tick marks stay fixed on the track
+       underneath, so each one the shrinking bar passes marks a question
+       boundary at the even-pacing rate. */
+    .progress-track {
+      width: 100%;
+      position: relative;
+    }
+
+    .progress-wrap {
+      width: 100%;
+      height: 22px;
+      background: var(--field-bg);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 100%;
+      background: var(--green);
+      transition: width 0.25s linear, background 0.25s linear;
+    }
+
+    .tick-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .tick {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(0,0,0,0.35);
+    }
+
+    .tick-labels {
+      position: relative;
+      width: 100%;
+      height: 16px;
+      margin-top: 2px;
+    }
+
+    .tick-label {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--win-text);
+      font-family: var(--font-mono);
+    }
+
+    .per-question-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--win-text);
+      text-align: center;
+    }
+
+    /* ---- Controls card ---- */
+    .controls {
+      width: min(900px, 100%);
+      background: var(--face);
+      padding: 18px;
+    }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--win-text);
+      margin-bottom: 8px;
+    }
+
+    .divider {
+      height: 2px;
+      margin: 16px 0;
+      box-shadow: inset 0 1px var(--bevel-sh), inset 0 -1px var(--bevel-hi);
+    }
+
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+    .input-field { display: flex; flex-direction: column; gap: 6px; }
+
+    .input-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--win-text);
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      padding: 6px 8px;
+      border: none;
+      border-radius: 0;
+      background: var(--field-bg);
+      color: var(--field-text);
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
+    }
+
+    input[type="number"] {
+      font-family: var(--font-mono);
+      font-size: 24px;
+      text-align: center;
+    }
+
+    input[type="text"]  { font-size: 14px; font-weight: 600; }
+    input:focus-visible { outline: 1px dotted var(--win-text); outline-offset: -3px; }
+
+    /* Buttons */
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 9px 20px;
+      border: none;
+      border-radius: 0;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--face);
+      color: var(--win-text);
+      font-family: inherit;
+      white-space: nowrap;
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+    }
+
+    button:active:not(:disabled) {
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
+      padding: 8px 17px 6px 19px;
+    }
+    button:focus-visible { outline: 1px dotted var(--win-text); outline-offset: -4px; }
+    button:disabled { color: var(--disabled); cursor: default; }
+
+    .btn-play    { color: #006622; }
+    .btn-pause   { color: #003399; }
+    .btn-stop    { color: #a00000; }
+    .btn-present { color: #4b0082; }
+
+    .hint {
+      text-align: center;
+      font-size: 12px;
+      color: var(--win-text);
+      margin-top: 12px;
+    }
+
+    kbd {
+      display: inline-block;
+      padding: 1px 6px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--win-text);
+      background: var(--face);
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+    }
+
+    .footer {
+      padding: 10px 0 18px;
+      text-align: center;
+      color: var(--win-text);
+      font-size: 12px;
+    }
+
+    /* Presentation mode */
+    .presentation .controls,
+    .presentation .footer { display: none; }
+
+    .presentation .main { gap: 0; padding: 20px; }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 640px) {
+      .grid2, .grid3 { grid-template-columns: 1fr; }
+      .timer-header   { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="win95-window">
+  <div id="win95-titlebar">
+    <span class="tb-icon">&#9202;</span>
+    <span class="tb-title">Question Timer</span>
+    <div class="tb-btns">
+      <button class="tb-btn" tabindex="-1" aria-hidden="true">_</button>
+      <button class="tb-btn" tabindex="-1" aria-hidden="true">&#9633;</button>
+      <button class="tb-btn tb-close" tabindex="-1" aria-hidden="true">&#10005;</button>
+    </div>
+  </div>
+
+  <div class="win95-content">
+  <div id="app" class="app">
+    <div class="main">
+
+      <!-- Timer display -->
+      <div class="timer-card bevel-raised">
+        <div class="timer-header">
+          <div class="header-title">Question Timer</div>
+          <div id="paceLabel" class="header-pace"></div>
+        </div>
+
+        <div class="timer-body">
+          <div class="lcd-panel bevel-sunken">
+            <div id="digits" class="digits">10:00</div>
+          </div>
+
+          <div class="progress-track">
+            <div class="progress-wrap bevel-sunken">
+              <div id="bar" class="progress-bar"></div>
+              <div id="tickLayer" class="tick-layer"></div>
+            </div>
+            <div id="tickLabels" class="tick-labels"></div>
+          </div>
+
+          <div id="perQuestionLabel" class="per-question-label"></div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls bevel-raised">
+
+        <div class="section-label">Total Time</div>
+        <div class="grid3" style="margin-bottom:16px;">
+          <div class="input-field">
+            <div class="input-label">Hours</div>
+            <input id="h" type="number" min="0" max="99" value="0" />
+          </div>
+          <div class="input-field">
+            <div class="input-label">Minutes</div>
+            <input id="m" type="number" min="0" max="59" value="10" />
+          </div>
+          <div class="input-field">
+            <div class="input-label">Seconds</div>
+            <input id="s" type="number" min="0" max="59" value="0" />
+          </div>
+        </div>
+
+        <div class="grid2" style="margin-bottom:16px;">
+          <div class="input-field">
+            <div class="input-label">Number of questions</div>
+            <input id="questions" type="number" min="1" max="200" value="10" />
+          </div>
+          <div class="input-field">
+            <div class="input-label">Exam / activity name (optional)</div>
+            <input id="examName" type="text" placeholder="e.g. Kinematics Quiz" />
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="button-row">
+          <button id="play"          class="btn-play"   >&#9654; Play</button>
+          <button id="pause"         class="btn-pause"  disabled>&#9208; Pause</button>
+          <button id="stop"          class="btn-stop"   disabled>&#9209; Stop</button>
+          <button id="set"           class="btn-set"    >Set</button>
+          <button id="togglePresent" class="btn-present">&#9974; Presentation</button>
+        </div>
+
+        <div class="hint">
+          <kbd>Space</kbd> Play/Pause &nbsp;&middot;&nbsp;
+          <kbd>R</kbd> Stop &nbsp;&middot;&nbsp;
+          <kbd>Esc</kbd> Toggle controls &nbsp;&middot;&nbsp;
+          <kbd>F11</kbd> Full screen
+        </div>
+      </div>
+
+      <div class="footer">Tip: Press F11 for full screen before projecting.</div>
+    </div>
+  </div>
+  </div>
+</div>
+
+  <script>
+    // ---- Persist / restore settings ----
+    const saved = (() => {
+      try { return JSON.parse(localStorage.getItem("questionTimerSettings") || "{}"); }
+      catch { return {}; }
+    })();
+
+    function saveSettings() {
+      try {
+        localStorage.setItem("questionTimerSettings", JSON.stringify({
+          h: elH.value, m: elM.value, s: elS.value,
+          questions: elQuestions.value,
+          examName: elExamName.value,
+        }));
+      } catch { /* storage unavailable */ }
+    }
+
+    // ---- DOM refs ----
+    const app             = document.getElementById("app");
+    const elH              = document.getElementById("h");
+    const elM              = document.getElementById("m");
+    const elS              = document.getElementById("s");
+    const elQuestions      = document.getElementById("questions");
+    const elExamName       = document.getElementById("examName");
+    const headerTitle      = document.querySelector(".header-title");
+    const paceLabel        = document.getElementById("paceLabel");
+    const digits           = document.getElementById("digits");
+    const bar              = document.getElementById("bar");
+    const tickLayer        = document.getElementById("tickLayer");
+    const tickLabels       = document.getElementById("tickLabels");
+    const perQuestionLabel = document.getElementById("perQuestionLabel");
+    const btnPlay          = document.getElementById("play");
+    const btnPause         = document.getElementById("pause");
+    const btnStop          = document.getElementById("stop");
+    const btnSet           = document.getElementById("set");
+    const btnTogglePresent = document.getElementById("togglePresent");
+
+    // ---- Restore saved settings ----
+    if (saved.h != null) elH.value = saved.h;
+    if (saved.m != null) elM.value = saved.m;
+    if (saved.s != null) elS.value = saved.s;
+    if (saved.questions != null) elQuestions.value = saved.questions;
+    if (saved.examName) elExamName.value = saved.examName;
+
+    // ---- Timer state ----
+    let initial      = 0;    // total seconds for this run
+    let remaining     = 0;    // seconds left (frozen when paused)
+    let questionCount = 10;   // N at the time Set/Play was pressed
+    let running       = false;
+    let timerId        = null;
+    let presentation    = false;
+    let deadlineMs       = null;
+
+    // ---- Helpers ----
+    function clampInt(v, min, max) {
+      const n = parseInt(v, 10);
+      return Number.isNaN(n) ? min : Math.min(max, Math.max(min, n));
+    }
+
+    function pad2(n) { return String(n).padStart(2, "0"); }
+
+    // h:mm:ss when there are hours, otherwise m:ss — exam durations are
+    // usually well under an hour, so the common case stays compact.
+    function formatDuration(totalSeconds) {
+      totalSeconds = Math.max(0, Math.round(totalSeconds));
+      const h = Math.floor(totalSeconds / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = totalSeconds % 60;
+      return h > 0 ? `${h}:${pad2(m)}:${pad2(s)}` : `${m}:${pad2(s)}`;
+    }
+
+    function inputTotalSeconds() {
+      const h = clampInt(elH.value, 0, 99);
+      const m = clampInt(elM.value, 0, 59);
+      const s = clampInt(elS.value, 0, 59);
+      elH.value = h; elM.value = m; elS.value = s;
+      return h * 3600 + m * 60 + s;
+    }
+
+    function inputQuestionCount() {
+      const n = clampInt(elQuestions.value, 1, 200);
+      elQuestions.value = n;
+      return n;
+    }
+
+    // Continuous green → yellow → red interpolation as remaining fraction
+    // drops from 1 to 0, so the bar's color change reads as one smooth ramp
+    // rather than a hard snap between thresholds.
+    const GREEN  = [47, 158, 68];
+    const YELLOW = [207, 155, 18];
+    const RED    = [185, 58, 47];
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    function colorForFraction(frac) {
+      frac = Math.max(0, Math.min(1, frac));
+      const [c0, c1, t] = frac >= 0.5
+        ? [YELLOW, GREEN, (frac - 0.5) * 2]
+        : [RED, YELLOW, frac * 2];
+      const r = Math.round(lerp(c0[0], c1[0], t));
+      const g = Math.round(lerp(c0[1], c1[1], t));
+      const b = Math.round(lerp(c0[2], c1[2], t));
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    // ---- Question-boundary ticks on the bar track ----
+    function rebuildTicks(n) {
+      tickLayer.innerHTML = "";
+      tickLabels.innerHTML = "";
+      const showLabels = n <= 24;
+      for (let i = 1; i < n; i++) {
+        const pct = (i / n) * 100;
+        const tick = document.createElement("div");
+        tick.className = "tick";
+        tick.style.left = pct + "%";
+        tickLayer.appendChild(tick);
+
+        if (showLabels) {
+          // The bar shrinks from the right edge inward, so number ticks
+          // right-to-left — "1" sits at the edge the bar reaches first.
+          const label = document.createElement("div");
+          label.className = "tick-label";
+          label.style.left = pct + "%";
+          label.textContent = n - i;
+          tickLabels.appendChild(label);
+        }
+      }
+    }
+
+    // ---- Presentation ----
+    function setPresentation(on) {
+      presentation = !!on;
+      app.classList.toggle("presentation", presentation);
+      btnTogglePresent.textContent = presentation ? "✲ Controls" : "✲ Presentation";
+    }
+
+    // ---- Timer internals ----
+    function clearTimerInterval() {
+      if (timerId) { clearInterval(timerId); timerId = null; }
+    }
+
+    function secondsUntilDeadline() {
+      return deadlineMs ? Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000)) : remaining;
+    }
+
+    function updatePageTitle() {
+      const secs = initial > 0 ? remaining : inputTotalSeconds();
+      document.title = `${formatDuration(secs)} — Question Timer`;
+    }
+
+    function updateHeaderTitle() {
+      const name = elExamName.value.trim();
+      headerTitle.textContent = name || "Question Timer";
+    }
+
+    function updateUI() {
+      // Sleep-proof: recompute remaining from deadline while running
+      if (running && deadlineMs) {
+        remaining = secondsUntilDeadline();
+        if (remaining === 0) {
+          running = false;
+          clearTimerInterval();
+          deadlineMs = null;
+        }
+      }
+
+      const n = initial > 0 ? questionCount : inputQuestionCount();
+      const displaySecs = initial > 0 ? remaining : inputTotalSeconds();
+      digits.textContent = formatDuration(displaySecs);
+      updatePageTitle();
+      updateHeaderTitle();
+
+      const done = initial > 0 && remaining === 0;
+      digits.classList.toggle("blink", done);
+
+      const ratio = initial > 0 ? Math.max(0, Math.min(1, remaining / initial)) : 1;
+      const color = colorForFraction(ratio);
+      bar.style.width = (ratio * 100) + "%";
+      bar.style.background = color;
+
+      // Per-question duration, live from whatever is currently in the inputs
+      const liveTotal = initial > 0 ? initial : inputTotalSeconds();
+      const perQ = liveTotal > 0 && n > 0 ? liveTotal / n : 0;
+      perQuestionLabel.textContent = perQ > 0
+        ? `≈ ${formatDuration(perQ)} per question (${n} question${n === 1 ? "" : "s"})`
+        : "";
+
+      // Recommended pace: which question a student on schedule should be on
+      if (initial > 0 && n > 1) {
+        const elapsed = initial - remaining;
+        const idx = Math.min(n, Math.floor(elapsed / (initial / n)) + 1);
+        paceLabel.textContent = done ? "Time's up" : `Pace: Q${idx} of ${n}`;
+      } else {
+        paceLabel.textContent = "";
+      }
+
+      btnPause.disabled = !running;
+      btnStop.disabled  = !(running || initial > 0);
+      const candidate = initial > 0 ? initial : inputTotalSeconds();
+      btnPlay.disabled  = candidate <= 0;
+      btnSet.disabled   = running || candidate <= 0;
+    }
+
+    function setFromInputs() {
+      const total = inputTotalSeconds();
+      const n     = inputQuestionCount();
+      if (total <= 0) return;
+      initial = total;
+      remaining = total;
+      questionCount = n;
+      running = false;
+      deadlineMs = null;
+      clearTimerInterval();
+      rebuildTicks(n);
+      updateUI();
+    }
+
+    function play() {
+      if (initial === 0 || remaining === 0) {
+        const total = inputTotalSeconds();
+        const n     = inputQuestionCount();
+        if (total <= 0) return;
+        initial = total;
+        remaining = total;
+        questionCount = n;
+        rebuildTicks(n);
+      }
+      if (running) return;
+      running = true;
+      deadlineMs = Date.now() + remaining * 1000;
+
+      clearTimerInterval();
+      timerId = setInterval(() => {
+        remaining = secondsUntilDeadline();
+        if (remaining === 0) {
+          running = false;
+          clearTimerInterval();
+          deadlineMs = null;
+        }
+        updateUI();
+      }, 250);
+
+      updateUI();
+    }
+
+    function pause() {
+      if (!running) return;
+      remaining = secondsUntilDeadline();
+      running = false;
+      deadlineMs = null;
+      clearTimerInterval();
+      updateUI();
+    }
+
+    function stop() {
+      running = false;
+      clearTimerInterval();
+      initial = 0;
+      remaining = 0;
+      deadlineMs = null;
+      updateUI();
+    }
+
+    // ---- Input events ----
+    [elH, elM, elS, elQuestions].forEach(inp => inp.addEventListener("input", () => {
+      saveSettings();
+      if (!running) updateUI();
+    }));
+    elExamName.addEventListener("input", () => { saveSettings(); updateHeaderTitle(); });
+
+    // ---- Buttons ----
+    btnSet.addEventListener("click", setFromInputs);
+    btnPlay.addEventListener("click", play);
+    btnPause.addEventListener("click", pause);
+    btnStop.addEventListener("click", stop);
+    btnTogglePresent.addEventListener("click", () => setPresentation(!presentation));
+
+    // ---- Keyboard shortcuts ----
+    function isTypingTarget(el) {
+      return el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    }
+
+    window.addEventListener("keydown", e => {
+      if (isTypingTarget(document.activeElement)) return;
+      if (e.code === "Space")           { e.preventDefault(); running ? pause() : play(); }
+      if (e.key?.toLowerCase() === "r") { e.preventDefault(); stop(); }
+      if (e.key === "Escape")           { e.preventDefault(); setPresentation(!presentation); }
+    });
+
+    // ---- Wake / tab-focus sync ----
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) updateUI(); });
+    window.addEventListener("focus", updateUI);
+
+    // ---- Init ----
+    updateHeaderTitle();
+    rebuildTicks(inputQuestionCount());
+    updateUI();
+  </script>
+</body>
+
+</html>
