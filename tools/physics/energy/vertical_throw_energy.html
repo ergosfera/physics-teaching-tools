@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vertical Throw — Energy Conservation</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0d1117;
+    --surface: #161b22;
+    --surface2:#1c2128;
+    --border:  #30363d;
+    --text:    #e6edf3;
+    --muted:   #8b949e;
+    --accent:  #58a6ff;
+    --green:   #3fb950;
+    --yellow:  #d29922;
+    --red:     #f85149;
+    --radius:  8px;
+  }
+  body.light {
+    --bg:      #f6f8fa;
+    --surface: #ffffff;
+    --surface2:#f0f4f8;
+    --border:  #d0d7de;
+    --text:    #1f2328;
+    --muted:   #656d76;
+    --accent:  #0969da;
+    --green:   #1a7f37;
+    --yellow:  #9a6700;
+    --red:     #cf222e;
+  }
+
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 10px 20px 9px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    gap: 16px;
+  }
+  .header-title h1 { font-size: 0.97rem; font-weight: 700; letter-spacing: -0.3px; }
+  .header-title h1 span { color: var(--accent); }
+  .header-title p { font-size: 0.7rem; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+  .header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+  #theme-toggle {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    transition: border-color .2s, color .2s;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+  a.back-link {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-decoration: none;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+  }
+  a.back-link:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── WORKSPACE ── */
+  .workspace { flex: 1; display: flex; min-height: 0; }
+
+  /* ── LEFT PANEL ── */
+  .left-panel {
+    width: 270px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .panel-section { padding: 12px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .section-label {
+    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 9px;
+  }
+
+  .mode-row { display: flex; gap: 6px; }
+  button.mode-btn {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 6px;
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color .12s, color .12s, background .12s;
+    font-family: inherit;
+    line-height: 1.3;
+  }
+  button.mode-btn:hover { border-color: var(--accent); color: var(--accent); }
+  button.mode-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,.10); }
+  button.mode-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .field { margin-bottom: 12px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 0.72rem; color: var(--text); margin-bottom: 5px;
+  }
+  .field-label .val { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .field-hint { font-size: 0.63rem; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+
+  input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+  input[type=range]:disabled { cursor: not-allowed; opacity: .5; }
+
+  input[type=text].num-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: var(--text);
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.8rem;
+    outline: none;
+  }
+  input[type=text].num-input:focus { border-color: var(--accent); }
+  input[type=text].num-input:disabled { opacity: .5; cursor: not-allowed; }
+
+  .btn-row { display: flex; gap: 6px; }
+  button.tool-btn {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color .12s, color .12s;
+    font-family: inherit;
+  }
+  button.tool-btn:hover { border-color: var(--accent); color: var(--accent); }
+  button.tool-btn.primary { color: var(--accent); border-color: var(--accent); background: rgba(88,166,255,.08); }
+  button.tool-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  #status-box {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.45;
+    min-height: 34px;
+  }
+  #status-box.hot { color: var(--accent); border-color: var(--accent); }
+  #status-box.apex { color: var(--yellow); border-color: var(--yellow); }
+  #status-box.done { color: var(--green); border-color: var(--green); }
+
+  .formula-block {
+    font-size: 0.66rem;
+    color: var(--muted);
+    line-height: 1.7;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+  .formula-block b { color: var(--text); }
+
+  /* ── CENTER: SCENE ── */
+  .center-panel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .center-header {
+    flex-shrink: 0;
+    padding: 7px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .center-header .mode-pill {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .center-header .mode-pill.ideal { color: var(--accent); border-color: var(--accent); }
+  .center-header .mode-pill.drag  { color: var(--red); border-color: var(--red); }
+
+  .scene-wrap { flex: 1 1 62%; min-height: 0; position: relative; }
+  #scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .trace-header {
+    flex-shrink: 0;
+    padding: 5px 14px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+  .trace-wrap { flex: 1 1 34%; min-height: 0; position: relative; }
+  #trace { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* ── RIGHT: ENERGY BARS ── */
+  .right-panel {
+    width: 210px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .right-header {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .bars-wrap { flex: 1; min-height: 0; position: relative; }
+  #bars { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-title">
+    <h1><span>Vertical Throw</span> — Energy Conservation</h1>
+    <p>A ball is thrown straight up. Watch kinetic and gravitational potential energy trade off — and, in real-world mode, see the work done against drag close the books.</p>
+  </div>
+  <div class="header-right">
+    <a class="back-link" href="../../../index.html">← All tools</a>
+    <div id="theme-toggle"><span id="theme-icon">☀</span></div>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- ══════════════ LEFT: PARAMETERS ══════════════ -->
+  <div class="left-panel">
+
+    <div class="panel-section">
+      <div class="section-label">Simulation</div>
+      <div class="mode-row">
+        <button class="mode-btn active" id="mode-ideal-btn">Theoretical<br><span style="font-weight:400">(no drag)</span></button>
+        <button class="mode-btn" id="mode-drag-btn">Real-world<br><span style="font-weight:400">(air drag)</span></button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Parameters</div>
+
+      <div class="field">
+        <div class="field-label"><span>Initial velocity v₀</span><span class="val" id="v0-val">15.0 m/s</span></div>
+        <input type="range" id="v0-slider" min="2" max="30" step="0.5" value="15">
+      </div>
+
+      <div class="field">
+        <div class="field-label"><span>Mass m</span></div>
+        <input type="text" class="num-input" id="mass-input" value="1.0" inputmode="decimal">
+        <div class="field-hint">kilograms — set before pressing Play.</div>
+      </div>
+
+      <div class="field" id="drag-field" style="display:none">
+        <div class="field-label"><span>Drag coefficient c</span><span class="val" id="drag-val">0.010</span></div>
+        <input type="range" id="drag-slider" min="0.001" max="0.05" step="0.001" value="0.01">
+        <div class="field-hint">Drag force = c·v², opposing motion (kg/m).</div>
+      </div>
+
+      <div class="field">
+        <div class="field-label"><span>Reference level (U<sub>g</sub>=0)</span><span class="val" id="ref-val">0.0 m</span></div>
+        <input type="range" id="ref-slider" min="-2" max="10" step="0.1" value="0">
+        <div class="field-hint">Or drag the dashed line directly on the scene before pressing Play.</div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Controls</div>
+      <div class="btn-row">
+        <button class="tool-btn primary" id="play-btn">▶ Play</button>
+        <button class="tool-btn" id="reset-btn">↺ Reset</button>
+      </div>
+
+      <div class="field" style="margin-top:12px;margin-bottom:0">
+        <div class="field-label"><span>Playback speed</span><span class="val" id="speed-val">1.00×</span></div>
+        <input type="range" id="speed-slider" min="0.1" max="1" step="0.05" value="1">
+        <div class="field-hint">Slow motion for a clearer presentation — can be changed any time.</div>
+      </div>
+
+      <div id="status-box">Ready — set parameters, position the reference line, then press Play.</div>
+    </div>
+
+    <div class="panel-section" style="border-bottom:none">
+      <div class="section-label">Model</div>
+      <div class="formula-block" id="formula-block">
+        K = ½m v²<br>
+        U<sub>g</sub> = mg(y − y<sub>ref</sub>)<br>
+        <b>K + U<sub>g</sub> = constant</b>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════ CENTER: SCENE ══════════════ -->
+  <div class="center-panel">
+    <div class="center-header">
+      <span id="phase-label">Ready</span>
+      <span class="mode-pill ideal" id="mode-pill">THEORETICAL</span>
+    </div>
+    <div class="scene-wrap">
+      <canvas id="scene"></canvas>
+    </div>
+    <div class="trace-header">Trajectory — <span style="color:var(--accent);font-weight:700">▲ rising</span> vs <span style="color:var(--red);font-weight:700">▼ falling</span> (height vs time)</div>
+    <div class="trace-wrap">
+      <canvas id="trace"></canvas>
+    </div>
+  </div>
+
+  <!-- ══════════════ RIGHT: ENERGY BARS ══════════════ -->
+  <div class="right-panel">
+    <div class="right-header">Energy (J)</div>
+    <div class="bars-wrap">
+      <canvas id="bars"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  const G = 9.8;
+
+  // ── DOM ──
+  const sceneCanvas = document.getElementById('scene');
+  const barsCanvas  = document.getElementById('bars');
+  const traceCanvas = document.getElementById('trace');
+  const sceneCtx = sceneCanvas.getContext('2d');
+  const barsCtx  = barsCanvas.getContext('2d');
+  const traceCtx = traceCanvas.getContext('2d');
+
+  const modeIdealBtn = document.getElementById('mode-ideal-btn');
+  const modeDragBtn  = document.getElementById('mode-drag-btn');
+  const dragField    = document.getElementById('drag-field');
+  const v0Slider     = document.getElementById('v0-slider');
+  const v0ValEl      = document.getElementById('v0-val');
+  const massInput    = document.getElementById('mass-input');
+  const dragSlider   = document.getElementById('drag-slider');
+  const dragValEl    = document.getElementById('drag-val');
+  const refSlider    = document.getElementById('ref-slider');
+  const refValEl     = document.getElementById('ref-val');
+  const speedSlider  = document.getElementById('speed-slider');
+  const speedValEl   = document.getElementById('speed-val');
+  const playBtn      = document.getElementById('play-btn');
+  const resetBtn     = document.getElementById('reset-btn');
+  const statusBox    = document.getElementById('status-box');
+  const phaseLabel   = document.getElementById('phase-label');
+  const modePill     = document.getElementById('mode-pill');
+  const formulaBlock = document.getElementById('formula-block');
+
+  // ── STATE ──
+  let mode = 'ideal';           // 'ideal' | 'drag'
+  let v0 = 15;                  // m/s
+  let mass = 1.0;                // kg
+  let dragC = 0.01;              // kg/m
+  let yRef = 0;                  // m
+
+  let phase = 'ready';          // ready | rising | paused_apex | falling | landed
+  let t = 0, y = 0, v = 0;
+  let wDrag = 0;                 // cumulative energy dissipated (J)
+  let E0 = 0;                    // mechanical energy at launch (J), reference constant
+
+  let barScaleMax = 10;          // dynamic vertical scale for the bar chart
+  let speedFactor = 1.0;         // playback speed multiplier (slow motion)
+
+  let runMode = mode;             // mode used by the current/last run, for the trace legend
+  let risingPoints = [];          // {t, y} samples while rising
+  let fallingPoints = [];         // {t, y} samples while falling
+  let lastTrace = null;           // { rising, falling } — ghost of the previous run, for comparison
+
+  let draggingRef = false;
+
+  // ── DERIVED HELPERS ──
+  function hMaxIdeal() { return (v0 * v0) / (2 * G); }
+
+  function clampRefRange() {
+    const h = hMaxIdeal();
+    const lo = Math.max(-2, -0.3 * h - 0.5);
+    const hi = h * 1.3 + 0.5;
+    refSlider.min = lo.toFixed(2);
+    refSlider.max = hi.toFixed(2);
+    if (yRef < lo) yRef = lo;
+    if (yRef > hi) yRef = hi;
+  }
+
+  function K(vel)      { return 0.5 * mass * vel * vel; }
+  function Ug(height)  { return mass * G * (height - yRef); }
+
+  // ── PHYSICS STEP (RK4, unified for both modes; drag coeff = 0 in ideal mode) ──
+  function accel(vel) {
+    const c = (mode === 'drag') ? dragC : 0;
+    return -G - (c / mass) * vel * Math.abs(vel);
+  }
+  function deriv(height, vel) { return [vel, accel(vel)]; }
+  function rk4(height, vel, dt) {
+    const [k1y, k1v] = deriv(height, vel);
+    const [k2y, k2v] = deriv(height + 0.5 * dt * k1y, vel + 0.5 * dt * k1v);
+    const [k3y, k3v] = deriv(height + 0.5 * dt * k2y, vel + 0.5 * dt * k2v);
+    const [k4y, k4v] = deriv(height + dt * k3y, vel + dt * k3v);
+    return [
+      height + (dt / 6) * (k1y + 2 * k2y + 2 * k3y + k4y),
+      vel    + (dt / 6) * (k1v + 2 * k2v + 2 * k3v + k4v),
+    ];
+  }
+
+  function stepSimulation(dtFrame) {
+    const subSteps = 6;
+    const dt = dtFrame / subSteps;
+    for (let i = 0; i < subSteps; i++) {
+      if (phase !== 'rising' && phase !== 'falling') break;
+
+      const [yNew, vNew] = rk4(y, v, dt);
+
+      // dissipated energy this substep (power = c*|v|^3), trapezoidal average
+      if (mode === 'drag') {
+        const avgCube = (Math.abs(v) ** 3 + Math.abs(vNew) ** 3) / 2;
+        wDrag += dragC * avgCube * dt;
+      }
+
+      if (phase === 'rising' && v > 0 && vNew <= 0) {
+        const f = v / (v - vNew || 1e-9);
+        y = y + f * (yNew - y);
+        v = 0;
+        t += dt * f;
+        risingPoints.push({ t, y });
+        phase = 'paused_apex';
+        break;
+      }
+      if (phase === 'falling' && y > 0 && yNew <= 0) {
+        const f = y / (y - yNew || 1e-9);
+        v = v + f * (vNew - v);
+        y = 0;
+        t += dt * f;
+        fallingPoints.push({ t, y });
+        phase = 'landed';
+        break;
+      }
+      y = yNew; v = vNew; t += dt;
+      if (phase === 'rising') risingPoints.push({ t, y });
+      else if (phase === 'falling') fallingPoints.push({ t, y });
+    }
+  }
+
+  // ── UI SYNC ──
+  function paramsLocked() { return phase !== 'ready'; }
+
+  function refreshControlsEnabled() {
+    const locked = paramsLocked();
+    v0Slider.disabled   = locked;
+    massInput.disabled  = locked;
+    dragSlider.disabled = locked;
+    refSlider.disabled  = locked;
+    modeIdealBtn.disabled = locked;
+    modeDragBtn.disabled  = locked;
+  }
+
+  function updateFormulaBlock() {
+    if (mode === 'drag') {
+      formulaBlock.innerHTML =
+        'K = ½m v²<br>' +
+        'U<sub>g</sub> = mg(y − y<sub>ref</sub>)<br>' +
+        'F<sub>drag</sub> = c v² (opposes v)<br>' +
+        '<b>K + U<sub>g</sub> + W<sub>drag</sub> = constant</b>';
+    } else {
+      formulaBlock.innerHTML =
+        'K = ½m v²<br>' +
+        'U<sub>g</sub> = mg(y − y<sub>ref</sub>)<br>' +
+        '<b>K + U<sub>g</sub> = constant</b>';
+    }
+  }
+
+  function setMode(newMode) {
+    if (paramsLocked()) return;
+    mode = newMode;
+    modeIdealBtn.classList.toggle('active', mode === 'ideal');
+    modeDragBtn.classList.toggle('active', mode === 'drag');
+    dragField.style.display = (mode === 'drag') ? '' : 'none';
+    modePill.textContent = (mode === 'drag') ? 'REAL-WORLD' : 'THEORETICAL';
+    modePill.classList.toggle('ideal', mode === 'ideal');
+    modePill.classList.toggle('drag', mode === 'drag');
+    updateFormulaBlock();
+  }
+
+  function setStatus(text, cls) {
+    statusBox.textContent = text;
+    statusBox.className = cls || '';
+  }
+
+  function updatePhaseUI() {
+    switch (phase) {
+      case 'ready':
+        phaseLabel.textContent = 'Ready';
+        playBtn.textContent = '▶ Play';
+        playBtn.disabled = false;
+        setStatus('Ready — set parameters, position the reference line, then press Play.');
+        break;
+      case 'rising':
+        phaseLabel.textContent = 'Rising';
+        playBtn.textContent = '▶ Playing…';
+        playBtn.disabled = true;
+        setStatus('Rising — K is converting into Ug.', 'hot');
+        break;
+      case 'paused_apex':
+        phaseLabel.textContent = 'Paused at apex';
+        playBtn.textContent = '▶ Continue (fall)';
+        playBtn.disabled = false;
+        setStatus('Paused at the top: v = 0, so K = 0. Press Play to let it fall.', 'apex');
+        break;
+      case 'falling':
+        phaseLabel.textContent = 'Falling';
+        playBtn.textContent = '▶ Playing…';
+        playBtn.disabled = true;
+        setStatus('Falling — Ug is converting back into K.', 'hot');
+        break;
+      case 'landed':
+        phaseLabel.textContent = 'Landed';
+        playBtn.textContent = '▶ Play';
+        playBtn.disabled = true;
+        if (mode === 'drag') {
+          setStatus(`Landed. K + Ug dropped, but K + Ug + W_drag stayed at ${fmt(E0)} J. Press Reset to try again.`, 'done');
+        } else {
+          setStatus(`Landed. K + Ug stayed at ${fmt(E0)} J throughout. Press Reset to try again.`, 'done');
+        }
+        break;
+    }
+    refreshControlsEnabled();
+  }
+
+  function fmt(x, d = 2) { return (Math.abs(x) < 1e-9 ? 0 : x).toFixed(d); }
+
+  // ── PARAM WIRING ──
+  v0Slider.addEventListener('input', () => {
+    v0 = parseFloat(v0Slider.value);
+    v0ValEl.textContent = v0.toFixed(1) + ' m/s';
+    clampRefRange();
+    refSlider.value = yRef.toFixed(2);
+    refValEl.textContent = yRef.toFixed(1) + ' m';
+    if (phase === 'ready') drawScene();
+  });
+
+  massInput.addEventListener('input', () => {
+    const val = parseFloat(massInput.value);
+    if (!isNaN(val) && val > 0) mass = val;
+  });
+  massInput.addEventListener('blur', () => { massInput.value = mass.toFixed(2); });
+
+  dragSlider.addEventListener('input', () => {
+    dragC = parseFloat(dragSlider.value);
+    dragValEl.textContent = dragC.toFixed(3);
+  });
+
+  refSlider.addEventListener('input', () => {
+    yRef = parseFloat(refSlider.value);
+    refValEl.textContent = yRef.toFixed(1) + ' m';
+    if (phase === 'ready') drawScene();
+  });
+
+  modeIdealBtn.addEventListener('click', () => setMode('ideal'));
+  modeDragBtn.addEventListener('click', () => setMode('drag'));
+
+  speedSlider.addEventListener('input', () => {
+    speedFactor = parseFloat(speedSlider.value);
+    speedValEl.textContent = speedFactor.toFixed(2) + '×';
+  });
+
+  // ── PLAY / RESET ──
+  playBtn.addEventListener('click', () => {
+    if (phase === 'ready') {
+      v0 = parseFloat(v0Slider.value);
+      mass = parseFloat(massInput.value) || 1;
+      dragC = parseFloat(dragSlider.value);
+      yRef = parseFloat(refSlider.value);
+      t = 0; y = 0; v = v0; wDrag = 0;
+      E0 = K(v0) + Ug(0);
+      barScaleMax = computeInitialBarScale();
+      runMode = mode;
+      risingPoints = [{ t: 0, y: 0 }];
+      fallingPoints = [];
+      phase = 'rising';
+      updatePhaseUI();
+    } else if (phase === 'paused_apex') {
+      fallingPoints = [{ t, y }];
+      phase = 'falling';
+      updatePhaseUI();
+    }
+  });
+
+  resetBtn.addEventListener('click', () => {
+    if (risingPoints.length > 1 || fallingPoints.length > 1) {
+      lastTrace = { rising: risingPoints, falling: fallingPoints, mode: runMode };
+    }
+    phase = 'ready';
+    t = 0; y = 0; v = 0; wDrag = 0;
+    risingPoints = [];
+    fallingPoints = [];
+    updatePhaseUI();
+    drawScene();
+    drawBars();
+    drawTrace();
+  });
+
+  function computeInitialBarScale() {
+    const h = hMaxIdeal();
+    const ug0 = Ug(0);
+    const ugApex = Ug(h);
+    const k0 = K(v0);
+    const maxAbs = Math.max(Math.abs(E0), Math.abs(k0), Math.abs(ug0), Math.abs(ugApex), 1);
+    return maxAbs * 1.25;
+  }
+
+  // ── REFERENCE LINE DRAG (canvas) ──
+  function heightRange() {
+    const h = hMaxIdeal();
+    const yTop = h * 1.25 + 0.5;
+    const yBot = Math.min(-2, yRef - 1, -0.3 * h - 0.5);
+    return { yTop, yBot };
+  }
+
+  function sceneGeom() {
+    const rect = sceneCanvas.getBoundingClientRect();
+    const { yTop, yBot } = heightRange();
+    const padTop = 26, padBot = 20;
+    const usableH = rect.height - padTop - padBot;
+    const worldToPx = (worldY) => padTop + usableH - ((worldY - yBot) / (yTop - yBot)) * usableH;
+    const pxToWorld = (px) => yBot + ((padTop + usableH - px) / usableH) * (yTop - yBot);
+    return { rect, yTop, yBot, padTop, padBot, usableH, worldToPx, pxToWorld };
+  }
+
+  sceneCanvas.addEventListener('mousedown', (e) => {
+    if (phase !== 'ready') return;
+    const geom = sceneGeom();
+    const rect = sceneCanvas.getBoundingClientRect();
+    const py = e.clientY - rect.top;
+    const refPx = geom.worldToPx(yRef);
+    if (Math.abs(py - refPx) < 12) {
+      draggingRef = true;
+      sceneCanvas.style.cursor = 'ns-resize';
+    }
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!draggingRef) return;
+    const geom = sceneGeom();
+    const rect = sceneCanvas.getBoundingClientRect();
+    const py = e.clientY - rect.top;
+    let worldY = geom.pxToWorld(py);
+    worldY = Math.max(parseFloat(refSlider.min), Math.min(parseFloat(refSlider.max), worldY));
+    yRef = Math.round(worldY * 10) / 10;
+    refSlider.value = yRef.toFixed(2);
+    refValEl.textContent = yRef.toFixed(1) + ' m';
+    drawScene();
+  });
+  window.addEventListener('mouseup', () => {
+    if (draggingRef) { draggingRef = false; sceneCanvas.style.cursor = 'default'; }
+  });
+
+  // ── DRAWING: SCENE ──
+  function cssVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
+
+  function niceStep(range, target = 5) {
+    if (range <= 0) return 1;
+    const raw = range / target;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const norm = raw / mag;
+    const nice = norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10;
+    return nice * mag;
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // Speech-bubble tag: a rounded rectangle with a small triangular tail
+  // that always points at the ball, so it visibly "follows" the object.
+  function drawTag(ctx, cx, cy, ballX, ballY, label, value, unit, color) {
+    const text = `${label} = ${fmt(value, 1)} ${unit}`;
+    ctx.font = 'bold 22px "Segoe UI", system-ui, sans-serif';
+    const tw = ctx.measureText(text).width;
+    const w = tw + 26, h = 38;
+    const x = cx - w / 2, y = cy - h / 2;
+
+    const dir = ballX >= cx ? 1 : -1;
+    const tailBaseX = cx + dir * (w / 2 - 14);
+    const tailHalf = 8;
+
+    ctx.fillStyle = color;
+    roundRect(ctx, x, y, w, h, 5);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(tailBaseX - tailHalf, y + h - 1);
+    ctx.lineTo(tailBaseX + tailHalf, y + h - 1);
+    ctx.lineTo(ballX, ballY);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, cx, cy + 1);
+  }
+
+  function resizeCanvas(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const w = Math.max(rect.width, 10), h = Math.max(rect.height, 10);
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w, h, ctx };
+  }
+
+  function drawScene() {
+    const { w, h, ctx } = resizeCanvas(sceneCanvas);
+    const bg = cssVar('--bg'), border = cssVar('--border'), muted = cssVar('--muted');
+    const text = cssVar('--text'), accent = cssVar('--accent'), green = cssVar('--green'), yellow = cssVar('--yellow');
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    const geom = sceneGeom();
+    const { yTop, yBot, padTop, usableH, worldToPx } = geom;
+
+    // gridlines + height ticks
+    const step = niceStep(yTop - yBot, 6);
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 1;
+    ctx.font = '11px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = muted;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    for (let gy = Math.ceil(yBot / step) * step; gy <= yTop; gy += step) {
+      const py = worldToPx(gy);
+      ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(w, py); ctx.stroke();
+      ctx.fillText(gy.toFixed(step < 1 ? 1 : 0) + ' m', 4, py - 8);
+    }
+
+    // ground line (y = 0)
+    const groundPx = worldToPx(0);
+    ctx.strokeStyle = text;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, groundPx); ctx.lineTo(w, groundPx); ctx.stroke();
+    ctx.fillStyle = muted;
+    ctx.font = 'bold 13px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('Ground (y = 0)', w - 8, groundPx - 10);
+
+    // reference line (dashed)
+    const refPx = worldToPx(yRef);
+    ctx.strokeStyle = yellow;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([7, 5]);
+    ctx.beginPath(); ctx.moveTo(0, refPx); ctx.lineTo(w, refPx); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = yellow;
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 13px "Segoe UI", system-ui, sans-serif';
+    const refLabel = (phase === 'ready') ? 'Reference (drag me)  Ug = 0' : 'Reference  Ug = 0';
+    ctx.fillText(refLabel, w - 8, refPx - (refPx < groundPx ? 16 : -20));
+
+    // ball
+    const cx = w / 2;
+    const ballY = worldToPx(y);
+    const kNow = K(v);
+    const ugNow = Ug(y);
+
+    ctx.beginPath();
+    ctx.arc(cx, ballY, 11, 0, Math.PI * 2);
+    ctx.fillStyle = accent;
+    ctx.fill();
+    ctx.strokeStyle = bg;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // speech-bubble tags, tails always pointing at the ball
+    const tagOffsetX = Math.max(80, Math.min(140, w * 0.28));
+    drawTag(sceneCtx, cx - tagOffsetX, ballY - 50, cx, ballY, 'K', kNow, 'J', accent);
+    drawTag(sceneCtx, cx + tagOffsetX, ballY - 50, cx, ballY, 'Ug', ugNow, 'J', green);
+
+    // height readout under the ball
+    ctx.fillStyle = text;
+    ctx.font = 'bold 15px "SFMono-Regular", Consolas, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`y = ${fmt(y, 2)} m   v = ${fmt(v, 2)} m/s`, cx, ballY + 34);
+  }
+
+  // ── DRAWING: ENERGY BARS ──
+  function drawBars() {
+    const { w, h, ctx } = resizeCanvas(barsCanvas);
+    const bg = cssVar('--bg'), border = cssVar('--border'), muted = cssVar('--muted');
+    const text = cssVar('--text'), accent = cssVar('--accent'), green = cssVar('--green'), red = cssVar('--red');
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    const padTop = 14, padBot = 34, padSide = 10;
+    const plotH = h - padTop - padBot;
+    const zeroY = padTop + plotH * 0.75;   // leave room above for positive bars, below for negative
+
+    const kNow = (phase === 'ready') ? K(v0) : K(v);
+    const ugNow = (phase === 'ready') ? Ug(0) : Ug(y);
+    const sum = kNow + ugNow + (mode === 'drag' ? wDrag : 0);
+
+    // rescale if something exceeds current scale
+    const seen = Math.max(Math.abs(kNow), Math.abs(ugNow), Math.abs(wDrag), Math.abs(sum), 1);
+    if (seen > barScaleMax) barScaleMax = seen * 1.15;
+
+    const posSpan = plotH * 0.75;   // above zero line
+    const negSpan = plotH * 0.25;   // below zero line
+    const pxPerJPos = posSpan / barScaleMax;
+    const pxPerJNeg = negSpan / barScaleMax;
+
+    function barHeightPx(val) { return val >= 0 ? val * pxPerJPos : val * pxPerJNeg; }
+
+    const bars = [
+      { label: 'K',  value: kNow, color: accent },
+      { label: 'Ug', value: ugNow, color: green },
+    ];
+    if (mode === 'drag') bars.push({ label: 'Wd', value: wDrag, color: red });
+    bars.push({ label: 'Σ', value: sum, color: text, outline: true });
+
+    const n = bars.length;
+    const gap = 10;
+    const barW = Math.min(38, (w - padSide * 2 - gap * (n - 1)) / n);
+    const totalW = barW * n + gap * (n - 1);
+    let bx = (w - totalW) / 2;
+
+    // zero baseline
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padSide, zeroY); ctx.lineTo(w - padSide, zeroY); ctx.stroke();
+
+    // E0 reference dashed line (conservation target)
+    if (phase !== 'ready') {
+      const e0Y = zeroY - barHeightPx(E0);
+      ctx.strokeStyle = muted;
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(padSide, e0Y); ctx.lineTo(w - padSide, e0Y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = muted;
+      ctx.font = '8.5px "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('E₀', padSide + 2, e0Y - 3);
+    }
+
+    bars.forEach(bar => {
+      const bh = barHeightPx(bar.value);
+      const y = bh >= 0 ? zeroY - bh : zeroY;
+      const hh = Math.abs(bh);
+
+      if (bar.outline) {
+        ctx.strokeStyle = bar.color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bx + 1, y + 1, barW - 2, Math.max(hh - 2, 0));
+      } else {
+        ctx.fillStyle = bar.color;
+        ctx.fillRect(bx, y, barW, hh);
+      }
+
+      ctx.fillStyle = muted;
+      ctx.font = 'bold 11px "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(bar.label, bx + barW / 2, zeroY + negSpan + 13);
+
+      ctx.fillStyle = text;
+      ctx.font = 'bold 11px "SFMono-Regular", Consolas, monospace';
+      const labelY = bh >= 0 ? y - 7 : y + hh + 13;
+      ctx.fillText(fmt(bar.value, 1), bx + barW / 2, labelY);
+
+      bx += barW + gap;
+    });
+  }
+
+  // ── DRAWING: TRAJECTORY TRACE (height vs time, up vs down) ──
+  function drawTrace() {
+    const { w, h, ctx } = resizeCanvas(traceCanvas);
+    const bg = cssVar('--bg'), border = cssVar('--border'), muted = cssVar('--muted');
+    const accent = cssVar('--accent'), red = cssVar('--red');
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    const { yTop, yBot } = heightRange();
+    const padL = 46, padR = 14, padT = 10, padB = 26;
+    const plotW = Math.max(w - padL - padR, 10);
+    const plotH = Math.max(h - padT - padB, 10);
+
+    let maxT = 2 * v0 / G;
+    [risingPoints, fallingPoints,
+     lastTrace ? lastTrace.rising : null, lastTrace ? lastTrace.falling : null
+    ].forEach(arr => { if (arr && arr.length) maxT = Math.max(maxT, arr[arr.length - 1].t); });
+    maxT *= 1.05;
+    if (maxT <= 0) maxT = 1;
+
+    const xToPx = (tt) => padL + (tt / maxT) * plotW;
+    const yToPx = (yy) => padT + plotH - ((yy - yBot) / (yTop - yBot)) * plotH;
+
+    const tStep = niceStep(maxT, 6);
+    const yStep = niceStep(yTop - yBot, 5);
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 1;
+    ctx.font = '10px "Segoe UI", system-ui, sans-serif';
+    ctx.fillStyle = muted;
+    for (let tt = 0; tt <= maxT; tt += tStep) {
+      const px = xToPx(tt);
+      ctx.beginPath(); ctx.moveTo(px, padT); ctx.lineTo(px, padT + plotH); ctx.stroke();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillText(tt.toFixed(tStep < 1 ? 1 : 0), px, padT + plotH + 5);
+    }
+    for (let gy = Math.ceil(yBot / yStep) * yStep; gy <= yTop; gy += yStep) {
+      const py = yToPx(gy);
+      ctx.beginPath(); ctx.moveTo(padL, py); ctx.lineTo(padL + plotW, py); ctx.stroke();
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillText(gy.toFixed(yStep < 1 ? 1 : 0), padL - 6, py);
+    }
+
+    ctx.strokeStyle = muted;
+    ctx.beginPath();
+    ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + plotH); ctx.lineTo(padL + plotW, padT + plotH);
+    ctx.stroke();
+
+    function plotLine(points, color, ghost) {
+      if (!points || points.length < 2) return;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = ghost ? 1.6 : 2.6;
+      ctx.setLineDash(ghost ? [5, 4] : []);
+      ctx.globalAlpha = ghost ? 0.4 : 1;
+      ctx.beginPath();
+      points.forEach((p, i) => {
+        const px = xToPx(p.t), py = yToPx(p.y);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    }
+
+    if (lastTrace) {
+      plotLine(lastTrace.rising, accent, true);
+      plotLine(lastTrace.falling, red, true);
+    }
+    plotLine(risingPoints, accent, false);
+    plotLine(fallingPoints, red, false);
+
+    ctx.fillStyle = muted;
+    ctx.font = '10px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('t (s)', padL + plotW / 2, h - 4);
+    ctx.save();
+    ctx.translate(12, padT + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('y (m)', 0, 0);
+    ctx.restore();
+
+    if (!risingPoints.length && !lastTrace) {
+      ctx.fillStyle = muted;
+      ctx.font = '11px "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('Press Play to trace the trajectory', padL + plotW / 2, padT + plotH / 2);
+    } else if (lastTrace) {
+      ctx.fillStyle = muted;
+      ctx.font = '10px "Segoe UI", system-ui, sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText('┄ faded = previous run', padL + 4, padT + 2);
+    }
+  }
+
+  // ── MAIN LOOP ──
+  let lastTs = null;
+  function loop(ts) {
+    if (lastTs !== null) {
+      const dtReal = Math.min((ts - lastTs) / 1000, 0.05);
+      const dt = dtReal * speedFactor;
+      if (phase === 'rising' || phase === 'falling') {
+        stepSimulation(dt);
+        if (phase === 'paused_apex' || phase === 'landed') updatePhaseUI();
+      }
+    }
+    lastTs = ts;
+    drawScene();
+    drawBars();
+    drawTrace();
+    requestAnimationFrame(loop);
+  }
+
+  // ── RESIZE ──
+  const ro = new ResizeObserver(() => { drawScene(); drawBars(); drawTrace(); });
+  ro.observe(sceneCanvas.parentElement);
+  ro.observe(barsCanvas.parentElement);
+  ro.observe(traceCanvas.parentElement);
+
+  // ── INIT ──
+  clampRefRange();
+  v0ValEl.textContent = v0.toFixed(1) + ' m/s';
+  dragValEl.textContent = dragC.toFixed(3);
+  refValEl.textContent = yRef.toFixed(1) + ' m';
+  speedValEl.textContent = speedFactor.toFixed(2) + '×';
+  updateFormulaBlock();
+  updatePhaseUI();
+  requestAnimationFrame(loop);
+
+  // ── THEME ──
+  (function () {
+    const btn = document.getElementById('theme-toggle');
+    const icon = document.getElementById('theme-icon');
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light') { document.body.classList.add('light'); icon.textContent = '☽'; }
+    btn.addEventListener('click', () => {
+      const isLight = document.body.classList.toggle('light');
+      icon.textContent = isLight ? '☽' : '☀';
+      localStorage.setItem('theme', isLight ? 'light' : 'dark');
+      drawScene(); drawBars(); drawTrace();
+    });
+  })();
+})();
+</script>
+</body>
+</html>
