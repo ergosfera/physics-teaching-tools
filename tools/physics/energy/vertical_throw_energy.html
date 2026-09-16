@@ -312,6 +312,9 @@
       <div class="section-label">Controls</div>
       <div class="btn-row">
         <button class="tool-btn primary" id="play-btn">▶ Play</button>
+      </div>
+      <div class="btn-row" style="margin-top:6px">
+        <button class="tool-btn" id="pause-btn" disabled>⏸ Pause</button>
         <button class="tool-btn" id="reset-btn">↺ Reset</button>
       </div>
 
@@ -385,6 +388,7 @@
   const speedSlider  = document.getElementById('speed-slider');
   const speedValEl   = document.getElementById('speed-val');
   const playBtn      = document.getElementById('play-btn');
+  const pauseBtn     = document.getElementById('pause-btn');
   const resetBtn     = document.getElementById('reset-btn');
   const statusBox    = document.getElementById('status-box');
   const phaseLabel   = document.getElementById('phase-label');
@@ -399,6 +403,7 @@
   let yRef = 0;                  // m
 
   let phase = 'ready';          // ready | rising | paused_apex | falling | landed
+  let userPaused = false;       // manual pause, independent of the apex auto-pause
   let t = 0, y = 0, v = 0;
   let wDrag = 0;                 // cumulative energy dissipated (J)
   let E0 = 0;                    // mechanical energy at launch (J), reference constant
@@ -530,6 +535,19 @@
   }
 
   function updatePhaseUI() {
+    const inFlight = (phase === 'rising' || phase === 'falling');
+    pauseBtn.disabled = !inFlight;
+    pauseBtn.textContent = userPaused ? '▶ Resume' : '⏸ Pause';
+
+    if (inFlight && userPaused) {
+      phaseLabel.textContent = (phase === 'rising' ? 'Rising' : 'Falling') + ' — Paused';
+      playBtn.textContent = '▶ Playing…';
+      playBtn.disabled = true;
+      setStatus('Paused mid-flight. Press Resume to continue, or Reset to start over.', 'apex');
+      refreshControlsEnabled();
+      return;
+    }
+
     switch (phase) {
       case 'ready':
         phaseLabel.textContent = 'Ready';
@@ -619,13 +637,21 @@
       runMode = mode;
       risingPoints = [{ t: 0, y: 0 }];
       fallingPoints = [];
+      userPaused = false;
       phase = 'rising';
       updatePhaseUI();
     } else if (phase === 'paused_apex') {
       fallingPoints = [{ t, y }];
+      userPaused = false;
       phase = 'falling';
       updatePhaseUI();
     }
+  });
+
+  pauseBtn.addEventListener('click', () => {
+    if (phase !== 'rising' && phase !== 'falling') return;
+    userPaused = !userPaused;
+    updatePhaseUI();
   });
 
   resetBtn.addEventListener('click', () => {
@@ -633,6 +659,7 @@
       lastTrace = { rising: risingPoints, falling: fallingPoints, mode: runMode };
     }
     phase = 'ready';
+    userPaused = false;
     t = 0; y = 0; v = 0; wDrag = 0;
     risingPoints = [];
     fallingPoints = [];
@@ -1021,7 +1048,7 @@
     if (lastTs !== null) {
       const dtReal = Math.min((ts - lastTs) / 1000, 0.05);
       const dt = dtReal * speedFactor;
-      if (phase === 'rising' || phase === 'falling') {
+      if ((phase === 'rising' || phase === 'falling') && !userPaused) {
         stepSimulation(dt);
         if (phase === 'paused_apex' || phase === 'landed') updatePhaseUI();
       }
