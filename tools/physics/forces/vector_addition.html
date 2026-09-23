@@ -61,7 +61,9 @@
       transition: border-color .2s, color .2s;
       user-select: none;
     }
-    #theme-toggle:hover { border-color: var(--accent, #58a6ff); color: var(--accent, #58a6ff); }
+    @media (hover: hover) { #theme-toggle:hover { border-color: var(--accent, #58a6ff); color: var(--accent, #58a6ff); } }
+
+    html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
 
     body {
       background: var(--bg);
@@ -227,7 +229,9 @@
       white-space: nowrap;
     }
 
-    .btn:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+    @media (hover: hover) {
+      .btn:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-1px); }
+    }
     .btn:active:not(:disabled) { transform: translateY(0); filter: brightness(0.9); }
     .btn:disabled { opacity: 0.25; cursor: default; transform: none !important; }
 
@@ -253,7 +257,9 @@
 
     canvas {
       border-radius: 10px;
-      touch-action: none;
+      /* Drags on empty canvas scroll the page; drags on a handle are claimed in JS */
+      touch-action: manipulation;
+      -webkit-touch-callout: none;
       width: 100%;
       box-shadow: 0 2px 16px rgba(0,0,0,0.10);
       display: block;
@@ -261,6 +267,25 @@
 
     #fnet-canvas {
       border-radius: 8px;
+    }
+
+    /* ── Tablets / narrow screens: canvas on top, table below ── */
+    @media (max-width: 900px) {
+      #main-layout { flex-direction: column; align-items: stretch; }
+      #left-col { width: 100%; min-width: 0; }
+      #right-col { order: -1; }
+      #theme-toggle { top: 8px; right: 8px; }
+    }
+
+    /* ── Touch screens: bigger targets; 16px inputs stop iOS zooming on focus ── */
+    @media (pointer: coarse) {
+      .btn { padding: 12px 18px; font-size: 0.95rem; }
+      .mag-input { font-size: 16px; width: 72px; padding: 6px; }
+      #vec-table { font-size: 0.9rem; }
+      #vec-table td { padding: 8px 4px; }
+      .ro-cell, .dot-label { font-size: 0.88rem; }
+      .hint { font-size: 0.82rem; }
+      #theme-toggle { padding: 8px 14px; font-size: 0.9rem; }
     }
   </style>
 </head>
@@ -307,7 +332,7 @@
     </div>
 
     <p class="hint">
-      &#9679; Click near the origin to draw a new vector &nbsp;&bull;&nbsp; Drag a tip to resize and rotate &nbsp;&bull;&nbsp; Rotate the axis handle (blue dot on x-axis) &nbsp;&bull;&nbsp; Edit |F| in the table &nbsp;&bull;&nbsp; Toggle Fnet data to reveal the resultant
+      &#9679; <span class="verb">Click</span> near the origin to draw a new vector &nbsp;&bull;&nbsp; Drag a tip to resize and rotate &nbsp;&bull;&nbsp; Rotate the axis handle (blue dot on x-axis) &nbsp;&bull;&nbsp; Edit |F| in the table &nbsp;&bull;&nbsp; Toggle Fnet data to reveal the resultant
     </p>
 
   </div>
@@ -377,6 +402,14 @@ const mctx = MC.getContext('2d');
 
 const FC   = document.getElementById('fnet-canvas');
 const fctx = FC.getContext('2d');
+
+// Sharp rendering on high-DPI (Retina) screens: bigger bitmap, same logical coordinates
+const DPR = Math.min(window.devicePixelRatio || 1, 3);
+MC.width = MW * DPR; MC.height = MH * DPR; mctx.scale(DPR, DPR);
+FC.width = FW * DPR; FC.height = FH * DPR; fctx.scale(DPR, DPR);
+
+const TOUCH = matchMedia('(pointer: coarse)').matches;
+if (TOUCH) document.querySelector('.hint .verb').textContent = 'Touch and drag';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MATH HELPERS
@@ -732,7 +765,7 @@ function drawMain() {
     mctx.fillStyle = cssVar('--muted');
     mctx.textAlign = 'center';
     mctx.textBaseline = 'middle';
-    mctx.fillText('Click near the origin to draw a vector', MOX, MOY + 60);
+    mctx.fillText((TOUCH ? 'Drag from' : 'Click near') + ' the origin to draw a vector', MOX, MOY + 60);
     mctx.restore();
   }
 
@@ -880,7 +913,7 @@ function buildTable() {
         </div>
       </td>
       <td>
-        <input class="mag-input" type="number" min="0.01" step="0.1"
+        <input class="mag-input" type="number" inputmode="decimal" min="0.01" step="0.1"
                data-idx="${i}" value="${v.mag.toFixed(2)}"
                style="border-color:${color}88">
       </td>
@@ -1013,8 +1046,19 @@ function getTipPosition(idx) {
   return { x: MOX + vx, y: MOY + vy };
 }
 
+// Grab radius in logical canvas px: at least `base`, and at least `css` screen px
+// (the canvas is often drawn smaller than its 860 px logical width, e.g. on an iPad).
+function hitR(base, css) {
+  const k = MW / MC.getBoundingClientRect().width;
+  return Math.max(base, css * k);
+}
+let touchInput = false;  // current interaction comes from a finger
+function rAxis()   { return touchInput ? hitR(22, 30) : hitR(22, 16); }
+function rTip()    { return touchInput ? hitR(18, 28) : hitR(18, 12); }
+function rOrigin() { return touchInput ? hitR(28, 36) : hitR(28, 18); }
+
 function hitTestTips(mx, my) {
-  const R2 = 18 * 18;
+  const R2 = rTip() ** 2;
   for (let i = vectors.length - 1; i >= 0; i--) {
     const tip = getTipPosition(i);
     const dx  = mx - tip.x;
@@ -1028,11 +1072,11 @@ function hitTestTips(mx, my) {
 // CANVAS COORD HELPER
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function canvasXY(canvas, e, isTouch) {
+// src: a MouseEvent or a Touch (anything with clientX/clientY)
+function canvasXY(canvas, src) {
   const rect = canvas.getBoundingClientRect();
-  const src  = isTouch ? (e.touches[0] || e.changedTouches[0]) : e;
-  const logW = parseInt(canvas.getAttribute('width'));
-  const logH = parseInt(canvas.getAttribute('height'));
+  const logW = canvas === MC ? MW : FW;
+  const logH = canvas === MC ? MH : FH;
   return {
     x: (src.clientX - rect.left) * (logW / rect.width),
     y: (src.clientY - rect.top)  * (logH / rect.height)
@@ -1044,16 +1088,16 @@ function canvasXY(canvas, e, isTouch) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function onMainDown(mx, my) {
-  // 1. Check axis handle (r < 22)
+  // 1. Check axis handle
   const h   = getAxisHandlePos();
   const dhx = mx - h.x, dhy = my - h.y;
-  if (dhx * dhx + dhy * dhy < 22 * 22) {
+  if (dhx * dhx + dhy * dhy < rAxis() ** 2) {
     dragState = { type: 'axis' };
     MC.style.cursor = 'grabbing';
     return;
   }
 
-  // 2. Check existing tips (r < 18), last to first
+  // 2. Check existing tips, last to first
   const hit = hitTestTips(mx, my);
   if (hit >= 0) {
     dragState = { type: 'tip', idx: hit };
@@ -1061,9 +1105,9 @@ function onMainDown(mx, my) {
     return;
   }
 
-  // 3. Check near origin (r < 28) for new vector
+  // 3. Check near origin for new vector
   const dox = mx - MOX, doy = my - MOY;
-  if (dox * dox + doy * doy < 28 * 28 && vectors.length < MAX_VECTORS) {
+  if (dox * dox + doy * doy < rOrigin() ** 2 && vectors.length < MAX_VECTORS) {
     const color = COLORS[vectors.length % COLORS.length];
     dragState  = { type: 'new', color };
     previewVec = null;
@@ -1077,7 +1121,7 @@ function onMainMove(mx, my) {
     // Update cursor for hover
     const h = getAxisHandlePos();
     const dhx = mx - h.x, dhy = my - h.y;
-    if (dhx * dhx + dhy * dhy < 22 * 22) {
+    if (dhx * dhx + dhy * dhy < rAxis() ** 2) {
       MC.style.cursor = 'grab'; return;
     }
     const hit = hitTestTips(mx, my);
@@ -1085,7 +1129,7 @@ function onMainMove(mx, my) {
       MC.style.cursor = 'grab'; return;
     }
     const dox = mx - MOX, doy = my - MOY;
-    if (dox * dox + doy * doy < 28 * 28 && vectors.length < MAX_VECTORS) {
+    if (dox * dox + doy * doy < rOrigin() ** 2 && vectors.length < MAX_VECTORS) {
       MC.style.cursor = 'crosshair'; return;
     }
     MC.style.cursor = 'default';
@@ -1165,6 +1209,7 @@ function onMainUp(mx, my) {
 
 // Mouse events
 MC.addEventListener('mousedown', e => {
+  touchInput = false;
   const p = canvasXY(MC, e);
   onMainDown(p.x, p.y);
 });
@@ -1176,7 +1221,9 @@ MC.addEventListener('mouseup', e => {
   const p = canvasXY(MC, e);
   onMainUp(p.x, p.y);
 });
-MC.addEventListener('mouseleave', () => {
+MC.addEventListener('mouseleave', cancelMainDrag);
+
+function cancelMainDrag() {
   if (dragState && dragState.type === 'new') {
     previewVec = null;
     dragState  = null;
@@ -1185,31 +1232,56 @@ MC.addEventListener('mouseleave', () => {
     dragState = null;
   }
   MC.style.cursor = 'default';
-});
+}
 
-// Touch events
+// Touch events — a finger that lands on a handle (origin, tip, axis) drags it;
+// anywhere else the touch is left alone so the page can scroll / zoom.
+let activeTouch = null;
+function findTouch(list, id) {
+  for (const t of list) if (t.identifier === id) return t;
+  return null;
+}
+
 MC.addEventListener('touchstart', e => {
-  e.preventDefault();
-  const p = canvasXY(MC, e, true);
+  if (activeTouch !== null) {
+    // A second finger: abandon the drag
+    if (e.touches.length > 1) { cancelMainDrag(); activeTouch = null; }
+    return;
+  }
+  if (e.touches.length > 1) return;
+  const t = e.changedTouches[0];
+  touchInput = true;
+  const p = canvasXY(MC, t);
   onMainDown(p.x, p.y);
+  if (dragState) {
+    e.preventDefault();          // claim the gesture: no scrolling while dragging
+    activeTouch = t.identifier;
+  }
 }, { passive: false });
 
 MC.addEventListener('touchmove', e => {
+  if (activeTouch === null) return;
+  const t = findTouch(e.touches, activeTouch);
+  if (!t) return;
   e.preventDefault();
-  const p = canvasXY(MC, e, true);
+  const p = canvasXY(MC, t);
   onMainMove(p.x, p.y);
 }, { passive: false });
 
 MC.addEventListener('touchend', e => {
+  if (activeTouch === null) return;
+  const t = findTouch(e.changedTouches, activeTouch);
+  if (!t) return;
   e.preventDefault();
-  const changedTouch = e.changedTouches[0];
-  const rect = MC.getBoundingClientRect();
-  const logW = parseInt(MC.getAttribute('width'));
-  const logH = parseInt(MC.getAttribute('height'));
-  const px = (changedTouch.clientX - rect.left) * (logW / rect.width);
-  const py = (changedTouch.clientY - rect.top)  * (logH / rect.height);
-  onMainUp(px, py);
+  activeTouch = null;
+  const p = canvasXY(MC, t);
+  onMainUp(p.x, p.y);
 }, { passive: false });
+
+MC.addEventListener('touchcancel', () => {
+  activeTouch = null;
+  cancelMainDrag();
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PULSE ANIMATION
