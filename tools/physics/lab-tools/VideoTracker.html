@@ -20,7 +20,9 @@
     --gt:#006400;
   }
   *{box-sizing:border-box;margin:0;padding:0}
+  html{touch-action:manipulation;-webkit-text-size-adjust:100%}
   html,body{height:100%;overflow:hidden}
+  @supports (height:100dvh){ body{height:100dvh} }
   body{
     background:var(--desktop);
     font-family:var(--ui);font-size:14px;color:#000;
@@ -151,8 +153,12 @@
     margin:3px;
   }
   #canvas-container{position:relative;flex-shrink:0}
-  #video-canvas{display:block}
-  #overlay-canvas{position:absolute;top:0;left:0;touch-action:none}
+  /* Canvas bitmaps keep the size chosen at load; CSS stretches them to the container,
+     so the view can refit (e.g. iPad rotation) without disturbing tracked coordinates. */
+  #video-canvas{display:block;position:relative;z-index:1;width:100%;height:100%}
+  #overlay-canvas{position:absolute;top:0;left:0;z-index:2;width:100%;height:100%;touch-action:none;-webkit-touch-callout:none}
+  /* Source video sits under the canvas: on screen (iOS may stop decoding off-screen video) but covered. */
+  #hv{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
 
   #drop-hint{
     position:absolute;inset:0;
@@ -324,6 +330,81 @@
     box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow),
                inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
   }
+  .frame-nav{display:none}
+
+  /* ════ TOUCH / TABLET ════ */
+  @media (pointer:coarse), (max-width:1100px){
+    /* Steps become tabs: only the active step shows its controls. */
+    #toolbar{padding:4px}
+    .step-panel:not(.step-active){flex:0 0 auto;padding:0;justify-content:center;cursor:pointer}
+    .step-panel:not(.step-active) .step-body{display:none}
+    .step-panel:not(.step-active) .step-head{position:static;padding:4px 8px;height:100%}
+    .step-panel.step-active{padding-top:16px}
+    .frame-nav{display:flex}
+  }
+  @media (pointer:coarse){
+    body{font-size:15px}
+    button.b95{font-size:14px;min-height:40px;padding:8px 14px}
+    button.b95:active,button.b95.pressed{padding:9px 13px 7px 15px}
+    input[type=number],select{font-size:16px;padding:6px 6px;min-height:36px}
+    input[type=number]{width:64px}
+    input[type=range]{height:36px}
+    input[type=checkbox]{width:22px;height:22px}
+    label.tb-label{font-size:13px}
+    .step-head{font-size:13px}
+    .step-num{min-width:18px;height:18px;font-size:11px}
+    .step-hint{font-size:12px}
+    .step-panel:not(.step-active) .step-head{padding:6px 12px}
+    #zoom-display{font-size:13px;min-width:44px}
+    .obj-chip{font-size:13px;padding:8px 10px;min-height:36px}
+    .obj-chip.active{padding:9px 10px 7px 11px}
+    .chip-del{font-size:18px;padding:0 4px;margin-left:4px}
+    #btn-add-object{font-size:13px;padding:8px 12px}
+    .graph-section-header{padding:6px 8px;font-size:14px;min-height:36px}
+    .fit-sel{font-size:13px;min-height:30px}
+    .del-pt{display:inline-block;font-size:20px !important;padding:4px 10px}
+    tbody tr:hover{background:transparent}
+    .status{flex-wrap:wrap}
+    .status div{font-size:12px}
+    #modal-overlay,#export-overlay{align-items:flex-start !important;padding-top:8vh}
+    #modal-input{font-size:18px}
+    .dlg label input[type=checkbox]{margin-right:4px}
+  }
+  /* Portrait tablets / phones: video on top, graphs underneath. */
+  @media (max-width:900px) and (orientation:portrait){
+    #main{flex-direction:column}
+    #video-panel{flex:3 1 0;min-height:200px}
+    #right-panel{
+      flex:2 1 0;min-width:0;border-left:0;border-top:1px solid var(--shadow);
+      display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto minmax(0,1fr);
+    }
+    #objects-bar{grid-column:1/-1}
+    .graph-section{border-bottom:0;box-shadow:none;border-right:1px solid var(--shadow)}
+    .graph-section.collapsed{align-self:start}
+    .status .s1{flex:1 1 100%}
+  }
+  @media (max-width:600px) and (orientation:portrait){
+    #right-panel{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto minmax(0,1fr) minmax(0,1fr)}
+    #table-section{grid-column:1/-1}
+    #video-panel{flex:1 1 0}
+    #right-panel{flex:1.3 1 0}
+  }
+  @media (max-width:700px){
+    /* Inactive step tabs show just their number */
+    .step-panel:not(.step-active) .step-head{font-size:0;gap:0;padding:6px 8px}
+    .step-panel:not(.step-active) .step-num{font-size:12px}
+    .ctrl-group{flex-wrap:wrap;flex-shrink:1;justify-content:center;min-width:0}
+    .graph-section-header{white-space:nowrap;overflow:hidden;font-size:12px}
+    .graph-section-header .obj-label{display:none}
+  }
+
+  /* Touch magnifier */
+  #loupe{
+    position:fixed;z-index:50;display:none;pointer-events:none;
+    width:120px;height:120px;border-radius:50%;
+    border:3px solid #000080;box-shadow:0 0 0 2px #fff,0 4px 12px rgba(0,0,0,.5);
+    background:#000;
+  }
 </style>
 
 <!-- ═══ WINDOW ═══ -->
@@ -392,6 +473,10 @@
         <label class="tb-label">Unit:</label>
         <select id="unit-sel"><option value="cm">cm</option><option value="m">m</option></select>
         <div class="tb-sep"></div>
+        <span class="ctrl-group frame-nav">
+          <button class="b95" onclick="stepFrame(-1)" title="Previous frame">&#9664; Frame</button>
+          <button class="b95" onclick="stepFrame(+1)" title="Next frame">Frame &#9654;</button>
+        </span>
         <span class="step-hint" id="cal-hint">Click 2 points on video</span>
         <label class="tb-label" style="display:flex;align-items:center;gap:3px;cursor:pointer">
           <input type="checkbox" id="cb-cal-overlay" onchange="S.showCal=this.checked;drawOverlay()"> Show
@@ -431,6 +516,10 @@
       <fieldset class="step-body" id="step-5-body" disabled>
         <span class="step-hint" id="active-obj-hint">Click object each frame</span>
         <div class="tb-sep"></div>
+        <span class="ctrl-group frame-nav">
+          <button class="b95" onclick="stepFrame(-1)" title="Previous frame">&#9664; Frame</button>
+          <button class="b95" onclick="stepFrame(+1)" title="Next frame">Frame &#9654;</button>
+        </span>
         <button class="b95" id="btn-undo" onclick="undoLastPoint()" disabled>&#8630; Undo</button>
         <button class="b95" id="btn-clear" onclick="clearTracking()" disabled>&#128465; Clear</button>
         <button class="b95" id="btn-export" onclick="exportCSV()" disabled>&#11015; CSV</button>
@@ -445,6 +534,7 @@
          ondragleave="this.style.outline=''"
          ondrop="handleDrop(event)">
       <div id="canvas-container">
+        <video id="hv" preload="auto" playsinline webkit-playsinline muted></video>
         <canvas id="video-canvas"></canvas>
         <canvas id="overlay-canvas"></canvas>
       </div>
@@ -555,7 +645,7 @@
     </div>
     <div class="dlgbody">
       <p id="modal-info">Enter the real-world distance between the two points you placed:</p>
-      <input type="number" id="modal-input" placeholder="e.g. 100" min="0.0001" step="any">
+      <input type="number" id="modal-input" inputmode="decimal" placeholder="e.g. 100" min="0.0001" step="any">
       <div class="modal-buttons">
         <button class="b95" onclick="cancelCalibration()">Cancel</button>
         <button class="b95" onclick="confirmCalibration()">Confirm</button>
@@ -616,17 +706,12 @@
 </div>
 
 <!--
-  Video element: NOT display:none — iOS Safari refuses to seek/draw hidden elements.
-  Positioned off-screen at 1x1 with near-zero opacity so it is technically "rendered".
+  Video element (#hv) lives inside #canvas-container, underneath the video canvas:
+  NOT display:none and not off-screen — iOS Safari refuses to seek/draw hidden elements
+  and may pause/stop decoding video that is outside the viewport.
   playsinline + muted allow autoplay and frame capture without user gesture on iOS.
 -->
-<video id="hv"
-       style="position:fixed;left:-9999px;top:-9999px;opacity:0.01;pointer-events:none;"
-       preload="auto"
-       playsinline
-       webkit-playsinline
-       muted>
-</video>
+<canvas id="loupe" width="240" height="240"></canvas>
 
 <script>
 // ═══════════════════════════════════════════════════════
@@ -642,6 +727,7 @@ updateTray(); setInterval(updateTray,20000);
 // ═══════════════════════════════════════════════════════
 //  STEP MANAGEMENT
 // ═══════════════════════════════════════════════════════
+const TOUCH = matchMedia('(pointer:coarse)').matches;
 const stepUnlocked = [true, true, false, false, false, false]; // index 0 unused
 
 function activateStep(n) {
@@ -660,6 +746,14 @@ function activateStep(n) {
     else S.mode = 'setup';
     updateStepStatus();
     drawOverlay();
+}
+
+// In the compact (tablet) layout inactive steps shrink to tabs; make the whole tab tappable.
+for (let i = 1; i <= 5; i++) {
+    const panel = document.getElementById('step-' + i);
+    panel.addEventListener('click', e => {
+        if (!panel.classList.contains('step-active') && !e.target.closest('.step-head')) activateStep(i);
+    });
 }
 
 function completeStep(n) {
@@ -800,6 +894,13 @@ function initVideo() {
     updateZoomDisplay();
     completeStep(1);
     seekTo(0);
+    // iOS Safari may not decode any frame until the video has played once (seeks then
+    // draw blank). A brief muted play/pause primes the decoder.
+    video.play().then(() => {
+        if (S.isPlaying) return;
+        video.pause();
+        seekTo(S.frameIndex);
+    }).catch(() => {});
 }
 
 // ═══════════════════════════════════════════════════════
@@ -819,10 +920,22 @@ function resizeVideoCanvas() {
     S.CH = Math.round(h);
     vcan.width  = ocan.width  = S.CW;
     vcan.height = ocan.height = S.CH;
-    container.style.width  = S.CW + 'px';
-    container.style.height = S.CH + 'px';
+    fitCanvasToPanel();
     S.origin = { x: S.CW / 2, y: S.CH / 2 };
 }
+
+// Refit the displayed size only (bitmap and tracked coordinates stay untouched),
+// e.g. when an iPad is rotated or the toolbar changes height.
+function fitCanvasToPanel() {
+    if (!S.videoLoaded) return;
+    const maxW = videoPanel.clientWidth  - 4;
+    const maxH = videoPanel.clientHeight - 4;
+    if (maxW <= 0 || maxH <= 0) return;
+    const k = Math.min(maxW / S.CW, maxH / S.CH);
+    container.style.width  = Math.floor(S.CW * k) + 'px';
+    container.style.height = Math.floor(S.CH * k) + 'px';
+}
+new ResizeObserver(fitCanvasToPanel).observe(videoPanel);
 
 // ═══════════════════════════════════════════════════════
 //  FRAME SEEKING — Safari-safe with timeout fallback
@@ -1153,9 +1266,12 @@ function canvasPos(clientX, clientY) {
 }
 function dist2(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
-function onPtrDown(cx, cy) {
+function onPtrDown(cx, cy, touch) {
     const p = canvasPos(cx, cy);
-    if (S.mode === 'setup' && dist2(p, S.origin) < 18 / S.vp.zoom) S.dragging = true;
+    // Grab radius in CSS px (a fingertip needs a much bigger target than a mouse)
+    const k = ocan.width / ocan.getBoundingClientRect().width;
+    const hit = (touch ? 36 : 18) * k / S.vp.zoom;
+    if (S.mode === 'setup' && dist2(p, S.origin) < hit) S.dragging = true;
 }
 function onPtrMove(cx, cy) {
     const p = canvasPos(cx, cy);
@@ -1229,13 +1345,23 @@ ocan.addEventListener('wheel', e => {
 }, { passive: false });
 
 // Touch (tablet / mobile)
+// One finger: press, slide while watching the magnifier, lift to place the point.
+// Two fingers: pinch-zoom / pan. Once a second finger lands, the gesture never places
+// a point, even after the fingers are lifted one at a time.
+let _touchCancelled = false;
+
 ocan.addEventListener('touchstart', e => {
     e.preventDefault();
     if (e.touches.length === 1) {
         _pinch = null;
-        onPtrDown(e.touches[0].clientX, e.touches[0].clientY);
+        _touchCancelled = false;
+        const t = e.touches[0];
+        onPtrDown(t.clientX, t.clientY, true);
+        showLoupe(t.clientX, t.clientY);
     } else if (e.touches.length >= 2) {
         S.dragging = false;
+        _touchCancelled = true;
+        hideLoupe();
         const t0 = e.touches[0], t1 = e.touches[1];
         const d = Math.hypot(t1.clientX-t0.clientX, t1.clientY-t0.clientY);
         const midX = (t0.clientX+t1.clientX)/2, midY = (t0.clientY+t1.clientY)/2;
@@ -1260,28 +1386,95 @@ ocan.addEventListener('touchmove', e => {
         clampPan();
         drawVideoFrame(); drawOverlay();
         updateZoomDisplay();
-    } else if (e.touches.length === 1 && !_pinch) {
-        onPtrMove(e.touches[0].clientX, e.touches[0].clientY);
+    } else if (e.touches.length === 1 && !_touchCancelled) {
+        const t = e.touches[0];
+        onPtrMove(t.clientX, t.clientY);
+        showLoupe(t.clientX, t.clientY);
     }
 }, { passive: false });
 ocan.addEventListener('touchend', e => {
     e.preventDefault();
-    if (_pinch && e.touches.length < 2) { _pinch = null; return; }
-    if (!_pinch && e.touches.length === 0) {
-        const t = e.changedTouches[0];
-        onPtrUp(t.clientX, t.clientY);
+    if (e.touches.length > 0) {
+        if (e.touches.length < 2) _pinch = null;
+        return;
     }
+    hideLoupe();
+    const cancelled = _touchCancelled;
+    _pinch = null;
+    _touchCancelled = false;
+    if (cancelled) { S.dragging = false; return; }
+    const t = e.changedTouches[0];
+    onPtrUp(t.clientX, t.clientY);
 }, { passive: false });
-ocan.addEventListener('touchcancel', () => { _pinch = null; onPtrLeave(); });
+ocan.addEventListener('touchcancel', () => {
+    _pinch = null; _touchCancelled = false;
+    hideLoupe(); onPtrLeave();
+});
+
+// ─── Magnifier shown above the finger while touching ───
+const loupe = document.getElementById('loupe');
+const lctx  = loupe.getContext('2d');
+const LOUPE_CSS = 120, LOUPE_MAG = 3;
+
+function hideLoupe() { loupe.style.display = 'none'; }
+
+function showLoupe(clientX, clientY) {
+    if (!S.videoLoaded || !(S.mode === 'calibration' || S.mode === 'tracking' || S.dragging)) {
+        hideLoupe(); return;
+    }
+    const r = ocan.getBoundingClientRect();
+    const k = ocan.width / r.width;                 // bitmap px per CSS px
+    const sx = (clientX - r.left) * k, sy = (clientY - r.top) * k;
+    const src = LOUPE_CSS * k / LOUPE_MAG;          // side of the magnified source square
+    const L = loupe.width, f = L / src;
+
+    lctx.fillStyle = '#000';
+    lctx.fillRect(0, 0, L, L);
+    // Clip the source rect to the canvas ourselves (older Safari draws nothing otherwise)
+    const x0 = Math.max(0, sx - src/2), y0 = Math.max(0, sy - src/2);
+    const x1 = Math.min(ocan.width, sx + src/2), y1 = Math.min(ocan.height, sy + src/2);
+    if (x1 > x0 && y1 > y0) {
+        const dx = (x0 - (sx - src/2)) * f, dy = (y0 - (sy - src/2)) * f;
+        const dw = (x1 - x0) * f, dh = (y1 - y0) * f;
+        lctx.drawImage(vcan, x0, y0, x1-x0, y1-y0, dx, dy, dw, dh);
+        lctx.drawImage(ocan, x0, y0, x1-x0, y1-y0, dx, dy, dw, dh);
+    }
+    // Crosshair (gap in the middle so the target stays visible)
+    const c = L / 2, g = 8, a = L * 0.3;
+    lctx.lineCap = 'round';
+    [['#fff', 5], ['#e00000', 2]].forEach(([col, w]) => {
+        lctx.strokeStyle = col; lctx.lineWidth = w;
+        lctx.beginPath();
+        lctx.moveTo(c - a, c); lctx.lineTo(c - g, c);
+        lctx.moveTo(c + g, c); lctx.lineTo(c + a, c);
+        lctx.moveTo(c, c - a); lctx.lineTo(c, c - g);
+        lctx.moveTo(c, c + g); lctx.lineTo(c, c + a);
+        lctx.stroke();
+    });
+
+    // Above the finger; flip below near the top edge
+    let top = clientY - LOUPE_CSS - 50;
+    if (top < 4) top = clientY + 50;
+    const left = Math.max(4, Math.min(window.innerWidth - LOUPE_CSS - 4, clientX - LOUPE_CSS / 2));
+    loupe.style.left = left + 'px';
+    loupe.style.top  = top + 'px';
+    loupe.style.display = 'block';
+}
 
 // Keyboard
 window.addEventListener('keydown', e => {
     if (!S.videoLoaded) return;
     if (document.activeElement.tagName === 'INPUT') return;
-    if (e.key === 'ArrowRight') { e.preventDefault(); if (!S.isPlaying) seekTo(Math.min(S.trimEnd,   S.frameIndex + 1)); }
-    if (e.key === 'ArrowLeft')  { e.preventDefault(); if (!S.isPlaying) seekTo(Math.max(S.trimStart, S.frameIndex - 1)); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); stepFrame(+1); }
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); stepFrame(-1); }
     if (e.key === ' ')          { e.preventDefault(); togglePlayback(); }
 });
+
+// Frame-step buttons (touch devices have no arrow keys)
+function stepFrame(d) {
+    if (!S.videoLoaded || S.isPlaying) return;
+    seekTo(Math.max(S.trimStart, Math.min(S.trimEnd, S.frameIndex + d)));
+}
 
 // ═══════════════════════════════════════════════════════
 //  OBJECTS (multi-track)
@@ -1336,12 +1529,12 @@ function renderObjectsBar() {
     S.tracks.forEach((t, i) => {
         const btn = document.createElement('button');
         btn.className = 'obj-chip' + (i === S.active ? ' active' : '');
-        btn.title = 'Double-click to rename';
+        btn.title = i === S.active ? 'Click again to rename' : 'Select object';
         btn.innerHTML = `<span class="chip-dot" style="background:${t.color}"></span>` +
             `<span class="chip-name">${escapeHtml(t.name)}</span>` +
             (S.tracks.length > 1 ? `<span class="chip-del" title="Delete object">&times;</span>` : '');
-        btn.addEventListener('click', () => setActiveTrack(i));
-        btn.addEventListener('dblclick', e => { e.stopPropagation(); renameTrack(i); });
+        // Clicking the active chip renames it (works on touch, where dblclick is unreliable)
+        btn.addEventListener('click', () => i === S.active ? renameTrack(i) : setActiveTrack(i));
         const del = btn.querySelector('.chip-del');
         if (del) del.addEventListener('click', e => { e.stopPropagation(); deleteTrack(i); });
         wrap.appendChild(btn);
@@ -1349,7 +1542,7 @@ function renderObjectsBar() {
 
     const t = activeTrack();
     const hint = document.getElementById('active-obj-hint');
-    hint.innerHTML = `<span class="chip-dot" style="background:${t.color}"></span> ${escapeHtml(t.name)} — click each frame`;
+    hint.innerHTML = `<span class="chip-dot" style="background:${t.color}"></span> ${escapeHtml(t.name)} — ${TOUCH ? 'tap' : 'click'} each frame`;
     ['obj-label-x','obj-label-y','obj-label-table'].forEach(id =>
         document.getElementById(id).textContent = '— ' + t.name);
 }
@@ -1870,7 +2063,7 @@ function updateDataTable() {
     activeTrack().points.forEach((p, i) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${i+1}</td><td>${p.time.toFixed(3)}</td><td>${p.wx.toFixed(3)}</td><td>${p.wy.toFixed(3)}</td>`
-            + `<td style="text-align:center;padding:0 4px"><span onclick="removePoint(${i})" `
+            + `<td style="text-align:center;padding:0 4px"><span class="del-pt" onclick="removePoint(${i})" `
             + `style="cursor:pointer;color:#800000;font-size:13px;line-height:1" title="Remove point">×</span></td>`;
         tbody.appendChild(tr);
     });
@@ -1917,6 +2110,7 @@ function fmtNum(v) {
 }
 
 // Init
+if (TOUCH) document.getElementById('cal-hint').textContent = 'Tap 2 points on video';
 renderObjectsBar(); updateTrackButtons();
 drawGraphX(); drawGraphY(); updateStatus();
 </script>
