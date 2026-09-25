@@ -1,0 +1,629 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Pair Draw</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+  :root {
+    --ground: #EEF1F7;
+    --panel: #FFFFFF;
+    --panel-2: #F5F7FB;
+    --line: #D3DAE8;
+    --ink: #111A2E;
+    --muted: #56627C;
+    --amber: #F2A900;
+    --amber-ink: #1A1300;
+    --amber-soft: #FFEBB8;
+    --teal: #0E8FA6;
+    --teal-ink: #FFFFFF;
+    --teal-soft: #D6F2F7;
+    --danger: #B42318;
+    --focus: #2F6BFF;
+    --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #0E1524; --panel: #16203A; --panel-2: #1B2744; --line: #2A3860;
+      --ink: #EEF2FA; --muted: #93A0BD;
+      --amber: #FFC23D; --amber-ink: #1A1300; --amber-soft: #3A2E0E;
+      --teal: #5FD4E8; --teal-ink: #06222A; --teal-soft: #12333D;
+      --danger: #FF8A7A; --focus: #8FB0FF;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #0E1524; --panel: #16203A; --panel-2: #1B2744; --line: #2A3860;
+    --ink: #EEF2FA; --muted: #93A0BD;
+    --amber: #FFC23D; --amber-ink: #1A1300; --amber-soft: #3A2E0E;
+    --teal: #5FD4E8; --teal-ink: #06222A; --teal-soft: #12333D;
+    --danger: #FF8A7A; --focus: #8FB0FF;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font: 16px/1.45 var(--body);
+    padding-inline: clamp(16px, 3vw, 40px);
+    padding-block: 20px 32px;
+  }
+  button, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  /* ---------- header ---------- */
+  .bar {
+    display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between;
+    gap: 16px 24px; margin-bottom: 20px;
+  }
+  .brand h1 {
+    font-family: var(--display); font-weight: 800; letter-spacing: -0.02em;
+    font-size: clamp(2rem, 4vw, 3rem); line-height: 1; margin: 0;
+  }
+  .brand h1 span { color: var(--amber); }
+  .brand p { margin: 8px 0 0; color: var(--muted); }
+  .brand .num { font-family: var(--mono); font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+  .btn {
+    border: 1px solid var(--line); background: var(--panel); border-radius: 8px;
+    padding: 9px 14px; cursor: pointer; font-weight: 700; font-size: 0.95rem;
+  }
+  .btn:hover { border-color: var(--muted); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.primary {
+    background: var(--amber); color: var(--amber-ink); border-color: var(--amber);
+    font-family: var(--display); font-size: 1.15rem; padding: 10px 26px; letter-spacing: .01em;
+  }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.06); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+  .seg button {
+    border: 0; background: transparent; padding: 9px 12px; cursor: pointer; font-size: .9rem; color: var(--muted);
+  }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--ground); font-weight: 700; }
+
+  /* ---------- setup ---------- */
+  .setup {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; margin-bottom: 20px;
+  }
+  .field label { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; margin-bottom: 6px; }
+  .field label small { font-weight: 400; color: var(--muted); font-family: var(--mono); font-size: .8rem; }
+  .field textarea {
+    width: 100%; min-height: 200px; resize: vertical; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel-2); padding: 10px 12px; line-height: 1.5;
+  }
+  .setup .note { grid-column: 1 / -1; margin: 0; font-size: .9rem; color: var(--muted); }
+  .setup .note.err { color: var(--danger); font-weight: 700; }
+
+  /* ---------- stage ---------- */
+  .stage {
+    display: grid; gap: 20px;
+    grid-template-columns: minmax(190px, 250px) minmax(0, 1fr) minmax(170px, 220px);
+    grid-template-areas: "pool groups ex";
+    align-items: start;
+  }
+  .col h2 {
+    font-family: var(--display); font-weight: 600; font-size: .85rem; text-transform: uppercase;
+    letter-spacing: .12em; color: var(--muted); margin: 0 0 10px;
+    display: flex; justify-content: space-between; gap: 8px;
+  }
+  .col h2 .count { font-family: var(--mono); letter-spacing: 0; color: var(--ink); }
+  .pool-col { grid-area: pool; }
+  .groups-col { grid-area: groups; }
+  .ex-col { grid-area: ex; }
+
+  .hat {
+    display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start;
+    padding: 12px; border-radius: 12px; border: 2px dashed var(--line); min-height: 120px;
+  }
+  .chip {
+    padding: 6px 11px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line);
+    font-weight: 700; font-size: .95rem; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+    transition: background .08s, color .08s, opacity .3s;
+  }
+  .chip.ex { border-radius: 6px; font-family: var(--mono); font-size: .85rem; font-weight: 500; }
+  .chip.hl { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); }
+  .chip.ex.hl { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); }
+  .chip.picked { transform: scale(1.12); box-shadow: 0 0 0 4px var(--amber-soft); }
+  .chip.ex.picked { box-shadow: 0 0 0 4px var(--teal-soft); }
+  .chip.gone { opacity: .28; text-decoration: line-through; background: transparent; }
+  .chip.left { border: 2px solid var(--muted); }
+
+  .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .group {
+    background: var(--panel); border: 2px solid var(--line); border-radius: 12px; padding: 12px 14px;
+    display: grid; gap: 8px; transition: border-color .2s, box-shadow .2s;
+  }
+  .group.active { border-color: var(--amber); box-shadow: 0 0 0 4px var(--amber-soft); }
+  .g-head { display: flex; align-items: baseline; justify-content: space-between; }
+  .g-head .lbl { font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .g-head .n { font-family: var(--mono); font-weight: 700; font-size: 1.3rem; color: var(--muted); }
+  .slot {
+    min-height: 2.1em; display: flex; align-items: center; padding: 4px 10px; border-radius: 8px;
+    border: 1px dashed var(--line); color: var(--muted); font-weight: 700; font-size: 1.1rem;
+    overflow-wrap: anywhere;
+  }
+  .slot:empty::before { content: "?"; font-family: var(--mono); opacity: .5; }
+  .slot.filled { border-style: solid; border-color: transparent; background: var(--panel-2); color: var(--ink); }
+  .ex-slot {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    border-top: 1px solid var(--line); padding-top: 8px; min-height: 2.4em;
+  }
+  .ex-slot .lbl { font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .ex-slot .val {
+    font-family: var(--mono); font-weight: 700; color: var(--muted); text-align: right; overflow-wrap: anywhere;
+    padding: 3px 8px; border-radius: 6px;
+  }
+  .ex-slot .val:empty::before { content: "—"; opacity: .5; }
+  .ex-slot .val.filled { background: var(--teal); color: var(--teal-ink); }
+
+  .flyer {
+    position: fixed; z-index: 50; pointer-events: none; display: flex; align-items: center; justify-content: center;
+    border-radius: 999px; background: var(--amber); color: var(--amber-ink); font-weight: 700; font-size: .95rem;
+    box-shadow: 0 10px 30px rgb(0 0 0 / .3); white-space: nowrap; padding: 0 10px;
+  }
+  .flyer.ex { border-radius: 6px; background: var(--teal); color: var(--teal-ink); font-family: var(--mono); font-size: .85rem; }
+
+  .leftover { margin: 10px 0 0; font-size: .9rem; color: var(--muted); }
+  .leftover strong { color: var(--ink); }
+
+  footer {
+    margin-top: 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+    color: var(--muted); font-size: .88rem;
+  }
+  footer p { margin: 0; max-width: 70ch; }
+  footer code { font-family: var(--mono); font-size: .82rem; color: var(--ink); }
+  #copyOut { width: 100%; min-height: 8em; font-family: var(--mono); font-size: .85rem; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); padding: 10px; }
+
+  @media (max-width: 1000px) {
+    .stage { grid-template-columns: 1fr; grid-template-areas: "pool" "groups" "ex"; }
+    .hat { min-height: 0; }
+  }
+  @media (max-width: 640px) {
+    .setup { grid-template-columns: 1fr; }
+    .field textarea { min-height: 150px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .chip, .group { transition: none; }
+  }
+</style>
+
+<header class="bar">
+  <div class="brand">
+    <h1>Pair<span>·</span>Draw</h1>
+    <p id="summary"></p>
+  </div>
+  <div class="actions">
+    <button class="btn" id="setupBtn" aria-expanded="true" aria-controls="setup">Hide lists</button>
+    <div class="seg" role="group" aria-label="Animation speed">
+      <button data-speed="dramatic" aria-pressed="false">Dramatic</button>
+      <button data-speed="normal" aria-pressed="true">Normal</button>
+      <button data-speed="fast" aria-pressed="false">Fast</button>
+    </div>
+    <button class="btn" id="soundBtn" aria-pressed="true">Sound: on</button>
+    <button class="btn" id="fsBtn">Fullscreen</button>
+    <button class="btn primary" id="drawBtn">Draw</button>
+  </div>
+</header>
+
+<section class="setup" id="setup">
+  <div class="field">
+    <label for="names">Students <small id="nameCount"></small></label>
+    <textarea id="names" spellcheck="false" placeholder="One name per line"></textarea>
+  </div>
+  <div class="field">
+    <label for="exercises">Exercises <small id="exCount"></small></label>
+    <textarea id="exercises" spellcheck="false" placeholder="One exercise per line"></textarea>
+  </div>
+  <p class="note" id="note"></p>
+</section>
+
+<main class="stage">
+  <section class="col pool-col">
+    <h2>In the hat <span class="count" id="poolCount"></span></h2>
+    <div class="hat" id="pool"></div>
+  </section>
+  <section class="col groups-col">
+    <h2>Pairs <span class="count" id="groupCount"></span></h2>
+    <div class="groups" id="groups"></div>
+  </section>
+  <section class="col ex-col">
+    <h2>Exercise drum <span class="count" id="exPoolCount"></span></h2>
+    <div class="hat" id="exPool"></div>
+    <p class="leftover" id="leftover" hidden></p>
+  </section>
+</main>
+
+<footer>
+  <p>Every pick uses your browser’s cryptographic random generator (<code>crypto.getRandomValues</code>, with rejection sampling so no name is favoured). The result is decided the moment each pick lands, and the flicker before it is just for show.</p>
+  <button class="btn" id="copyBtn" disabled>Copy results</button>
+  <textarea id="copyOut" hidden readonly aria-label="Results text"></textarea>
+</footer>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const namesEl = $('#names'), exEl = $('#exercises'), noteEl = $('#note');
+  const poolEl = $('#pool'), exPoolEl = $('#exPool'), groupsEl = $('#groups');
+  const drawBtn = $('#drawBtn'), copyBtn = $('#copyBtn'), copyOut = $('#copyOut');
+  const setupEl = $('#setup'), setupBtn = $('#setupBtn'), leftoverEl = $('#leftover');
+
+  const EXAMPLE_NAMES = ['Ana', 'Bruno', 'Camila', 'Diego', 'Elena', 'Felipe', 'Gabriela', 'Hugo', 'Isabel',
+    'Javier', 'Karla', 'Lucas', 'María', 'Nicolás', 'Olivia', 'Pablo', 'Renata', 'Sofía'];
+  const EXAMPLE_EX = Array.from({ length: 10 }, (_, i) => `Exercise ${i + 1}`);
+  const STORE = 'pairdraw.v1';
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const SPEEDS = {
+    dramatic: { spin: 2300, fly: 750, pause: 450, shake: 420, rounds: 4 },
+    normal:   { spin: 1300, fly: 520, pause: 220, shake: 340, rounds: 3 },
+    fast:     { spin: 450,  fly: 300, pause: 60,  shake: 260, rounds: 1 },
+  };
+  let speed = reduceMotion ? 'fast' : 'normal';
+
+  // ---------- true randomness ----------
+  // Uniform integer in [0, n) from crypto, rejecting the biased tail of the 32-bit range.
+  const rbuf = new Uint32Array(1);
+  function randInt(n) {
+    const limit = 0x100000000 - (0x100000000 % n);
+    let x;
+    do { crypto.getRandomValues(rbuf); x = rbuf[0]; } while (x >= limit);
+    return x % n;
+  }
+  function shuffled(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = randInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+
+  // ---------- storage (convenience only) ----------
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORE) || 'null'); } catch { return null; }
+  }
+  function save() {
+    try { localStorage.setItem(STORE, JSON.stringify({ names: namesEl.value, ex: exEl.value, speed })); } catch {}
+  }
+
+  const parseNames = t => t.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
+  const parseEx = t => t.split(/\n+/).map(s => s.trim()).filter(Boolean);
+
+  function validate(names, ex) {
+    if (names.length < 2) return 'Add at least two students.';
+    if (names.length % 2) return `${names.length} students can’t be split into pairs. Add or remove one name.`;
+    const groups = names.length / 2;
+    if (ex.length < groups) return `${groups} pairs need at least ${groups} exercises. You have ${ex.length}.`;
+    return '';
+  }
+
+  // (n-1)!! ways to split n people into unordered pairs
+  function pairings(n) {
+    let r = 1n;
+    for (let k = BigInt(n - 1); k > 1n; k -= 2n) r *= k;
+    return r;
+  }
+  const fmt = v => v.toLocaleString('en-US');
+
+  // ---------- rendering ----------
+  function chip(text, cls) {
+    const el = document.createElement('div');
+    el.className = 'chip' + (cls ? ' ' + cls : '');
+    el.textContent = text;
+    el.title = text;
+    return el;
+  }
+
+  function renderIdle() {
+    const names = parseNames(namesEl.value), ex = parseEx(exEl.value);
+    const err = validate(names, ex);
+    const groups = Math.floor(names.length / 2);
+
+    poolEl.replaceChildren(...names.map(n => chip(n)));
+    exPoolEl.replaceChildren(...ex.map(e => chip(e, 'ex')));
+    groupsEl.replaceChildren(...Array.from({ length: groups }, (_, i) => groupCard(i)));
+    leftoverEl.hidden = true;
+
+    $('#nameCount').textContent = `${names.length} names`;
+    $('#exCount').textContent = `${ex.length} exercises`;
+    $('#poolCount').textContent = names.length;
+    $('#exPoolCount').textContent = ex.length;
+    $('#groupCount').textContent = groups || '';
+
+    const isExample = namesEl.value.trim() === EXAMPLE_NAMES.join('\n');
+    if (err) {
+      noteEl.textContent = err; noteEl.className = 'note err';
+    } else {
+      const spare = ex.length - groups;
+      noteEl.textContent = (isExample ? 'These are example names. Replace them with your class, one per line. ' : '') +
+        (spare ? `${spare} exercise${spare > 1 ? 's' : ''} will be left over.` : 'Every exercise will be used.');
+      noteEl.className = 'note';
+    }
+    $('#summary').innerHTML = err ? 'Fix the lists to draw.' :
+      `${names.length} students → ${groups} pairs · <span class="num">${fmt(pairings(names.length))}</span> possible ways to pair this class`;
+    drawBtn.disabled = !!err;
+    copyBtn.disabled = true;
+    copyOut.hidden = true;
+  }
+
+  function groupCard(i) {
+    const card = document.createElement('article');
+    card.className = 'group';
+    card.innerHTML = `<div class="g-head"><span class="lbl">Pair</span><span class="n">${i + 1}</span></div>
+      <div class="slot" data-slot="0"></div><div class="slot" data-slot="1"></div>
+      <div class="ex-slot"><span class="lbl">Exercise</span><span class="val"></span></div>`;
+    return card;
+  }
+
+  // ---------- sound ----------
+  let ac = null, soundOn = true;
+  function initAudio() {
+    if (!soundOn) return;
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); } catch { ac = null; }
+  }
+  function beep(freq, dur, vol, type) {
+    if (!soundOn || !ac || skipping) return;
+    try {
+      const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+      o.type = type || 'square'; o.frequency.value = freq;
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + 0.02);
+    } catch {}
+  }
+  const tick = () => beep(1500, 0.025, 0.025);
+  const land = () => { beep(660, 0.14, 0.07, 'triangle'); setTimeout(() => beep(990, 0.2, 0.07, 'triangle'), 90); };
+  const fanfare = () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.25, 0.06, 'triangle'), i * 120));
+
+  // ---------- animation helpers ----------
+  let running = false, skipping = false;
+  const pending = new Set(), flights = new Set();
+
+  function sleep(ms) {
+    if (skipping || ms <= 0) return Promise.resolve();
+    return new Promise(resolve => {
+      const done = () => { clearTimeout(t); pending.delete(done); resolve(); };
+      const t = setTimeout(done, ms);
+      pending.add(done);
+    });
+  }
+  function skip() {
+    skipping = true;
+    [...pending].forEach(f => f());
+    flights.forEach(a => { try { a.finish(); } catch {} });
+  }
+
+  function highlight(list, i) {
+    list.forEach(el => el.classList.remove('hl'));
+    if (list[i]) list[i].classList.add('hl');
+  }
+
+  // Flicker through the remaining chips, slowing down, and land on the chip already chosen by randInt.
+  async function spin(list, target) {
+    const sp = SPEEDS[speed];
+    if (!skipping && list.length > 1) {
+      const steps = Math.max(6, Math.round(sp.spin / 95));
+      const base = 30, curve = 3 * Math.max(0, sp.spin - steps * base) / steps;
+      let prev = -1;
+      for (let k = 0; k < steps && !skipping; k++) {
+        let i;
+        do { i = randInt(list.length); } while (i === prev);
+        highlight(list, i); tick(); prev = i;
+        await sleep(base + curve * (k / steps) ** 2);
+      }
+    }
+    highlight(list, target);
+    list[target].classList.add('picked');
+    land();
+    await sleep(sp.pause);
+  }
+
+  function fill(dst, text) {
+    dst.textContent = text;
+    dst.classList.add('filled');
+    if (!skipping && !reduceMotion) {
+      dst.animate([{ transform: 'scale(1.15)' }, { transform: 'scale(1)' }], { duration: 260, easing: 'cubic-bezier(.3,1.6,.5,1)' });
+    }
+  }
+
+  async function fly(src, dst, isEx) {
+    const text = src.textContent;
+    const sp = SPEEDS[speed];
+    const a = src.getBoundingClientRect();
+    src.classList.remove('hl', 'picked');
+    src.classList.add('gone');
+    if (skipping || reduceMotion) { fill(dst, text); return; }
+    const b = dst.getBoundingClientRect();
+    const f = document.createElement('div');
+    f.className = 'flyer' + (isEx ? ' ex' : '');
+    f.textContent = text;
+    Object.assign(f.style, { left: a.left + 'px', top: a.top + 'px', width: a.width + 'px', height: a.height + 'px' });
+    document.body.append(f);
+    const dx = (b.left + b.width / 2) - (a.left + a.width / 2);
+    const dy = (b.top + b.height / 2) - (a.top + a.height / 2);
+    const anim = f.animate([
+      { transform: 'translate(0,0) scale(1.1)' },
+      { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 60}px) scale(1.45)`, offset: 0.5 },
+      { transform: `translate(${dx}px, ${dy}px) scale(1)` },
+    ], { duration: sp.fly, easing: 'cubic-bezier(.45,0,.35,1)', fill: 'forwards' });
+    flights.add(anim);
+    try { await anim.finished; } catch {}
+    flights.delete(anim);
+    f.remove();
+    fill(dst, text);
+  }
+
+  // Visual shuffle of the hat (FLIP). Purely theatrical: picks don't depend on chip order.
+  async function shake(container) {
+    const sp = SPEEDS[speed];
+    if (skipping || reduceMotion) return;
+    for (let r = 0; r < sp.rounds && !skipping; r++) {
+      const kids = [...container.children];
+      const first = new Map(kids.map(k => [k, k.getBoundingClientRect()]));
+      shuffled(kids).forEach(k => container.append(k));
+      kids.forEach(k => {
+        const f = first.get(k), l = k.getBoundingClientRect();
+        k.animate([{ transform: `translate(${f.left - l.left}px, ${f.top - l.top}px)` }, { transform: 'none' }],
+          { duration: sp.shake, easing: 'cubic-bezier(.3,.7,.2,1)' });
+      });
+      tick();
+      await sleep(sp.shake + 40);
+    }
+  }
+
+  function scrollNear(el) {
+    const r = el.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > innerHeight) el.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+
+  // ---------- the draw ----------
+  let lastResult = null;
+
+  async function draw() {
+    if (running) { skip(); return; }
+    const names = parseNames(namesEl.value), ex = parseEx(exEl.value);
+    if (validate(names, ex)) return;
+
+    running = true; skipping = false;
+    initAudio();
+    renderIdle();
+    setRunning(true);
+
+    await Promise.all([shake(poolEl), shake(exPoolEl)]);
+
+    const cards = [...groupsEl.children];
+    const result = cards.map(() => ({ names: [], ex: '' }));
+
+    let remaining = [...poolEl.children];
+    for (let g = 0; g < cards.length; g++) {
+      const card = cards[g];
+      card.classList.add('active');
+      scrollNear(card);
+      for (let s = 0; s < 2; s++) {
+        const idx = randInt(remaining.length);
+        const el = remaining[idx];
+        await spin(remaining, idx);
+        remaining.splice(idx, 1);
+        $('#poolCount').textContent = remaining.length;
+        result[g].names.push(el.textContent);
+        await fly(el, card.querySelector(`[data-slot="${s}"]`), false);
+      }
+      card.classList.remove('active');
+      await sleep(SPEEDS[speed].pause);
+    }
+
+    let exLeft = [...exPoolEl.children];
+    for (let g = 0; g < cards.length; g++) {
+      const card = cards[g];
+      card.classList.add('active');
+      scrollNear(card);
+      const idx = randInt(exLeft.length);
+      const el = exLeft[idx];
+      await spin(exLeft, idx);
+      exLeft.splice(idx, 1);
+      $('#exPoolCount').textContent = exLeft.length;
+      result[g].ex = el.textContent;
+      await fly(el, card.querySelector('.val'), true);
+      card.classList.remove('active');
+    }
+
+    const leftovers = exLeft.map(el => el.textContent);
+    exLeft.forEach(el => el.classList.add('left'));
+    if (leftovers.length) {
+      leftoverEl.innerHTML = 'Not assigned: ' + leftovers.map(t => `<strong></strong>`).join(', ');
+      leftoverEl.querySelectorAll('strong').forEach((s, i) => { s.textContent = leftovers[i]; });
+      leftoverEl.hidden = false;
+    }
+
+    const wasSkipped = skipping;
+    skipping = false;
+    if (!wasSkipped) fanfare();
+    if (!reduceMotion) {
+      cards.forEach((c, i) => c.animate(
+        [{ transform: 'translateY(0)' }, { transform: 'translateY(-6px)' }, { transform: 'translateY(0)' }],
+        { duration: 380, delay: i * 45, easing: 'ease-out' }));
+    }
+
+    lastResult = { result, leftovers };
+    running = false;
+    setRunning(false);
+    copyBtn.disabled = false;
+  }
+
+  function setRunning(on) {
+    drawBtn.textContent = on ? 'Skip to result' : (lastResult ? 'Draw again' : 'Draw');
+    namesEl.disabled = exEl.disabled = on;
+    if (on) toggleSetup(false);
+  }
+
+  // ---------- controls ----------
+  function toggleSetup(open) {
+    setupEl.hidden = !open;
+    setupBtn.setAttribute('aria-expanded', String(open));
+    setupBtn.textContent = open ? 'Hide lists' : 'Edit lists';
+  }
+  setupBtn.addEventListener('click', () => toggleSetup(setupEl.hidden));
+
+  document.querySelectorAll('.seg button').forEach(b => {
+    b.addEventListener('click', () => {
+      speed = b.dataset.speed;
+      document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      save();
+    });
+  });
+
+  $('#soundBtn').addEventListener('click', e => {
+    soundOn = !soundOn;
+    e.currentTarget.setAttribute('aria-pressed', String(soundOn));
+    e.currentTarget.textContent = 'Sound: ' + (soundOn ? 'on' : 'off');
+    if (soundOn) initAudio();
+  });
+
+  const fsBtn = $('#fsBtn');
+  if (!document.documentElement.requestFullscreen) fsBtn.hidden = true;
+  fsBtn.addEventListener('click', () => {
+    const p = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    Promise.resolve(p).catch(() => { fsBtn.hidden = true; });
+  });
+  document.addEventListener('fullscreenchange', () => {
+    fsBtn.textContent = document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen';
+  });
+
+  drawBtn.addEventListener('click', draw);
+
+  function resultText() {
+    const lines = lastResult.result.map((r, i) => `Pair ${i + 1}: ${r.names.join(' & ')} — ${r.ex}`);
+    if (lastResult.leftovers.length) lines.push(`Not assigned: ${lastResult.leftovers.join(', ')}`);
+    return lines.join('\n');
+  }
+  copyBtn.addEventListener('click', () => {
+    if (!lastResult) return;
+    const text = resultText();
+    const fallback = () => { copyOut.value = text; copyOut.hidden = false; copyOut.focus(); copyOut.select(); copyBtn.textContent = 'Select and copy below'; };
+    try {
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = 'Copied';
+        setTimeout(() => { copyBtn.textContent = 'Copy results'; }, 1600);
+      }, fallback);
+    } catch { fallback(); }
+  });
+
+  let t;
+  [namesEl, exEl].forEach(el => el.addEventListener('input', () => {
+    clearTimeout(t);
+    t = setTimeout(() => { lastResult = null; drawBtn.textContent = 'Draw'; renderIdle(); save(); }, 200);
+  }));
+
+  // ---------- boot ----------
+  const saved = load();
+  namesEl.value = saved?.names ?? EXAMPLE_NAMES.join('\n');
+  exEl.value = saved?.ex ?? EXAMPLE_EX.join('\n');
+  if (saved?.speed && SPEEDS[saved.speed] && !reduceMotion) speed = saved.speed;
+  document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.speed === speed)));
+  renderIdle();
+})();
+</script>
+
+</body></html>
