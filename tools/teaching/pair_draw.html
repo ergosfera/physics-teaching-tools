@@ -1,249 +1,396 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>Pair Draw</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap">
-<style>
-  :root {
-    --ground: #EEF1F7;
-    --panel: #FFFFFF;
-    --panel-2: #F5F7FB;
-    --line: #D3DAE8;
-    --ink: #111A2E;
-    --muted: #56627C;
-    --amber: #F2A900;
-    --amber-ink: #1A1300;
-    --amber-soft: #FFEBB8;
-    --teal: #0E8FA6;
-    --teal-ink: #FFFFFF;
-    --teal-soft: #D6F2F7;
-    --danger: #B42318;
-    --focus: #2F6BFF;
-    --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
-    --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
-    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      color-scheme: dark;
-      --ground: #0E1524; --panel: #16203A; --panel-2: #1B2744; --line: #2A3860;
-      --ink: #EEF2FA; --muted: #93A0BD;
-      --amber: #FFC23D; --amber-ink: #1A1300; --amber-soft: #3A2E0E;
-      --teal: #5FD4E8; --teal-ink: #06222A; --teal-soft: #12333D;
-      --danger: #FF8A7A; --focus: #8FB0FF;
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Pair Draw</title>
+
+  <style>
+    /* ---- Design tokens: classic Windows 95, single high-contrast skin ----
+       No dark variant — this runs on a classroom projector, where subtle
+       bevel edges and low-contrast grays disappear under room lighting. */
+    :root {
+      --face:         #c0c0c0;
+      --bevel-hi:     #ffffff;
+      --bevel-lt:     #dfdfdf;
+      --bevel-sh:     #808080;
+      --bevel-dk:     #000000;
+      --win-text:     #000000;
+      --disabled:     #808080;
+      --title-from:   #000080;
+      --title-to:     #1084d0;
+      --title-off-from: #808080;
+      --title-off-to:   #b5b5b5;
+      --title-text:   #ffffff;
+      --field-bg:     #ffffff;
+      --field-text:   #000000;
+      --desktop:      #008080;
+      --select-bg:    #000080;   /* name highlight */
+      --select-ex:    #008080;   /* exercise highlight */
+      --danger:       #a00000;
+
+      --font-ui:   Tahoma, 'MS Sans Serif', Geneva, Verdana, sans-serif;
+      --font-mono: 'Lucida Console', 'Courier New', ui-monospace, monospace;
     }
-  }
-  :root[data-theme="dark"] {
-    color-scheme: dark;
-    --ground: #0E1524; --panel: #16203A; --panel-2: #1B2744; --line: #2A3860;
-    --ink: #EEF2FA; --muted: #93A0BD;
-    --amber: #FFC23D; --amber-ink: #1A1300; --amber-soft: #3A2E0E;
-    --teal: #5FD4E8; --teal-ink: #06222A; --teal-soft: #12333D;
-    --danger: #FF8A7A; --focus: #8FB0FF;
-  }
 
-  * { box-sizing: border-box; }
-  body {
-    background: var(--ground);
-    color: var(--ink);
-    font: 16px/1.45 var(--body);
-    padding-inline: clamp(16px, 3vw, 40px);
-    padding-block: 20px 32px;
-  }
-  button, textarea { font: inherit; color: inherit; }
-  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+    /* ---- Reset ---- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
 
-  /* ---------- header ---------- */
-  .bar {
-    display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between;
-    gap: 16px 24px; margin-bottom: 20px;
-  }
-  .brand h1 {
-    font-family: var(--display); font-weight: 800; letter-spacing: -0.02em;
-    font-size: clamp(2rem, 4vw, 3rem); line-height: 1; margin: 0;
-  }
-  .brand h1 span { color: var(--amber); }
-  .brand p { margin: 8px 0 0; color: var(--muted); }
-  .brand .num { font-family: var(--mono); font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
-  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
+    html, body {
+      height: 100%;
+      background: var(--desktop);
+      color: var(--win-text);
+      font-family: var(--font-ui);
+      font-size: 14px;
+      line-height: 1.4;
+      overflow: hidden;
+    }
+    @supports (height: 100dvh) { html, body { height: 100dvh; } }
+    body { display: flex; }
 
-  .btn {
-    border: 1px solid var(--line); background: var(--panel); border-radius: 8px;
-    padding: 9px 14px; cursor: pointer; font-weight: 700; font-size: 0.95rem;
-  }
-  .btn:hover { border-color: var(--muted); }
-  .btn:disabled { opacity: .45; cursor: not-allowed; }
-  .btn.primary {
-    background: var(--amber); color: var(--amber-ink); border-color: var(--amber);
-    font-family: var(--display); font-size: 1.15rem; padding: 10px 26px; letter-spacing: .01em;
-  }
-  .btn.primary:hover:not(:disabled) { filter: brightness(1.06); }
-  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
-  .seg button {
-    border: 0; background: transparent; padding: 9px 12px; cursor: pointer; font-size: .9rem; color: var(--muted);
-  }
-  .seg button + button { border-left: 1px solid var(--line); }
-  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--ground); font-weight: 700; }
+    button, textarea { font: inherit; color: inherit; }
 
-  /* ---------- setup ---------- */
-  .setup {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-    padding: 16px; margin-bottom: 20px;
-  }
-  .field label { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; margin-bottom: 6px; }
-  .field label small { font-weight: 400; color: var(--muted); font-family: var(--mono); font-size: .8rem; }
-  .field textarea {
-    width: 100%; min-height: 200px; resize: vertical; border: 1px solid var(--line); border-radius: 8px;
-    background: var(--panel-2); padding: 10px 12px; line-height: 1.5;
-  }
-  .setup .note { grid-column: 1 / -1; margin: 0; font-size: .9rem; color: var(--muted); }
-  .setup .note.err { color: var(--danger); font-weight: 700; }
+    /* ---- Bevels ---- */
+    .btn, .chip, .group, #win95-window, .tb-btn {
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+    }
+    .hat, .slot, .field textarea, #copyOut, .status span, .seg button[aria-pressed="true"],
+    .btn:active:not(:disabled) {
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
+    }
 
-  /* ---------- stage ---------- */
-  .stage {
-    display: grid; gap: 20px;
-    grid-template-columns: minmax(190px, 250px) minmax(0, 1fr) minmax(170px, 220px);
-    grid-template-areas: "pool groups ex";
-    align-items: start;
-  }
-  .col h2 {
-    font-family: var(--display); font-weight: 600; font-size: .85rem; text-transform: uppercase;
-    letter-spacing: .12em; color: var(--muted); margin: 0 0 10px;
-    display: flex; justify-content: space-between; gap: 8px;
-  }
-  .col h2 .count { font-family: var(--mono); letter-spacing: 0; color: var(--ink); }
-  .pool-col { grid-area: pool; }
-  .groups-col { grid-area: groups; }
-  .ex-col { grid-area: ex; }
+    /* ---- Window chrome ---- */
+    #win95-window {
+      flex: 1;
+      margin: 3px;
+      display: flex;
+      flex-direction: column;
+      background: var(--face);
+      overflow: hidden;
+    }
+    #win95-titlebar {
+      flex-shrink: 0;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 3px 0 6px;
+      background: linear-gradient(90deg, var(--title-from), var(--title-to));
+      color: var(--title-text);
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .tb-icon  { font-size: 13px; }
+    .tb-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tb-btns  { display: flex; gap: 2px; }
+    .tb-btn {
+      width: 18px; height: 16px; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--face); color: var(--win-text);
+      border: none; font-size: 10px; line-height: 1;
+    }
 
-  .hat {
-    display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start;
-    padding: 12px; border-radius: 12px; border: 2px dashed var(--line); min-height: 120px;
-  }
-  .chip {
-    padding: 6px 11px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line);
-    font-weight: 700; font-size: .95rem; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
-    transition: background .08s, color .08s, opacity .3s;
-  }
-  .chip.ex { border-radius: 6px; font-family: var(--mono); font-size: .85rem; font-weight: 500; }
-  .chip.hl { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); }
-  .chip.ex.hl { background: var(--teal); color: var(--teal-ink); border-color: var(--teal); }
-  .chip.picked { transform: scale(1.12); box-shadow: 0 0 0 4px var(--amber-soft); }
-  .chip.ex.picked { box-shadow: 0 0 0 4px var(--teal-soft); }
-  .chip.gone { opacity: .28; text-decoration: line-through; background: transparent; }
-  .chip.left { border: 2px solid var(--muted); }
+    .win95-content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 10px 12px 12px;
+    }
 
-  .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-  .group {
-    background: var(--panel); border: 2px solid var(--line); border-radius: 12px; padding: 12px 14px;
-    display: grid; gap: 8px; transition: border-color .2s, box-shadow .2s;
-  }
-  .group.active { border-color: var(--amber); box-shadow: 0 0 0 4px var(--amber-soft); }
-  .g-head { display: flex; align-items: baseline; justify-content: space-between; }
-  .g-head .lbl { font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
-  .g-head .n { font-family: var(--mono); font-weight: 700; font-size: 1.3rem; color: var(--muted); }
-  .slot {
-    min-height: 2.1em; display: flex; align-items: center; padding: 4px 10px; border-radius: 8px;
-    border: 1px dashed var(--line); color: var(--muted); font-weight: 700; font-size: 1.1rem;
-    overflow-wrap: anywhere;
-  }
-  .slot:empty::before { content: "?"; font-family: var(--mono); opacity: .5; }
-  .slot.filled { border-style: solid; border-color: transparent; background: var(--panel-2); color: var(--ink); }
-  .ex-slot {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    border-top: 1px solid var(--line); padding-top: 8px; min-height: 2.4em;
-  }
-  .ex-slot .lbl { font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
-  .ex-slot .val {
-    font-family: var(--mono); font-weight: 700; color: var(--muted); text-align: right; overflow-wrap: anywhere;
-    padding: 3px 8px; border-radius: 6px;
-  }
-  .ex-slot .val:empty::before { content: "—"; opacity: .5; }
-  .ex-slot .val.filled { background: var(--teal); color: var(--teal-ink); }
+    /* ---- Toolbar / header ---- */
+    .bar {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 10px 16px;
+      padding-bottom: 10px; margin-bottom: 14px;
+      box-shadow: 0 1px var(--bevel-hi);
+      border-bottom: 1px solid var(--bevel-sh);
+    }
+    .brand h1 { font-size: 22px; font-weight: 700; line-height: 1.1; }
+    .brand h1 span { color: var(--title-from); }
+    .brand p { margin-top: 4px; font-size: 13px; }
+    .brand .num { font-family: var(--font-mono); font-weight: 700; }
 
-  .flyer {
-    position: fixed; z-index: 50; pointer-events: none; display: flex; align-items: center; justify-content: center;
-    border-radius: 999px; background: var(--amber); color: var(--amber-ink); font-weight: 700; font-size: .95rem;
-    box-shadow: 0 10px 30px rgb(0 0 0 / .3); white-space: nowrap; padding: 0 10px;
-  }
-  .flyer.ex { border-radius: 6px; background: var(--teal); color: var(--teal-ink); font-family: var(--mono); font-size: .85rem; }
+    .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 
-  .leftover { margin: 10px 0 0; font-size: .9rem; color: var(--muted); }
-  .leftover strong { color: var(--ink); }
+    /* ---- Buttons ---- */
+    .btn {
+      border: none; border-radius: 0; background: var(--face);
+      padding: 7px 14px; min-height: 32px;
+      font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+    .btn:active:not(:disabled) { padding: 8px 13px 6px 15px; }
+    .btn:disabled { color: var(--disabled); text-shadow: 1px 1px 0 var(--bevel-hi); cursor: default; }
+    .btn:focus-visible, .seg button:focus-visible { outline: 1px dotted var(--win-text); outline-offset: -5px; }
+    /* Default button: the extra black frame Windows 95 draws around it */
+    .btn.primary {
+      font-size: 16px; padding: 8px 26px; min-height: 38px;
+      box-shadow:
+        0 0 0 1px var(--bevel-dk),
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+    }
+    .btn.primary:active:not(:disabled) {
+      box-shadow:
+        0 0 0 1px var(--bevel-dk),
+        inset 1px 1px var(--bevel-sh),
+        inset -1px -1px var(--bevel-sh);
+      padding: 9px 25px 7px 27px;
+    }
+    .btn[aria-pressed="false"] { color: var(--disabled); }
 
-  footer {
-    margin-top: 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
-    color: var(--muted); font-size: .88rem;
-  }
-  footer p { margin: 0; max-width: 70ch; }
-  footer code { font-family: var(--mono); font-size: .82rem; color: var(--ink); }
-  #copyOut { width: 100%; min-height: 8em; font-family: var(--mono); font-size: .85rem; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); padding: 10px; }
+    /* Speed selector: a row of toggle buttons, the chosen one pushed in */
+    .seg { display: inline-flex; gap: 2px; }
+    .seg button {
+      border: none; border-radius: 0; background: var(--face);
+      padding: 7px 10px; min-height: 32px; font-size: 13px; cursor: pointer;
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+    }
+    .seg button[aria-pressed="true"] {
+      font-weight: 700; padding: 8px 9px 6px 11px;
+      /* dithered "checked" face */
+      background-color: var(--bevel-hi);
+      background-image: linear-gradient(45deg, var(--face) 25%, transparent 25%, transparent 75%, var(--face) 75%),
+                        linear-gradient(45deg, var(--face) 25%, transparent 25%, transparent 75%, var(--face) 75%);
+      background-size: 2px 2px; background-position: 0 0, 1px 1px;
+    }
 
-  @media (max-width: 1000px) {
-    .stage { grid-template-columns: 1fr; grid-template-areas: "pool" "groups" "ex"; }
-    .hat { min-height: 0; }
-  }
-  @media (max-width: 640px) {
-    .setup { grid-template-columns: 1fr; }
-    .field textarea { min-height: 150px; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .chip, .group { transition: none; }
-  }
-</style>
+    /* ---- Group boxes (etched frame with a caption on the line) ---- */
+    .setup, .col {
+      position: relative;
+      border: 1px solid var(--bevel-sh);
+      box-shadow: 1px 1px 0 var(--bevel-hi), inset 1px 1px 0 var(--bevel-hi);
+      padding: 18px 12px 12px;
+    }
+    .setup::before, .col h2 {
+      position: absolute; top: -9px; left: 8px;
+      background: var(--face); padding: 0 4px;
+      font-size: 13px; font-weight: 700; line-height: 18px;
+    }
 
-<header class="bar">
-  <div class="brand">
-    <h1>Pair<span>·</span>Draw</h1>
-    <p id="summary"></p>
-  </div>
-  <div class="actions">
-    <button class="btn" id="setupBtn" aria-expanded="true" aria-controls="setup">Hide lists</button>
-    <div class="seg" role="group" aria-label="Animation speed">
-      <button data-speed="dramatic" aria-pressed="false">Dramatic</button>
-      <button data-speed="normal" aria-pressed="true">Normal</button>
-      <button data-speed="fast" aria-pressed="false">Fast</button>
+    /* ---- Setup ---- */
+    .setup {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      margin-bottom: 20px;
+    }
+    .setup::before { content: 'Lists'; }
+    .field label { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; margin-bottom: 4px; }
+    .field label small { font-weight: 400; font-family: var(--font-mono); font-size: 12px; }
+    .field textarea {
+      width: 100%; min-height: 190px; resize: vertical;
+      border: none; border-radius: 0; outline: none;
+      background: var(--field-bg); color: var(--field-text);
+      padding: 6px 8px; font-size: 14px; line-height: 1.45;
+    }
+    .field textarea:disabled { background: var(--face); color: var(--disabled); }
+    .setup .note { grid-column: 1 / -1; font-size: 13px; }
+    .setup .note.err { color: var(--danger); font-weight: 700; }
+
+    /* ---- Stage ---- */
+    .stage {
+      display: grid; gap: 22px 14px;
+      grid-template-columns: minmax(190px, 250px) minmax(0, 1fr) minmax(170px, 220px);
+      grid-template-areas: "pool groups ex";
+      align-items: start;
+      padding-top: 4px;
+    }
+    .col h2 { display: flex; gap: 6px; }
+    .col h2 .count { font-family: var(--font-mono); }
+    .pool-col   { grid-area: pool; }
+    .groups-col { grid-area: groups; }
+    .ex-col     { grid-area: ex; }
+
+    /* The hat / drum: a sunken white well */
+    .hat {
+      display: flex; flex-wrap: wrap; gap: 5px; align-content: flex-start;
+      padding: 8px; min-height: 120px;
+      background: var(--field-bg);
+    }
+
+    .chip {
+      padding: 4px 9px; border-radius: 0; background: var(--face);
+      font-weight: 700; font-size: 14px;
+      white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+      transition: opacity .3s;
+    }
+    .chip.ex { font-family: var(--font-mono); font-size: 13px; font-weight: 400; }
+    .chip.hl    { background: var(--select-bg); color: #fff; }
+    .chip.ex.hl { background: var(--select-ex); color: #fff; }
+    .chip.picked { transform: scale(1.12); outline: 2px dotted var(--win-text); outline-offset: 1px; }
+    .chip.gone {
+      background: transparent; box-shadow: none; opacity: .6;
+      color: var(--disabled); text-shadow: 1px 1px 0 var(--bevel-hi); text-decoration: line-through;
+    }
+    .chip.left { outline: 2px solid var(--win-text); outline-offset: -2px; }
+
+    /* ---- Pair cards: little windows; the one being filled gets the active title bar ---- */
+    .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+    .group {
+      background: var(--face); padding: 3px 3px 8px;
+      display: grid; gap: 6px;
+    }
+    .g-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 2px 6px; margin-bottom: 2px;
+      background: linear-gradient(90deg, var(--title-off-from), var(--title-off-to));
+      color: var(--title-text);
+    }
+    .group.active .g-head { background: linear-gradient(90deg, var(--title-from), var(--title-to)); }
+    .g-head .lbl { font-size: 12px; font-weight: 700; }
+    .g-head .n   { font-family: var(--font-mono); font-weight: 700; font-size: 15px; }
+    .slot {
+      margin: 0 5px;
+      min-height: 2em; display: flex; align-items: center; padding: 3px 8px;
+      background: var(--field-bg); color: var(--disabled);
+      font-weight: 700; font-size: 16px; overflow-wrap: anywhere;
+    }
+    .slot:empty::before { content: "?"; font-family: var(--font-mono); }
+    .slot.filled { color: var(--field-text); }
+    .ex-slot {
+      margin: 0 5px;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding-top: 6px; min-height: 2.2em;
+      border-top: 1px solid var(--bevel-sh); box-shadow: inset 0 1px var(--bevel-hi);
+    }
+    .ex-slot .lbl { font-size: 12px; font-weight: 700; }
+    .ex-slot .val {
+      font-family: var(--font-mono); font-weight: 700; text-align: right; overflow-wrap: anywhere;
+      padding: 2px 8px; color: var(--disabled);
+    }
+    .ex-slot .val:empty::before { content: "—"; }
+    .ex-slot .val.filled { background: var(--select-ex); color: #fff; }
+
+    /* The chip in flight between the hat and a card */
+    .flyer {
+      position: fixed; z-index: 50; pointer-events: none;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--select-bg); color: #fff; font-weight: 700; font-size: 14px;
+      box-shadow: 3px 3px 0 rgba(0,0,0,.45);
+      white-space: nowrap; padding: 0 9px;
+    }
+    .flyer.ex { background: var(--select-ex); font-family: var(--font-mono); font-size: 13px; }
+
+    .leftover { margin-top: 8px; font-size: 13px; }
+
+    /* ---- Footer ---- */
+    footer {
+      margin-top: 20px; padding-top: 10px;
+      border-top: 1px solid var(--bevel-sh); box-shadow: inset 0 1px var(--bevel-hi);
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+      font-size: 12px;
+    }
+    footer p { max-width: 75ch; }
+    footer code { font-family: var(--font-mono); font-size: 12px; }
+    #copyOut {
+      width: 100%; min-height: 8em; border: none; border-radius: 0;
+      background: var(--field-bg); color: var(--field-text);
+      font-family: var(--font-mono); font-size: 13px; padding: 6px 8px;
+    }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 1000px) {
+      .stage { grid-template-columns: 1fr; grid-template-areas: "pool" "groups" "ex"; }
+      .hat { min-height: 0; }
+    }
+    @media (max-width: 640px) {
+      .setup { grid-template-columns: 1fr; }
+      .field textarea { min-height: 150px; }
+    }
+    @media (pointer: coarse) {
+      .btn, .seg button { min-height: 42px; font-size: 14px; }
+      .field textarea { font-size: 16px; }   /* 16px stops iOS zooming on focus */
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .chip { transition: none; }
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="win95-window">
+  <div id="win95-titlebar">
+    <span class="tb-icon">&#127922;</span>
+    <span class="tb-title">Pair Draw</span>
+    <div class="tb-btns" aria-hidden="true">
+      <span class="tb-btn">_</span>
+      <span class="tb-btn">&#9633;</span>
+      <span class="tb-btn">&#10005;</span>
     </div>
-    <button class="btn" id="soundBtn" aria-pressed="true">Sound: on</button>
-    <button class="btn" id="fsBtn">Fullscreen</button>
-    <button class="btn primary" id="drawBtn">Draw</button>
   </div>
-</header>
 
-<section class="setup" id="setup">
-  <div class="field">
-    <label for="names">Students <small id="nameCount"></small></label>
-    <textarea id="names" spellcheck="false" placeholder="One name per line"></textarea>
+  <div class="win95-content">
+
+    <header class="bar">
+      <div class="brand">
+        <h1>Pair<span>&middot;</span>Draw</h1>
+        <p id="summary"></p>
+      </div>
+      <div class="actions">
+        <button class="btn" id="setupBtn" aria-expanded="true" aria-controls="setup">Hide lists</button>
+        <div class="seg" role="group" aria-label="Animation speed">
+          <button data-speed="dramatic" aria-pressed="false">Dramatic</button>
+          <button data-speed="normal" aria-pressed="true">Normal</button>
+          <button data-speed="fast" aria-pressed="false">Fast</button>
+        </div>
+        <button class="btn" id="soundBtn" aria-pressed="true">Sound: on</button>
+        <button class="btn" id="fsBtn">Fullscreen</button>
+        <button class="btn primary" id="drawBtn">Draw</button>
+      </div>
+    </header>
+
+    <section class="setup" id="setup">
+      <div class="field">
+        <label for="names">Students <small id="nameCount"></small></label>
+        <textarea id="names" spellcheck="false" placeholder="One name per line"></textarea>
+      </div>
+      <div class="field">
+        <label for="exercises">Exercises <small id="exCount"></small></label>
+        <textarea id="exercises" spellcheck="false" placeholder="One exercise per line"></textarea>
+      </div>
+      <p class="note" id="note"></p>
+    </section>
+
+    <main class="stage">
+      <section class="col pool-col">
+        <h2>In the hat <span class="count" id="poolCount"></span></h2>
+        <div class="hat" id="pool"></div>
+      </section>
+      <section class="col groups-col">
+        <h2>Pairs <span class="count" id="groupCount"></span></h2>
+        <div class="groups" id="groups"></div>
+      </section>
+      <section class="col ex-col">
+        <h2>Exercise drum <span class="count" id="exPoolCount"></span></h2>
+        <div class="hat" id="exPool"></div>
+        <p class="leftover" id="leftover" hidden></p>
+      </section>
+    </main>
+
+    <footer>
+      <p>Every pick uses your browser’s cryptographic random generator (<code>crypto.getRandomValues</code>, with rejection sampling so no name is favoured). The result is decided the moment each pick lands, and the flicker before it is just for show.</p>
+      <button class="btn" id="copyBtn" disabled>Copy results</button>
+      <textarea id="copyOut" hidden readonly aria-label="Results text"></textarea>
+    </footer>
+
   </div>
-  <div class="field">
-    <label for="exercises">Exercises <small id="exCount"></small></label>
-    <textarea id="exercises" spellcheck="false" placeholder="One exercise per line"></textarea>
-  </div>
-  <p class="note" id="note"></p>
-</section>
-
-<main class="stage">
-  <section class="col pool-col">
-    <h2>In the hat <span class="count" id="poolCount"></span></h2>
-    <div class="hat" id="pool"></div>
-  </section>
-  <section class="col groups-col">
-    <h2>Pairs <span class="count" id="groupCount"></span></h2>
-    <div class="groups" id="groups"></div>
-  </section>
-  <section class="col ex-col">
-    <h2>Exercise drum <span class="count" id="exPoolCount"></span></h2>
-    <div class="hat" id="exPool"></div>
-    <p class="leftover" id="leftover" hidden></p>
-  </section>
-</main>
-
-<footer>
-  <p>Every pick uses your browser’s cryptographic random generator (<code>crypto.getRandomValues</code>, with rejection sampling so no name is favoured). The result is decided the moment each pick lands, and the flicker before it is just for show.</p>
-  <button class="btn" id="copyBtn" disabled>Copy results</button>
-  <textarea id="copyOut" hidden readonly aria-label="Results text"></textarea>
-</footer>
+</div>
 
 <script>
 (() => {
