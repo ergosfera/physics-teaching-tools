@@ -72,11 +72,12 @@ body { display: flex; flex-direction: column; }
 .panel-title { font-size: 0.85rem; font-weight: 800; color: var(--panel-color, var(--accent)); letter-spacing: .04em; text-transform: uppercase; flex: 1; }
 
 .collapse-btn { padding: 2px 8px; font-size: 0.72rem; }
-.panel.p2.collapsed { flex: 0 0 40px; min-width: 40px; }
-.panel.p2.collapsed .tbl-wrap { display: none; }
-.panel.p2.collapsed .panel-header { flex-direction: column; padding: 10px 4px; gap: 10px; height: 100%; border-bottom: none; }
-.panel.p2.collapsed .panel-title { writing-mode: vertical-rl; flex: 0 0 auto; white-space: nowrap; }
-.panel.p2.collapsed .collapse-btn { order: -1; }
+.panel.collapsed { flex: 0 0 40px; min-width: 40px; }
+.panel.collapsed .tbl-wrap, .panel.collapsed .asym-list { display: none; }
+.panel.collapsed .panel-header { flex-direction: column; padding: 10px 4px; gap: 10px; height: 100%; border-bottom: none; }
+.panel.collapsed .panel-title { writing-mode: vertical-rl; flex: 0 0 auto; white-space: nowrap; }
+.panel.collapsed .collapse-btn { order: -1; }
+.panel.collapsed .asym-count { display: none; }
 
 /* ── Controls panel ── */
 .ctrl-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
@@ -116,6 +117,33 @@ body { display: flex; flex-direction: column; }
 .badge-box.down  { background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, var(--border)); }
 .badge-box.mixed { background: color-mix(in srgb, var(--purple) 12%, transparent); color: var(--purple); border-color: color-mix(in srgb, var(--purple) 40%, var(--border)); }
 .badge-box.flat  { color: var(--muted); }
+
+/* ── Asymptotes panel ── */
+.panel.p3 { flex: 0 0 250px; min-width: 250px; --panel-color: #ff006e; }
+.asym-count {
+  min-width: 22px; padding: 1px 7px; border-radius: 11px; text-align: center;
+  background: #ff006e; color: #fff; font-size: 0.72rem; font-weight: 800;
+}
+.asym-list { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.asym-card {
+  --c: #ff006e;
+  border-radius: 10px; padding: 10px 12px 10px 14px; cursor: default;
+  background: color-mix(in srgb, var(--c) 10%, var(--surface));
+  border: 2px solid color-mix(in srgb, var(--c) 55%, transparent);
+  border-left: 7px solid var(--c);
+  transition: transform .12s, box-shadow .12s;
+}
+.asym-card:hover, .asym-card.hot { transform: translateX(3px); box-shadow: 0 3px 12px color-mix(in srgb, var(--c) 40%, transparent); }
+.asym-tag {
+  display: inline-block; padding: 2px 8px; border-radius: 10px; background: var(--c); color: #fff;
+  font-size: 0.66rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+}
+.asym-side { font-size: 0.7rem; font-weight: 700; color: var(--muted); margin-left: 6px; }
+.asym-eq { font-family: 'Courier New', monospace; font-size: 1.15rem; font-weight: 800; color: var(--c); margin: 6px 0 4px; }
+.asym-desc { font-size: 0.76rem; color: var(--text); line-height: 1.5; }
+.asym-swatch { display: block; width: 100%; height: 6px; margin-top: 7px; }
+.asym-empty { font-size: 0.82rem; color: var(--muted); line-height: 1.6; text-align: center; padding: 18px 6px; }
+.asym-note { font-size: 0.7rem; color: var(--muted); line-height: 1.5; }
 
 /* ── Buttons ── */
 .btn {
@@ -245,6 +273,10 @@ canvas.chart { display: block; width: 100%; height: 100%; }
     </label>
 
     <label class="chk-row">
+      <input type="checkbox" id="asym-toggle" checked> show asymptotes
+    </label>
+
+    <label class="chk-row">
       <input type="checkbox" id="deriv-toggle"> overlay true derivative f&prime;(x)
     </label>
 
@@ -269,6 +301,12 @@ canvas.chart { display: block; width: 100%; height: 100%; }
       <tbody id="diff-body"></tbody>
     </table>
   </div>
+</div>
+
+<!-- Panel 3 — asymptotes -->
+<div class="panel p3" id="asym-panel">
+  <div class="panel-header"><span class="panel-title">📐 Asymptotes</span><span class="asym-count" id="asym-count">0</span><button class="btn collapse-btn" id="asym-collapse-btn" type="button" title="Collapse asymptotes">◀</button></div>
+  <div class="asym-list" id="asym-list"></div>
 </div>
 
 <!-- Graph panel -->
@@ -579,6 +617,7 @@ let d2Ast = diff(dAst);
 let xMin = -3, xMax = 3, N = 8;
 let showDeriv = false;
 let showIntervals = true;
+let showAsym = true;
 
 // ── Rate-of-change view mode: fixed interval segments vs. a secant
 //    that follows the cursor along the curve ────────────────────
@@ -694,6 +733,173 @@ function renderBadge() {
   }
 }
 
+// ── Asymptotes ──────────────────────────────────────────────
+// Vertical: |f| → ∞ at some x = c. Found by scanning for local maxima of |f|
+// (or edges of the domain), homing in on the peak, and checking that |f|
+// keeps growing as we approach it (works for poles like 1/x and tan x, and
+// for slow log blow-ups like ln x at 0).
+function findVerticalAsymptotes(a, b) {
+  const S = 2000, span = b - a;
+  const g = x => { const v = f(x); return isNaN(v) ? -1 : Math.abs(v); };
+  const xs = [], gs = [];
+  for (let i = 0; i <= S; i++) { const x = a + span * i / S; xs.push(x); gs.push(g(x)); }
+  const finite = gs.filter(v => v >= 0 && isFinite(v)).sort((p, q) => p - q);
+  const scale = Math.max(1, finite.length ? finite[Math.floor(finite.length / 2)] : 1);
+  const found = [];
+  for (let i = 0; i <= S; i++) {
+    const gl = i > 0 ? gs[i-1] : -1, gr = i < S ? gs[i+1] : -1;
+    if (gs[i] < 0 || gs[i] < gl || gs[i] < gr) continue;
+    // Ternary search for the peak of |f| inside [x(i-1), x(i+1)]
+    let lo = xs[Math.max(0, i-1)], hi = xs[Math.min(S, i+1)];
+    for (let k = 0; k < 120; k++) {
+      const m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
+      if (g(m1) < g(m2)) lo = m1; else hi = m2;
+    }
+    const c = (lo + hi) / 2;
+    const G = [3, 6, 9, 12].map(e => {
+      const d = span * Math.pow(10, -e);
+      return Math.max(g(c - d), g(c + d));
+    });
+    const up = (p, q) => q > p || q === Infinity;   // overflow to ∞ counts as still growing
+    const growing = G[0] > 0 && up(G[0], G[1]) && up(G[1], G[2]) && up(G[2], G[3]) && G[3] - G[0] > scale;
+    if (!growing) continue;
+    const cc = snapNice(c, span * 1e-6);
+    if (cc < a - 1e-12 || cc > b + 1e-12) continue;
+    if (!found.some(v => Math.abs(v - cc) < span * 1e-4)) found.push(cc);
+  }
+  return found;
+}
+
+// End behaviour as x → ±∞: horizontal (y = L) or oblique (y = mx + b).
+function findEndAsymptote(sgn) {
+  const F = X => f(sgn * X);
+  const v = [1e4, 1e5, 1e6, 1e7].map(F);
+  if (v.every(isFinite)) {
+    const L = v[3];
+    if (Math.abs(v[2] - v[3]) < 1e-4 * (1 + Math.abs(L)) && Math.abs(v[1] - v[2]) < 1e-3 * (1 + Math.abs(L)))
+      return { type: 'h', L: snapNice(L, 1e-5) };
+  }
+  const slope = X => (F(2*X) - F(X)) / (sgn * X);
+  const m1 = slope(1e5), m2 = slope(1e6);
+  if (!isFinite(m1) || !isFinite(m2) || Math.abs(m1 - m2) > 1e-4 * (1 + Math.abs(m2)) || Math.abs(m2) < 1e-6) return null;
+  const b1 = F(1e5) - m2 * sgn * 1e5, b2 = F(1e6) - m2 * sgn * 1e6;
+  if (!isFinite(b1) || !isFinite(b2) || Math.abs(b1 - b2) > 1e-2 * (1 + Math.abs(b2))) return null;
+  return { type: 'o', m: snapNice(m2, 1e-5), b: snapNice(b2, 1e-3) };
+}
+
+// Snap a value to a "nice" nearby number (integer, simple fraction, or
+// fraction of π) when within tol, so labels read x = π/2 instead of 1.5708.
+function snapNice(v, tol) {
+  for (const d of [1, 2, 3, 4, 6, 8]) {
+    const k = Math.round(v * d);
+    if (Math.abs(v * d - k) < tol * d) return k / d;
+    const kp = Math.round(v * d / Math.PI);
+    if (kp !== 0 && Math.abs(v - kp * Math.PI / d) < tol) return kp * Math.PI / d;
+  }
+  return v;
+}
+function fmtNice(v) {
+  if (Math.abs(v) < 1e-12) return '0';
+  for (const d of [1, 2, 3, 4, 6, 8]) {
+    const k = v * d / Math.PI;
+    if (Math.abs(k - Math.round(k)) < 1e-9) {
+      const n = Math.round(k), an = Math.abs(n);
+      return (n < 0 ? '−' : '') + (an === 1 ? '' : an) + 'π' + (d === 1 ? '' : '/' + d);
+    }
+  }
+  return v < 0 ? '−' + fmt(-v) : fmt(v);
+}
+function fmtLine(a) {
+  if (a.type === 'h') return 'y = ' + fmtNice(a.L);
+  const mStr = a.m === 1 ? '' : a.m === -1 ? '−' : fmtNice(a.m);
+  const bStr = Math.abs(a.b) < 1e-9 ? '' : (a.b > 0 ? ' + ' : ' − ') + fmtNice(Math.abs(a.b));
+  return 'y = ' + mStr + 'x' + bStr;
+}
+const sameLine = (p, q) => p && q && p.type === q.type &&
+  (p.type === 'h' ? Math.abs(p.L - q.L) < 1e-9 : Math.abs(p.m - q.m) < 1e-9 && Math.abs(p.b - q.b) < 1e-9);
+
+let endAsym = { left: null, right: null };
+let vertAsymCache = { key: '', list: [] };
+function visibleVerticalAsymptotes(xR) {
+  const key = xR.min + ',' + xR.max + ',' + document.getElementById('eq-echo').textContent;
+  if (vertAsymCache.key !== key) vertAsymCache = { key, list: findVerticalAsymptotes(xR.min, xR.max) };
+  return vertAsymCache.list;
+}
+
+// Vibrant palette shared by the panel cards and the lines on the graph
+const ASYM_COLORS = ['#ff006e', '#fb5607', '#8338ec', '#00b4d8', '#06d6a0', '#ffbe0b', '#3a86ff', '#e63946'];
+let asymList = [];        // [{ key, kind:'v'|'h'|'o', c | L | m,b, side, color }]
+let hotAsymKey = null;    // card under the mouse → its line is drawn bold
+
+function vKey(c) { return 'v:' + c.toFixed(9); }
+function colorForVertical(c) {
+  const hit = asymList.find(a => a.key === vKey(c));
+  if (hit) return hit.color;
+  // Outside [xMin, xMax] (seen after panning): stable colour from its position
+  return ASYM_COLORS[Math.abs(Math.round(c * 1000)) % ASYM_COLORS.length];
+}
+
+function limitWord(v) {
+  if (v === Infinity) return '+∞';
+  if (v === -Infinity) return '−∞';
+  if (isNaN(v)) return 'undefined';
+  return fmtNice(v);
+}
+
+function buildAsymptoteList() {
+  const list = [];
+  for (const c of findVerticalAsymptotes(xMin, xMax)) list.push({ key: vKey(c), kind: 'v', c, side: 0 });
+  const { left, right } = endAsym;
+  const addEnd = (a, side) => list.push({ key: 'e:' + side, kind: a.type, ...a, side });
+  if (sameLine(left, right)) addEnd(right, 0);
+  else { if (right) addEnd(right, 1); if (left) addEnd(left, -1); }
+  list.forEach((a, i) => a.color = ASYM_COLORS[i % ASYM_COLORS.length]);
+  asymList = list;
+}
+
+function renderAsymptotePanel() {
+  buildAsymptoteList();
+  const el = document.getElementById('asym-list');
+  document.getElementById('asym-count').textContent = asymList.length;
+  if (!asymList.length) {
+    el.innerHTML = '<div class="asym-empty">No asymptotes<br>for this function<br>on [' + fmt(xMin) + ', ' + fmt(xMax) + '].</div>';
+    return;
+  }
+  const span = xMax - xMin;
+  el.innerHTML = asymList.map(a => {
+    let tag, eq, side = '', desc;
+    if (a.kind === 'v') {
+      // One-sided limit: compare |f| at two distances; still growing → ±∞
+      const oneSide = sgn => {
+        const near = f(a.c + sgn * span * 1e-9), far = f(a.c + sgn * span * 1e-6);
+        if (isNaN(near) || isNaN(far)) return NaN;
+        if (Math.abs(near) > Math.abs(far) * 1.2 || !isFinite(near)) return near > 0 ? Infinity : -Infinity;
+        return snapNice(near, 1e-4);
+      };
+      const sideTxt = (v, s) => isNaN(v) ? `f is undefined just ${s} it`
+        : `f → ${limitWord(v)} as x → ${fmtNice(a.c)}${s === 'left of' ? '⁻' : '⁺'}`;
+      tag = 'vertical'; eq = 'x = ' + fmtNice(a.c);
+      desc = sideTxt(oneSide(-1), 'left of') + '<br>' + sideTxt(oneSide(1), 'right of');
+    } else {
+      const dir = a.side === 0 ? '±∞' : a.side > 0 ? '+∞' : '−∞';
+      side = 'as x → ' + dir;
+      eq = fmtLine(a);
+      if (a.kind === 'h') { tag = 'horizontal'; desc = `f(x) → ${fmtNice(a.L)} as x → ${dir}`; }
+      else { tag = 'slant'; desc = `f(x) hugs the line ${eq.slice(4)} as x → ${dir}`; }
+    }
+    return `<div class="asym-card" data-key="${a.key}" style="--c:${a.color}">
+      <span class="asym-tag">${tag}</span><span class="asym-side">${side}</span>
+      <div class="asym-eq">${eq}</div>
+      <div class="asym-desc">${desc}</div>
+      <svg class="asym-swatch" preserveAspectRatio="none" viewBox="0 0 100 6"><line x1="0" y1="3" x2="100" y2="3" stroke="${a.color}" stroke-width="3" stroke-dasharray="8 5"/></svg>
+    </div>`;
+  }).join('') + '<div class="asym-note">Vertical asymptotes listed for x in [' + fmt(xMin) + ', ' + fmt(xMax) + ']. Hover a card to highlight its line.</div>';
+  el.querySelectorAll('.asym-card').forEach(card => {
+    card.addEventListener('mouseenter', () => { hotAsymKey = card.dataset.key; drawFxChart(); });
+    card.addEventListener('mouseleave', () => { hotAsymKey = null; drawFxChart(); });
+  });
+}
+
 // ── Compute ─────────────────────────────────────────────────
 function recompute() {
   points = []; diffs = [];
@@ -711,6 +917,7 @@ function recompute() {
     diffs[i].dm = i === 0 ? null : diffs[i].m - diffs[i-1].m;
   }
   renderBadge();
+  renderAsymptotePanel();
   renderTable();
   drawCharts();
 }
@@ -731,6 +938,7 @@ function tryParseAndApply() {
   dAst = diff(fAst);
   d2Ast = diff(dAst);
   echoEl.textContent = 'Parsed as: ' + formatEq(fAst);
+  endAsym = { left: findEndAsymptote(-1), right: findEndAsymptote(1) };
   view = null;
   recompute();
 }
@@ -901,6 +1109,47 @@ function strokeCurve(ctx, fn, xR, toX, toY, ph) {
 
 const SECANT_LEN = 180;   // on-screen length (px) of the cursor secant line
 
+function drawAsymptotes(ctx, xR, yR, toX, toY, pad, pw, ph) {
+  ctx.save();
+  ctx.font = 'bold 12px Courier New';
+  const label = (txt, x, y, align, color) => {
+    ctx.save(); ctx.setLineDash([]);
+    ctx.textAlign = align;
+    const w = ctx.measureText(txt).width;
+    const x0 = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.roundRect(x0 - 5, y - 12, w + 10, 17, 8); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(txt, x, y);
+    ctx.restore();
+  };
+  const pen = (color, key) => {
+    const hot = key === hotAsymKey;
+    ctx.strokeStyle = color; ctx.lineWidth = hot ? 4 : 2.2;
+    ctx.setLineDash(hot ? [12, 6] : [8, 5]);
+  };
+  for (const c of visibleVerticalAsymptotes(xR)) {
+    const color = colorForVertical(c), px = toX(c);
+    pen(color, vKey(c));
+    ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, pad.t + ph); ctx.stroke();
+    label('x = ' + fmtNice(c), px + 6, pad.t + 16, 'left', color);
+  }
+  for (const a of asymList) {
+    if (a.kind === 'v') continue;
+    const yAt = x => a.kind === 'h' ? a.L : a.m * x + a.b;
+    // Draw only over the half of the view the asymptote describes (whole view if both sides agree)
+    const x0 = a.side > 0 ? Math.max(xR.min, Math.min(xR.max, 0)) : xR.min;
+    const x1 = a.side < 0 ? Math.min(xR.max, Math.max(xR.min, 0)) : xR.max;
+    if (x1 <= x0) continue;
+    pen(a.color, a.key);
+    ctx.beginPath(); ctx.moveTo(toX(x0), toY(yAt(x0))); ctx.lineTo(toX(x1), toY(yAt(x1))); ctx.stroke();
+    const lx = a.side < 0 ? x0 : x1;
+    const ly = toY(yAt(lx));
+    if (ly > pad.t + 14 && ly < pad.t + ph - 4)
+      label(fmtLine(a), toX(lx) + (a.side < 0 ? 8 : -8), ly - 8, a.side < 0 ? 'left' : 'right', a.color);
+  }
+  ctx.restore();
+}
+
 function drawFxChart() {
   sizeCv(fxCv);
   const dpr = window.devicePixelRatio || 1;
@@ -929,6 +1178,8 @@ function drawFxChart() {
   // the original [xMin, xMax] domain still shows the curve.
   ctx.save();
   ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
+  if (showAsym) drawAsymptotes(ctx, xR, yR, toX, toY, pad, pw, ph);
+
   ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2.5;
   strokeCurve(ctx, f, xR, toX, toY, ph);
 
@@ -1025,7 +1276,21 @@ document.getElementById('n-slider').addEventListener('input', e => {
   recompute();
 });
 document.getElementById('deriv-toggle').addEventListener('change', e => { showDeriv = e.target.checked; drawCharts(); });
+document.getElementById('asym-toggle').addEventListener('change', e => { showAsym = e.target.checked; drawCharts(); });
 document.getElementById('intervals-toggle').addEventListener('change', e => { showIntervals = e.target.checked; drawCharts(); });
+
+// ── Collapse / expand the asymptotes panel ──────────────────────────
+function setAsymPanelVisible(visible) {
+  document.getElementById('asym-panel').classList.toggle('collapsed', !visible);
+  const btn = document.getElementById('asym-collapse-btn');
+  btn.textContent = visible ? '◀' : '▶';
+  btn.title = visible ? 'Collapse asymptotes' : 'Show asymptotes';
+  try { localStorage.setItem('concavity-asym-panel', visible ? 'shown' : 'hidden'); } catch (e) {}
+  drawCharts();
+}
+document.getElementById('asym-collapse-btn').addEventListener('click', () =>
+  setAsymPanelVisible(document.getElementById('asym-panel').classList.contains('collapsed')));
+try { if (localStorage.getItem('concavity-asym-panel') === 'hidden') setAsymPanelVisible(false); } catch (e) {}
 
 // ── Collapse / expand the Δy-per-interval table panel ───────────────
 function setTableVisible(visible) {
