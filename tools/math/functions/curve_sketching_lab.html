@@ -164,6 +164,8 @@ body.resizing, body.resizing * { user-select: none !important; }
 .kp-n { background: var(--c); color: #fff; border-radius: 10px; padding: 0 7px; font-size: 0.7rem; }
 .kp-row { font-family: 'Courier New', monospace; font-size: 0.92rem; font-weight: 700; color: var(--text); padding: 3px 6px; border-radius: 6px; cursor: default; }
 .kp-row:hover { background: color-mix(in srgb, var(--c) 22%, transparent); }
+.asym-hidden { font-size: 0.78rem; font-weight: 700; color: #ff006e; text-align: center; padding: 6px; border: 1px dashed #ff006e; border-radius: 8px; }
+.asym-hidden a { color: #ff006e; }
 .asym-empty { font-size: 0.82rem; color: var(--muted); line-height: 1.6; text-align: center; padding: 18px 6px; }
 .asym-note { font-size: 0.7rem; color: var(--muted); line-height: 1.5; }
 
@@ -891,7 +893,14 @@ function renderAsymptotePanel() {
       <div class="asym-desc">${desc}</div>
       <svg class="asym-swatch" preserveAspectRatio="none" viewBox="0 0 100 6"><line x1="0" y1="3" x2="100" y2="3" stroke="${a.color}" stroke-width="3" stroke-dasharray="8 5"/></svg>
     </div>`;
-  }).join('') + '<div class="asym-note">Vertical asymptotes listed for x in [' + fmt(xMin) + ', ' + fmt(xMax) + ']. Hover a card to highlight its line.</div>';
+  }).join('') + (showAsym ? '' : '<div class="asym-hidden">Lines hidden on the graph — <a href="#" id="asym-show-link">show asymptotes</a></div>')
+    + '<div class="asym-note">Vertical asymptotes listed for x in [' + fmt(xMin) + ', ' + fmt(xMax) + ']. Hover a card to highlight its line.</div>';
+  const link = document.getElementById('asym-show-link');
+  if (link) link.addEventListener('click', e => {
+    e.preventDefault();
+    const box = document.getElementById('asym-toggle');
+    box.checked = true; box.dispatchEvent(new Event('change'));
+  });
   el.querySelectorAll('.asym-card').forEach(card => {
     card.addEventListener('mouseenter', () => { hotAsymKey = card.dataset.key; drawFxChart(); });
     card.addEventListener('mouseleave', () => { hotAsymKey = null; drawFxChart(); });
@@ -1329,11 +1338,19 @@ function drawAsymptotes(ctx, xR, yR, toX, toY, pad, pw, ph) {
     ctx.strokeStyle = color; ctx.lineWidth = hot ? 4 : 2.2;
     ctx.setLineDash(hot ? [12, 6] : [8, 5]);
   };
+  // Labels of neighbouring vertical asymptotes are staggered downwards when
+  // they would collide (e.g. x = ±1.732 seen from far away).
+  let lastRight = -Infinity, row = 0;
   for (const c of visibleVerticalAsymptotes(xR)) {
     const color = colorForVertical(c), px = toX(c);
     pen(color, vKey(c));
     ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, pad.t + ph); ctx.stroke();
-    label('x = ' + fmtNice(c), px + 6, pad.t + 16, 'left', color, vKey(c));
+    const txt = 'x = ' + fmtNice(c);
+    ctx.font = 'bold 12px Courier New';
+    const w = ctx.measureText(txt).width + 12;
+    row = px + 6 < lastRight ? row + 1 : 0;
+    lastRight = Math.max(row ? lastRight : -Infinity, px + 6 + w);
+    label(txt, px + 6, pad.t + 16 + row * 22, 'left', color, vKey(c));
   }
   for (const a of asymList) {
     if (a.kind === 'v') continue;
@@ -1496,7 +1513,7 @@ document.getElementById('n-slider').addEventListener('input', e => {
   recompute();
 });
 document.getElementById('deriv-toggle').addEventListener('change', e => { showDeriv = e.target.checked; drawCharts(); });
-document.getElementById('asym-toggle').addEventListener('change', e => { showAsym = e.target.checked; drawCharts(); });
+document.getElementById('asym-toggle').addEventListener('change', e => { showAsym = e.target.checked; renderAsymptotePanel(); drawCharts(); });
 document.getElementById('kp-toggle').addEventListener('change', e => { showKeyPts = e.target.checked; drawCharts(); });
 document.getElementById('intervals-toggle').addEventListener('change', e => { showIntervals = e.target.checked; drawCharts(); });
 
@@ -1701,6 +1718,13 @@ fxCv.addEventListener('dblclick', e => {
 updateCursorStyle(null);
 
 window.addEventListener('resize', drawCharts);
+
+// Browsers may restore checkbox states after a reload; read them so the
+// graph always matches what the boxes show.
+showIntervals = document.getElementById('intervals-toggle').checked;
+showAsym      = document.getElementById('asym-toggle').checked;
+showKeyPts    = document.getElementById('kp-toggle').checked;
+showDeriv     = document.getElementById('deriv-toggle').checked;
 
 tryParseAndApply();
 </script>
