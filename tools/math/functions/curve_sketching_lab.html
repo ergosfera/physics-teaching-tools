@@ -341,7 +341,7 @@ canvas.chart { display: block; width: 100%; height: 100%; }
         <button class="btn view-btn active" data-mode="segments" type="button">▤ Segments</button>
         <button class="btn view-btn" data-mode="cursor" type="button">✥ Cursor Tangent</button>
       </div>
-      <span class="axis-hint">🖱 drag inside to pan · drag asymptote labels to move them · drag bottom/left edge to rescale x/y · scroll to zoom · dbl-click to reset</span>
+      <span class="axis-hint">🖱 hover to trace values · drag inside to pan · drag labels to move them · drag bottom/left edge to rescale x/y · scroll to zoom · dbl-click to reset</span>
     </div>
     <div class="graph-wrap" id="fx-wrap">
       <canvas id="fx-cv" class="chart"></canvas>
@@ -1476,6 +1476,82 @@ function drawFxChart() {
   }
   if (showKeyPts) drawKeyPoints(ctx, xR, yR, toX, toY, pad, pw, ph);
   ctx.restore();
+  if (cursorX !== null && !dragState) drawTrace(ctx, xR, yR, toX, toY, pad, pw, ph);
+}
+
+// ── Hover trace: point on the curve under the mouse, dashed projections to
+//    both axes, the x and y values where they land, and a coordinate tag ──
+const TRACE_COLOR = '#0ea5e9';
+function traceFmt(v) {
+  if (Math.abs(v) < 1e-10) return '0';
+  const nice = fmtNice(v);
+  if (/π/.test(nice)) return nice;
+  const r = parseFloat(v.toPrecision(5));
+  return (r < 0 ? '−' : '') + Math.abs(r);
+}
+function pill(ctx, txt, x, y, color, align = 'left') {
+  ctx.font = 'bold 12px Courier New';
+  const w = ctx.measureText(txt).width + 12, h = 19;
+  const x0 = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.roundRect(x0, y - h / 2, w, h, 9); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(txt, x0 + 6, y + 1);
+  ctx.textBaseline = 'alphabetic';
+  return { x: x0, w, h };
+}
+function drawTrace(ctx, xR, yR, toX, toY, pad, pw, ph) {
+  const x = cursorX, y = f(x);
+  const px = toX(x), py = toY(y);
+  if (px < pad.l || px > pad.l + pw) return;
+  // Where the projections end: on the axes if they're in view, else the plot edges
+  const axisY = (yR.min <= 0 && yR.max >= 0) ? toY(0) : pad.t + ph;
+  const axisX = (xR.min <= 0 && xR.max >= 0) ? toX(0) : pad.l;
+  const inView = isFinite(py) && py >= pad.t && py <= pad.t + ph;
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
+  ctx.strokeStyle = TRACE_COLOR; ctx.lineWidth = 1.6; ctx.setLineDash([6, 4]);
+  if (inView) {
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, axisY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(axisX, py); ctx.stroke();
+    ctx.setLineDash([]);
+    if (viewMode !== 'cursor') {   // tangent mode draws its own point
+      ctx.fillStyle = TRACE_COLOR; ctx.strokeStyle = cssVar('--surface'); ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(px, py, 6.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+  } else if (!isFinite(y)) {
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, pad.t + ph); ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.save();
+  // Value tags where the projections meet the axes
+  const xTxt = traceFmt(x);
+  ctx.font = 'bold 12px Courier New';
+  const xw = ctx.measureText(xTxt).width + 12;
+  const xLabelY = Math.min(axisY + 13, pad.t + ph + 13);
+  pill(ctx, xTxt, Math.max(pad.l, Math.min(pad.l + pw - xw, px - xw / 2)), xLabelY, TRACE_COLOR);
+  if (inView) {
+    const yTxt = traceFmt(y);
+    const yw = ctx.measureText(yTxt).width + 12;
+    const yLeft = axisX > pad.l + yw + 4 ? axisX - 4 : Math.max(yw + 2, pad.l - 2);
+    pill(ctx, yTxt, yLeft, py, TRACE_COLOR, 'right');
+
+    // Coordinate tag next to the point (below-right in tangent mode, where
+    // the slope tag sits above)
+    const cTxt = `(${traceFmt(x)}, ${traceFmt(y)})`;
+    const cw = ctx.measureText(cTxt).width + 12;
+    let cx = px + 14, cy = viewMode === 'cursor' ? py + 26 : py - 22;
+    if (cx + cw > pad.l + pw - 2) cx = px - 14 - cw;
+    if (cy < pad.t + 12) cy = py + 26;
+    if (cy > pad.t + ph - 12) cy = py - 22;
+    pill(ctx, cTxt, cx, cy, TRACE_COLOR);
+  } else {
+    pill(ctx, isFinite(y) ? 'f(x) off screen' : 'f undefined here', px + 10, pad.t + 14, cssVar('--muted'));
+  }
+  ctx.restore();
 }
 
 function updateCursorReadout() {
@@ -1600,7 +1676,7 @@ document.querySelectorAll('#fx-view-toggle .view-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     viewMode = btn.dataset.mode;
     document.querySelectorAll('#fx-view-toggle .view-btn').forEach(b => b.classList.toggle('active', b === btn));
-    if (viewMode === 'segments') cursorX = null;
+    cursorX = null;
     updateCursorStyle();
     drawCharts();
   });
@@ -1625,21 +1701,30 @@ function labelAt(px, py) {
 
 function updateCursorStyle(zone) {
   if (dragState) { fxCv.style.cursor = dragState.mode === 'label' ? 'move' : dragState.mode === 'pan' ? 'grabbing' : (dragState.mode === 'zoomX' ? 'ew-resize' : 'ns-resize'); return; }
-  fxCv.style.cursor = zone === 'label' ? 'move' : zone === 'x' ? 'ew-resize' : zone === 'y' ? 'ns-resize' : (viewMode === 'cursor' ? 'crosshair' : 'grab');
+  fxCv.style.cursor = zone === 'label' ? 'move' : zone === 'x' ? 'ew-resize' : zone === 'y' ? 'ns-resize' : 'crosshair';
 }
 
 fxCv.addEventListener('mousemove', e => {
   const rect = fxCv.getBoundingClientRect();
   const px = e.clientX - rect.left, py = e.clientY - rect.top;
   if (!dragState) updateCursorStyle(labelAt(px, py) ? 'label' : zoneAt(px, py, rect.width, rect.height));
-  if (viewMode !== 'cursor' || dragState || !fxTransform) return;
-  const { pad, W, H } = fxTransform;
-  if (px < pad.l || px > W - pad.r || py < pad.t || py > H - pad.b) return;
+  if (dragState || !fxTransform) return;
+  const { pad, W, H, pw, xR } = fxTransform;
+  if (px < pad.l || px > W - pad.r || py < pad.t || py > H - pad.b) {
+    if (cursorX !== null) { cursorX = null; drawCharts(); }
+    return;
+  }
   cursorX = fxTransform.fromX(px);
+  // Snap onto a nearby key point so its exact coordinates show
+  if (showKeyPts) {
+    const toPx = x => pad.l + (x - xR.min) / (xR.max - xR.min) * pw;
+    let best = null, bestD = 9;
+    for (const k of keyPoints) { const d = Math.abs(toPx(k.x) - px); if (d < bestD) { best = k; bestD = d; } }
+    if (best) cursorX = best.x;
+  }
   drawCharts();
 });
 fxCv.addEventListener('mouseleave', () => {
-  if (viewMode !== 'cursor') return;
   cursorX = null;
   drawCharts();
 });
@@ -1682,7 +1767,7 @@ window.addEventListener('mousemove', e => {
   drawFxChart();
 });
 window.addEventListener('mouseup', () => {
-  if (dragState) { dragState = null; updateCursorStyle(null); }
+  if (dragState) { dragState = null; updateCursorStyle(null); drawFxChart(); }
 });
 fxCv.addEventListener('wheel', e => {
   if (!fxTransform || !view) return;
