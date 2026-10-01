@@ -71,6 +71,13 @@ body { display: flex; flex-direction: column; }
 }
 .panel-title { font-size: 0.85rem; font-weight: 800; color: var(--panel-color, var(--accent)); letter-spacing: .04em; text-transform: uppercase; flex: 1; }
 
+.collapse-btn { padding: 2px 8px; font-size: 0.72rem; }
+.panel.p2.collapsed { flex: 0 0 40px; min-width: 40px; }
+.panel.p2.collapsed .tbl-wrap { display: none; }
+.panel.p2.collapsed .panel-header { flex-direction: column; padding: 10px 4px; gap: 10px; height: 100%; border-bottom: none; }
+.panel.p2.collapsed .panel-title { writing-mode: vertical-rl; flex: 0 0 auto; white-space: nowrap; }
+.panel.p2.collapsed .collapse-btn { order: -1; }
+
 /* ── Controls panel ── */
 .ctrl-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
 .preset-row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -193,14 +200,22 @@ canvas.chart { display: block; width: 100%; height: 100%; }
       <button class="btn preset-btn" data-preset="down">⌢ Down</button>
       <button class="btn preset-btn" data-preset="s">🔄 S-Curve</button>
     </div>
+    <div class="preset-row">
+      <button class="btn preset-btn" data-preset="sin">sin x</button>
+      <button class="btn preset-btn" data-preset="exp">eˣ</button>
+      <button class="btn preset-btn" data-preset="ln">ln x</button>
+      <button class="btn preset-btn" data-preset="sqrt">√x</button>
+      <button class="btn preset-btn" data-preset="inv">1/x</button>
+    </div>
 
     <div>
       <label class="field-label">f(x) =</label>
       <div class="fx-row">
-        <input type="text" class="win-field" id="fx-input" value="x^2" placeholder="e.g. x^3 - 3x" spellcheck="false" autocomplete="off">
+        <input type="text" class="win-field" id="fx-input" value="x^2" placeholder="e.g. sin(x) + x/2" spellcheck="false" autocomplete="off">
         <button class="btn btn-plot" id="plot-btn">Plot</button>
       </div>
-      <div class="hint-text">Type powers with <b>^</b>, e.g. <b>2x^3 - x^2 + 5</b>. Degree up to 8. Press Enter or click Plot.</div>
+      <div class="hint-text">Any function of x, e.g. <b>x^3 - 3x</b>, <b>sin(2x)</b>, <b>e^(-x^2)</b>, <b>x ln x</b>, <b>1/(1+x^2)</b>.<br>
+        Functions: sin cos tan sec csc cot, asin acos atan, sinh cosh tanh, exp ln log (base 10), sqrt cbrt abs, |x|. Constants: pi, e. Press Enter or click Plot.</div>
       <div class="error-text" id="fx-error"></div>
       <div class="echo-text" id="eq-echo"></div>
     </div>
@@ -222,6 +237,14 @@ canvas.chart { display: block; width: 100%; height: 100%; }
     </div>
 
     <label class="chk-row">
+      <input type="checkbox" id="intervals-toggle" checked> show interval slices on the graph
+    </label>
+
+    <label class="chk-row">
+      <input type="checkbox" id="table-toggle" checked> show Δy per interval table
+    </label>
+
+    <label class="chk-row">
       <input type="checkbox" id="deriv-toggle"> overlay true derivative f&prime;(x)
     </label>
 
@@ -231,7 +254,7 @@ canvas.chart { display: block; width: 100%; height: 100%; }
 
 <!-- Panel 2 — differences table -->
 <div class="panel p2">
-  <div class="panel-header"><span class="panel-title">🔢 Δy per Interval</span></div>
+  <div class="panel-header"><span class="panel-title">🔢 Δy per Interval</span><button class="btn collapse-btn" id="table-collapse-btn" type="button" title="Collapse table">◀</button></div>
   <div class="tbl-wrap">
     <table>
       <thead>
@@ -276,76 +299,286 @@ canvas.chart { display: block; width: 100%; height: 100%; }
 <button id="theme-toggle">🌙</button>
 
 <script>
-// ── Polynomial parsing ──────────────────────────────────────
-// Coeffs are indexed by power ascending: coeffs[p] = coefficient of x^p
-function parsePolynomial(raw) {
+// ── Expression parsing ──────────────────────────────────────
+// Recursive-descent parser for general functions of x (no eval). Supports
+// + − · / ^, implicit multiplication (2x, 3sin x, (x+1)(x−1)), |x|, π, e and
+// the functions below. Produces an AST that is evaluated and differentiated
+// symbolically, so f′ and f″ are exact rather than numerical estimates.
+const FUNCS = {
+  sin: Math.sin, cos: Math.cos, tan: Math.tan,
+  sec: x => 1/Math.cos(x), csc: x => 1/Math.sin(x), cot: x => 1/Math.tan(x),
+  asin: Math.asin, acos: Math.acos, atan: Math.atan,
+  sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
+  exp: Math.exp, ln: Math.log, log: Math.log10,
+  sqrt: Math.sqrt, cbrt: Math.cbrt, abs: Math.abs,
+};
+const ALIASES = { arcsin: 'asin', arccos: 'acos', arctan: 'atan', sen: 'sin', tg: 'tan', log10: 'log', raiz: 'sqrt' };
+const CONSTS = { pi: Math.PI, e: Math.E };
+// Longest names first so "exp" wins over "e"+"x"+"p", "sinh" over "sin".
+const NAMES = [...Object.keys(FUNCS), ...Object.keys(ALIASES), ...Object.keys(CONSTS), 'x']
+  .sort((a, b) => b.length - a.length);
+
+function tokenize(s) {
+  const toks = [];
+  let i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (/\s/.test(c)) { i++; continue; }
+    if (/[0-9.]/.test(c)) {
+      const m = s.slice(i).match(/^(\d+\.?\d*|\.\d+)(e[+-]?\d+)?/);
+      if (!m) throw new Error(`Bad number near "${s.slice(i, i+4)}"`);
+      toks.push({ type: 'num', v: parseFloat(m[0]) }); i += m[0].length; continue;
+    }
+    if (c === 'π') { toks.push({ type: 'id', v: 'pi' }); i++; continue; }
+    if (c === '√') { toks.push({ type: 'id', v: 'sqrt' }); i++; continue; }
+    if (/[a-z]/.test(c)) {
+      let j = i; while (j < s.length && /[a-z0-9]/.test(s[j]) && !(j > i && /[0-9]/.test(s[j]) && s.slice(i, j) !== 'log')) j++;
+      // Split a run of letters into known names ("xsinx" → x, sin, x).
+      let k = i;
+      while (k < j) {
+        const name = NAMES.find(n => s.startsWith(n, k) && k + n.length <= j);
+        if (!name) throw new Error(`Unknown name "${s.slice(k, j)}"`);
+        toks.push({ type: 'id', v: ALIASES[name] || name }); k += name.length;
+      }
+      i = j; continue;
+    }
+    if ('+-*/^()|'.includes(c)) { toks.push({ type: 'op', v: c }); i++; continue; }
+    throw new Error(`Unexpected character "${c}"`);
+  }
+  return toks;
+}
+
+// ── AST constructors with light simplification (keeps f′, f″ readable/fast)
+const A = {
+  num: v => ({ t: 'num', v }),
+  x: () => ({ t: 'x' }),
+  isNum: (n, v) => n.t === 'num' && (v === undefined || n.v === v),
+  neg(a) { return a.t === 'num' ? A.num(-a.v) : a.t === 'neg' ? a.a : { t: 'neg', a }; },
+  add(a, b) {
+    if (A.isNum(a, 0)) return b; if (A.isNum(b, 0)) return a;
+    if (a.t === 'num' && b.t === 'num') return A.num(a.v + b.v);
+    if (b.t === 'neg') return A.sub(a, b.a);
+    return { t: 'add', a, b };
+  },
+  sub(a, b) {
+    if (A.isNum(b, 0)) return a; if (A.isNum(a, 0)) return A.neg(b);
+    if (a.t === 'num' && b.t === 'num') return A.num(a.v - b.v);
+    return { t: 'sub', a, b };
+  },
+  mul(a, b) {
+    if (A.isNum(a, 0) || A.isNum(b, 0)) return A.num(0);
+    if (A.isNum(a, 1)) return b; if (A.isNum(b, 1)) return a;
+    if (a.t === 'num' && b.t === 'num') return A.num(a.v * b.v);
+    if (b.t === 'num') return A.mul(b, a);             // constants in front
+    if (a.t === 'neg') return A.neg(A.mul(a.a, b));
+    if (b.t === 'neg') return A.neg(A.mul(a, b.a));
+    if (a.t === 'num' && b.t === 'mul' && b.a.t === 'num') return A.mul(A.num(a.v * b.a.v), b.b);
+    return { t: 'mul', a, b };
+  },
+  div(a, b) {
+    if (A.isNum(a, 0)) return A.num(0); if (A.isNum(b, 1)) return a;
+    if (a.t === 'num' && b.t === 'num' && b.v !== 0) return A.num(a.v / b.v);
+    return { t: 'div', a, b };
+  },
+  pow(a, b) {
+    if (A.isNum(b, 0)) return A.num(1); if (A.isNum(b, 1)) return a;
+    return { t: 'pow', a, b };
+  },
+  fn: (name, a) => ({ t: 'fn', name, a }),
+};
+
+function parseExpression(raw) {
   let s = (raw || '').trim().toLowerCase();
-  if (!s) return { error: 'Type a polynomial in x, e.g. x^3 - 3x' };
-  s = s.replace(/^y\s*=\s*/, '').replace(/^f\(x\)\s*=\s*/, '');
-  s = s.replace(/\s+/g, '').replace(/\*\*/g, '^').replace(/\*/g, '');
-  if (!s) return { error: 'Type a polynomial in x, e.g. x^3 - 3x' };
+  s = s.replace(/^y\s*=\s*/, '').replace(/^f\(x\)\s*=\s*/, '').replace(/\*\*/g, '^').replace(/[−–]/g, '-').replace(/·/g, '*');
+  if (!s) return { error: 'Type a function of x, e.g. sin(x) or x^3 - 3x' };
+  let toks;
+  try { toks = tokenize(s); } catch (e) { return { error: e.message }; }
+  let pos = 0;
+  const peek = () => toks[pos];
+  const isOp = (t, v) => t && t.type === 'op' && t.v === v;
+  const expect = v => { if (!isOp(peek(), v)) throw new Error(`Expected "${v}"`); pos++; };
+  const startsPrimary = t => t && (t.type === 'num' || t.type === 'id' || isOp(t, '('));
+  const isFnTok = t => t && t.type === 'id' && FUNCS[t.v];
 
-  const signed = (s[0] === '+' || s[0] === '-') ? s : '+' + s;
-  const terms = signed.match(/[+-][^+-]+/g);
-  if (!terms) return { error: 'Could not parse expression' };
-
-  const coeffMap = {};
-  for (const t of terms) {
-    const sign = t[0] === '-' ? -1 : 1;
-    const body = t.slice(1);
-    if (!body) return { error: `Unexpected "${t}"` };
-    const m = body.match(/^(\d*\.?\d*)(x(?:\^(\d+))?)?$/);
-    if (!m || (m[1] === '' && !m[2])) return { error: `Can't parse term "${sign < 0 ? '-' : ''}${body}"` };
-    const hasX = !!m[2];
-    const power = hasX ? (m[3] !== undefined ? parseInt(m[3], 10) : 1) : 0;
-    const coefStr = m[1];
-    let coef = coefStr === '' ? 1 : parseFloat(coefStr);
-    if (isNaN(coef)) return { error: `Can't parse term "${sign < 0 ? '-' : ''}${body}"` };
-    coef *= sign;
-    coeffMap[power] = (coeffMap[power] || 0) + coef;
+  function parseExpr() {
+    let n = parseTerm();
+    while (isOp(peek(), '+') || isOp(peek(), '-')) {
+      const op = toks[pos++].v;
+      const rhs = parseTerm();
+      n = op === '+' ? { t: 'add', a: n, b: rhs } : { t: 'sub', a: n, b: rhs };
+    }
+    return n;
+  }
+  function parseTerm() {
+    let n = parseUnary();
+    for (;;) {
+      const t = peek();
+      if (isOp(t, '*')) { pos++; n = { t: 'mul', a: n, b: parseUnary() }; }
+      else if (isOp(t, '/')) { pos++; n = { t: 'div', a: n, b: parseUnary() }; }
+      else if (startsPrimary(t)) n = { t: 'mul', a: n, b: parsePower() };   // implicit ·
+      else return n;
+    }
+  }
+  function parseUnary() {
+    if (isOp(peek(), '-')) { pos++; return { t: 'neg', a: parseUnary() }; }
+    if (isOp(peek(), '+')) { pos++; return parseUnary(); }
+    return parsePower();
+  }
+  function parsePower() {
+    const base = parsePrimary();
+    if (isOp(peek(), '^')) { pos++; return { t: 'pow', a: base, b: parseUnary() }; }
+    return base;
+  }
+  function parsePrimary() {
+    const t = peek();
+    if (!t) throw new Error('Expression ends too early');
+    if (t.type === 'num') { pos++; return A.num(t.v); }
+    if (isOp(t, '(')) { pos++; const e = parseExpr(); expect(')'); return e; }
+    if (isOp(t, '|')) { pos++; const e = parseExpr(); expect('|'); return A.fn('abs', e); }
+    if (t.type === 'id') {
+      pos++;
+      if (t.v === 'x') return A.x();
+      if (t.v in CONSTS) return { t: 'const', name: t.v, v: CONSTS[t.v] };
+      // Function: f(…), f x, f 2x (= f(2x)), and sin^2 x (= (sin x)^2)
+      let outerPow = null;
+      if (isOp(peek(), '^')) { pos++; outerPow = parsePrimary(); }
+      let arg;
+      if (isOp(peek(), '(')) { pos++; arg = parseExpr(); expect(')'); }
+      else {
+        if (!peek() || !(startsPrimary(peek()) || isOp(peek(), '-') || isOp(peek(), '|')))
+          throw new Error(`"${t.v}" needs an argument, e.g. ${t.v}(x)`);
+        arg = parseUnary();
+        while (startsPrimary(peek()) && !isFnTok(peek())) arg = { t: 'mul', a: arg, b: parsePower() };
+      }
+      const node = A.fn(t.v, arg);
+      return outerPow ? { t: 'pow', a: node, b: outerPow } : node;
+    }
+    throw new Error(`Unexpected "${t.v}"`);
   }
 
-  const maxPower = Math.max(0, ...Object.keys(coeffMap).map(Number));
-  if (maxPower > 8) return { error: 'Degree too high (max 8)' };
-  const arr = new Array(maxPower + 1).fill(0);
-  for (const p in coeffMap) arr[p] = coeffMap[p];
-  return { coeffs: arr };
+  try {
+    const ast = parseExpr();
+    if (pos < toks.length) throw new Error(`Unexpected "${toks[pos].v}"`);
+    if (!hasX(ast) && !isFinite(evalNode(ast, 0))) throw new Error('That expression is undefined');
+    return { ast };
+  } catch (e) { return { error: e.message }; }
 }
 
-function evalPoly(cs, x) {
-  let r = 0;
-  for (let i = cs.length - 1; i >= 0; i--) r = r * x + cs[i];
-  return r;
-}
-function derivativeCoeffs(cs) {
-  if (cs.length <= 1) return [0];
-  const d = new Array(cs.length - 1);
-  for (let i = 0; i < d.length; i++) d[i] = cs[i + 1] * (i + 1);
-  return d;
+function hasX(n) {
+  if (n.t === 'x') return true;
+  if (n.t === 'num' || n.t === 'const') return false;
+  return hasX(n.a) || (n.b !== undefined && hasX(n.b));
 }
 
-const SUP = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹' };
+// Real power: allows odd roots of negatives, e.g. x^(1/3) or x^(2/3) at x < 0.
+function realPow(a, b) {
+  if (a >= 0 || Number.isInteger(b)) return Math.pow(a, b);
+  for (let q = 3; q <= 15; q += 2) {
+    const p = Math.round(b * q);
+    if (Math.abs(b * q - p) < 1e-9) return (p % 2 === 0 ? 1 : -1) * Math.pow(-a, b);
+  }
+  return NaN;
+}
+
+function evalNode(n, x) {
+  switch (n.t) {
+    case 'num': case 'const': return n.v;
+    case 'x': return x;
+    case 'neg': return -evalNode(n.a, x);
+    case 'add': return evalNode(n.a, x) + evalNode(n.b, x);
+    case 'sub': return evalNode(n.a, x) - evalNode(n.b, x);
+    case 'mul': return evalNode(n.a, x) * evalNode(n.b, x);
+    case 'div': return evalNode(n.a, x) / evalNode(n.b, x);
+    case 'pow': return realPow(evalNode(n.a, x), evalNode(n.b, x));
+    case 'fn':  return FUNCS[n.name](evalNode(n.a, x));
+  }
+  return NaN;
+}
+
+// Symbolic derivative d/dx
+function diff(n) {
+  const { num, neg, add, sub, mul, div, pow, fn } = A;
+  switch (n.t) {
+    case 'num': case 'const': return num(0);
+    case 'x': return num(1);
+    case 'neg': return neg(diff(n.a));
+    case 'add': return add(diff(n.a), diff(n.b));
+    case 'sub': return sub(diff(n.a), diff(n.b));
+    case 'mul': return add(mul(diff(n.a), n.b), mul(n.a, diff(n.b)));
+    case 'div': return div(sub(mul(diff(n.a), n.b), mul(n.a, diff(n.b))), pow(n.b, num(2)));
+    case 'pow': {
+      const { a, b } = n;
+      if (!hasX(b)) {
+        const bm1 = b.t === 'num' ? num(b.v - 1) : sub(b, num(1));
+        return mul(mul(b, pow(a, bm1)), diff(a));
+      }
+      if (!hasX(a)) return mul(a.t === 'const' && a.name === 'e' ? n : mul(n, fn('ln', a)), diff(b));
+      return mul(n, add(mul(diff(b), fn('ln', a)), div(mul(b, diff(a)), a)));
+    }
+    case 'fn': {
+      const u = n.a, du = diff(u);
+      let g;
+      switch (n.name) {
+        case 'sin':  g = fn('cos', u); break;
+        case 'cos':  g = neg(fn('sin', u)); break;
+        case 'tan':  g = pow(fn('sec', u), num(2)); break;
+        case 'sec':  g = mul(fn('sec', u), fn('tan', u)); break;
+        case 'csc':  g = neg(mul(fn('csc', u), fn('cot', u))); break;
+        case 'cot':  g = neg(pow(fn('csc', u), num(2))); break;
+        case 'asin': g = div(num(1), fn('sqrt', sub(num(1), pow(u, num(2))))); break;
+        case 'acos': g = neg(div(num(1), fn('sqrt', sub(num(1), pow(u, num(2)))))); break;
+        case 'atan': g = div(num(1), add(num(1), pow(u, num(2)))); break;
+        case 'sinh': g = fn('cosh', u); break;
+        case 'cosh': g = fn('sinh', u); break;
+        case 'tanh': g = div(num(1), pow(fn('cosh', u), num(2))); break;
+        case 'exp':  g = fn('exp', u); break;
+        case 'ln':   g = div(num(1), u); break;
+        case 'log':  g = div(num(1), mul(num(Math.LN10), u)); break;
+        case 'sqrt': g = div(num(1), mul(num(2), fn('sqrt', u))); break;
+        case 'cbrt': g = div(num(1), mul(num(3), pow(fn('cbrt', u), num(2)))); break;
+        case 'abs':  g = div(u, fn('abs', u)); break;
+      }
+      return mul(g, du);
+    }
+  }
+}
+
+// Pretty-print an AST for the "Parsed as" echo
+const SUP = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻' };
 function toSup(n) { return String(n).split('').map(ch => SUP[ch] || ch).join(''); }
-function formatEq(cs) {
-  const terms = [];
-  for (let p = cs.length - 1; p >= 0; p--) {
-    const coef = cs[p];
-    if (coef === 0) continue;
-    const sign = coef > 0 ? (terms.length ? ' + ' : '') : (terms.length ? ' − ' : '−');
-    const mag = Math.abs(coef);
-    const magStr = (p > 0 && mag === 1) ? '' : parseFloat(mag.toPrecision(4)).toString();
-    const xPart = p === 0 ? '' : (p === 1 ? 'x' : 'x' + toSup(p));
-    terms.push(sign + magStr + xPart);
+function show(n) {
+  const wrap = (m, minP) => { const r = show(m); return r.p < minP ? '(' + r.s + ')' : r.s; };
+  switch (n.t) {
+    case 'num': return { s: n.v < 0 ? '−' + fmt(-n.v) : fmt(n.v), p: n.v < 0 ? 3 : 5 };
+    case 'const': return { s: n.name === 'pi' ? 'π' : 'e', p: 5 };
+    case 'x': return { s: 'x', p: 5 };
+    case 'neg': return { s: '−' + wrap(n.a, 3), p: 3 };
+    case 'add': return { s: wrap(n.a, 1) + ' + ' + wrap(n.b, 2), p: 1 };
+    case 'sub': return { s: wrap(n.a, 1) + ' − ' + wrap(n.b, 2), p: 1 };
+    case 'mul': {
+      const tight = n.a.t === 'num' && n.a.v >= 0 && ['x', 'fn', 'const', 'pow'].includes(n.b.t)
+        && !(n.b.t === 'pow' && n.b.a.t === 'num');
+      return { s: wrap(n.a, 2) + (tight ? '' : '·') + wrap(n.b, 3), p: 2 };
+    }
+    case 'div': return { s: wrap(n.a, 2) + '/' + wrap(n.b, 3), p: 2 };
+    case 'pow': {
+      const b = n.b;
+      if (b.t === 'num' && Number.isInteger(b.v) && Math.abs(b.v) < 100) return { s: wrap(n.a, 5) + toSup(b.v), p: 4 };
+      return { s: wrap(n.a, 5) + '^' + wrap(b, 5), p: 4 };
+    }
+    case 'fn': return { s: (n.name === 'abs' ? '|' + show(n.a).s + '|' : n.name + '(' + show(n.a).s + ')'), p: 5 };
   }
-  return 'y = ' + (terms.length ? terms.join('') : '0');
+  return { s: '?', p: 5 };
 }
+function formatEq(ast) { return 'y = ' + show(ast).s; }
 
 // ── State ───────────────────────────────────────────────────
-let coeffs = [0, 0, 1];           // y = x^2
-let derivC = derivativeCoeffs(coeffs);
-let deriv2C = derivativeCoeffs(derivC);
+let fAst = { t: 'pow', a: A.x(), b: A.num(2) };   // y = x^2
+let dAst = diff(fAst);
+let d2Ast = diff(dAst);
 let xMin = -3, xMax = 3, N = 8;
 let showDeriv = false;
+let showIntervals = true;
 
 // ── Rate-of-change view mode: fixed interval segments vs. a secant
 //    that follows the cursor along the curve ────────────────────
@@ -358,16 +591,26 @@ let fxTransform = null;
 //    function or domain changes).
 let view = null;   // { cx, cy, pxPerUnitX, pxPerUnitY }
 
-const f      = x => evalPoly(coeffs, x);
-const fPrime = x => evalPoly(derivC, x);
-const fDouble= x => evalPoly(deriv2C, x);
+const f      = x => evalNode(fAst, x);
+const fPrime = x => evalNode(dAst, x);
+const fDouble= x => evalNode(d2Ast, x);
 
 let points = [], diffs = [];
 
-const presets = { up: 'x^2', down: '-x^2', s: 'x^3 - 3x' };
+const presets = {
+  up:   { fx: 'x^2',      xmin: -3,   xmax: 3 },
+  down: { fx: '-x^2',     xmin: -3,   xmax: 3 },
+  s:    { fx: 'x^3 - 3x', xmin: -3,   xmax: 3 },
+  sin:  { fx: 'sin(x)',   xmin: -6.5, xmax: 6.5 },
+  exp:  { fx: 'e^x',      xmin: -2,   xmax: 2 },
+  ln:   { fx: 'ln(x)',    xmin: 0.2,  xmax: 6 },
+  sqrt: { fx: 'sqrt(x)',  xmin: 0,    xmax: 6 },
+  inv:  { fx: '1/x',      xmin: -3,   xmax: 3 },
+};
 function applyPreset(name) {
-  document.getElementById('fx-input').value = presets[name];
-  xMin = -3; xMax = 3;
+  const pr = presets[name];
+  document.getElementById('fx-input').value = pr.fx;
+  xMin = pr.xmin; xMax = pr.xmax;
   document.getElementById('xmin-in').value = xMin;
   document.getElementById('xmax-in').value = xMax;
   tryParseAndApply();
@@ -380,54 +623,74 @@ function fmt(v) {
   return parseFloat(v.toPrecision(4)).toString();
 }
 
-// ── Concavity analysis (generalized to any degree) ─────────
+// ── Concavity analysis (any function) ──────────────────────
+// Scans f″ for sign changes. Each change is bisected down to a point c and
+// classified: if f is continuous at c it's an inflection point; otherwise
+// (asymptote like 1/x or tan x, or a gap in the domain) it's a "break".
 function analyzeConcavity() {
-  const SAMPLES = 400;
-  const pts = [];
+  const SAMPLES = 600;
+  let prev = null, firstSign = 0, undefinedCount = 0;
+  let fLo = Infinity, fHi = -Infinity;
+  const events = [];
+  const pending = [];
   for (let i = 0; i <= SAMPLES; i++) {
     const x = xMin + (xMax - xMin) * i / SAMPLES;
+    const fv = f(x);
+    if (!isFinite(fv)) { undefinedCount++; continue; }
+    fLo = Math.min(fLo, fv); fHi = Math.max(fHi, fv);
     const v = fDouble(x);
+    if (!isFinite(v)) continue;
     const s = Math.abs(v) < 1e-9 ? 0 : Math.sign(v);
-    if (s !== 0) pts.push({ x, s });
-  }
-  if (pts.length === 0) return { type: 'flat' };
-  const allSame = pts.every(p => p.s === pts[0].s);
-  if (allSame) return { type: pts[0].s > 0 ? 'up' : 'down' };
-
-  // Sign changes across the zero-filtered sample sequence — robust even when a
-  // sample lands exactly on the inflection point (e.g. x=0 for x^3-x on this grid).
-  const crossings = [];
-  for (let i = 1; i < pts.length; i++) {
-    if (pts[i].s !== pts[i-1].s) {
-      let lo = pts[i-1].x, hi = pts[i].x;
-      const signLo = pts[i-1].s;
-      for (let k = 0; k < 40; k++) {
+    if (s === 0) continue;
+    if (!prev) { firstSign = s; prev = { x, s }; continue; }
+    if (s !== prev.s) {
+      let lo = prev.x, hi = x;
+      for (let k = 0; k < 50; k++) {
         const mid = (lo + hi) / 2;
         const vs = Math.sign(fDouble(mid));
-        if (vs === signLo || vs === 0) lo = mid; else hi = mid;
+        if (vs === prev.s || vs === 0) lo = mid; else hi = mid;
       }
-      crossings.push((lo + hi) / 2);
+      pending.push((lo + hi) / 2);
     }
+    prev = { x, s };
   }
-  return { type: 'mixed', crossings, firstSign: pts[0].s };
+  if (!prev) return { type: undefinedCount > SAMPLES ? 'undef' : 'flat', partial: undefinedCount > 0 };
+
+  const fRange = (fHi - fLo) || 1;
+  const delta = (xMax - xMin) * 1e-7;
+  for (const c of pending) {
+    const a = f(c - delta), b = f(c + delta);
+    const continuous = isFinite(a) && isFinite(b) && Math.abs(b - a) < 0.05 * fRange;
+    events.push({ x: Math.abs(c) < 1e-9 ? 0 : c, kind: continuous ? 'inflection' : 'break' });
+  }
+  if (!events.length) return { type: firstSign > 0 ? 'up' : 'down', partial: undefinedCount > 0 };
+  return { type: 'mixed', events, firstSign, partial: undefinedCount > 0 };
 }
 
 function renderBadge() {
   const el = document.getElementById('concavity-badge');
   const r = analyzeConcavity();
-  el.className = 'badge-box ' + r.type;
-  if (r.type === 'flat') {
-    el.textContent = '— No curvature: Δy stays constant —';
+  el.className = 'badge-box ' + (r.type === 'undef' ? 'flat' : r.type);
+  const note = r.partial ? '<br><span style="font-weight:400;font-size:0.78rem">(f is undefined on part of this interval)</span>' : '';
+  const list = xs => xs.slice(0, 3).map(fmt).join(', ') + (xs.length > 3 ? ', …' : '');
+  if (r.type === 'undef') {
+    el.textContent = '— f is not defined on this interval —';
+  } else if (r.type === 'flat') {
+    el.innerHTML = '— No curvature: Δy stays constant —' + note;
   } else if (r.type === 'up') {
-    el.innerHTML = '⌣ Concave Up<br>rate of change is increasing';
+    el.innerHTML = '⌣ Concave Up<br>rate of change is increasing' + note;
   } else if (r.type === 'down') {
-    el.innerHTML = '⌢ Concave Down<br>rate of change is decreasing';
+    el.innerHTML = '⌢ Concave Down<br>rate of change is decreasing' + note;
   } else {
     const dirs = [r.firstSign > 0 ? 'up' : 'down'];
-    for (let i = 1; i <= r.crossings.length; i++) dirs.push(dirs[i-1] === 'up' ? 'down' : 'up');
+    for (let i = 1; i <= r.events.length; i++) dirs.push(dirs[i-1] === 'up' ? 'down' : 'up');
     const shown = dirs.slice(0, 4).map(d => d === 'up' ? '⌣' : '⌢').join(' → ') + (dirs.length > 4 ? ' …' : '');
-    const xlist = r.crossings.slice(0, 3).map(x => fmt(Math.abs(x) < 1e-9 ? 0 : x)).join(', ') + (r.crossings.length > 3 ? ', …' : '');
-    el.innerHTML = `🔄 Concavity changes ${r.crossings.length}×<br>${shown}<br>near x ≈ ${xlist}`;
+    const infl = r.events.filter(e => e.kind === 'inflection').map(e => e.x);
+    const brk  = r.events.filter(e => e.kind === 'break').map(e => e.x);
+    let html = `🔄 Concavity changes ${r.events.length}×<br>${shown}`;
+    if (infl.length) html += `<br>inflection near x ≈ ${list(infl)}`;
+    if (brk.length)  html += `<br>across a break (asymptote/gap, not an inflection) at x ≈ ${list(brk)}`;
+    el.innerHTML = html + note;
   }
 }
 
@@ -456,7 +719,7 @@ function tryParseAndApply() {
   const input = document.getElementById('fx-input');
   const errEl = document.getElementById('fx-error');
   const echoEl = document.getElementById('eq-echo');
-  const res = parsePolynomial(input.value);
+  const res = parseExpression(input.value);
   if (res.error) {
     errEl.textContent = '⚠ ' + res.error;
     errEl.style.display = 'block';
@@ -464,10 +727,10 @@ function tryParseAndApply() {
     return;
   }
   errEl.style.display = 'none';
-  coeffs = res.coeffs;
-  derivC = derivativeCoeffs(coeffs);
-  deriv2C = derivativeCoeffs(derivC);
-  echoEl.textContent = 'Parsed as: ' + formatEq(coeffs);
+  fAst = res.ast;
+  dAst = diff(fAst);
+  d2Ast = diff(dAst);
+  echoEl.textContent = 'Parsed as: ' + formatEq(fAst);
   view = null;
   recompute();
 }
@@ -532,8 +795,14 @@ function computeAutofitView(pw, ph) {
   const SAMPLES = 300;
   const domainYs = [];
   for (let i = 0; i <= SAMPLES; i++) domainYs.push(f(xMin + (xMax-xMin)*i/SAMPLES));
-  const allY = domainYs.concat(points.map(p => p.y)).filter(v => isFinite(v));
-  let yLo = allY.length ? Math.min(...allY) : -1, yHi = allY.length ? Math.max(...allY) : 1;
+  const allY = domainYs.concat(points.map(p => p.y)).filter(v => isFinite(v)).sort((a, b) => a - b);
+  let yLo = allY.length ? allY[0] : -1, yHi = allY.length ? allY[allY.length-1] : 1;
+  // Near an asymptote a few samples are huge; fit to the bulk of the curve instead.
+  if (allY.length > 10) {
+    const q = t => allY[Math.round(t * (allY.length - 1))];
+    const qLo = q(0.05), qHi = q(0.95), qSpan = (qHi - qLo) || 1;
+    if (yHi - yLo > 4 * qSpan) { yLo = qLo - 0.5 * qSpan; yHi = qHi + 0.5 * qSpan; }
+  }
   if (yLo === yHi) { yLo -= 1; yHi += 1; }
   const yPad = (yHi - yLo) * 0.1; yLo -= yPad; yHi += yPad;
   const xSpan = (xMax - xMin) || 2;
@@ -607,6 +876,31 @@ function drawAxes(ctx, pad, W, H, xR, yR, xLbl, yLbl) {
   return { toX, toY, pw, ph };
 }
 
+// Strokes y = fn(x) across the visible x-range, lifting the pen where fn is
+// undefined or jumps (asymptotes), so 1/x or tan x don't get joined up.
+function strokeCurve(ctx, fn, xR, toX, toY, ph) {
+  const S = 800, LIM = ph * 50;
+  const clampY = py => Math.max(-LIM, Math.min(LIM + ph, py));
+  ctx.beginPath();
+  let prev = null;
+  for (let i = 0; i <= S; i++) {
+    const x = xR.min + (xR.max - xR.min) * i / S;
+    const py = toY(fn(x));
+    if (!isFinite(py)) { prev = null; continue; }
+    if (prev && Math.abs(py - prev.py) > ph * 0.5) {
+      const pym = toY(fn((x + prev.x) / 2));
+      const between = isFinite(pym) && (pym - prev.py) * (py - pym) >= 0;
+      if (!between) prev = null;
+    }
+    const px = toX(x);
+    if (!prev) ctx.moveTo(px, clampY(py)); else ctx.lineTo(px, clampY(py));
+    prev = { x, py };
+  }
+  ctx.stroke();
+}
+
+const SECANT_LEN = 180;   // on-screen length (px) of the cursor secant line
+
 function drawFxChart() {
   sizeCv(fxCv);
   const dpr = window.devicePixelRatio || 1;
@@ -633,66 +927,55 @@ function drawFxChart() {
 
   // Sample across whatever is currently visible, so panning/zooming beyond
   // the original [xMin, xMax] domain still shows the curve.
-  const CSAMPLES = 400;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
   ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  let started = false;
-  for (let i = 0; i <= CSAMPLES; i++) {
-    const x = xR.min + (xR.max-xR.min)*i/CSAMPLES;
-    const py = toY(f(x));
-    if (!isFinite(py)) { started = false; continue; }
-    const px = toX(x);
-    if (!started) { ctx.moveTo(px,py); started = true; } else ctx.lineTo(px,py);
-  }
-  ctx.stroke();
+  strokeCurve(ctx, f, xR, toX, toY, ph);
 
   if (showDeriv) {
-    ctx.save();
-    ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
     ctx.strokeStyle = cssVar('--green'); ctx.lineWidth = 2;
     ctx.setLineDash([6,4]);
-    ctx.beginPath();
-    let started2 = false;
-    for (let i = 0; i <= CSAMPLES; i++) {
-      const x = xR.min + (xR.max-xR.min)*i/CSAMPLES;
-      const py = toY(fPrime(x));
-      if (!isFinite(py)) { started2 = false; continue; }
-      const px = toX(x);
-      if (!started2) { ctx.moveTo(px,py); started2 = true; } else ctx.lineTo(px,py);
-    }
-    ctx.stroke();
+    strokeCurve(ctx, fPrime, xR, toX, toY, ph);
     ctx.setLineDash([]);
-    ctx.restore();
   }
 
-  if (viewMode === 'segments') {
+  if (viewMode === 'segments' && showIntervals) {
     ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1;
     ctx.setLineDash([3,3]);
-    points.forEach(p => {
+    const shown = points.filter(p => isFinite(p.y));
+    shown.forEach(p => {
       const px = toX(p.x);
       ctx.beginPath(); ctx.moveTo(px, toY(yR.min)); ctx.lineTo(px, toY(p.y)); ctx.stroke();
     });
     ctx.setLineDash([]);
 
+    // Secant chords between consecutive points; skip any chord touching an undefined point.
     ctx.strokeStyle = cssVar('--purple'); ctx.lineWidth = 2.5;
     ctx.beginPath();
-    points.forEach((p,i) => { const px=toX(p.x), py=toY(p.y); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); });
+    for (let i = 0; i < points.length - 1; i++) {
+      const p = points[i], q = points[i+1];
+      if (!isFinite(p.y) || !isFinite(q.y)) continue;
+      ctx.moveTo(toX(p.x), toY(p.y)); ctx.lineTo(toX(q.x), toY(q.y));
+    }
     ctx.stroke();
 
     ctx.fillStyle = cssVar('--orange');
-    points.forEach(p => {
+    shown.forEach(p => {
       ctx.beginPath(); ctx.arc(toX(p.x), toY(p.y), 5, 0, Math.PI*2); ctx.fill();
     });
   } else {
-    // Cursor-following secant: two close points around the hovered x,
-    // drawn extended a bit beyond the small interval (like a near-tangent).
+    // Cursor-following secant: two close points around the hovered x. The
+    // secant line is drawn with the same on-screen length whatever its slope,
+    // centered on the chord midpoint, so steep and shallow lines compare fairly.
     const sec = getCursorSecant();
-    if (sec) {
-      const ext = sec.h * 0.6;
-      const lx1 = sec.x1 - ext, ly1 = sec.y1 - sec.m*ext;
-      const lx2 = sec.x2 + ext, ly2 = sec.y2 + sec.m*ext;
+    if (sec && isFinite(sec.m) && isFinite(sec.y) && isFinite(sec.y1) && isFinite(sec.y2)) {
+      const cx = toX((sec.x1 + sec.x2) / 2), cy = toY((sec.y1 + sec.y2) / 2);
+      const dxp = toX(sec.x2) - toX(sec.x1), dyp = toY(sec.y2) - toY(sec.y1);
+      const len = Math.hypot(dxp, dyp) || 1;
+      const half = SECANT_LEN / 2;
+      const ux = dxp / len * half, uy = dyp / len * half;
       ctx.strokeStyle = cssVar('--purple'); ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(toX(lx1), toY(ly1)); ctx.lineTo(toX(lx2), toY(ly2)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - ux, cy - uy); ctx.lineTo(cx + ux, cy + uy); ctx.stroke();
 
       ctx.fillStyle = cssVar('--orange');
       [[sec.x1, sec.y1], [sec.x2, sec.y2]].forEach(([x,y]) => {
@@ -704,6 +987,7 @@ function drawFxChart() {
       ctx.strokeStyle = cssVar('--surface'); ctx.lineWidth = 2; ctx.stroke();
     }
   }
+  ctx.restore();
 }
 
 function updateCursorReadout() {
@@ -741,6 +1025,21 @@ document.getElementById('n-slider').addEventListener('input', e => {
   recompute();
 });
 document.getElementById('deriv-toggle').addEventListener('change', e => { showDeriv = e.target.checked; drawCharts(); });
+document.getElementById('intervals-toggle').addEventListener('change', e => { showIntervals = e.target.checked; drawCharts(); });
+
+// ── Collapse / expand the Δy-per-interval table panel ───────────────
+function setTableVisible(visible) {
+  document.querySelector('.panel.p2').classList.toggle('collapsed', !visible);
+  document.getElementById('table-toggle').checked = visible;
+  document.getElementById('table-collapse-btn').textContent = visible ? '◀' : '▶';
+  document.getElementById('table-collapse-btn').title = visible ? 'Collapse table' : 'Show table';
+  try { localStorage.setItem('concavity-table', visible ? 'shown' : 'hidden'); } catch (e) {}
+  drawCharts();
+}
+document.getElementById('table-toggle').addEventListener('change', e => setTableVisible(e.target.checked));
+document.getElementById('table-collapse-btn').addEventListener('click', () =>
+  setTableVisible(document.querySelector('.panel.p2').classList.contains('collapsed')));
+try { if (localStorage.getItem('concavity-table') === 'hidden') setTableVisible(false); } catch (e) {}
 
 document.querySelectorAll('.preset-btn').forEach(btn => {
   btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
