@@ -17,6 +17,7 @@
   --red:     #dc2626;
   --purple:  #7c3aed;
   --orange:  #ea580c;
+  --curve-dark: #374151;
 }
 body.dark {
   --border:  #30363d;
@@ -29,6 +30,7 @@ body.dark {
   --red:     #f85149;
   --purple:  #a78bfa;
   --orange:  #fb923c;
+  --curve-dark: #b4bcc8;
 }
 #theme-toggle {
   position: fixed; bottom: 10px; right: 10px; z-index: 9999;
@@ -63,8 +65,29 @@ body { display: flex; flex-direction: column; }
   height: 100%; display: flex; flex-direction: column;
   border-right: 1px solid var(--border); background: var(--surface); overflow: hidden;
 }
-.panel.p1 { flex: 0 0 300px; min-width: 300px; --panel-color: var(--accent); }
-.panel.p2 { flex: 0 0 300px; min-width: 300px; --panel-color: var(--purple); }
+.panel.p1 { flex: 0 0 300px; min-width: 0; --panel-color: var(--accent); }
+.panel.p2 { flex: 0 0 300px; min-width: 0; --panel-color: var(--purple); }
+
+/* Draggable walls between columns (and between the two stacked sections) */
+.vsplit {
+  flex: 0 0 7px; cursor: col-resize; background: var(--border); position: relative; touch-action: none;
+  transition: background .12s;
+}
+.vsplit::after { content: '⋮'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--muted); font-size: 14px; line-height: 1; }
+.vsplit:hover, .vsplit.dragging { background: var(--accent); }
+.hsplit { flex: 0 0 7px; cursor: row-resize; background: var(--border); position: relative; touch-action: none; transition: background .12s; }
+.hsplit::after { content: '⋯'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -55%); color: var(--muted); font-size: 14px; line-height: 1; }
+.hsplit:hover, .hsplit.dragging { background: #ff006e; }
+body.resizing, body.resizing * { user-select: none !important; }
+
+/* Middle column: Δy table on top, asymptotes below */
+.sec { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+#tbl-sec  { flex: 0 0 55%; --panel-color: var(--purple); }
+#asym-sec { flex: 1 1 0; --panel-color: #ff006e; }
+.sec.collapsed { flex: 0 0 auto !important; }
+.sec.collapsed .tbl-wrap, .sec.collapsed .asym-list { display: none; }
+#mid-col.asym-closed #tbl-sec:not(.collapsed) { flex: 1 1 0; }
+#mid-col.tbl-closed .hsplit, #mid-col.asym-closed .hsplit { display: none; }
 .panel-header {
   flex-shrink: 0; padding: 10px 14px; background: var(--surface); border-bottom: 2px solid var(--border);
   display: flex; align-items: center; gap: 8px; border-top: 3px solid var(--panel-color, var(--accent));
@@ -72,17 +95,9 @@ body { display: flex; flex-direction: column; }
 .panel-title { font-size: 0.85rem; font-weight: 800; color: var(--panel-color, var(--accent)); letter-spacing: .04em; text-transform: uppercase; flex: 1; }
 
 .collapse-btn { padding: 2px 8px; font-size: 0.72rem; }
-.panel.collapsed { flex: 0 0 40px; min-width: 40px; }
-.panel.collapsed .tbl-wrap, .panel.collapsed .asym-list { display: none; }
-.panel.collapsed .panel-header { flex-direction: column; padding: 10px 4px; gap: 10px; height: 100%; border-bottom: none; }
-.panel.collapsed .panel-title { writing-mode: vertical-rl; flex: 0 0 auto; white-space: nowrap; }
-.panel.collapsed .collapse-btn { order: -1; }
-.panel.collapsed .asym-count { display: none; }
 
 /* ── Controls panel ── */
 .ctrl-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
-.preset-row { display: flex; gap: 6px; flex-wrap: wrap; }
-.preset-btn { flex: 1; min-width: 70px; overflow: hidden; text-overflow: ellipsis; padding-left: 6px; padding-right: 6px; }
 
 .field-label { font-size: 0.78rem; font-weight: 700; color: var(--muted); display: block; margin-bottom: 4px; }
 .field-value { color: var(--text); font-family: 'Courier New', monospace; }
@@ -119,7 +134,6 @@ body { display: flex; flex-direction: column; }
 .badge-box.flat  { color: var(--muted); }
 
 /* ── Asymptotes panel ── */
-.panel.p3 { flex: 0 0 250px; min-width: 250px; --panel-color: #ff006e; }
 .asym-count {
   min-width: 22px; padding: 1px 7px; border-radius: 11px; text-align: center;
   background: #ff006e; color: #fff; font-size: 0.72rem; font-weight: 800;
@@ -157,7 +171,7 @@ body { display: flex; flex-direction: column; }
 .btn-plot:hover { opacity: 0.9; color: #fff; }
 
 /* ── Table ── */
-.tbl-wrap { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.tbl-wrap { flex: 1; min-height: 0; overflow: auto; }
 table { width: 100%; border-collapse: collapse; }
 thead th {
   position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border);
@@ -169,6 +183,7 @@ tbody td { padding: 7px 8px; border-bottom: 1px solid var(--border); font-family
 tbody td:first-child { text-align: center; color: var(--muted); font-size: 0.74rem; }
 tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .cell-dy  { color: var(--orange); }
+td.cell-cross { text-align: center; color: #ff006e; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 0.74rem; font-weight: 700; background: color-mix(in srgb, #ff006e 8%, transparent); }
 .cell-m   { color: var(--accent); font-weight: 700; }
 .cell-d2.pos { color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); }
 .cell-d2.neg { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
@@ -188,8 +203,6 @@ canvas.chart { display: block; width: 100%; height: 100%; }
 .view-toggle { display: flex; gap: 4px; }
 .view-btn { padding: 4px 9px; font-size: 0.72rem; }
 .view-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-.h-row { display: flex; align-items: center; gap: 6px; font-size: 0.74rem; color: var(--muted); }
-.h-row input[type=range] { width: 80px; accent-color: var(--accent); }
 .axis-hint { font-size: 0.68rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
 .cursor-readout {
   position: absolute; top: 8px; left: 64px; z-index: 2; display: none;
@@ -220,22 +233,9 @@ canvas.chart { display: block; width: 100%; height: 100%; }
 <div id="panels-row">
 
 <!-- Panel 1 — function controls -->
-<div class="panel p1">
+<div class="panel p1" id="p1-panel">
   <div class="panel-header"><span class="panel-title">⚙️ Function</span></div>
   <div class="ctrl-body">
-    <div class="preset-row">
-      <button class="btn preset-btn" data-preset="up">⌣ Up</button>
-      <button class="btn preset-btn" data-preset="down">⌢ Down</button>
-      <button class="btn preset-btn" data-preset="s">🔄 S-Curve</button>
-    </div>
-    <div class="preset-row">
-      <button class="btn preset-btn" data-preset="sin">sin x</button>
-      <button class="btn preset-btn" data-preset="exp">eˣ</button>
-      <button class="btn preset-btn" data-preset="ln">ln x</button>
-      <button class="btn preset-btn" data-preset="sqrt">√x</button>
-      <button class="btn preset-btn" data-preset="inv">1/x</button>
-    </div>
-
     <div>
       <label class="field-label">f(x) =</label>
       <div class="fx-row">
@@ -284,30 +284,35 @@ canvas.chart { display: block; width: 100%; height: 100%; }
   </div>
 </div>
 
-<!-- Panel 2 — differences table -->
-<div class="panel p2">
-  <div class="panel-header"><span class="panel-title">🔢 Δy per Interval</span><button class="btn collapse-btn" id="table-collapse-btn" type="button" title="Collapse table">◀</button></div>
-  <div class="tbl-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>x (mid)</th>
-          <th>Δy</th>
-          <th>m=Δy/Δx</th>
-          <th>Δm</th>
-        </tr>
-      </thead>
-      <tbody id="diff-body"></tbody>
-    </table>
+<div class="vsplit" data-target="p1-panel" title="Drag to resize"></div>
+
+<!-- Panel 2 — Δy table (top) and asymptotes (bottom) -->
+<div class="panel p2" id="mid-col">
+  <div class="sec" id="tbl-sec">
+    <div class="panel-header"><span class="panel-title">🔢 Δy per Interval</span><button class="btn collapse-btn" id="table-collapse-btn" type="button" title="Collapse table">▾</button></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>x (mid)</th>
+            <th>Δy</th>
+            <th>m=Δy/Δx</th>
+            <th>Δm</th>
+          </tr>
+        </thead>
+        <tbody id="diff-body"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="hsplit" id="mid-split" title="Drag to resize"></div>
+  <div class="sec" id="asym-sec">
+    <div class="panel-header"><span class="panel-title">📐 Asymptotes</span><span class="asym-count" id="asym-count">0</span><button class="btn collapse-btn" id="asym-collapse-btn" type="button" title="Collapse asymptotes">▾</button></div>
+    <div class="asym-list" id="asym-list"></div>
   </div>
 </div>
 
-<!-- Panel 3 — asymptotes -->
-<div class="panel p3" id="asym-panel">
-  <div class="panel-header"><span class="panel-title">📐 Asymptotes</span><span class="asym-count" id="asym-count">0</span><button class="btn collapse-btn" id="asym-collapse-btn" type="button" title="Collapse asymptotes">◀</button></div>
-  <div class="asym-list" id="asym-list"></div>
-</div>
+<div class="vsplit" data-target="mid-col" title="Drag to resize"></div>
 
 <!-- Graph panel -->
 <div id="graph-panel">
@@ -316,14 +321,9 @@ canvas.chart { display: block; width: 100%; height: 100%; }
       <span class="graph-title">📈 f(x)</span>
       <div class="view-toggle" id="fx-view-toggle">
         <button class="btn view-btn active" data-mode="segments" type="button">▤ Segments</button>
-        <button class="btn view-btn" data-mode="cursor" type="button">✥ Cursor Secant</button>
+        <button class="btn view-btn" data-mode="cursor" type="button">✥ Cursor Tangent</button>
       </div>
-      <div class="h-row" id="h-row" style="display:none">
-        <label>h</label>
-        <input type="range" id="h-slider" min="2" max="25" step="1" value="8">
-        <span id="h-val">8%</span>
-      </div>
-      <span class="axis-hint">🖱 drag inside to pan · drag bottom/left edge to rescale x/y · scroll to zoom · dbl-click to reset</span>
+      <span class="axis-hint">🖱 drag inside to pan · drag asymptote labels to move them · drag bottom/left edge to rescale x/y · scroll to zoom · dbl-click to reset</span>
     </div>
     <div class="graph-wrap" id="fx-wrap">
       <canvas id="fx-cv" class="chart"></canvas>
@@ -619,8 +619,8 @@ let showDeriv = false;
 let showIntervals = true;
 let showAsym = true;
 
-// ── Rate-of-change view mode: fixed interval segments vs. a secant
-//    that follows the cursor along the curve ────────────────────
+// ── Rate-of-change view mode: fixed interval segments vs. a tangent
+//    that follows the cursor along the curve ───────────────────
 let viewMode = 'segments';   // 'segments' | 'cursor'
 let cursorX = null;
 let fxTransform = null;
@@ -635,25 +635,6 @@ const fPrime = x => evalNode(dAst, x);
 const fDouble= x => evalNode(d2Ast, x);
 
 let points = [], diffs = [];
-
-const presets = {
-  up:   { fx: 'x^2',      xmin: -3,   xmax: 3 },
-  down: { fx: '-x^2',     xmin: -3,   xmax: 3 },
-  s:    { fx: 'x^3 - 3x', xmin: -3,   xmax: 3 },
-  sin:  { fx: 'sin(x)',   xmin: -6.5, xmax: 6.5 },
-  exp:  { fx: 'e^x',      xmin: -2,   xmax: 2 },
-  ln:   { fx: 'ln(x)',    xmin: 0.2,  xmax: 6 },
-  sqrt: { fx: 'sqrt(x)',  xmin: 0,    xmax: 6 },
-  inv:  { fx: '1/x',      xmin: -3,   xmax: 3 },
-};
-function applyPreset(name) {
-  const pr = presets[name];
-  document.getElementById('fx-input').value = pr.fx;
-  xMin = pr.xmin; xMax = pr.xmax;
-  document.getElementById('xmin-in').value = xMin;
-  document.getElementById('xmax-in').value = xMax;
-  tryParseAndApply();
-}
 
 // ── Format ──────────────────────────────────────────────────
 function fmt(v) {
@@ -901,7 +882,16 @@ function renderAsymptotePanel() {
 }
 
 // ── Compute ─────────────────────────────────────────────────
+// An interval "breaks" if a vertical asymptote lies inside it or f is
+// undefined somewhere in it: its secant would jump across the asymptote.
+function intervalBreaks(x1, x2) {
+  if (asymList.some(a => a.kind === 'v' && a.c > x1 && a.c < x2)) return true;
+  for (let k = 1; k < 24; k++) if (!isFinite(f(x1 + (x2 - x1) * k / 24))) return true;
+  return false;
+}
+
 function recompute() {
+  renderAsymptotePanel();   // builds asymList, used below
   points = []; diffs = [];
   const dx = (xMax - xMin) / N;
   for (let i = 0; i <= N; i++) {
@@ -909,15 +899,16 @@ function recompute() {
     points.push({ x, y: f(x) });
   }
   for (let i = 0; i < N; i++) {
-    const dy = points[i+1].y - points[i].y;
-    const m = dx !== 0 ? dy/dx : NaN;
-    diffs.push({ x1: points[i].x, x2: points[i+1].x, xmid: (points[i].x+points[i+1].x)/2, dy, m });
+    const p = points[i], q = points[i+1];
+    const cross = !isFinite(p.y) || !isFinite(q.y) || intervalBreaks(p.x, q.x);
+    const dy = cross ? NaN : q.y - p.y;
+    const m = cross || dx === 0 ? NaN : dy/dx;
+    diffs.push({ x1: p.x, x2: q.x, xmid: (p.x+q.x)/2, dy, m, cross });
   }
   for (let i = 0; i < diffs.length; i++) {
     diffs[i].dm = i === 0 ? null : diffs[i].m - diffs[i-1].m;
   }
   renderBadge();
-  renderAsymptotePanel();
   renderTable();
   drawCharts();
 }
@@ -939,6 +930,7 @@ function tryParseAndApply() {
   d2Ast = diff(dAst);
   echoEl.textContent = 'Parsed as: ' + formatEq(fAst);
   endAsym = { left: findEndAsymptote(-1), right: findEndAsymptote(1) };
+  labelOffsets = {};
   view = null;
   recompute();
 }
@@ -950,6 +942,11 @@ function renderTable() {
   diffs.forEach((row, i) => {
     const tr = document.createElement('tr');
     const d2Class = row.dm === null ? '' : (row.dm > 1e-9 ? 'pos' : (row.dm < -1e-9 ? 'neg' : ''));
+    if (row.cross) {
+      tr.innerHTML = `<td>${i+1}</td><td>${fmt(row.xmid)}</td><td colspan="3" class="cell-cross">⟂ asymptote / undefined in this interval</td>`;
+      tb.appendChild(tr);
+      return;
+    }
     tr.innerHTML = `
       <td>${i+1}</td>
       <td>${fmt(row.xmid)}</td>
@@ -1022,16 +1019,10 @@ function computeAutofitView(pw, ph) {
   };
 }
 
-// Half-width h (as a fraction of the current x-window) for the cursor secant.
-function getCursorSecant() {
+// Tangent at the hovered x, using the exact derivative f′.
+function getCursorTangent() {
   if (cursorX === null) return null;
-  const slider = document.getElementById('h-slider');
-  const hFrac = slider ? parseInt(slider.value, 10) / 100 : 0.08;
-  const h = (xMax - xMin) * hFrac;
-  const x1 = cursorX - h, x2 = cursorX + h;
-  const y1 = f(x1), y2 = f(x2);
-  const m = (y2 - y1) / (2*h);
-  return { x: cursorX, y: f(cursorX), x1, y1, x2, y2, m, h };
+  return { x: cursorX, y: f(cursorX), m: fPrime(cursorX) };
 }
 
 function cssVar(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
@@ -1107,16 +1098,24 @@ function strokeCurve(ctx, fn, xR, toX, toY, ph) {
   ctx.stroke();
 }
 
-const SECANT_LEN = 180;   // on-screen length (px) of the cursor secant line
+const TANGENT_LEN = 150;  // on-screen length (px) of the cursor tangent segment
+
+// Labels can be dragged; offsets (px) are kept per asymptote until f changes.
+let labelOffsets = {};   // key → { dx, dy }
+let labelRects = [];     // hit boxes from the last draw: { key, x, y, w, h }
 
 function drawAsymptotes(ctx, xR, yR, toX, toY, pad, pw, ph) {
   ctx.save();
   ctx.font = 'bold 12px Courier New';
-  const label = (txt, x, y, align, color) => {
+  labelRects = [];
+  const label = (txt, x, y, align, color, key) => {
+    const off = labelOffsets[key] || { dx: 0, dy: 0 };
+    x += off.dx; y += off.dy;
     ctx.save(); ctx.setLineDash([]);
     ctx.textAlign = align;
     const w = ctx.measureText(txt).width;
     const x0 = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
+    labelRects.push({ key, x: x0 - 5, y: y - 12, w: w + 10, h: 17 });
     ctx.fillStyle = color;
     ctx.beginPath(); ctx.roundRect(x0 - 5, y - 12, w + 10, 17, 8); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.fillText(txt, x, y);
@@ -1131,7 +1130,7 @@ function drawAsymptotes(ctx, xR, yR, toX, toY, pad, pw, ph) {
     const color = colorForVertical(c), px = toX(c);
     pen(color, vKey(c));
     ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, pad.t + ph); ctx.stroke();
-    label('x = ' + fmtNice(c), px + 6, pad.t + 16, 'left', color);
+    label('x = ' + fmtNice(c), px + 6, pad.t + 16, 'left', color, vKey(c));
   }
   for (const a of asymList) {
     if (a.kind === 'v') continue;
@@ -1144,8 +1143,8 @@ function drawAsymptotes(ctx, xR, yR, toX, toY, pad, pw, ph) {
     ctx.beginPath(); ctx.moveTo(toX(x0), toY(yAt(x0))); ctx.lineTo(toX(x1), toY(yAt(x1))); ctx.stroke();
     const lx = a.side < 0 ? x0 : x1;
     const ly = toY(yAt(lx));
-    if (ly > pad.t + 14 && ly < pad.t + ph - 4)
-      label(fmtLine(a), toX(lx) + (a.side < 0 ? 8 : -8), ly - 8, a.side < 0 ? 'left' : 'right', a.color);
+    if ((ly > pad.t + 14 && ly < pad.t + ph - 4) || labelOffsets[a.key])
+      label(fmtLine(a), toX(lx) + (a.side < 0 ? 8 : -8), ly - 8, a.side < 0 ? 'left' : 'right', a.color, a.key);
   }
   ctx.restore();
 }
@@ -1180,7 +1179,11 @@ function drawFxChart() {
   ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
   if (showAsym) drawAsymptotes(ctx, xR, yR, toX, toY, pad, pw, ph);
 
-  ctx.strokeStyle = cssVar('--accent'); ctx.lineWidth = 2.5;
+  // With interval slices shown, the curve goes dark gray and thick so the
+  // purple secant chords stand out from it.
+  const sliced = viewMode === 'segments' && showIntervals;
+  ctx.strokeStyle = cssVar(sliced ? '--curve-dark' : '--accent'); ctx.lineWidth = sliced ? 4.5 : 2.5;
+  ctx.lineJoin = 'round';
   strokeCurve(ctx, f, xR, toX, toY, ph);
 
   if (showDeriv) {
@@ -1200,12 +1203,12 @@ function drawFxChart() {
     });
     ctx.setLineDash([]);
 
-    // Secant chords between consecutive points; skip any chord touching an undefined point.
+    // Secant chords between consecutive points; none across an asymptote or gap.
     ctx.strokeStyle = cssVar('--purple'); ctx.lineWidth = 2.5;
     ctx.beginPath();
     for (let i = 0; i < points.length - 1; i++) {
       const p = points[i], q = points[i+1];
-      if (!isFinite(p.y) || !isFinite(q.y)) continue;
+      if (diffs[i] && diffs[i].cross) continue;
       ctx.moveTo(toX(p.x), toY(p.y)); ctx.lineTo(toX(q.x), toY(q.y));
     }
     ctx.stroke();
@@ -1215,27 +1218,39 @@ function drawFxChart() {
       ctx.beginPath(); ctx.arc(toX(p.x), toY(p.y), 5, 0, Math.PI*2); ctx.fill();
     });
   } else {
-    // Cursor-following secant: two close points around the hovered x. The
-    // secant line is drawn with the same on-screen length whatever its slope,
-    // centered on the chord midpoint, so steep and shallow lines compare fairly.
-    const sec = getCursorSecant();
-    if (sec && isFinite(sec.m) && isFinite(sec.y) && isFinite(sec.y1) && isFinite(sec.y2)) {
-      const cx = toX((sec.x1 + sec.x2) / 2), cy = toY((sec.y1 + sec.y2) / 2);
-      const dxp = toX(sec.x2) - toX(sec.x1), dyp = toY(sec.y2) - toY(sec.y1);
-      const len = Math.hypot(dxp, dyp) || 1;
-      const half = SECANT_LEN / 2;
-      const ux = dxp / len * half, uy = dyp / len * half;
-      ctx.strokeStyle = cssVar('--purple'); ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(cx - ux, cy - uy); ctx.lineTo(cx + ux, cy + uy); ctx.stroke();
+    // Cursor-following tangent: a short segment of fixed on-screen length
+    // touching the curve at the hovered point, plus a tag with its slope.
+    const tg = getCursorTangent();
+    if (tg && isFinite(tg.y)) {
+      const px = toX(tg.x), py = toY(tg.y);
+      let ux = 0, uy = -1;   // vertical tangent if the slope is infinite
+      if (isFinite(tg.m)) {
+        const dxp = pw / (xR.max - xR.min), dyp = -tg.m * ph / (yR.max - yR.min);
+        const len = Math.hypot(dxp, dyp) || 1;
+        ux = dxp / len; uy = dyp / len;
+      }
+      const half = TANGENT_LEN / 2;
+      const slopeColor = !isFinite(tg.m) ? cssVar('--muted') : tg.m > 1e-9 ? cssVar('--green') : tg.m < -1e-9 ? cssVar('--red') : cssVar('--orange');
+      ctx.strokeStyle = slopeColor; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(px - ux*half, py - uy*half); ctx.lineTo(px + ux*half, py + uy*half); ctx.stroke();
+      ctx.lineCap = 'butt';
 
-      ctx.fillStyle = cssVar('--orange');
-      [[sec.x1, sec.y1], [sec.x2, sec.y2]].forEach(([x,y]) => {
-        ctx.beginPath(); ctx.arc(toX(x), toY(y), 4, 0, Math.PI*2); ctx.fill();
-      });
-
-      ctx.fillStyle = cssVar('--accent');
-      ctx.beginPath(); ctx.arc(toX(sec.x), toY(sec.y), 6, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = slopeColor;
+      ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI*2); ctx.fill();
       ctx.strokeStyle = cssVar('--surface'); ctx.lineWidth = 2; ctx.stroke();
+
+      // Slope tag: a coloured pill next to the point (flipped to stay inside the plot)
+      const txt = 'm = ' + (isFinite(tg.m) ? fmt(Math.abs(tg.m) < 1e-12 ? 0 : tg.m) : '∞');
+      ctx.font = 'bold 13px Courier New';
+      const tw = ctx.measureText(txt).width + 14, th = 22;
+      let tx = px + 14, ty = py - 34;
+      if (tx + tw > pad.l + pw - 4) tx = px - 14 - tw;
+      if (ty < pad.t + 4) ty = py + 14;
+      ctx.fillStyle = slopeColor;
+      ctx.beginPath(); ctx.roundRect(tx, ty, tw, th, 11); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(txt, tx + 7, ty + th/2 + 1);
+      ctx.textBaseline = 'alphabetic';
     }
   }
   ctx.restore();
@@ -1245,12 +1260,12 @@ function updateCursorReadout() {
   const el = document.getElementById('cursor-readout');
   if (viewMode !== 'cursor') { el.style.display = 'none'; return; }
   if (cursorX === null) {
-    el.textContent = 'Move the cursor over the curve to slide the secant →';
+    el.textContent = 'Move the cursor over the graph to slide the tangent →';
     el.style.display = 'block';
     return;
   }
-  const sec = getCursorSecant();
-  el.textContent = `x ≈ ${fmt(sec.x)}   f(x) ≈ ${fmt(sec.y)}   secant slope m ≈ ${fmt(sec.m)}`;
+  const tg = getCursorTangent();
+  el.textContent = `x ≈ ${fmt(tg.x)}   f(x) ≈ ${fmt(tg.y)}   tangent slope f′(x) ≈ ${fmt(tg.m)}`;
   el.style.display = 'block';
 }
 
@@ -1279,51 +1294,92 @@ document.getElementById('deriv-toggle').addEventListener('change', e => { showDe
 document.getElementById('asym-toggle').addEventListener('change', e => { showAsym = e.target.checked; drawCharts(); });
 document.getElementById('intervals-toggle').addEventListener('change', e => { showIntervals = e.target.checked; drawCharts(); });
 
-// ── Collapse / expand the asymptotes panel ──────────────────────────
-function setAsymPanelVisible(visible) {
-  document.getElementById('asym-panel').classList.toggle('collapsed', !visible);
-  const btn = document.getElementById('asym-collapse-btn');
-  btn.textContent = visible ? '◀' : '▶';
-  btn.title = visible ? 'Collapse asymptotes' : 'Show asymptotes';
-  try { localStorage.setItem('concavity-asym-panel', visible ? 'shown' : 'hidden'); } catch (e) {}
-  drawCharts();
+// ── Collapse / expand the two stacked sections of the middle column ─
+function setSectionOpen(secId, open) {
+  const sec = document.getElementById(secId);
+  sec.classList.toggle('collapsed', !open);
+  const btn = sec.querySelector('.collapse-btn');
+  btn.textContent = open ? '▾' : '▸';
+  btn.title = (open ? 'Collapse ' : 'Show ') + (secId === 'tbl-sec' ? 'table' : 'asymptotes');
+  const col = document.getElementById('mid-col');
+  col.classList.toggle('tbl-closed', document.getElementById('tbl-sec').classList.contains('collapsed'));
+  col.classList.toggle('asym-closed', document.getElementById('asym-sec').classList.contains('collapsed'));
+  if (secId === 'tbl-sec') document.getElementById('table-toggle').checked = open;
+  try { localStorage.setItem('csl-' + secId, open ? 'open' : 'closed'); } catch (e) {}
 }
-document.getElementById('asym-collapse-btn').addEventListener('click', () =>
-  setAsymPanelVisible(document.getElementById('asym-panel').classList.contains('collapsed')));
-try { if (localStorage.getItem('concavity-asym-panel') === 'hidden') setAsymPanelVisible(false); } catch (e) {}
-
-// ── Collapse / expand the Δy-per-interval table panel ───────────────
-function setTableVisible(visible) {
-  document.querySelector('.panel.p2').classList.toggle('collapsed', !visible);
-  document.getElementById('table-toggle').checked = visible;
-  document.getElementById('table-collapse-btn').textContent = visible ? '◀' : '▶';
-  document.getElementById('table-collapse-btn').title = visible ? 'Collapse table' : 'Show table';
-  try { localStorage.setItem('concavity-table', visible ? 'shown' : 'hidden'); } catch (e) {}
-  drawCharts();
-}
-document.getElementById('table-toggle').addEventListener('change', e => setTableVisible(e.target.checked));
-document.getElementById('table-collapse-btn').addEventListener('click', () =>
-  setTableVisible(document.querySelector('.panel.p2').classList.contains('collapsed')));
-try { if (localStorage.getItem('concavity-table') === 'hidden') setTableVisible(false); } catch (e) {}
-
-document.querySelectorAll('.preset-btn').forEach(btn => {
-  btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+document.getElementById('table-toggle').addEventListener('change', e => setSectionOpen('tbl-sec', e.target.checked));
+['tbl-sec', 'asym-sec'].forEach(id => {
+  document.querySelector('#' + id + ' .collapse-btn').addEventListener('click', () =>
+    setSectionOpen(id, document.getElementById(id).classList.contains('collapsed')));
+  try { if (localStorage.getItem('csl-' + id) === 'closed') setSectionOpen(id, false); } catch (e) {}
 });
 
-// ── View mode: fixed segments vs. cursor-following secant ───────────
+// ── Resizable walls: drag between columns to change their width, and
+//    between the table and the asymptotes to change their heights ──────
+const GRAPH_MIN = 320;
+function setPanelWidth(panel, w) {
+  const row = document.getElementById('panels-row');
+  const others = [...row.children].filter(el => el !== panel && el.id !== 'graph-panel')
+    .reduce((sum, el) => sum + el.getBoundingClientRect().width, 0);
+  const max = Math.max(160, row.clientWidth - others - GRAPH_MIN);
+  w = Math.max(160, Math.min(max, w));
+  panel.style.flexBasis = w + 'px';
+  return w;
+}
+document.querySelectorAll('.vsplit').forEach(split => {
+  const panel = document.getElementById(split.dataset.target);
+  try { const w = parseFloat(localStorage.getItem('csl-w-' + panel.id)); if (w) panel.style.flexBasis = w + 'px'; } catch (e) {}
+  split.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    split.setPointerCapture(e.pointerId);
+    split.classList.add('dragging'); document.body.classList.add('resizing');
+    const startX = e.clientX, startW = panel.getBoundingClientRect().width;
+    const move = ev => { setPanelWidth(panel, startW + ev.clientX - startX); drawCharts(); };
+    const up = () => {
+      split.classList.remove('dragging'); document.body.classList.remove('resizing');
+      split.removeEventListener('pointermove', move); split.removeEventListener('pointerup', up); split.removeEventListener('pointercancel', up);
+      try { localStorage.setItem('csl-w-' + panel.id, parseFloat(panel.style.flexBasis)); } catch (e) {}
+    };
+    split.addEventListener('pointermove', move); split.addEventListener('pointerup', up); split.addEventListener('pointercancel', up);
+  });
+  split.addEventListener('dblclick', () => {   // double-click a wall to restore the default width
+    panel.style.flexBasis = '';
+    try { localStorage.removeItem('csl-w-' + panel.id); } catch (e) {}
+    drawCharts();
+  });
+});
+(function () {
+  const split = document.getElementById('mid-split'), top = document.getElementById('tbl-sec');
+  const col = document.getElementById('mid-col');
+  try { const pct = parseFloat(localStorage.getItem('csl-tbl-h')); if (pct) top.style.flexBasis = pct + '%'; } catch (e) {}
+  split.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    split.setPointerCapture(e.pointerId);
+    split.classList.add('dragging'); document.body.classList.add('resizing');
+    const startY = e.clientY, startH = top.getBoundingClientRect().height, colH = col.clientHeight;
+    const move = ev => {
+      const h = Math.max(80, Math.min(colH - 80, startH + ev.clientY - startY));
+      top.style.flexBasis = (h / colH * 100) + '%';
+    };
+    const up = () => {
+      split.classList.remove('dragging'); document.body.classList.remove('resizing');
+      split.removeEventListener('pointermove', move); split.removeEventListener('pointerup', up); split.removeEventListener('pointercancel', up);
+      try { localStorage.setItem('csl-tbl-h', parseFloat(top.style.flexBasis)); } catch (e) {}
+    };
+    split.addEventListener('pointermove', move); split.addEventListener('pointerup', up); split.addEventListener('pointercancel', up);
+  });
+  split.addEventListener('dblclick', () => { top.style.flexBasis = ''; try { localStorage.removeItem('csl-tbl-h'); } catch (e) {} });
+})();
+
+// ── View mode: fixed segments vs. cursor-following tangent ──────────
 document.querySelectorAll('#fx-view-toggle .view-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     viewMode = btn.dataset.mode;
     document.querySelectorAll('#fx-view-toggle .view-btn').forEach(b => b.classList.toggle('active', b === btn));
-    document.getElementById('h-row').style.display = viewMode === 'cursor' ? 'flex' : 'none';
     if (viewMode === 'segments') cursorX = null;
     updateCursorStyle();
     drawCharts();
   });
-});
-document.getElementById('h-slider').addEventListener('input', e => {
-  document.getElementById('h-val').textContent = e.target.value + '%';
-  if (viewMode === 'cursor') drawCharts();
 });
 
 // ── Hover: cursor-following secant (only in 'cursor' view mode) ─────
@@ -1335,15 +1391,24 @@ function zoneAt(px, py, w, h) {
   return null;
 }
 
+function labelAt(px, py) {
+  if (!showAsym) return null;
+  for (let i = labelRects.length - 1; i >= 0; i--) {
+    const r = labelRects[i];
+    if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) return r.key;
+  }
+  return null;
+}
+
 function updateCursorStyle(zone) {
-  if (dragState) { fxCv.style.cursor = dragState.mode === 'pan' ? 'grabbing' : (dragState.mode === 'zoomX' ? 'ew-resize' : 'ns-resize'); return; }
-  fxCv.style.cursor = zone === 'x' ? 'ew-resize' : zone === 'y' ? 'ns-resize' : (viewMode === 'cursor' ? 'crosshair' : 'grab');
+  if (dragState) { fxCv.style.cursor = dragState.mode === 'label' ? 'move' : dragState.mode === 'pan' ? 'grabbing' : (dragState.mode === 'zoomX' ? 'ew-resize' : 'ns-resize'); return; }
+  fxCv.style.cursor = zone === 'label' ? 'move' : zone === 'x' ? 'ew-resize' : zone === 'y' ? 'ns-resize' : (viewMode === 'cursor' ? 'crosshair' : 'grab');
 }
 
 fxCv.addEventListener('mousemove', e => {
   const rect = fxCv.getBoundingClientRect();
   const px = e.clientX - rect.left, py = e.clientY - rect.top;
-  if (!dragState) updateCursorStyle(zoneAt(px, py, rect.width, rect.height));
+  if (!dragState) updateCursorStyle(labelAt(px, py) ? 'label' : zoneAt(px, py, rect.width, rect.height));
   if (viewMode !== 'cursor' || dragState || !fxTransform) return;
   const { pad, W, H } = fxTransform;
   if (px < pad.l || px > W - pad.r || py < pad.t || py > H - pad.b) return;
@@ -1363,6 +1428,13 @@ fxCv.addEventListener('mousedown', e => {
   if (e.button !== 0 || !view) return;
   const rect = fxCv.getBoundingClientRect();
   const px = e.clientX - rect.left, py = e.clientY - rect.top;
+  const key = labelAt(px, py);
+  if (key) {
+    const off = labelOffsets[key] || { dx: 0, dy: 0 };
+    dragState = { mode: 'label', key, x: e.clientX, y: e.clientY, dx: off.dx, dy: off.dy };
+    updateCursorStyle('label');
+    return;
+  }
   const zone = zoneAt(px, py, rect.width, rect.height);
   if (zone === 'x') dragState = { mode: 'zoomX', start: e.clientX, startVal: view.pxPerUnitX };
   else if (zone === 'y') dragState = { mode: 'zoomY', start: e.clientY, startVal: view.pxPerUnitY };
@@ -1371,7 +1443,9 @@ fxCv.addEventListener('mousedown', e => {
 });
 window.addEventListener('mousemove', e => {
   if (!dragState || !view) return;
-  if (dragState.mode === 'pan') {
+  if (dragState.mode === 'label') {
+    labelOffsets[dragState.key] = { dx: dragState.dx + e.clientX - dragState.x, dy: dragState.dy + e.clientY - dragState.y };
+  } else if (dragState.mode === 'pan') {
     const dx = e.clientX - dragState.x, dy = e.clientY - dragState.y;
     view.cx = dragState.cx - dx / view.pxPerUnitX;
     view.cy = dragState.cy + dy / view.pxPerUnitY;
