@@ -214,12 +214,19 @@ canvas.chart { display: block; width: 100%; height: 100%; }
 .view-btn { padding: 4px 9px; font-size: 0.72rem; }
 .view-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .axis-hint { font-size: 0.68rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
+/* Big x / y readout in the top-right corner while hovering */
 .cursor-readout {
-  position: absolute; top: 8px; left: 64px; z-index: 2; display: none;
-  font-size: 0.78rem; font-family: 'Courier New', monospace; font-weight: 700; color: var(--accent);
-  background: color-mix(in srgb, var(--surface) 85%, transparent); padding: 3px 9px; border-radius: 6px;
-  pointer-events: none; white-space: nowrap;
+  position: absolute; top: 30px; right: 26px; z-index: 2; display: none;
+  font-family: 'Courier New', monospace; font-weight: 800; color: var(--text);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 2px solid #0ea5e9; border-left-width: 7px; border-radius: 10px;
+  padding: 8px 14px; pointer-events: none; white-space: nowrap;
+  box-shadow: 0 4px 14px color-mix(in srgb, #0ea5e9 25%, transparent);
 }
+.cursor-readout .ro-row { font-size: 1.35rem; line-height: 1.35; }
+.cursor-readout .ro-k { color: #0ea5e9; }
+.cursor-readout .ro-m { font-size: 1rem; }
+.cursor-readout .ro-note { font-size: 0.72rem; color: var(--muted); font-family: 'Segoe UI', system-ui, sans-serif; }
 
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -338,8 +345,8 @@ canvas.chart { display: block; width: 100%; height: 100%; }
     <div class="graph-header">
       <span class="graph-title">📈 f(x)</span>
       <div class="view-toggle" id="fx-view-toggle">
-        <button class="btn view-btn active" data-mode="segments" type="button">▤ Segments</button>
-        <button class="btn view-btn" data-mode="cursor" type="button">✥ Cursor Tangent</button>
+        <button class="btn view-btn active" id="seg-btn" type="button" title="Show the interval slices and secants">▤ Segments</button>
+        <button class="btn view-btn" id="tan-btn" type="button" title="Also draw the tangent line at the hovered point">✥ Tangent</button>
       </div>
       <span class="axis-hint">🖱 hover to trace values · drag inside to pan · drag labels to move them · drag bottom/left edge to rescale x/y · scroll to zoom · dbl-click to reset</span>
     </div>
@@ -640,7 +647,7 @@ let showKeyPts = true;
 
 // ── Rate-of-change view mode: fixed interval segments vs. a tangent
 //    that follows the cursor along the curve ───────────────────
-let viewMode = 'segments';   // 'segments' | 'cursor'
+let showTangent = false;     // optional tangent at the hovered point
 let cursorX = null;
 let fxTransform = null;
 
@@ -1402,7 +1409,7 @@ function drawFxChart() {
 
   // With interval slices shown, the curve goes dark gray and thick so the
   // purple secant chords stand out from it.
-  const sliced = viewMode === 'segments' && showIntervals;
+  const sliced = showIntervals;
   ctx.strokeStyle = cssVar(sliced ? '--curve-dark' : '--accent'); ctx.lineWidth = sliced ? 4.5 : 2.5;
   ctx.lineJoin = 'round';
   strokeCurve(ctx, f, xR, toX, toY, ph);
@@ -1414,7 +1421,7 @@ function drawFxChart() {
     ctx.setLineDash([]);
   }
 
-  if (viewMode === 'segments' && showIntervals) {
+  if (showIntervals) {
     ctx.strokeStyle = cssVar('--muted'); ctx.lineWidth = 1;
     ctx.setLineDash([3,3]);
     const shown = points.filter(p => isFinite(p.y));
@@ -1438,7 +1445,8 @@ function drawFxChart() {
     shown.forEach(p => {
       ctx.beginPath(); ctx.arc(toX(p.x), toY(p.y), 5, 0, Math.PI*2); ctx.fill();
     });
-  } else {
+  }
+  if (showTangent) {
     // Cursor-following tangent: a short segment of fixed on-screen length
     // touching the curve at the hovered point, plus a tag with its slope.
     const tg = getCursorTangent();
@@ -1516,7 +1524,7 @@ function drawTrace(ctx, xR, yR, toX, toY, pad, pw, ph) {
     ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, axisY); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(axisX, py); ctx.stroke();
     ctx.setLineDash([]);
-    if (viewMode !== 'cursor') {   // tangent mode draws its own point
+    if (!showTangent) {   // the tangent draws its own (slope-coloured) point
       ctx.fillStyle = TRACE_COLOR; ctx.strokeStyle = cssVar('--surface'); ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.arc(px, py, 6.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     }
@@ -1543,27 +1551,49 @@ function drawTrace(ctx, xR, yR, toX, toY, pad, pw, ph) {
     // the slope tag sits above)
     const cTxt = `(${traceFmt(x)}, ${traceFmt(y)})`;
     const cw = ctx.measureText(cTxt).width + 12;
-    let cx = px + 14, cy = viewMode === 'cursor' ? py + 26 : py - 22;
+    let cx = px + 14, cy = showTangent ? py + 26 : py - 22;
     if (cx + cw > pad.l + pw - 2) cx = px - 14 - cw;
     if (cy < pad.t + 12) cy = py + 26;
     if (cy > pad.t + ph - 12) cy = py - 22;
     pill(ctx, cTxt, cx, cy, TRACE_COLOR);
   } else {
-    pill(ctx, isFinite(y) ? 'f(x) off screen' : 'f undefined here', px + 10, pad.t + 14, cssVar('--muted'));
+    // Point is off screen (e.g. next to an asymptote) or f is undefined: keep
+    // the tag visible, pinned to the top/bottom edge with an arrow.
+    let txt, color = TRACE_COLOR, ty = pad.t + 14;
+    if (!isFinite(y)) {
+      txt = isNaN(y) ? 'f undefined here' : `(${traceFmt(x)}, ${y > 0 ? '+∞' : '−∞'})`;
+      if (isNaN(y)) color = cssVar('--muted');
+    } else if (py < pad.t) txt = `↑ (${traceFmt(x)}, ${traceFmt(y)})`;
+    else { txt = `↓ (${traceFmt(x)}, ${traceFmt(y)})`; ty = pad.t + ph - 14; }
+    const tw = ctx.measureText(txt).width + 12;
+    const tx = px + 10 + tw > pad.l + pw ? px - 10 - tw : px + 10;
+    pill(ctx, txt, tx, ty, color);
+    if (isFinite(y)) {   // dashed line toward the off-screen point
+      ctx.save();
+      ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
+      ctx.strokeStyle = TRACE_COLOR; ctx.lineWidth = 1.6; ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.moveTo(px, py < pad.t ? pad.t : pad.t + ph); ctx.lineTo(px, axisY); ctx.stroke();
+      ctx.restore();
+    }
   }
   ctx.restore();
 }
 
 function updateCursorReadout() {
   const el = document.getElementById('cursor-readout');
-  if (viewMode !== 'cursor') { el.style.display = 'none'; return; }
-  if (cursorX === null) {
-    el.textContent = 'Move the cursor over the graph to slide the tangent →';
-    el.style.display = 'block';
-    return;
+  if (cursorX === null || dragState) { el.style.display = 'none'; return; }
+  const x = cursorX, y = f(x);
+  const yTxt = isNaN(y) ? 'undefined' : !isFinite(y) ? (y > 0 ? '+∞' : '−∞') : traceFmt(y);
+  let html = `<div class="ro-row"><span class="ro-k">x</span> = ${traceFmt(x)}</div>`
+           + `<div class="ro-row"><span class="ro-k">y</span> = ${yTxt}</div>`;
+  if (showTangent) {
+    const m = fPrime(x);
+    html += `<div class="ro-row ro-m"><span class="ro-k">f′(x)</span> = ${isFinite(m) ? traceFmt(m) : '—'}</div>`;
   }
-  const tg = getCursorTangent();
-  el.textContent = `x ≈ ${fmt(tg.x)}   f(x) ≈ ${fmt(tg.y)}   tangent slope f′(x) ≈ ${fmt(tg.m)}`;
+  const kp = keyPoints.find(p => p.x === x);
+  const KP_ONE = { zero: 'zero of f', yint: 'y-intercept', max: 'local maximum', min: 'local minimum', infl: 'inflection point' };
+  if (kp && showKeyPts) html += `<div class="ro-note">● ${KP_ONE[kp.kind]}</div>`;
+  el.innerHTML = html;
   el.style.display = 'block';
 }
 
@@ -1591,7 +1621,7 @@ document.getElementById('n-slider').addEventListener('input', e => {
 document.getElementById('deriv-toggle').addEventListener('change', e => { showDeriv = e.target.checked; drawCharts(); });
 document.getElementById('asym-toggle').addEventListener('change', e => { showAsym = e.target.checked; renderAsymptotePanel(); drawCharts(); });
 document.getElementById('kp-toggle').addEventListener('change', e => { showKeyPts = e.target.checked; drawCharts(); });
-document.getElementById('intervals-toggle').addEventListener('change', e => { showIntervals = e.target.checked; drawCharts(); });
+document.getElementById('intervals-toggle').addEventListener('change', e => setShowIntervals(e.target.checked));
 
 // ── Collapse / expand the two stacked sections of the middle column ─
 function setSectionOpen(secId, open) {
@@ -1671,15 +1701,19 @@ document.querySelectorAll('.vsplit').forEach(split => {
   split.addEventListener('dblclick', () => { top.style.flexBasis = ''; try { localStorage.removeItem('csl-tbl-h'); } catch (e) {} });
 })();
 
-// ── View mode: fixed segments vs. cursor-following tangent ──────────
-document.querySelectorAll('#fx-view-toggle .view-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    viewMode = btn.dataset.mode;
-    document.querySelectorAll('#fx-view-toggle .view-btn').forEach(b => b.classList.toggle('active', b === btn));
-    cursorX = null;
-    updateCursorStyle();
-    drawCharts();
-  });
+// ── Graph toggles: Segments (interval slices, same as the checkbox) and
+//    Tangent (optional tangent on top of the always-on hover trace) ───────
+function setShowIntervals(on) {
+  showIntervals = on;
+  document.getElementById('intervals-toggle').checked = on;
+  document.getElementById('seg-btn').classList.toggle('active', on);
+  drawCharts();
+}
+document.getElementById('seg-btn').addEventListener('click', () => setShowIntervals(!showIntervals));
+document.getElementById('tan-btn').addEventListener('click', () => {
+  showTangent = !showTangent;
+  document.getElementById('tan-btn').classList.toggle('active', showTangent);
+  drawCharts();
 });
 
 // ── Hover: cursor-following secant (only in 'cursor' view mode) ─────
@@ -1767,7 +1801,7 @@ window.addEventListener('mousemove', e => {
   drawFxChart();
 });
 window.addEventListener('mouseup', () => {
-  if (dragState) { dragState = null; updateCursorStyle(null); drawFxChart(); }
+  if (dragState) { dragState = null; updateCursorStyle(null); drawCharts(); }
 });
 fxCv.addEventListener('wheel', e => {
   if (!fxTransform || !view) return;
@@ -1807,6 +1841,7 @@ window.addEventListener('resize', drawCharts);
 // Browsers may restore checkbox states after a reload; read them so the
 // graph always matches what the boxes show.
 showIntervals = document.getElementById('intervals-toggle').checked;
+document.getElementById('seg-btn').classList.toggle('active', showIntervals);
 showAsym      = document.getElementById('asym-toggle').checked;
 showKeyPts    = document.getElementById('kp-toggle').checked;
 showDeriv     = document.getElementById('deriv-toggle').checked;
