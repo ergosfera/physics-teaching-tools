@@ -83,11 +83,12 @@ body.resizing, body.resizing * { user-select: none !important; }
 /* Middle column: Δy table on top, asymptotes below */
 .sec { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 #tbl-sec  { flex: 0 0 55%; --panel-color: var(--purple); }
-#asym-sec { flex: 1 1 0; --panel-color: #ff006e; }
+#kp-sec   { flex: 1 1 0; --panel-color: #06d6a0; border-top: 1px solid var(--border); }
+#asym-sec { flex: 1 1 0; --panel-color: #ff006e; border-top: 1px solid var(--border); }
 .sec.collapsed { flex: 0 0 auto !important; }
 .sec.collapsed .tbl-wrap, .sec.collapsed .asym-list { display: none; }
-#mid-col.asym-closed #tbl-sec:not(.collapsed) { flex: 1 1 0; }
-#mid-col.tbl-closed .hsplit, #mid-col.asym-closed .hsplit { display: none; }
+#mid-col.lower-closed #tbl-sec:not(.collapsed) { flex: 1 1 0; }
+#mid-col.tbl-closed .hsplit, #mid-col.lower-closed .hsplit { display: none; }
 .panel-header {
   flex-shrink: 0; padding: 10px 14px; background: var(--surface); border-bottom: 2px solid var(--border);
   display: flex; align-items: center; gap: 8px; border-top: 3px solid var(--panel-color, var(--accent));
@@ -156,6 +157,13 @@ body.resizing, body.resizing * { user-select: none !important; }
 .asym-eq { font-family: 'Courier New', monospace; font-size: 1.15rem; font-weight: 800; color: var(--c); margin: 6px 0 4px; }
 .asym-desc { font-size: 0.76rem; color: var(--text); line-height: 1.5; }
 .asym-swatch { display: block; width: 100%; height: 6px; margin-top: 7px; }
+.kp-count { background: #06d6a0; }
+.kp-group { border-radius: 10px; padding: 8px 10px; background: color-mix(in srgb, var(--c) 10%, var(--surface)); border: 2px solid color-mix(in srgb, var(--c) 50%, transparent); border-left: 7px solid var(--c); }
+.kp-head { display: flex; align-items: center; gap: 7px; font-size: 0.74rem; font-weight: 800; color: var(--c); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.kp-head span:first-of-type { flex: 1; }
+.kp-n { background: var(--c); color: #fff; border-radius: 10px; padding: 0 7px; font-size: 0.7rem; }
+.kp-row { font-family: 'Courier New', monospace; font-size: 0.92rem; font-weight: 700; color: var(--text); padding: 3px 6px; border-radius: 6px; cursor: default; }
+.kp-row:hover { background: color-mix(in srgb, var(--c) 22%, transparent); }
 .asym-empty { font-size: 0.82rem; color: var(--muted); line-height: 1.6; text-align: center; padding: 18px 6px; }
 .asym-note { font-size: 0.7rem; color: var(--muted); line-height: 1.5; }
 
@@ -277,6 +285,10 @@ canvas.chart { display: block; width: 100%; height: 100%; }
     </label>
 
     <label class="chk-row">
+      <input type="checkbox" id="kp-toggle" checked> show key points (zeros, max/min, inflection)
+    </label>
+
+    <label class="chk-row">
       <input type="checkbox" id="deriv-toggle"> overlay true derivative f&prime;(x)
     </label>
 
@@ -306,6 +318,10 @@ canvas.chart { display: block; width: 100%; height: 100%; }
     </div>
   </div>
   <div class="hsplit" id="mid-split" title="Drag to resize"></div>
+  <div class="sec" id="kp-sec">
+    <div class="panel-header"><span class="panel-title">📍 Key Points</span><span class="asym-count kp-count" id="kp-count">0</span><button class="btn collapse-btn" type="button" title="Collapse key points">▾</button></div>
+    <div class="asym-list" id="kp-list"></div>
+  </div>
   <div class="sec" id="asym-sec">
     <div class="panel-header"><span class="panel-title">📐 Asymptotes</span><span class="asym-count" id="asym-count">0</span><button class="btn collapse-btn" id="asym-collapse-btn" type="button" title="Collapse asymptotes">▾</button></div>
     <div class="asym-list" id="asym-list"></div>
@@ -618,6 +634,7 @@ let xMin = -3, xMax = 3, N = 8;
 let showDeriv = false;
 let showIntervals = true;
 let showAsym = true;
+let showKeyPts = true;
 
 // ── Rate-of-change view mode: fixed interval segments vs. a tangent
 //    that follows the cursor along the curve ───────────────────
@@ -881,6 +898,134 @@ function renderAsymptotePanel() {
   });
 }
 
+// ── Key points: zeros, y-intercept, local max/min, inflection points ─
+const KP_META = {
+  zero: { name: 'Zeros (cuts the x-axis)', short: 'zero',       color: '#06d6a0', shape: 'circle' },
+  yint: { name: 'y-intercept (x = 0)',     short: 'y-int',      color: '#3a86ff', shape: 'square' },
+  max:  { name: 'Local maxima',            short: 'max',        color: '#ff006e', shape: 'up' },
+  min:  { name: 'Local minima',            short: 'min',        color: '#fb5607', shape: 'down' },
+  infl: { name: 'Inflection points',       short: 'inflection', color: '#8338ec', shape: 'diamond' },
+};
+let keyPoints = [];       // [{ key, kind, x, y }]
+let hotKeyPt = null;
+
+function findKeyPoints() {
+  const a = xMin, b = xMax, span = b - a, S = 1200;
+  const xs = [], fs = [], ds = [];
+  for (let i = 0; i <= S; i++) { const x = a + span * i / S; xs.push(x); fs.push(f(x)); ds.push(fPrime(x)); }
+  const fin = fs.filter(isFinite);
+  const fRange = fin.length ? Math.max(1, Math.max(...fin) - Math.min(...fin)) : 1;
+  const d = span * 1e-7;
+  const continuousAt = c => {
+    const u = f(c - d), v = f(c + d), w = f(c);
+    return isFinite(u) && isFinite(v) && isFinite(w) && Math.abs(v - u) < 0.05 * fRange;
+  };
+  const out = [];
+  const add = (kind, x) => {
+    x = snapNice(x, span * 1e-7);
+    if (Math.abs(x) < span * 1e-9) x = 0;
+    if (x < a - 1e-12 || x > b + 1e-12) return;
+    if (out.some(p => p.kind === kind && Math.abs(p.x - x) < span * 1e-5)) return;
+    let y = f(x);
+    if (kind === 'zero') y = 0;
+    if (!isFinite(y)) return;
+    if (Math.abs(y) < 1e-12) y = 0;
+    out.push({ kind, x, y: snapNice(y, 1e-9 * fRange), key: 'k:' + kind + ':' + x.toFixed(9) });
+  };
+  const bisectSign = (fn, lo, hi, sLo) => {
+    for (let k = 0; k < 70; k++) {
+      const mid = (lo + hi) / 2, sm = Math.sign(fn(mid));
+      if (sm === sLo || sm === 0) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  };
+
+  // Zeros
+  const zTol = 1e-4 * fRange;
+  for (let i = 0; i <= S; i++) {
+    const y = fs[i];
+    if (y === 0) { add('zero', xs[i]); continue; }
+    if (i > 0) {
+      const y0 = fs[i-1];
+      if (isFinite(y0) && isFinite(y) && Math.sign(y0) * Math.sign(y) < 0) {   // sign change
+        const c = bisectSign(f, xs[i-1], xs[i], Math.sign(y0));
+        if (Math.abs(f(c)) < zTol) add('zero', c);
+      } else if (isFinite(y0) !== isFinite(y)) {                                // edge of the domain
+        const c = isFinite(y) ? domainEdge(f, xs[i], xs[i-1]) : domainEdge(f, xs[i-1], xs[i]);
+        if (Math.abs(f(c)) < zTol) add('zero', c);
+      }
+    }
+    if (i > 0 && i < S && isFinite(y) && Math.abs(y) <= Math.abs(fs[i-1]) && Math.abs(y) <= Math.abs(fs[i+1])) {
+      // touches the axis without crossing (e.g. x² at 0): minimise |f|
+      const g = x => { const v = Math.abs(f(x)); return isFinite(v) ? v : Infinity; };
+      let lo = xs[i-1], hi = xs[i+1];
+      for (let k = 0; k < 100; k++) { const m1 = lo + (hi-lo)/3, m2 = hi - (hi-lo)/3; if (g(m1) < g(m2)) hi = m2; else lo = m1; }
+      const c = (lo + hi) / 2;
+      if (g(c) < 1e-7 * fRange) add('zero', c);
+    }
+  }
+
+  // y-intercept
+  if (a <= 0 && b >= 0 && isFinite(f(0))) add('yint', 0);
+
+  // Local max / min: f′ changes sign where f is continuous (includes cusps like |x|)
+  let prev = null;
+  for (let i = 0; i <= S; i++) {
+    const v = ds[i];
+    if (!isFinite(v) || Math.abs(v) < 1e-12) continue;
+    const sg = Math.sign(v);
+    if (prev && sg !== prev.s) {
+      const c = bisectSign(fPrime, prev.x, xs[i], prev.s);
+      if (continuousAt(c)) add(prev.s > 0 ? 'max' : 'min', c);
+    }
+    prev = { x: xs[i], s: sg };
+  }
+
+  // Inflection points (from the concavity analysis)
+  const conc = analyzeConcavity();
+  if (conc.events) conc.events.filter(e => e.kind === 'inflection').forEach(e => add('infl', e.x));
+
+  const order = Object.keys(KP_META);
+  out.sort((p, q) => order.indexOf(p.kind) - order.indexOf(q.kind) || p.x - q.x);
+  return out;
+}
+
+function shapeSvg(shape, color, size = 14) {
+  const h = size / 2;
+  const body = {
+    circle:  `<circle cx="${h}" cy="${h}" r="${h-2}"/>`,
+    square:  `<rect x="2" y="2" width="${size-4}" height="${size-4}" rx="1.5"/>`,
+    up:      `<polygon points="${h},1 ${size-1},${size-2} 1,${size-2}"/>`,
+    down:    `<polygon points="1,2 ${size-1},2 ${h},${size-1}"/>`,
+    diamond: `<polygon points="${h},1 ${size-1},${h} ${h},${size-1} 1,${h}"/>`,
+  }[shape];
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="${color}" stroke="#fff" stroke-width="1.5">${body}</svg>`;
+}
+
+function renderKeyPointsPanel() {
+  keyPoints = findKeyPoints();
+  document.getElementById('kp-count').textContent = keyPoints.length;
+  const el = document.getElementById('kp-list');
+  if (!keyPoints.length) {
+    el.innerHTML = '<div class="asym-empty">No zeros, extrema or inflection points<br>on [' + fmt(xMin) + ', ' + fmt(xMax) + '].</div>';
+    return;
+  }
+  let html = '';
+  for (const kind of Object.keys(KP_META)) {
+    const pts = keyPoints.filter(p => p.kind === kind);
+    if (!pts.length) continue;
+    const m = KP_META[kind];
+    html += `<div class="kp-group" style="--c:${m.color}"><div class="kp-head">${shapeSvg(m.shape, m.color)}<span>${m.name}</span><span class="kp-n">${pts.length}</span></div>`;
+    html += pts.map(p => `<div class="kp-row" data-key="${p.key}">(${fmtNice(p.x)}, ${fmtNice(p.y)})</div>`).join('');
+    html += '</div>';
+  }
+  el.innerHTML = html + '<div class="asym-note">Points found for x in [' + fmt(xMin) + ', ' + fmt(xMax) + ']. Hover a row to highlight it; drag labels on the graph to move them.</div>';
+  el.querySelectorAll('.kp-row').forEach(row => {
+    row.addEventListener('mouseenter', () => { hotKeyPt = row.dataset.key; drawFxChart(); });
+    row.addEventListener('mouseleave', () => { hotKeyPt = null; drawFxChart(); });
+  });
+}
+
 // ── Compute ─────────────────────────────────────────────────
 // An interval "breaks" if a vertical asymptote lies inside it or f is
 // undefined somewhere in it: its secant would jump across the asymptote.
@@ -909,6 +1054,7 @@ function recompute() {
     diffs[i].dm = i === 0 ? null : diffs[i].m - diffs[i-1].m;
   }
   renderBadge();
+  renderKeyPointsPanel();
   renderTable();
   drawCharts();
 }
@@ -1033,11 +1179,14 @@ function drawAxes(ctx, pad, W, H, xR, yR, xLbl, yLbl) {
   const toY = v => pad.t + ph - (v - yR.min) / (yR.max - yR.min) * ph;
 
   ctx.strokeStyle = cssVar('--border'); ctx.lineWidth = 0.8;
-  for (let v = xR.min; v <= xR.max + xR.step*0.01; v += xR.step) {
+  // Grid lines and tick labels sit on multiples of the step (…, -1, 0, 1, …)
+  const ticks = r => { const out = []; for (let k = Math.ceil(r.min / r.step - 1e-9); k * r.step <= r.max + r.step * 1e-9; k++) out.push(Math.abs(k) < 1e-9 ? 0 : k * r.step); return out; };
+  const xt = ticks(xR), yt = ticks(yR);
+  for (const v of xt) {
     const px = toX(v);
     ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, pad.t+ph); ctx.stroke();
   }
-  for (let v = yR.min; v <= yR.max + yR.step*0.01; v += yR.step) {
+  for (const v of yt) {
     const py = toY(v);
     ctx.beginPath(); ctx.moveTo(pad.l, py); ctx.lineTo(pad.l+pw, py); ctx.stroke();
   }
@@ -1057,11 +1206,9 @@ function drawAxes(ctx, pad, W, H, xR, yR, xLbl, yLbl) {
 
   ctx.fillStyle = cssVar('--muted'); ctx.font = '11px Courier New';
   ctx.textAlign = 'center';
-  for (let v = xR.min; v <= xR.max + xR.step*0.01; v += xR.step)
-    ctx.fillText(parseFloat(v.toPrecision(4)), toX(v), pad.t+ph+15);
+  for (const v of xt) ctx.fillText(parseFloat(v.toPrecision(6)), toX(v), pad.t+ph+15);
   ctx.textAlign = 'right';
-  for (let v = yR.min; v <= yR.max + yR.step*0.01; v += yR.step)
-    ctx.fillText(parseFloat(v.toPrecision(4)), pad.l-6, toY(v)+4);
+  for (const v of yt) ctx.fillText(parseFloat(v.toPrecision(6)), pad.l-6, toY(v)+4);
 
   ctx.fillStyle = cssVar('--text'); ctx.font = 'bold 13px Segoe UI';
   ctx.textAlign = 'center';
@@ -1077,15 +1224,34 @@ function drawAxes(ctx, pad, W, H, xR, yR, xLbl, yLbl) {
 
 // Strokes y = fn(x) across the visible x-range, lifting the pen where fn is
 // undefined or jumps (asymptotes), so 1/x or tan x don't get joined up.
+// Bisects between a defined point (good) and an undefined one (bad) to find
+// the edge of the domain, e.g. where √(…) starts — so the curve reaches it.
+function domainEdge(fn, good, bad) {
+  for (let k = 0; k < 60; k++) {
+    const mid = (good + bad) / 2;
+    if (isFinite(fn(mid))) good = mid; else bad = mid;
+  }
+  return good;
+}
+
 function strokeCurve(ctx, fn, xR, toX, toY, ph) {
   const S = 800, LIM = ph * 50;
   const clampY = py => Math.max(-LIM, Math.min(LIM + ph, py));
   ctx.beginPath();
-  let prev = null;
+  let prev = null, lastX = null, lastOk = false;
   for (let i = 0; i <= S; i++) {
     const x = xR.min + (xR.max - xR.min) * i / S;
     const py = toY(fn(x));
-    if (!isFinite(py)) { prev = null; continue; }
+    const ok = isFinite(py);
+    if (!ok && lastOk && prev) {           // curve leaves its domain: run it up to the edge
+      const xe = domainEdge(fn, lastX, x), pye = toY(fn(xe));
+      if (isFinite(pye)) ctx.lineTo(toX(xe), clampY(pye));
+    } else if (ok && !lastOk && lastX !== null) {   // curve enters its domain: start at the edge
+      const xe = domainEdge(fn, x, lastX), pye = toY(fn(xe));
+      if (isFinite(pye)) { ctx.moveTo(toX(xe), clampY(pye)); prev = { x: xe, py: pye }; }
+    }
+    lastX = x; lastOk = ok;
+    if (!ok) { prev = null; continue; }
     if (prev && Math.abs(py - prev.py) > ph * 0.5) {
       const pym = toY(fn((x + prev.x) / 2));
       const between = isFinite(pym) && (pym - prev.py) * (py - pym) >= 0;
@@ -1104,23 +1270,60 @@ const TANGENT_LEN = 150;  // on-screen length (px) of the cursor tangent segment
 let labelOffsets = {};   // key → { dx, dy }
 let labelRects = [];     // hit boxes from the last draw: { key, x, y, w, h }
 
+// Coloured pill label at (x, y) that the user can drag (offset kept per key).
+// If an anchor is given and the label was moved, a thin leader line joins them.
+function drawLabel(ctx, txt, x, y, align, color, key, anchor) {
+  const off = labelOffsets[key] || { dx: 0, dy: 0 };
+  x += off.dx; y += off.dy;
+  ctx.save(); ctx.setLineDash([]);
+  ctx.font = 'bold 12px Courier New';
+  ctx.textAlign = align;
+  const w = ctx.measureText(txt).width;
+  const x0 = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
+  if (anchor && (off.dx || off.dy)) {
+    ctx.strokeStyle = color; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(anchor.x, anchor.y); ctx.lineTo(x0 + w / 2, y - 4); ctx.stroke();
+  }
+  labelRects.push({ key, x: x0 - 5, y: y - 12, w: w + 10, h: 17 });
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.roundRect(x0 - 5, y - 12, w + 10, 17, 8); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.fillText(txt, x, y);
+  ctx.restore();
+}
+
+function drawKeyPoints(ctx, xR, yR, toX, toY, pad, pw, ph) {
+  for (const p of keyPoints) {
+    const px = toX(p.x), py = toY(p.y);
+    if (px < pad.l - 2 || px > pad.l + pw + 2 || py < pad.t - 2 || py > pad.t + ph + 2) continue;
+    const m = KP_META[p.kind], hot = p.key === hotKeyPt, r = hot ? 10 : 7;
+    ctx.save();
+    ctx.fillStyle = m.color; ctx.strokeStyle = cssVar('--surface'); ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (m.shape === 'circle') ctx.arc(px, py, r, 0, Math.PI * 2);
+    else if (m.shape === 'square') ctx.rect(px - r*0.85, py - r*0.85, r*1.7, r*1.7);
+    else if (m.shape === 'up')   { ctx.moveTo(px, py - r*1.1); ctx.lineTo(px + r, py + r*0.75); ctx.lineTo(px - r, py + r*0.75); ctx.closePath(); }
+    else if (m.shape === 'down') { ctx.moveTo(px, py + r*1.1); ctx.lineTo(px + r, py - r*0.75); ctx.lineTo(px - r, py - r*0.75); ctx.closePath(); }
+    else { ctx.moveTo(px, py - r*1.2); ctx.lineTo(px + r, py); ctx.lineTo(px, py + r*1.2); ctx.lineTo(px - r, py); ctx.closePath(); }
+    ctx.fill(); ctx.stroke();
+    if (hot) { ctx.strokeStyle = m.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, py, r + 6, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.restore();
+    // Default spot: above-right (below for minima; y-intercept below-left so it
+    // doesn't cover a zero at the origin); flipped to stay inside the plot.
+    const txt = `${m.short} (${fmtNice(p.x)}, ${fmtNice(p.y)})`;
+    ctx.font = 'bold 12px Courier New';
+    const w = ctx.measureText(txt).width + 10;
+    const below = p.kind === 'min' || p.kind === 'yint';
+    let left = p.kind === 'yint' ? px - 10 - w >= pad.l : px + 10 + w > pad.l + pw;
+    let ly = below ? py + 24 : py - 12;
+    if (ly > pad.t + ph - 4) ly = py - 12;
+    if (ly < pad.t + 14) ly = py + 24;
+    drawLabel(ctx, txt, left ? px - 10 : px + 10, ly, left ? 'right' : 'left', m.color, p.key, { x: px, y: py });
+  }
+}
+
 function drawAsymptotes(ctx, xR, yR, toX, toY, pad, pw, ph) {
   ctx.save();
-  ctx.font = 'bold 12px Courier New';
-  labelRects = [];
-  const label = (txt, x, y, align, color, key) => {
-    const off = labelOffsets[key] || { dx: 0, dy: 0 };
-    x += off.dx; y += off.dy;
-    ctx.save(); ctx.setLineDash([]);
-    ctx.textAlign = align;
-    const w = ctx.measureText(txt).width;
-    const x0 = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
-    labelRects.push({ key, x: x0 - 5, y: y - 12, w: w + 10, h: 17 });
-    ctx.fillStyle = color;
-    ctx.beginPath(); ctx.roundRect(x0 - 5, y - 12, w + 10, 17, 8); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillText(txt, x, y);
-    ctx.restore();
-  };
+  const label = (txt, x, y, align, color, key) => drawLabel(ctx, txt, x, y, align, color, key);
   const pen = (color, key) => {
     const hot = key === hotAsymKey;
     ctx.strokeStyle = color; ctx.lineWidth = hot ? 4 : 2.2;
@@ -1177,6 +1380,7 @@ function drawFxChart() {
   // the original [xMin, xMax] domain still shows the curve.
   ctx.save();
   ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
+  labelRects = [];
   if (showAsym) drawAsymptotes(ctx, xR, yR, toX, toY, pad, pw, ph);
 
   // With interval slices shown, the curve goes dark gray and thick so the
@@ -1253,6 +1457,7 @@ function drawFxChart() {
       ctx.textBaseline = 'alphabetic';
     }
   }
+  if (showKeyPts) drawKeyPoints(ctx, xR, yR, toX, toY, pad, pw, ph);
   ctx.restore();
 }
 
@@ -1292,6 +1497,7 @@ document.getElementById('n-slider').addEventListener('input', e => {
 });
 document.getElementById('deriv-toggle').addEventListener('change', e => { showDeriv = e.target.checked; drawCharts(); });
 document.getElementById('asym-toggle').addEventListener('change', e => { showAsym = e.target.checked; drawCharts(); });
+document.getElementById('kp-toggle').addEventListener('change', e => { showKeyPts = e.target.checked; drawCharts(); });
 document.getElementById('intervals-toggle').addEventListener('change', e => { showIntervals = e.target.checked; drawCharts(); });
 
 // ── Collapse / expand the two stacked sections of the middle column ─
@@ -1300,15 +1506,16 @@ function setSectionOpen(secId, open) {
   sec.classList.toggle('collapsed', !open);
   const btn = sec.querySelector('.collapse-btn');
   btn.textContent = open ? '▾' : '▸';
-  btn.title = (open ? 'Collapse ' : 'Show ') + (secId === 'tbl-sec' ? 'table' : 'asymptotes');
+  btn.title = (open ? 'Collapse ' : 'Show ') + ({ 'tbl-sec': 'table', 'kp-sec': 'key points', 'asym-sec': 'asymptotes' })[secId];
   const col = document.getElementById('mid-col');
-  col.classList.toggle('tbl-closed', document.getElementById('tbl-sec').classList.contains('collapsed'));
-  col.classList.toggle('asym-closed', document.getElementById('asym-sec').classList.contains('collapsed'));
+  const closed = id => document.getElementById(id).classList.contains('collapsed');
+  col.classList.toggle('tbl-closed', closed('tbl-sec'));
+  col.classList.toggle('lower-closed', closed('kp-sec') && closed('asym-sec'));
   if (secId === 'tbl-sec') document.getElementById('table-toggle').checked = open;
   try { localStorage.setItem('csl-' + secId, open ? 'open' : 'closed'); } catch (e) {}
 }
 document.getElementById('table-toggle').addEventListener('change', e => setSectionOpen('tbl-sec', e.target.checked));
-['tbl-sec', 'asym-sec'].forEach(id => {
+['tbl-sec', 'kp-sec', 'asym-sec'].forEach(id => {
   document.querySelector('#' + id + ' .collapse-btn').addEventListener('click', () =>
     setSectionOpen(id, document.getElementById(id).classList.contains('collapsed')));
   try { if (localStorage.getItem('csl-' + id) === 'closed') setSectionOpen(id, false); } catch (e) {}
@@ -1392,7 +1599,6 @@ function zoneAt(px, py, w, h) {
 }
 
 function labelAt(px, py) {
-  if (!showAsym) return null;
   for (let i = labelRects.length - 1; i >= 0; i--) {
     const r = labelRects[i];
     if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) return r.key;
