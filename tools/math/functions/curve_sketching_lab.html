@@ -193,6 +193,7 @@ tbody td { padding: 7px 8px; border-bottom: 1px solid var(--border); font-family
 tbody td:first-child { text-align: center; color: var(--muted); font-size: 0.74rem; }
 tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .cell-dy  { color: var(--orange); }
+td.cell-empty { text-align: center; color: var(--muted); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 0.8rem; padding: 18px 8px; }
 td.cell-cross { text-align: center; color: #ff006e; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 0.74rem; font-weight: 700; background: color-mix(in srgb, #ff006e 8%, transparent); }
 .cell-m   { color: var(--accent); font-weight: 700; }
 .cell-d2.pos { color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); }
@@ -256,7 +257,7 @@ canvas.chart { display: block; width: 100%; height: 100%; }
     <div>
       <label class="field-label">f(x) =</label>
       <div class="fx-row">
-        <input type="text" class="win-field" id="fx-input" value="x^2" placeholder="e.g. sin(x) + x/2" spellcheck="false" autocomplete="off">
+        <input type="text" class="win-field" id="fx-input" value="" placeholder="e.g. sin(x) + x/2" spellcheck="false" autocomplete="off">
         <button class="btn btn-plot" id="plot-btn">Plot</button>
       </div>
       <div class="hint-text">Any function of x, e.g. <b>x^3 - 3x</b>, <b>sin(2x)</b>, <b>e^(-x^2)</b>, <b>x ln x</b>, <b>1/(1+x^2)</b>.<br>
@@ -282,23 +283,23 @@ canvas.chart { display: block; width: 100%; height: 100%; }
     </div>
 
     <label class="chk-row">
-      <input type="checkbox" id="intervals-toggle" checked> show interval slices on the graph
+      <input type="checkbox" id="intervals-toggle" autocomplete="off"> show interval slices on the graph
     </label>
 
     <label class="chk-row">
-      <input type="checkbox" id="table-toggle" checked> show Δy per interval table
+      <input type="checkbox" id="table-toggle" autocomplete="off"> show Δy per interval table
     </label>
 
     <label class="chk-row">
-      <input type="checkbox" id="asym-toggle" checked> show asymptotes
+      <input type="checkbox" id="asym-toggle" autocomplete="off"> show asymptotes
     </label>
 
     <label class="chk-row">
-      <input type="checkbox" id="kp-toggle" checked> show key points (zeros, max/min, inflection)
+      <input type="checkbox" id="kp-toggle" autocomplete="off"> show key points (zeros, max/min, inflection)
     </label>
 
     <label class="chk-row">
-      <input type="checkbox" id="deriv-toggle"> overlay true derivative f&prime;(x)
+      <input type="checkbox" id="deriv-toggle" autocomplete="off"> overlay true derivative f&prime;(x)
     </label>
 
     <div class="badge-box" id="concavity-badge">—</div>
@@ -345,7 +346,7 @@ canvas.chart { display: block; width: 100%; height: 100%; }
     <div class="graph-header">
       <span class="graph-title">📈 f(x)</span>
       <div class="view-toggle" id="fx-view-toggle">
-        <button class="btn view-btn active" id="seg-btn" type="button" title="Show the interval slices and secants">▤ Segments</button>
+        <button class="btn view-btn" id="seg-btn" type="button" title="Show the interval slices and secants">▤ Segments</button>
         <button class="btn view-btn" id="tan-btn" type="button" title="Also draw the tangent line at the hovered point">✥ Tangent</button>
       </div>
       <span class="axis-hint">🖱 hover to trace values · drag inside to pan · drag labels to move them · drag bottom/left edge to rescale x/y · scroll to zoom · dbl-click to reset</span>
@@ -641,9 +642,10 @@ let dAst = diff(fAst);
 let d2Ast = diff(dAst);
 let xMin = -3, xMax = 3, N = 8;
 let showDeriv = false;
-let showIntervals = true;
-let showAsym = true;
-let showKeyPts = true;
+let showIntervals = false;
+let showAsym = false;
+let showKeyPts = false;
+let hasFunction = false;      // false until the user plots something
 
 // ── Rate-of-change view mode: fixed interval segments vs. a tangent
 //    that follows the cursor along the curve ───────────────────
@@ -865,6 +867,7 @@ function buildAsymptoteList() {
 }
 
 function renderAsymptotePanel() {
+  if (!hasFunction) return;
   buildAsymptoteList();
   const el = document.getElementById('asym-list');
   document.getElementById('asym-count').textContent = asymList.length;
@@ -1052,6 +1055,19 @@ function intervalBreaks(x1, x2) {
 }
 
 function recompute() {
+  if (!hasFunction) {
+    points = []; diffs = []; asymList = []; keyPoints = [];
+    const badge = document.getElementById('concavity-badge');
+    badge.className = 'badge-box flat';
+    badge.textContent = 'Type a function f(x) above and press Plot';
+    document.getElementById('asym-count').textContent = 0;
+    document.getElementById('asym-list').innerHTML = '<div class="asym-empty">Plot a function to see its asymptotes.</div>';
+    document.getElementById('kp-count').textContent = 0;
+    document.getElementById('kp-list').innerHTML = '<div class="asym-empty">Plot a function to see its zeros, extrema and inflection points.</div>';
+    document.getElementById('diff-body').innerHTML = '<tr><td colspan="5" class="cell-empty">Plot a function to fill the table.</td></tr>';
+    drawCharts();
+    return;
+  }
   renderAsymptotePanel();   // builds asymList, used below
   points = []; diffs = [];
   const dx = (xMax - xMin) / N;
@@ -1079,6 +1095,17 @@ function tryParseAndApply() {
   const input = document.getElementById('fx-input');
   const errEl = document.getElementById('fx-error');
   const echoEl = document.getElementById('eq-echo');
+  if (!input.value.trim()) {   // empty box: blank graph, nothing to analyse
+    errEl.style.display = 'none';
+    echoEl.textContent = '';
+    hasFunction = false;
+    fAst = dAst = d2Ast = A.num(NaN);
+    endAsym = { left: null, right: null };
+    labelOffsets = {};
+    view = null;
+    recompute();
+    return;
+  }
   const res = parseExpression(input.value);
   if (res.error) {
     errEl.textContent = '⚠ ' + res.error;
@@ -1087,6 +1114,7 @@ function tryParseAndApply() {
     return;
   }
   errEl.style.display = 'none';
+  hasFunction = true;
   fAst = res.ast;
   dAst = diff(fAst);
   d2Ast = diff(dAst);
@@ -1509,6 +1537,7 @@ function pill(ctx, txt, x, y, color, align = 'left') {
   return { x: x0, w, h };
 }
 function drawTrace(ctx, xR, yR, toX, toY, pad, pw, ph) {
+  if (!hasFunction) return;
   const x = cursorX, y = f(x);
   const px = toX(x), py = toY(y);
   if (px < pad.l || px > pad.l + pw) return;
@@ -1581,7 +1610,7 @@ function drawTrace(ctx, xR, yR, toX, toY, pad, pw, ph) {
 
 function updateCursorReadout() {
   const el = document.getElementById('cursor-readout');
-  if (cursorX === null || dragState) { el.style.display = 'none'; return; }
+  if (cursorX === null || dragState || !hasFunction) { el.style.display = 'none'; return; }
   const x = cursorX, y = f(x);
   const yTxt = isNaN(y) ? 'undefined' : !isFinite(y) ? (y > 0 ? '+∞' : '−∞') : traceFmt(y);
   let html = `<div class="ro-row"><span class="ro-k">x</span> = ${traceFmt(x)}</div>`
@@ -1641,7 +1670,7 @@ document.getElementById('table-toggle').addEventListener('change', e => setSecti
 ['tbl-sec', 'kp-sec', 'asym-sec'].forEach(id => {
   document.querySelector('#' + id + ' .collapse-btn').addEventListener('click', () =>
     setSectionOpen(id, document.getElementById(id).classList.contains('collapsed')));
-  try { if (localStorage.getItem('csl-' + id) === 'closed') setSectionOpen(id, false); } catch (e) {}
+  setSectionOpen(id, false);   // all sections start folded
 });
 
 // ── Resizable walls: drag between columns to change their width, and
