@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gravitation Lab</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+:root {
+  --border:  #c8d4e0;
+  --text:    #1a2234;
+  --muted:   #607080;
+  --accent:  #1858a8;
+  --surface: #ffffff;
+  --bg:      #f0f4f8;
+  --green:   #16a34a;
+  --red:     #dc2626;
+  --purple:  #7c3aed;
+  --orange:  #ea580c;
+  --teal:    #0d9488;
+  --grid:    #e3e9f0;
+  --dim:     #b8c4d0;
+}
+body.dark {
+  --border:  #30363d;
+  --text:    #e6edf3;
+  --muted:   #8b949e;
+  --accent:  #58a6ff;
+  --surface: #161b22;
+  --bg:      #0d1117;
+  --green:   #3fb950;
+  --red:     #f85149;
+  --purple:  #a78bfa;
+  --orange:  #fb923c;
+  --teal:    #2dd4bf;
+  --grid:    #21262d;
+  --dim:     #3d444d;
+}
+#theme-toggle {
+  position: fixed; bottom: 10px; right: 10px; z-index: 50;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 12px; cursor: pointer;
+  font-size: 0.8rem; font-weight: 600; color: var(--muted); user-select: none;
+}
+#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text); background: var(--bg); font-size: 15px; }
+@supports (height: 100dvh) { html, body { height: 100dvh; } }
+body { display: flex; flex-direction: column; }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* ── Top bar ── */
+#top-bar {
+  flex-shrink: 0; min-height: 48px;
+  display: flex; align-items: center; flex-wrap: wrap; padding: 6px 14px; gap: 8px 12px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+}
+#top-bar h1 { font-size: 1.05rem; font-weight: 800; letter-spacing: .02em; white-space: nowrap; }
+.steps { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; justify-content: center; }
+.step {
+  --c: var(--accent);
+  border: 2px solid transparent; border-radius: 20px; padding: 4px 12px; cursor: pointer;
+  background: color-mix(in srgb, var(--c) 12%, transparent); color: var(--c);
+  font-weight: 700; font-size: 0.78rem; white-space: nowrap;
+}
+.step.active { background: var(--c); color: #fff; }
+.step:hover:not(.active) { border-color: var(--c); }
+.step[data-s="1"] { --c: var(--accent); }
+.step[data-s="2"] { --c: var(--teal); }
+.step[data-s="3"] { --c: var(--purple); }
+.step[data-s="4"] { --c: var(--orange); }
+.step[data-s="5"] { --c: var(--green); }
+.live-pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px;
+  border: 1px solid var(--border); font-size: 0.75rem; font-weight: 700; color: var(--muted); cursor: pointer; background: var(--surface);
+}
+.live-pill .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); }
+.live-pill.on .dot { background: var(--green); }
+.live-pill.err .dot { background: var(--red); }
+.live-pill:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Stages ── */
+#stages { flex: 1; min-height: 0; position: relative; }
+.stage { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(320px, 430px) 1fr; }
+.stage.single { display: block; overflow-y: auto; }
+.side {
+  overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px;
+  background: var(--surface); border-right: 1px solid var(--border);
+  border-top: 3px solid var(--sc, var(--accent));
+}
+#st1 { --sc: var(--accent); } #st2 { --sc: var(--teal); } #st3 { --sc: var(--purple); }
+#st4 { --sc: var(--orange); } #st5 { --sc: var(--green); }
+.side h2, .card h2 { font-size: 0.85rem; font-weight: 800; color: var(--sc, var(--accent)); letter-spacing: .04em; text-transform: uppercase; }
+.side h3 { font-size: 0.8rem; font-weight: 800; color: var(--muted); letter-spacing: .03em; text-transform: uppercase; }
+.lead { font-size: 0.86rem; line-height: 1.55; }
+.hint { font-size: 0.76rem; color: var(--muted); line-height: 1.5; }
+.note {
+  font-size: 0.8rem; line-height: 1.5; padding: 9px 11px; border-radius: 8px;
+  background: color-mix(in srgb, var(--sc, var(--accent)) 9%, transparent);
+  border-left: 4px solid var(--sc, var(--accent));
+}
+.note.warn { --sc: var(--orange); }
+.note.bad  { --sc: var(--red); }
+.note.good { --sc: var(--green); }
+.q-list { padding-left: 20px; font-size: 0.84rem; line-height: 1.6; }
+.q-list li { margin-bottom: 4px; }
+
+.field-label { font-size: 0.78rem; font-weight: 700; color: var(--muted); display: block; margin-bottom: 4px; }
+.win-field {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 10px; color: var(--text); font-size: 0.92rem; outline: none;
+}
+.win-field:focus { border-color: var(--accent); }
+textarea.win-field { font-family: 'Courier New', monospace; font-size: 0.85rem; resize: vertical; min-height: 130px; }
+.mono { font-family: 'Courier New', monospace; }
+.row2 { display: flex; gap: 10px; }
+.row2 > div { flex: 1; min-width: 0; }
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--muted); font-size: 0.8rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.btn:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); border-color: var(--accent); }
+.btn.primary { background: var(--sc, var(--accent)); border-color: var(--sc, var(--accent)); color: #fff; }
+.btn.primary:hover:not(:disabled) { opacity: .9; color: #fff; background: var(--sc, var(--accent)); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.small { padding: 4px 9px; font-size: 0.72rem; }
+.seg { display: inline-flex; }
+.seg .btn { border-radius: 0; }
+.seg .btn:first-child { border-radius: 6px 0 0 6px; }
+.seg .btn:last-child { border-radius: 0 6px 6px 0; margin-left: -1px; }
+.seg .btn.active { background: var(--sc, var(--accent)); color: #fff; border-color: var(--sc, var(--accent)); }
+
+.big-read {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+  font-family: 'Courier New', monospace; font-size: 1.05rem; font-weight: 800; line-height: 1.5;
+}
+.big-read small { display: block; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 0.72rem; color: var(--muted); font-weight: 700; }
+.big-read .k { color: var(--sc, var(--accent)); }
+
+.slider-wrap { display: flex; flex-direction: column; gap: 6px; }
+.slider-wrap input[type=range] { width: 100%; accent-color: var(--purple); height: 28px; }
+.n-row { display: flex; align-items: center; gap: 8px; }
+.n-row .win-field { width: 110px; font-family: 'Courier New', monospace; font-weight: 800; }
+.meter { height: 10px; border-radius: 5px; background: var(--bg); border: 1px solid var(--border); overflow: hidden; }
+.meter > div { height: 100%; background: var(--purple); transition: width .1s; }
+
+details.card-d { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+details.card-d summary { cursor: pointer; font-weight: 800; font-size: 0.84rem; color: var(--sc); }
+details.card-d[open] summary { margin-bottom: 8px; }
+
+/* ── Tables ── */
+.pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
+.pane-head {
+  flex-shrink: 0; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface);
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border-top: 3px solid var(--sc);
+}
+.pane-title { font-size: 0.85rem; font-weight: 800; color: var(--sc); letter-spacing: .04em; text-transform: uppercase; flex: 1; }
+.tbl-wrap { flex: 1; min-height: 0; overflow: auto; background: var(--surface); }
+.tbl-wrap.inline { flex: none; max-height: 320px; border: 1px solid var(--border); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 2px solid var(--border);
+  padding: 8px; font-size: 0.74rem; font-weight: 700; color: var(--muted); text-align: right; white-space: nowrap;
+}
+td { padding: 6px 8px; border-bottom: 1px solid var(--border); font-family: 'Courier New', monospace; font-size: 0.86rem; text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+td.name { font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; }
+td.c, th.c { text-align: center; }
+tr.off td { color: var(--dim); }
+tr.off td.name { text-decoration: line-through; }
+tbody tr:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+td input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+.ecc-hi { color: var(--orange); font-weight: 800; }
+.tfoot td { font-weight: 800; border-top: 2px solid var(--border); background: var(--bg); }
+.src { font-size: 0.7rem; color: var(--muted); font-family: 'Segoe UI', system-ui, sans-serif; }
+.x-btn { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0 4px; }
+.x-btn:hover { color: var(--red); }
+
+/* ── Plots ── */
+.plot-wrap { flex: 1; min-height: 0; position: relative; background: var(--surface); }
+canvas.plot { display: block; width: 100%; height: 100%; touch-action: none; }
+.tip {
+  position: absolute; z-index: 3; pointer-events: none; display: none;
+  background: var(--surface); border: 2px solid var(--sc); border-radius: 8px; padding: 6px 10px;
+  font-family: 'Courier New', monospace; font-size: 0.8rem; font-weight: 700; white-space: pre; line-height: 1.45;
+  box-shadow: 0 4px 14px rgba(0,0,0,.15);
+}
+.plot-under { flex-shrink: 0; padding: 8px 14px; background: var(--surface); border-top: 1px solid var(--border); font-size: 0.82rem; }
+
+/* ── Stage 5 ── */
+.derive { max-width: 820px; margin: 0 auto; padding: 20px 16px 60px; display: flex; flex-direction: column; gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; border-top: 3px solid var(--sc); }
+.eq-step { display: flex; gap: 14px; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed var(--border); }
+.eq-step:last-child { border-bottom: none; }
+.eq-num { flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--green); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; }
+.eq-body { flex: 1; font-size: 0.9rem; line-height: 1.55; }
+.eq { font-family: 'Cambria Math', 'Times New Roman', serif; font-size: 1.3rem; margin: 6px 0; font-style: italic; }
+.eq.final { font-size: 1.7rem; color: var(--green); font-weight: 700; }
+.eq .up { font-style: normal; }
+.frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 3px; }
+.frac > span:first-child { border-bottom: 1.5px solid currentColor; padding: 0 3px; }
+
+/* ── Modal ── */
+.modal-bg { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.45); display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 30px 12px; }
+.modal { background: var(--surface); border-radius: 12px; max-width: 720px; width: 100%; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; border-top: 4px solid var(--accent); }
+.modal h2 { font-size: 1rem; font-weight: 800; color: var(--accent); flex: 1; }
+.modal ol { padding-left: 20px; font-size: 0.85rem; line-height: 1.6; }
+.modal pre { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 0.72rem; max-height: 260px; overflow: auto; white-space: pre; }
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 200;
+  background: var(--text); color: var(--surface); padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 700;
+  opacity: 0; transition: opacity .2s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+@media (hover: none), (pointer: coarse) {
+  .btn { padding: 10px 14px; }
+  .btn.small { padding: 7px 11px; font-size: 0.8rem; }
+  .step { padding: 7px 14px; }
+  td input[type=checkbox] { width: 22px; height: 22px; }
+}
+@media (max-width: 900px) {
+  html, body { height: auto; min-height: 100%; overflow: auto; }
+  #stages { flex: none; }
+  #top-bar { position: sticky; top: 0; z-index: 20; justify-content: space-between; }
+  .steps { order: 3; flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding-bottom: 2px; }
+  .stage { position: static; display: flex; flex-direction: column; }
+  .side { border-right: none; overflow: visible; }
+  .pane { height: 70vh; min-height: 380px; }
+  .pane.auto { height: auto; min-height: 0; }
+  .pane.auto .tbl-wrap { max-height: 60vh; }
+}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+  <h1>🪐 Gravitation Lab</h1>
+  <nav class="steps" id="steps">
+    <button class="step active" data-s="1">① System &amp; data</button>
+    <button class="step" data-s="2">② Rotation curve</button>
+    <button class="step" data-s="3">③ Find the pattern</button>
+    <button class="step" data-s="4">④ Class results</button>
+    <button class="step" data-s="5">⑤ The law</button>
+  </nav>
+  <button class="live-pill" id="live-pill" title="Class connection settings"><span class="dot"></span><span id="live-text">Offline · codes</span> ⚙</button>
+</div>
+
+<main id="stages">
+
+<!-- ① System & data -->
+<section class="stage" id="st1">
+  <div class="side">
+    <h2>① Your gravitational system</h2>
+    <p class="lead">Each pair studies <b>one</b> system: a central body and the things that orbit it. At the end, the whole class puts its systems together.</p>
+    <div>
+      <label class="field-label" for="team-in">Pair / team name</label>
+      <input class="win-field" id="team-in" placeholder="e.g. Ana &amp; Luis" maxlength="50" autocomplete="off">
+    </div>
+    <div>
+      <label class="field-label" for="sys-sel">System</label>
+      <select class="win-field" id="sys-sel"></select>
+    </div>
+
+    <div id="custom-box" hidden>
+      <div class="row2">
+        <div><label class="field-label" for="c-central">Central body</label><input class="win-field" id="c-central" placeholder="e.g. Jupiter" maxlength="40"></div>
+        <div><label class="field-label" for="c-mass">Its mass (kg)</label><input class="win-field mono" id="c-mass" placeholder="1.898e27"></div>
+      </div>
+      <div class="row2" style="margin-top:10px">
+        <div><label class="field-label" for="c-runit">Distance R in</label>
+          <select class="win-field" id="c-runit"><option value="1">m</option><option value="1e3" selected>km</option><option value="1e9">10⁶ km</option><option value="1.495979e11">AU</option></select></div>
+        <div><label class="field-label" for="c-vunit">Second column is</label>
+          <select class="win-field" id="c-vunit"><option value="v:1">v in m/s</option><option value="v:1e3" selected>v in km/s</option><option value="v:0.2777777777777778">v in km/h</option><option value="T:86400">period T in days</option><option value="T:3600">period T in hours</option><option value="T:60">period T in minutes</option></select></div>
+      </div>
+      <label class="field-label" for="c-text" style="margin-top:10px">One body per line: name, R, v (or T). Paste from a spreadsheet works too.</label>
+      <textarea class="win-field" id="c-text" spellcheck="false" placeholder="Io        421700   17.33&#10;Europa    671034   13.74&#10;Ganymede  1070412  10.88"></textarea>
+      <div class="hint" id="c-errors"></div>
+    </div>
+
+    <div class="big-read" id="central-read"></div>
+    <div class="note" id="sys-note"></div>
+    <div class="hint"><b>R</b> is the mean orbital distance (semi-major axis). Where a source gives only the period <b>T</b>, the speed comes from <span class="mono">v = 2πR/T</span>. <b>Δr</b> compares the farthest and nearest distance in the orbit: <span class="mono">(r<sub>max</sub> − r<sub>min</sub>)/r<sub>min</sub></span>. A large Δr means the orbit is far from a circle. Untick bodies you decide to leave out.</div>
+  </div>
+  <div class="pane auto">
+    <div class="pane-head"><span class="pane-title" id="data-title">📋 Data</span><span class="hint" id="data-count"></span></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Body</th><th>R (m)</th><th>T</th><th>v (m/s)</th><th>Δr</th><th class="c">Use</th></tr></thead>
+        <tbody id="data-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ② Rotation curve -->
+<section class="stage" id="st2" hidden>
+  <div class="side">
+    <h2>② Rotation curve</h2>
+    <p class="lead">Astronomers study galaxies with a <b>rotation curve</b>: the orbital speed <i>v</i> of each object plotted against its distance <i>R</i> from the centre. Do the same for your system.</p>
+    <ul class="q-list">
+      <li>How does <i>v</i> change as <i>R</i> grows?</li>
+      <li>Is the curve a straight line? Does it ever reach zero?</li>
+      <li>If <i>R</i> doubles, what happens to <i>v</i>? Find two bodies where one is about twice as far as the other.</li>
+      <li>Switch to <b>log–log</b> axes. What happens to the shape?</li>
+    </ul>
+    <div class="note" id="s2-note">Hover over or tap a point to read its values.</div>
+  </div>
+  <div class="pane">
+    <div class="pane-head"><span class="pane-title">📈 v versus R</span>
+      <div class="seg" data-axes="s2"><button class="btn small active" data-v="lin">Linear</button><button class="btn small" data-v="log">Log–log</button></div>
+    </div>
+    <div class="plot-wrap"><canvas class="plot" id="cv2"></canvas><div class="tip"></div></div>
+  </div>
+</section>
+
+<!-- ③ Find the pattern -->
+<section class="stage" id="st3" hidden>
+  <div class="side">
+    <h2>③ Find the pattern</h2>
+    <p class="lead">Try a power law <span class="mono"><b>v = k · Rⁿ</b></span>. Move the exponent <i>n</i> until the curve goes through all the points. <i>k</i> is chosen automatically for each <i>n</i>.</p>
+    <div class="slider-wrap">
+      <div class="n-row"><label class="field-label" for="n-in" style="margin:0">Exponent n</label><input class="win-field" id="n-in" type="number" step="0.001" min="-3" max="2"></div>
+      <input type="range" id="n-slider" min="-2" max="1" step="0.005">
+    </div>
+    <div class="big-read" id="fit-read"></div>
+    <div>
+      <label class="field-label">How well it fits (smaller spread is better)</label>
+      <div class="meter"><div id="fit-meter"></div></div>
+    </div>
+    <div class="note" id="fit-hint"></div>
+    <div class="btn-row">
+      <button class="btn" id="ls-btn">🧮 Check with least squares</button>
+      <button class="btn" id="ls-use" hidden>Use this n</button>
+    </div>
+    <div class="note" id="ls-read" hidden></div>
+    <details class="card-d" id="sq-d">
+      <summary>Next: what stays constant?</summary>
+      <p class="lead">If <span class="mono">v = k·Rⁿ</span>, then <span class="mono">v·R⁻ⁿ = k</span> is the <b>same number</b> for every body in your system. With the <i>n</i> you found, square both sides and you get a simpler combination of <i>v</i> and <i>R</i>, with no roots in it. Which one?</p>
+      <p class="lead" style="margin-top:8px">The table on the right shows <span class="mono">v²R</span> for each body. Its average is your system's constant. You'll report it in step ④.</p>
+      <div class="big-read" id="c-read" style="margin-top:8px"></div>
+    </details>
+  </div>
+  <div class="pane">
+    <div class="pane-head"><span class="pane-title">📈 Data and model</span>
+      <div class="seg" data-axes="s3"><button class="btn small active" data-v="lin">Linear</button><button class="btn small" data-v="log">Log–log</button></div>
+    </div>
+    <div class="plot-wrap"><canvas class="plot" id="cv3"></canvas><div class="tip"></div></div>
+    <div class="tbl-wrap" style="flex:0 0 auto;max-height:34%;border-top:1px solid var(--border)">
+      <table>
+        <thead><tr><th>Body</th><th>R (m)</th><th>v (m/s)</th><th id="k-head">v·R⁻ⁿ</th><th id="sq-head" hidden>v²R (m³/s²)</th></tr></thead>
+        <tbody id="s3-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ④ Class results -->
+<section class="stage" id="st4" hidden>
+  <div class="side">
+    <h2>④ Share and compare</h2>
+    <div class="big-read" id="my-result"></div>
+    <div class="btn-row">
+      <button class="btn primary" id="send-btn">📤 Send to class</button>
+      <button class="btn" id="code-btn">📋 Copy result code</button>
+    </div>
+    <div class="hint" id="send-hint"></div>
+
+    <h3>Add results by code</h3>
+    <textarea class="win-field" id="code-in" style="min-height:64px" placeholder="Paste one or more codes, e.g. GRAV|Ana &amp; Luis|Jupiter|1.898e27|1.2669e17|-0.500|14" spellcheck="false"></textarea>
+    <div class="btn-row">
+      <button class="btn" id="code-add">➕ Add codes</button>
+      <button class="btn" id="refresh-btn" hidden>🔄 Refresh</button>
+      <button class="btn" id="demo-btn" title="Fill the board with every preloaded system, for a demonstration or to work alone">🧪 Sample data</button>
+      <button class="btn" id="clear-btn">🗑 Clear board</button>
+    </div>
+
+    <div class="tbl-wrap inline">
+      <table>
+        <thead><tr><th>Team</th><th>System</th><th>M (kg)</th><th>v²R</th><th class="c">Use</th><th></th></tr></thead>
+        <tbody id="class-body"></tbody>
+      </table>
+    </div>
+    <ul class="q-list">
+      <li>Heavier central body → larger or smaller v²R?</li>
+      <li>On log–log axes, what is the <b>slope</b> of the line? What does a slope of 1 mean?</li>
+    </ul>
+  </div>
+  <div class="pane">
+    <div class="pane-head"><span class="pane-title">📈 v²R versus central mass M</span>
+      <div class="seg" data-axes="s4"><button class="btn small" data-v="lin">Linear</button><button class="btn small active" data-v="log">Log–log</button></div>
+    </div>
+    <div class="plot-wrap"><canvas class="plot" id="cv4"></canvas><div class="tip"></div></div>
+    <div class="plot-under" id="reg-read"></div>
+  </div>
+</section>
+
+<!-- ⑤ The law -->
+<section class="stage single" id="st5" hidden>
+  <div class="derive">
+    <div class="card" id="derive-card"></div>
+    <div class="card">
+      <h2>Discuss</h2>
+      <ul class="q-list" style="margin-top:8px">
+        <li>Your value of Γ is not exactly the accepted G. List the sources of error: rounded data, non-circular orbits, how the fits were done…</li>
+        <li>On Earth's system, the Moon's v²R is about 1% higher than the artificial satellites'. Why might a heavy moon behave differently from a light satellite?</li>
+        <li>Which system has the most reliable points? Which would you leave out, and why?</li>
+        <li>The law only needs <i>M</i>, <i>m</i> and <i>R</i>. Use it backwards: how could you find the mass of a planet from one of its moons?</li>
+        <li>Newton did not have a spreadsheet. What did he have instead?</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- Class connection dialog -->
+<div class="modal-bg" id="modal" hidden>
+  <div class="modal" role="dialog" aria-labelledby="modal-title">
+    <div style="display:flex;align-items:center;gap:8px"><h2 id="modal-title">⚙ Class connection</h2><button class="x-btn" id="modal-x" title="Close">✕</button></div>
+    <p class="lead">Without a connection, pairs share results as copy-and-paste <b>codes</b>. To collect results live, the teacher connects the lab to a Google Sheet once (steps below). Students then open the <b>student link</b> and their results appear on everyone's class board.</p>
+    <div>
+      <label class="field-label" for="url-in">Web app URL (from Apps Script, ends in /exec)</label>
+      <input class="win-field mono" id="url-in" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" spellcheck="false">
+    </div>
+    <div>
+      <label class="field-label" for="session-in">Session code (one per class or lesson)</label>
+      <input class="win-field mono" id="session-in" placeholder="e.g. 11B-OCT" maxlength="30" autocomplete="off" style="text-transform:uppercase">
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" id="conn-save">Save and connect</button>
+      <button class="btn" id="conn-test">Test</button>
+      <button class="btn" id="conn-link">🔗 Copy student link</button>
+      <button class="btn" id="conn-off">Disconnect</button>
+    </div>
+    <div class="hint" id="conn-status"></div>
+    <details class="card-d" style="--sc:var(--accent)">
+      <summary>Teacher setup: Google Sheet + Apps Script (about 10 minutes, once)</summary>
+      <ol>
+        <li>Create a new Google Sheet (type <span class="mono">sheets.new</span> in the address bar). Name it, e.g. <i>Gravitation Lab results</i>.</li>
+        <li>In the Sheet: <b>Extensions → Apps Script</b>. Delete the sample code, paste the script below, and click 💾 Save.</li>
+        <li><b>Deploy → New deployment</b>. Click ⚙ next to "Select type" and choose <b>Web app</b>. Set <i>Execute as</i>: <b>Me</b>, <i>Who has access</i>: <b>Anyone</b>. Click <b>Deploy</b> and authorise with your Google account. Google will warn that the app is unverified, because it's your own script: <i>Advanced → Go to … (unsafe)</i>.</li>
+        <li>Copy the <b>Web app URL</b>, paste it above, choose a session code, and click <b>Save and connect</b>.</li>
+        <li>Click <b>Copy student link</b> and share it (Classroom, QR code, board). Students who open it are already connected.</li>
+      </ol>
+      <p class="hint" style="margin-top:6px">Results land in a <i>Results</i> tab: time, session, team, system, mass, v²R. A pair that sends again replaces its earlier row. To clean up, delete rows in the Sheet. If you edit the script later, use <b>Deploy → Manage deployments → ✏ → New version</b> so the URL stays the same. Only team names and numbers are stored, no student accounts.</p>
+      <div class="btn-row" style="margin:8px 0"><button class="btn" id="gas-copy">📋 Copy script</button></div>
+      <pre id="gas-pre"></pre>
+    </details>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<button id="theme-toggle">🌙</button>
+
+<script type="text/plain" id="gas-code">// Gravitation Lab — class results collector (Google Apps Script)
+// Paste into Extensions → Apps Script of a Google Sheet, then
+// Deploy → New deployment → Web app (Execute as: Me, Who has access: Anyone).
+const SHEET_NAME = 'Results';
+const HEADERS = ['time', 'session', 'id', 'team', 'system', 'mass_kg', 'v2R_m3s2', 'n', 'bodies'];
+
+function sheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(SHEET_NAME);
+  if (!sh) { sh = ss.insertSheet(SHEET_NAME); sh.appendRow(HEADERS); }
+  return sh;
+}
+
+function out_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// Trim, cap the length, and stop text from being read as a spreadsheet formula
+function clean_(s, max) {
+  s = String(s == null ? '' : s).replace(/\s+/g, ' ').trim().slice(0, max);
+  return /^[=+\-@]/.test(s) ? "'" + s : s;
+}
+
+// GET ?session=CODE → every result of that session
+function doGet(e) {
+  const session = clean_(e.parameter.session, 30).toUpperCase();
+  if (!session) return out_({ ok: false, error: 'missing session' });
+  const rows = sheet_().getDataRange().getValues().slice(1)
+    .filter(r => String(r[1]).toUpperCase() === session)
+    .map(r => ({ id: String(r[2]), team: String(r[3]), system: String(r[4]),
+                 mass: Number(r[5]), C: Number(r[6]), n: Number(r[7]), count: Number(r[8]) }));
+  return out_({ ok: true, rows: rows });
+}
+
+// POST {session, team, system, mass, C, n, count} → add or replace that team's row
+function doPost(e) {
+  let d;
+  try { d = JSON.parse(e.postData.contents); } catch (err) { return out_({ ok: false, error: 'bad json' }); }
+  const session = clean_(d.session, 30).toUpperCase();
+  const team = clean_(d.team, 50), system = clean_(d.system, 50);
+  const mass = Number(d.mass), C = Number(d.C), n = Number(d.n), count = Number(d.count);
+  if (!session || !team || !system || !(mass > 0) || !(C > 0) || !isFinite(mass) || !isFinite(C))
+    return out_({ ok: false, error: 'invalid data' });
+  const id = (team + '|' + system).toLowerCase();
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sh = sheet_();
+    const keys = sh.getRange(1, 2, sh.getLastRow(), 2).getValues();
+    const row = [new Date(), session, id, team, system, mass, C, isFinite(n) ? n : '', isFinite(count) ? count : ''];
+    const i = keys.findIndex(k => String(k[0]).toUpperCase() === session && String(k[1]) === id);
+    if (i > 0) sh.getRange(i + 1, 1, 1, row.length).setValues([row]);
+    else sh.appendRow(row);
+  } finally {
+    lock.releaseLock();
+  }
+  return out_({ ok: true, id: id });
+}
+</script>
+
+<script>
+// ── Data ────────────────────────────────────────────────────
+// Each body: [name, R in km (mean distance / semi-major axis), v in km/s or
+// null, period T in days or null, eccentricity]. Planets use the speeds the
+// NASA Planetary Fact Sheet lists; moons and satellites list R and T, so v
+// comes from 2πR/T, the same way the fact sheets compute it.
+const AU_KM = 1.495979e8;
+const SYSTEMS = {
+  sun: {
+    label: 'Sun — planets and dwarf planets', central: 'Sun', mass: 1.989e30,
+    note: 'NASA Planetary Fact Sheet values, rounded to 3–4 significant figures, so expect about 1–2% scatter. Pluto and Mercury have the most stretched orbits.',
+    bodies: [
+      ['Mercury', 57.9e6, 47.4, null, 0.206], ['Venus', 108.2e6, 35.0, null, 0.007],
+      ['Earth', 149.6e6, 29.8, null, 0.017], ['Mars', 228.0e6, 24.1, null, 0.094],
+      ['Ceres', 413.7e6, 17.9, null, 0.076], ['Jupiter', 778.5e6, 13.1, null, 0.049],
+      ['Saturn', 1432.0e6, 9.7, null, 0.052], ['Uranus', 2867.0e6, 6.8, null, 0.047],
+      ['Neptune', 4515.0e6, 5.4, null, 0.010], ['Pluto', 5906.4e6, 4.7, null, 0.244] ] },
+  jupiter: {
+    label: 'Jupiter — moons', central: 'Jupiter', mass: 1.898e27,
+    note: 'From the four tiny inner moons, through the four Galilean moons, to the distant captured moons. The outer ones (Pasiphae, Sinope, Carme) orbit backwards and are pulled by the Sun too.',
+    bodies: [
+      ['Metis', 128000, null, 0.2948, 0.0002], ['Adrastea', 129000, null, 0.2983, 0.0015],
+      ['Amalthea', 181366, null, 0.4982, 0.003], ['Thebe', 221889, null, 0.6745, 0.018],
+      ['Io', 421700, null, 1.769138, 0.004], ['Europa', 671034, null, 3.551181, 0.009],
+      ['Ganymede', 1070412, null, 7.154553, 0.001], ['Callisto', 1882709, null, 16.689018, 0.007],
+      ['Leda', 11165000, null, 240.92, 0.164], ['Himalia', 11461000, null, 250.56, 0.162],
+      ['Elara', 11741000, null, 259.64, 0.217], ['Carme', 23404000, null, 734.17, 0.253],
+      ['Pasiphae', 23624000, null, 743.63, 0.409], ['Sinope', 23939000, null, 758.90, 0.250] ] },
+  saturn: {
+    label: 'Saturn — moons', central: 'Saturn', mass: 5.683e26,
+    note: 'Hyperion tumbles chaotically and is tugged by Titan, so it sits a little off the pattern. Is that a reason to leave it out?',
+    bodies: [
+      ['Mimas', 185539, null, 0.942422, 0.020], ['Enceladus', 237948, null, 1.370218, 0.005],
+      ['Tethys', 294619, null, 1.887802, 0.000], ['Dione', 377396, null, 2.736915, 0.002],
+      ['Rhea', 527108, null, 4.518212, 0.001], ['Titan', 1221870, null, 15.945421, 0.029],
+      ['Hyperion', 1500880, null, 21.276609, 0.123], ['Iapetus', 3560820, null, 79.3215, 0.028],
+      ['Phoebe', 12947780, null, 550.31, 0.156] ] },
+  uranus: {
+    label: 'Uranus — moons', central: 'Uranus', mass: 8.681e25,
+    note: 'Five large moons, two small inner ones, and three distant captured moons on stretched orbits.',
+    bodies: [
+      ['Portia', 66097, null, 0.513196, 0.0001], ['Puck', 86004, null, 0.761833, 0.0001],
+      ['Miranda', 129390, null, 1.413479, 0.001], ['Ariel', 191020, null, 2.520379, 0.001],
+      ['Umbriel', 266300, null, 4.144177, 0.004], ['Titania', 435910, null, 8.705872, 0.001],
+      ['Oberon', 583520, null, 13.463239, 0.001], ['Caliban', 7231000, null, 579.73, 0.16],
+      ['Sycorax', 12179000, null, 1288.3, 0.52], ['Prospero', 16256000, null, 1978.29, 0.44] ] },
+  neptune: {
+    label: 'Neptune — moons', central: 'Neptune', mass: 1.024e26,
+    note: 'Triton orbits backwards. Nereid has one of the most stretched orbits of any moon (look at its Δr), yet it still fits. Why might that be?',
+    bodies: [
+      ['Naiad', 48227, null, 0.294396, 0.0003], ['Despina', 52526, null, 0.334655, 0.0002],
+      ['Galatea', 61953, null, 0.428745, 0.0001], ['Larissa', 73548, null, 0.554654, 0.0014],
+      ['Proteus', 117647, null, 1.122315, 0.0005], ['Triton', 354759, null, 5.876854, 0.000],
+      ['Nereid', 5513818, null, 360.13, 0.751], ['Halimede', 16611000, null, 1879.08, 0.57],
+      ['Sao', 22228000, null, 2912.72, 0.29], ['Neso', 49285000, null, 9740.73, 0.42] ] },
+  earth: {
+    label: 'Earth — Moon and artificial satellites', central: 'Earth', mass: 5.972e24,
+    note: 'R is measured from Earth\'s centre, not from the ground: the ISS flies about 420 km up, so R ≈ 6371 + 420 km. Compare the Moon with the satellites.',
+    bodies: [
+      ['ISS', 6798, null, 92.9 / 1440, 0.0005], ['Hubble', 6913, null, 95.4 / 1440, 0.0003],
+      ['Landsat 9', 7083, null, 98.9 / 1440, 0.0001], ['GPS satellite', 26560, null, 717.97 / 1440, 0.005],
+      ['Galileo satellite', 29600, null, 844.76 / 1440, 0.0002], ['Geostationary', 42164, null, 1436.07 / 1440, 0.0002],
+      ['Moon', 384400, null, 27.321661, 0.055] ] },
+  mars: {
+    label: 'Mars — Phobos and Deimos', central: 'Mars', mass: 6.417e23,
+    note: 'Only two moons. Two points always fit a curve, so how sure can you be of the pattern? Compare with a system that has many moons.',
+    bodies: [ ['Phobos', 9376, null, 0.31891, 0.015], ['Deimos', 23463, null, 1.26244, 0.0002] ] },
+  trappist: {
+    label: 'TRAPPIST-1 — exoplanets', central: 'TRAPPIST-1', mass: 1.786e29,
+    note: 'A red dwarf with seven Earth-sized planets (Agol et al., 2021). Careful: exoplanet distances are partly worked out from the star\'s mass using Kepler\'s third law. Is it fair to use them here?',
+    bodies: [
+      ['b', 0.01154 * AU_KM, null, 1.51088, 0.006], ['c', 0.01580 * AU_KM, null, 2.42180, 0.007],
+      ['d', 0.02227 * AU_KM, null, 4.04978, 0.008], ['e', 0.02925 * AU_KM, null, 6.09963, 0.005],
+      ['f', 0.03849 * AU_KM, null, 9.20660, 0.010], ['g', 0.04683 * AU_KM, null, 12.35294, 0.002],
+      ['h', 0.06189 * AU_KM, null, 18.7729, 0.006] ] },
+};
+const G_ACCEPTED = 6.67430e-11;   // CODATA 2022
+
+// ── State (kept in localStorage; every access is guarded) ───
+const STORE = 'grav-lab';
+const S = {
+  stage: 1, team: '', system: 'jupiter', off: {}, n: 0,
+  custom: { central: '', mass: '', rUnit: '1e3', vUnit: 'v:1e3', text: '' },
+  axes: { s2: 'lin', s3: 'lin', s4: 'log' },
+  live: { url: '', session: '' },
+  rows: [],          // class board: {id, team, system, mass, C, n, count, src}
+  hidden: {},        // ids unticked on the class board
+  lsShown: false, gShown: false,
+};
+try { Object.assign(S, JSON.parse(localStorage.getItem(STORE) || '{}')); } catch (e) {}
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify({ ...S, rows: S.rows.filter(r => r.src !== 'live') })); } catch (e) {}
+}
+
+// A student link carries the connection: ?live=<url>&session=<code>
+(function readLink() {
+  const p = new URLSearchParams(location.search);
+  const url = p.get('live'), ses = p.get('session');
+  if (url && /^https:\/\/script\.google(usercontent)?\.com\//.test(url)) {
+    if (S.live.url !== url || S.live.session !== (ses || '').toUpperCase()) S.rows = S.rows.filter(r => r.src !== 'live');
+    S.live.url = url;
+    if (ses) S.live.session = ses.toUpperCase();
+    history.replaceState(null, '', location.pathname);
+    save();
+  }
+})();
+
+// ── Helpers ─────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const SUP = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+const sup = n => String(n).split('').map(c => SUP[c] || c).join('');
+function sci(x, sig = 3) {
+  if (!isFinite(x)) return '—';
+  if (x === 0) return '0';
+  let e = Math.floor(Math.log10(Math.abs(x)));
+  let m = x / Math.pow(10, e);
+  if (Math.abs(+m.toFixed(sig - 1)) >= 10) { m /= 10; e += 1; }
+  if (e >= -2 && e <= 4) return (+x.toPrecision(sig)).toLocaleString('en-US', { maximumFractionDigits: 6 });
+  return m.toFixed(sig - 1) + ' × 10' + sup(e);
+}
+const cssVar = n => getComputedStyle(document.body).getPropertyValue(n).trim();
+function fmtT(days) {
+  if (days == null) return '—';
+  if (days < 1) return (days * 24).toFixed(2) + ' h';
+  return (+days.toPrecision(5)) + ' d';
+}
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2200);
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch (e) {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (e2) {}
+    ta.remove(); return ok;
+  }
+}
+function stats(arr) {
+  const m = arr.reduce((a, b) => a + b, 0) / arr.length;
+  const sd = Math.sqrt(arr.reduce((a, b) => a + (b - m) * (b - m), 0) / Math.max(1, arr.length - 1));
+  return { mean: m, sd };
+}
+function linfit(xs, ys) {
+  const n = xs.length, mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
+  let sxx = 0, sxy = 0, syy = 0;
+  for (let i = 0; i < n; i++) { sxx += (xs[i] - mx) ** 2; sxy += (xs[i] - mx) * (ys[i] - my); syy += (ys[i] - my) ** 2; }
+  const m = sxy / sxx;
+  return { m, b: my - m * mx, r2: syy ? (sxy * sxy) / (sxx * syy) : 1 };
+}
+
+// ── Current system: bodies in SI ────────────────────────────
+function parseNum(t) {
+  t = t.trim().replace(/×\s*10\^?/, 'e').replace(/·10\^?/, 'e');
+  if (/^-?\d+,\d+$/.test(t)) t = t.replace(',', '.');
+  if (!/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(t)) return NaN;
+  return parseFloat(t);
+}
+function customBodies() {
+  const c = S.custom, rU = parseFloat(c.rUnit), [kind, f] = c.vUnit.split(':'), fac = parseFloat(f);
+  const out = [], errs = [];
+  c.text.split(/\r?\n/).forEach((line, i) => {
+    if (!line.trim()) return;
+    const tok = line.split(/[\t;]+|\s{1,}/).filter(Boolean);
+    if (tok.length < 2) { errs.push(i + 1); return; }
+    const b = parseNum(tok[tok.length - 1]), a = parseNum(tok[tok.length - 2]);
+    if (!(a > 0) || !(b > 0)) { errs.push(i + 1); return; }
+    const name = tok.slice(0, -2).join(' ') || ('#' + (out.length + 1));
+    const R = a * rU;
+    const T = kind === 'T' ? b * fac : null;
+    const v = kind === 'T' ? 2 * Math.PI * R / T : b * fac;
+    out.push({ name, R, v, Tdays: T ? T / 86400 : null, dr: null });
+  });
+  return { bodies: out, errs };
+}
+function systemInfo() {
+  if (S.system === 'custom') {
+    const m = parseNum(S.custom.mass || '');
+    return { key: 'custom', central: S.custom.central.trim() || 'My system', mass: m > 0 ? m : NaN, custom: true, ...customBodies() };
+  }
+  const sys = SYSTEMS[S.system];
+  const bodies = sys.bodies.map(([name, Rkm, vk, Td, e]) => {
+    const R = Rkm * 1e3;
+    const v = vk != null ? vk * 1e3 : 2 * Math.PI * R / (Td * 86400);
+    return { name, R, v, Tdays: Td, dr: 2 * e / (1 - e) };
+  });
+  return { key: S.system, central: sys.central, mass: sys.mass, note: sys.note, bodies, errs: [] };
+}
+const offKey = (sys, name) => sys + ':' + name;
+function activeBodies(info) { return info.bodies.filter(b => !S.off[offKey(info.key, b.name)]); }
+
+// ── Plotting ────────────────────────────────────────────────
+// Small canvas plotter: linear or log axes, labelled points, model curves,
+// and a hover/tap tooltip. Linear axes pull a shared power of ten into the
+// axis title, so tick labels stay short (like "R (×10⁹ m)").
+function niceStep(raw) {
+  const p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+}
+function makeAxis(vals, log, fromZero) {
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (log) {
+    let a = Math.floor(Math.log10(lo) - 0.05), b = Math.ceil(Math.log10(hi) + 0.05);
+    if (b - a < 1) { a -= 1; b += 1; }
+    const ticks = []; for (let k = a; k <= b; k++) ticks.push(k);
+    const every = Math.ceil(ticks.length / 9);
+    return { log: true, lo: a, hi: b, ticks, every, map: v => (Math.log10(v) - a) / (b - a), inv: t => Math.pow(10, a + t * (b - a)) };
+  }
+  if (fromZero) lo = Math.min(0, lo);
+  if (hi === lo) { hi = lo + Math.abs(lo || 1) * 0.5; lo -= Math.abs(lo || 1) * 0.5; }
+  const pad = (hi - lo) * 0.06; if (!fromZero || lo < 0) lo -= pad; hi += pad;
+  const step = niceStep((hi - lo) / 6);
+  lo = Math.floor(lo / step + 1e-9) * step; hi = Math.ceil(hi / step - 1e-9) * step;
+  const big = Math.max(Math.abs(lo), Math.abs(hi));
+  let exp = Math.floor(Math.log10(big)); if (exp > -3 && exp < 4) exp = 0;
+  const ticks = []; for (let t = lo; t <= hi + step * 1e-6; t += step) ticks.push(t);
+  return { log: false, lo, hi, step, exp, ticks, map: v => (v - lo) / (hi - lo), inv: t => lo + t * (hi - lo) };
+}
+function tickLabel(ax, t) {
+  if (ax.log) return '10' + sup(t);
+  const v = t / Math.pow(10, ax.exp);
+  const dec = Math.max(0, -Math.floor(Math.log10(ax.step / Math.pow(10, ax.exp)) + 1e-9));
+  return (+v.toFixed(Math.min(dec, 6))).toString();
+}
+function axisTitle(ax, name, unit) {
+  const scale = !ax.log && ax.exp ? '×10' + sup(ax.exp) + ' ' : '';
+  return name + (unit || scale ? ' (' + scale + unit + ')' : '');
+}
+
+const PLOTS = {};
+function plot(id, specFn) {
+  const cv = $(id), wrap = cv.parentElement, tip = wrap.querySelector('.tip');
+  const P = { cv, specFn, hits: [] };
+  PLOTS[id] = P;
+  new ResizeObserver(() => drawPlot(P)).observe(wrap);
+  const near = ev => {
+    const r = cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
+    let best = null, bd = ev.pointerType === 'touch' ? 30 : 16;
+    for (const h of P.hits) { const d = Math.hypot(h.x - x, h.y - y); if (d < bd) { bd = d; best = h; } }
+    return { best, x, y };
+  };
+  const show = ev => {
+    const { best } = near(ev);
+    if (!best) { tip.style.display = 'none'; return; }
+    tip.textContent = best.tip; tip.style.display = 'block';
+    const W = wrap.clientWidth, tw = tip.offsetWidth, th = tip.offsetHeight;
+    tip.style.left = Math.min(W - tw - 6, Math.max(6, best.x + 14)) + 'px';
+    tip.style.top = Math.max(6, best.y - th - 10) + 'px';
+  };
+  cv.addEventListener('pointermove', show);
+  cv.addEventListener('pointerdown', show);
+  cv.addEventListener('pointerleave', ev => { if (ev.pointerType !== 'touch') tip.style.display = 'none'; });
+}
+function drawPlot(P) {
+  const { cv } = P, wrap = cv.parentElement;
+  if (!wrap.offsetParent && getComputedStyle(wrap).position !== 'fixed') return;   // hidden stage
+  const spec = P.specFn(), dpr = window.devicePixelRatio || 1;
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  if (!W || !H) return;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  const C = { text: cssVar('--text'), muted: cssVar('--muted'), grid: cssVar('--grid'), border: cssVar('--border'), dim: cssVar('--dim') };
+  P.hits = [];
+  const pts = spec.points.filter(p => isFinite(p.x) && isFinite(p.y) && (!spec.xLog || p.x > 0) && (!spec.yLog || p.y > 0));
+  const live = pts.filter(p => !p.off);
+  if (!live.length) {
+    ctx.fillStyle = C.muted; ctx.font = '600 14px Segoe UI, system-ui, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(spec.empty || 'No data yet', W / 2, H / 2); return;
+  }
+  const narrow = W < 480;
+  const m = { l: narrow ? 58 : 76, r: 18, t: 16, b: narrow ? 48 : 56 };
+  const ax = makeAxis(pts.map(p => p.x), spec.xLog, spec.xZero);
+  const ay = makeAxis(pts.map(p => p.y), spec.yLog, spec.yZero);
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const X = v => m.l + ax.map(v) * pw, Y = v => m.t + ph - ay.map(v) * ph;
+
+  // grid + ticks
+  ctx.lineWidth = 1; ctx.font = (narrow ? '11px' : '12px') + ' Segoe UI, system-ui, sans-serif';
+  ctx.fillStyle = C.muted;
+  const minor = (a, horiz) => {
+    if (!a.log || a.hi - a.lo > 8) return;
+    ctx.strokeStyle = C.grid; ctx.globalAlpha = 0.5;
+    for (let k = a.lo; k < a.hi; k++) for (let j = 2; j < 10; j++) {
+      const t = (Math.log10(j * Math.pow(10, k)) - a.lo) / (a.hi - a.lo);
+      ctx.beginPath();
+      if (horiz) { const y = m.t + ph - t * ph; ctx.moveTo(m.l, y); ctx.lineTo(m.l + pw, y); }
+      else { const x = m.l + t * pw; ctx.moveTo(x, m.t); ctx.lineTo(x, m.t + ph); }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  };
+  minor(ax, false); minor(ay, true);
+  ctx.strokeStyle = C.grid;
+  ax.ticks.forEach((t, i) => {
+    const x = m.l + (ax.log ? (t - ax.lo) / (ax.hi - ax.lo) : ax.map(t)) * pw;
+    ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, m.t + ph); ctx.stroke();
+    if (ax.log && i % ax.every) return;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(tickLabel(ax, t), x, m.t + ph + 6);
+  });
+  ay.ticks.forEach((t, i) => {
+    const y = m.t + ph - (ay.log ? (t - ay.lo) / (ay.hi - ay.lo) : ay.map(t)) * ph;
+    ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(m.l + pw, y); ctx.stroke();
+    if (ay.log && i % ay.every) return;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(tickLabel(ay, t), m.l - 6, y);
+  });
+  ctx.strokeStyle = C.muted; ctx.lineWidth = 1.5; ctx.strokeRect(m.l, m.t, pw, ph);
+  ctx.fillStyle = C.text; ctx.font = '700 ' + (narrow ? '12px' : '13px') + ' Segoe UI, system-ui, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText(axisTitle(ax, spec.xName, spec.xUnit), m.l + pw / 2, H - 6);
+  ctx.save(); ctx.translate(14, m.t + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textBaseline = 'middle';
+  ctx.fillText(axisTitle(ay, spec.yName, spec.yUnit), 0, 0); ctx.restore();
+
+  // model curves, clipped to the plot area
+  ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, pw, ph); ctx.clip();
+  (spec.curves || []).forEach(c => {
+    ctx.strokeStyle = c.color; ctx.lineWidth = c.width || 2.5; ctx.setLineDash(c.dash || []);
+    ctx.beginPath(); let pen = false;
+    for (let i = 0; i <= 400; i++) {
+      const x = ax.inv(i / 400); if (spec.xLog ? x <= 0 : false) continue;
+      const y = c.fn(x);
+      if (!isFinite(y) || (spec.yLog && y <= 0)) { pen = false; continue; }
+      let py = Y(y); py = Math.max(-1e4, Math.min(1e4, py));
+      pen ? ctx.lineTo(X(x), py) : ctx.moveTo(X(x), py); pen = true;
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  });
+  ctx.restore();
+
+  // points; a label is skipped when it would overlap one already drawn
+  // (crowded points still show their name on hover)
+  ctx.font = '600 11px Segoe UI, system-ui, sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+  const boxes = [];
+  pts.forEach(p => {
+    const x = X(p.x), y = Y(p.y);
+    ctx.beginPath(); ctx.arc(x, y, p.off ? 4 : 5.5, 0, 2 * Math.PI);
+    if (p.off) { ctx.strokeStyle = C.dim; ctx.lineWidth = 1.5; ctx.stroke(); }
+    else { ctx.fillStyle = p.color || spec.color; ctx.fill(); ctx.strokeStyle = cssVar('--surface'); ctx.lineWidth = 1.5; ctx.stroke(); }
+    if (p.label) {
+      const w = ctx.measureText(p.label).width, b = { x: x + 8, y: y - 14, w, h: 14 };
+      if (!boxes.some(o => b.x < o.x + o.w && o.x < b.x + b.w && b.y < o.y + o.h && o.y < b.y + b.h)) {
+        boxes.push(b); ctx.fillStyle = p.off ? C.dim : C.muted; ctx.fillText(p.label, x + 8, y - 7);
+      }
+    }
+    P.hits.push({ x, y, tip: p.tip });
+  });
+}
+function redrawVisible() { Object.values(PLOTS).forEach(drawPlot); }
+
+// ── ① System & data ─────────────────────────────────────────
+function buildSystemSelect() {
+  const sel = $('sys-sel');
+  sel.innerHTML = Object.entries(SYSTEMS).map(([k, s]) => `<option value="${k}">${esc(s.label)}</option>`).join('')
+    + '<option value="custom">✏️ My own data…</option>';
+  sel.value = S.system in SYSTEMS || S.system === 'custom' ? S.system : 'jupiter';
+}
+function renderStage1() {
+  const info = systemInfo();
+  $('custom-box').hidden = !info.custom;
+  $('sys-note').hidden = info.custom;
+  if (!info.custom) $('sys-note').textContent = info.note;
+  $('central-read').innerHTML = `<small>Central body · mass M</small>${esc(info.central)} · <span class="k">${isFinite(info.mass) ? sci(info.mass, 4) + ' kg' : '— enter the mass'}</span>`;
+  $('c-errors').textContent = info.errs.length ? `⚠ Couldn't read line${info.errs.length > 1 ? 's' : ''} ${info.errs.join(', ')} — each line needs a name and two positive numbers.` : '';
+  $('data-title').textContent = '📋 Data — ' + info.central;
+  const act = activeBodies(info);
+  $('data-count').textContent = `${act.length} of ${info.bodies.length} bodies in use`;
+  $('data-body').innerHTML = info.bodies.length ? info.bodies.map(b => {
+    const off = !!S.off[offKey(info.key, b.name)];
+    const dr = b.dr == null ? '—' : (b.dr * 100 >= 100 ? Math.round(b.dr * 100) : (b.dr * 100).toFixed(b.dr < 0.01 ? 2 : 1)) + '%';
+    return `<tr class="${off ? 'off' : ''}"><td class="name">${esc(b.name)}</td><td>${sci(b.R, 4)}</td><td>${fmtT(b.Tdays)}</td>`
+      + `<td>${sci(b.v, 4)}</td><td class="${b.dr > 0.3 ? 'ecc-hi' : ''}">${dr}</td>`
+      + `<td class="c"><input type="checkbox" data-body="${esc(b.name)}" ${off ? '' : 'checked'}></td></tr>`;
+  }).join('') : '<tr><td colspan="6" class="name" style="text-align:center;color:var(--muted);padding:20px">Type or paste your data on the left.</td></tr>';
+}
+$('data-body').addEventListener('change', e => {
+  const name = e.target.dataset.body; if (name == null) return;
+  const k = offKey(systemInfo().key, name);
+  if (e.target.checked) delete S.off[k]; else S.off[k] = true;
+  save(); renderAll();
+});
+$('sys-sel').addEventListener('change', e => { S.system = e.target.value; S.lsShown = false; save(); renderAll(); });
+$('team-in').addEventListener('input', e => { S.team = e.target.value; save(); renderStage4(); });
+[['c-central', 'central'], ['c-mass', 'mass'], ['c-text', 'text'], ['c-runit', 'rUnit'], ['c-vunit', 'vUnit']].forEach(([id, k]) => {
+  $(id).addEventListener('input', e => { S.custom[k] = e.target.value; save(); renderAll(); });
+});
+
+// ── ② Rotation curve ────────────────────────────────────────
+function bodyTip(b) { return `${b.name}\nR = ${sci(b.R, 4)} m\nv = ${sci(b.v, 4)} m/s`; }
+plot('cv2', () => {
+  const info = systemInfo(), log = S.axes.s2 === 'log';
+  return {
+    xLog: log, yLog: log, xZero: true, yZero: true, color: cssVar('--teal'),
+    xName: 'Distance R', xUnit: 'm', yName: 'Orbital speed v', yUnit: 'm/s',
+    empty: 'Choose a system or enter data in step ①',
+    points: info.bodies.map(b => ({ x: b.R, y: b.v, label: b.name, tip: bodyTip(b), off: !!S.off[offKey(info.key, b.name)] })),
+  };
+});
+
+// ── ③ Find the pattern ──────────────────────────────────────
+// For a chosen n, the best k (least squares on ln v) is the geometric mean of
+// v·R⁻ⁿ; the spread of those values says how well that n works.
+function fitFor(bodies, n) {
+  const lk = bodies.map(b => Math.log(b.v) - n * Math.log(b.R));
+  const { mean, sd } = stats(lk);
+  return { k: Math.exp(mean), spread: (Math.exp(sd) - 1) * 100 };
+}
+function renderStage3() {
+  const info = systemInfo(), act = activeBodies(info), n = S.n;
+  $('n-in').value = (+n.toFixed(3)).toString();
+  $('n-slider').value = n;
+  $('k-head').textContent = 'v·R^(' + (+(-n).toFixed(3)) + ')';
+  if (act.length < 2) {
+    $('fit-read').innerHTML = '<small>Model</small>Need at least 2 bodies';
+    $('fit-meter').style.width = '0'; $('fit-hint').textContent = 'Go back to step ① and choose bodies.';
+    $('s3-body').innerHTML = ''; $('c-read').textContent = '—'; return;
+  }
+  const f = fitFor(act, n);
+  $('fit-read').innerHTML = `<small>Model</small>v = <span class="k">${sci(f.k, 4)}</span> · R<sup>${+n.toFixed(3)}</sup>`
+    + `<small style="margin-top:4px">Spread of v·R⁻ⁿ between bodies</small><span class="k">${f.spread < 1000 ? f.spread.toFixed(f.spread < 1 ? 2 : 1) : '>1000'}%</span>`;
+  $('fit-meter').style.width = Math.max(2, Math.min(100, 100 - Math.log10(1 + f.spread) * 33)) + '%';
+  const hint = $('fit-hint');
+  if (act.length === 2) { hint.className = 'note warn'; hint.textContent = 'With only two bodies, many curves fit perfectly. Is your pattern trustworthy?'; }
+  else if (f.spread < 2) { hint.className = 'note good'; hint.textContent = 'Every body gives almost the same k: this n describes the whole system. What simple fraction is n close to?'; }
+  else if (f.spread < 15) { hint.className = 'note'; hint.textContent = 'Close. Fine-tune n to make the spread as small as you can.'; }
+  else { hint.className = 'note'; hint.textContent = n >= 0 ? 'v gets smaller as R grows, so should n be positive or negative?' : 'Keep adjusting n and watch the curve and the spread.'; }
+
+  // least squares on ln v = ln k + n ln R
+  const ls = linfit(act.map(b => Math.log(b.R)), act.map(b => Math.log(b.v)));
+  $('ls-read').hidden = !S.lsShown; $('ls-use').hidden = !S.lsShown;
+  $('ls-read').innerHTML = `Least squares on ln v vs ln R: <b class="mono">n = ${ls.m.toFixed(4)}</b>, R² = ${ls.r2.toFixed(5)}`;
+  P3.ls = ls.m;
+
+  const showSq = $('sq-d').open;
+  $('sq-head').hidden = !showSq;
+  const C = act.map(b => b.v * b.v * b.R), cs = stats(C);
+  $('s3-body').innerHTML = info.bodies.map(b => {
+    const off = !!S.off[offKey(info.key, b.name)];
+    return `<tr class="${off ? 'off' : ''}"><td class="name">${esc(b.name)}</td><td>${sci(b.R, 4)}</td><td>${sci(b.v, 4)}</td>`
+      + `<td>${sci(b.v * Math.pow(b.R, -n), 4)}</td>${showSq ? `<td>${sci(b.v * b.v * b.R, 4)}</td>` : ''}</tr>`;
+  }).join('');
+  $('c-read').innerHTML = `<small>System constant: average v²R (${act.length} bodies)</small><span class="k">${sci(cs.mean, 4)}</span> m³/s²`
+    + `<small>scatter ±${(cs.sd / cs.mean * 100).toFixed(2)}%</small>`;
+}
+const P3 = { ls: null };
+plot('cv3', () => {
+  const info = systemInfo(), act = activeBodies(info), log = S.axes.s3 === 'log';
+  const f = act.length >= 2 ? fitFor(act, S.n) : null;
+  return {
+    xLog: log, yLog: log, xZero: true, yZero: true, color: cssVar('--purple'),
+    xName: 'R', xUnit: 'm', yName: 'v', yUnit: 'm/s', empty: 'Choose a system in step ①',
+    points: info.bodies.map(b => ({ x: b.R, y: b.v, label: b.name, tip: bodyTip(b) + `\nv·R⁻ⁿ = ${sci(b.v * Math.pow(b.R, -S.n), 4)}`, off: !!S.off[offKey(info.key, b.name)] })),
+    curves: f ? [{ fn: R => f.k * Math.pow(R, S.n), color: cssVar('--orange'), width: 2.5 }] : [],
+  };
+});
+function setN(v) {
+  if (!isFinite(v)) return;
+  S.n = Math.max(-3, Math.min(2, v)); save(); renderStage3(); drawPlot(PLOTS.cv3);
+}
+$('n-slider').addEventListener('input', e => setN(parseFloat(e.target.value)));
+$('n-in').addEventListener('change', e => setN(parseFloat(e.target.value)));
+$('ls-btn').addEventListener('click', () => { S.lsShown = true; save(); renderStage3(); });
+$('ls-use').addEventListener('click', () => { if (P3.ls != null) setN(+P3.ls.toFixed(4)); });
+$('sq-d').addEventListener('toggle', renderStage3);
+
+// ── ④ Class results ─────────────────────────────────────────
+function myResult() {
+  const info = systemInfo(), act = activeBodies(info);
+  if (act.length < 2 || !isFinite(info.mass)) return null;
+  const C = stats(act.map(b => b.v * b.v * b.R)).mean;
+  return { team: S.team.trim(), system: info.central, mass: info.mass, C, n: S.n, count: act.length };
+}
+const rowId = (team, system) => (team.replace(/\s+/g, ' ').trim().slice(0, 50) + '|' + system.replace(/\s+/g, ' ').trim().slice(0, 50)).toLowerCase();
+function upsertRow(r) {
+  r.id = rowId(r.team, r.system);
+  const i = S.rows.findIndex(x => x.id === r.id);
+  if (i >= 0) { if (S.rows[i].src === 'live' && r.src !== 'live') return; S.rows[i] = r; } else S.rows.push(r);
+}
+const codeOf = r => ['GRAV', r.team.replace(/\|/g, '/'), r.system.replace(/\|/g, '/'), r.mass.toExponential(4), r.C.toExponential(4), (+r.n).toFixed(3), r.count].join('|');
+function parseCodes(text) {
+  let added = 0, bad = 0;
+  text.split(/\s*\n\s*|(?=GRAV\|)/).forEach(line => {
+    line = line.trim(); if (!line) return;
+    const p = line.split('|');
+    if (p[0] !== 'GRAV' || p.length < 5) { bad++; return; }
+    const mass = parseFloat(p[3]), C = parseFloat(p[4]);
+    if (!(mass > 0) || !(C > 0) || !p[1].trim() || !p[2].trim()) { bad++; return; }
+    upsertRow({ team: p[1].trim(), system: p[2].trim(), mass, C, n: parseFloat(p[5]), count: parseInt(p[6]) || null, src: 'code' });
+    added++;
+  });
+  return { added, bad };
+}
+function boardPoints() { return S.rows.filter(r => !S.hidden[r.id] && r.mass > 0 && r.C > 0); }
+function boardFit() {
+  const pts = boardPoints();
+  const systems = new Set(pts.map(r => r.system.toLowerCase()));
+  if (pts.length < 2 || systems.size < 2) return null;
+  const xs = pts.map(r => Math.log10(r.mass)), ys = pts.map(r => Math.log10(r.C));
+  const lf = linfit(xs, ys);
+  const gamma = Math.pow(10, stats(ys.map((y, i) => y - xs[i])).mean);    // slope fixed at 1
+  const gLin = pts.reduce((a, r) => a + r.mass * r.C, 0) / pts.reduce((a, r) => a + r.mass * r.mass, 0);
+  return { ...lf, gamma, gLin, count: pts.length, systems: systems.size };
+}
+function renderStage4() {
+  const r = myResult();
+  $('my-result').innerHTML = r
+    ? `<small>Your result${r.team ? ' · ' + esc(r.team) : ''}</small>${esc(r.system)}: M = <span class="k">${sci(r.mass, 4)}</span> kg<br>v²R = <span class="k">${sci(r.C, 4)}</span> m³/s²`
+    : '<small>Your result</small>Finish steps ① and ③ first (at least 2 bodies and a mass).';
+  const live = !!(S.live.url && S.live.session);
+  $('send-btn').disabled = !r; $('code-btn').disabled = !r;
+  $('send-btn').textContent = live ? '📤 Send to class' : '📤 Add to board';
+  $('refresh-btn').hidden = !live;
+  $('send-hint').innerHTML = !r ? '' : !r.team ? '⚠ Write your team name in step ① before sharing.'
+    : live ? `Connected to session <b class="mono">${esc(S.live.session)}</b>. Your result goes to every screen in the class.`
+    : 'Not connected: share your <b>code</b> with the teacher, or ask for the class link.';
+
+  const rows = [...S.rows].sort((a, b) => a.mass - b.mass || a.team.localeCompare(b.team));
+  const icon = { live: '🌐', code: '📋', demo: '🧪', me: '🙋' };
+  $('class-body').innerHTML = rows.length ? rows.map(x => {
+    const off = !!S.hidden[x.id];
+    return `<tr class="${off ? 'off' : ''}"><td class="name" title="${esc(x.src)}">${icon[x.src] || ''} ${esc(x.team)}</td><td class="name" style="font-weight:600">${esc(x.system)}</td>`
+      + `<td>${sci(x.mass, 3)}</td><td>${sci(x.C, 4)}</td><td class="c"><input type="checkbox" data-row="${esc(x.id)}" ${off ? '' : 'checked'}></td>`
+      + `<td>${x.src === 'live' ? '' : `<button class="x-btn" data-del="${esc(x.id)}" title="Remove from this board">✕</button>`}</td></tr>`;
+  }).join('') : '<tr><td colspan="6" class="name" style="text-align:center;color:var(--muted);padding:16px">No results yet.</td></tr>';
+
+  const f = boardFit(), log = S.axes.s4 === 'log';
+  $('reg-read').innerHTML = !f
+    ? 'Results from at least <b>two different systems</b> are needed for a fit.'
+    : log
+      ? `Log–log fit (${f.count} results): <b class="mono">slope = ${f.m.toFixed(3)}</b>, R² = ${f.r2.toFixed(4)}. ` + (S.gShown || S.stage === 5 ? '' : 'A slope of 1 means v²R is <b>proportional</b> to M. Then v²R = Γ·M, and Γ = 10<sup>intercept</sup> with the slope set to 1: ') + `<b class="mono">Γ = ${sci(f.gamma, 4)} m³ kg⁻¹ s⁻²</b>`
+      : `Linear axes: the line through the origin has <b class="mono">slope Γ = ${sci(f.gLin, 4)} m³ kg⁻¹ s⁻²</b>. Notice which point controls this line almost by itself. Switch to log–log to give every system a fair say.`;
+}
+plot('cv4', () => {
+  const log = S.axes.s4 === 'log', f = boardFit();
+  const pts = S.rows.map(r => ({ x: r.mass, y: r.C, label: r.system, off: !!S.hidden[r.id],
+    tip: `${r.team} — ${r.system}\nM = ${sci(r.mass, 4)} kg\nv²R = ${sci(r.C, 4)} m³/s²\nv²R/M = ${sci(r.C / r.mass, 4)}` }));
+  const curves = f ? [log ? { fn: M => Math.pow(10, f.b) * Math.pow(M, f.m), color: cssVar('--orange'), width: 2.5 }
+                          : { fn: M => f.gLin * M, color: cssVar('--orange'), width: 2.5 }] : [];
+  return { xLog: log, yLog: log, xZero: true, yZero: true, color: cssVar('--accent'),
+    xName: 'Central mass M', xUnit: 'kg', yName: 'v²R', yUnit: 'm³/s²',
+    empty: 'Results from the class appear here', points: pts, curves };
+});
+$('class-body').addEventListener('change', e => {
+  const id = e.target.dataset.row; if (id == null) return;
+  if (e.target.checked) delete S.hidden[id]; else S.hidden[id] = true;
+  save(); renderAll();
+});
+$('class-body').addEventListener('click', e => {
+  const id = e.target.dataset.del; if (id == null) return;
+  S.rows = S.rows.filter(r => r.id !== id); save(); renderAll();
+});
+$('code-btn').addEventListener('click', async () => {
+  const r = myResult(); if (!r) return;
+  if (!r.team) { toast('Write your team name in step ① first'); return; }
+  const ok = await copyText(codeOf(r));
+  toast(ok ? 'Code copied — paste it where your teacher asks' : codeOf(r));
+});
+$('send-btn').addEventListener('click', async () => {
+  const r = myResult(); if (!r) return;
+  if (!r.team) { toast('Write your team name in step ① first'); goStage(1); $('team-in').focus(); return; }
+  upsertRow({ ...r, src: 'me' });
+  save(); renderAll();
+  if (!(S.live.url && S.live.session)) { toast('Added to your board'); return; }
+  $('send-btn').disabled = true;
+  try {
+    // text/plain body = a "simple" request, so Apps Script needs no CORS preflight
+    const res = await fetch(S.live.url, { method: 'POST', body: JSON.stringify({ session: S.live.session, ...r }) });
+    const j = await res.json();
+    if (!j.ok) throw new Error(j.error || 'rejected');
+    toast('Sent to the class ✓'); setLive('on'); await pull();
+  } catch (err) {
+    setLive('err'); toast('Could not send — copy your code instead');
+  } finally { $('send-btn').disabled = false; }
+});
+$('code-add').addEventListener('click', () => {
+  const { added, bad } = parseCodes($('code-in').value);
+  if (added) $('code-in').value = '';
+  toast(`${added} result${added === 1 ? '' : 's'} added` + (bad ? ` · ${bad} unreadable` : ''));
+  save(); renderAll();
+});
+$('demo-btn').addEventListener('click', () => {
+  Object.values(SYSTEMS).forEach(sys => {
+    const vs = sys.bodies.map(([, Rkm, vk, Td]) => { const R = Rkm * 1e3, v = vk != null ? vk * 1e3 : 2 * Math.PI * R / (Td * 86400); return v * v * R; });
+    upsertRow({ team: 'Sample data', system: sys.central, mass: sys.mass, C: stats(vs).mean, n: -0.5, count: vs.length, src: 'demo' });
+  });
+  save(); renderAll(); toast('Sample results for every system added');
+});
+$('clear-btn').addEventListener('click', () => {
+  if (!S.rows.length || !confirm('Remove all results from this board? (Results stored in the class Google Sheet are not deleted.)')) return;
+  S.rows = []; S.hidden = {}; save(); renderAll();
+  if (S.live.url && S.live.session) pull();
+});
+$('refresh-btn').addEventListener('click', () => pull(true));
+
+// ── Live connection (Google Apps Script web app) ────────────
+function setLive(state) {
+  const pill = $('live-pill'), on = !!(S.live.url && S.live.session);
+  pill.classList.toggle('on', on && state !== 'err');
+  pill.classList.toggle('err', on && state === 'err');
+  $('live-text').textContent = !on ? 'Offline · codes' : state === 'err' ? 'Connection problem' : 'Live · ' + S.live.session;
+}
+async function pull(manual) {
+  if (!(S.live.url && S.live.session)) return;
+  try {
+    const res = await fetch(S.live.url + '?session=' + encodeURIComponent(S.live.session));
+    const j = await res.json();
+    if (!j.ok) throw new Error(j.error);
+    const ids = new Set();
+    j.rows.forEach(r => {
+      if (!(r.mass > 0 && r.C > 0)) return;
+      const row = { team: r.team, system: r.system, mass: r.mass, C: r.C, n: r.n, count: r.count, src: 'live' };
+      row.id = rowId(row.team, row.system); ids.add(row.id);
+      const i = S.rows.findIndex(x => x.id === row.id);
+      if (i >= 0) S.rows[i] = row; else S.rows.push(row);
+    });
+    S.rows = S.rows.filter(r => r.src !== 'live' || ids.has(r.id));
+    setLive('on'); renderStage4(); renderStage5(); drawPlot(PLOTS.cv4);
+    if (manual) toast(`${j.rows.length} result${j.rows.length === 1 ? '' : 's'} in session ${S.live.session}`);
+    return true;
+  } catch (err) { setLive('err'); if (manual) toast('Could not reach the class sheet'); return false; }
+}
+setInterval(() => {
+  if (document.visibilityState === 'visible' && (S.stage === 4 || S.stage === 5)) pull();
+}, 5000);
+
+function openModal() {
+  $('url-in').value = S.live.url; $('session-in').value = S.live.session;
+  $('conn-status').textContent = ''; $('modal').hidden = false;
+}
+$('live-pill').addEventListener('click', openModal);
+$('modal-x').addEventListener('click', () => { $('modal').hidden = true; });
+$('modal').addEventListener('click', e => { if (e.target.id === 'modal') $('modal').hidden = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('modal').hidden = true; });
+function readConn() {
+  const url = $('url-in').value.trim(), ses = $('session-in').value.trim().toUpperCase().replace(/\s+/g, '-');
+  if (!/^https:\/\/script\.google(usercontent)?\.com\/.+/.test(url)) { $('conn-status').textContent = '⚠ The URL should start with https://script.google.com/'; return null; }
+  if (!ses) { $('conn-status').textContent = '⚠ Choose a session code.'; return null; }
+  return { url, session: ses };
+}
+$('conn-save').addEventListener('click', async () => {
+  const c = readConn(); if (!c) return;
+  if (c.url !== S.live.url || c.session !== S.live.session) S.rows = S.rows.filter(r => r.src !== 'live');
+  S.live = c; save(); setLive();
+  $('conn-status').textContent = 'Connecting…';
+  const ok = await pull();
+  $('conn-status').textContent = ok ? '✓ Connected. Results from this session now appear on the class board.' : '⚠ Saved, but the sheet did not answer. Check the URL and that access is set to "Anyone".';
+  renderAll();
+});
+$('conn-test').addEventListener('click', async () => {
+  const c = readConn(); if (!c) return;
+  $('conn-status').textContent = 'Testing…';
+  try {
+    const j = await (await fetch(c.url + '?session=' + encodeURIComponent(c.session))).json();
+    $('conn-status').textContent = j.ok ? `✓ Works. Session ${c.session} has ${j.rows.length} result${j.rows.length === 1 ? '' : 's'}.` : '⚠ The script answered with an error: ' + j.error;
+  } catch (e) { $('conn-status').textContent = '⚠ No answer. Check the URL, and that the deployment is a Web app with access "Anyone".'; }
+});
+$('conn-link').addEventListener('click', async () => {
+  const c = readConn(); if (!c) return;
+  const link = location.origin + location.pathname + '?live=' + encodeURIComponent(c.url) + '&session=' + encodeURIComponent(c.session);
+  const ok = await copyText(link);
+  $('conn-status').textContent = ok ? '✓ Student link copied.' : link;
+});
+$('conn-off').addEventListener('click', () => {
+  S.live = { url: '', session: '' }; S.rows = S.rows.filter(r => r.src !== 'live');
+  save(); setLive(); renderAll(); $('conn-status').textContent = 'Disconnected. Results are shared with codes.';
+});
+$('gas-pre').textContent = $('gas-code').textContent.trim();
+$('gas-copy').addEventListener('click', async () => toast(await copyText($('gas-pre').textContent) ? 'Script copied' : 'Select the code and copy it'));
+
+// ── ⑤ The law ───────────────────────────────────────────────
+function renderStage5() {
+  const f = boardFit(), card = $('derive-card');
+  if (!f) {
+    card.innerHTML = '<h2>⑤ The Law of Universal Gravitation</h2><p class="lead" style="margin-top:8px">The class board in step ④ needs results from at least <b>two different systems</b>. Collect them from the other pairs, or add the sample data to try it on your own.</p>';
+    return;
+  }
+  const g = f.gamma, diff = (g - G_ACCEPTED) / G_ACCEPTED * 100;
+  card.innerHTML = `<h2>⑤ The Law of Universal Gravitation</h2>
+  <div class="eq-step"><div class="eq-num">1</div><div class="eq-body">Inside each system, the rotation curve follows <span class="mono">v ∝ R<sup>−½</sup></span>, so every system has its own constant:
+    <div class="eq">v²R = <span class="up">constant</span></div></div></div>
+  <div class="eq-step"><div class="eq-num">2</div><div class="eq-body">Across the class's ${f.systems} systems, the log–log plot of that constant against the central mass has slope <b class="mono">${f.m.toFixed(3)}</b> (R² = ${f.r2.toFixed(4)}). A slope of 1 means the constant is <b>proportional</b> to the mass:
+    <div class="eq">v²R = Γ · M &nbsp;&nbsp;<span class="up" style="font-size:1rem">with</span>&nbsp;&nbsp; Γ = ${sci(g, 4)} <span class="up" style="font-size:1rem">m³ kg⁻¹ s⁻²</span></div></div></div>
+  <div class="eq-step"><div class="eq-num">3</div><div class="eq-body">Solve for the speed of anything orbiting a mass M:
+    <div class="eq">v² = <span class="frac"><span>Γ M</span><span>R</span></span></div></div></div>
+  <div class="eq-step"><div class="eq-num">4</div><div class="eq-body">An orbiting body of mass m moves in a circle, so something must pull it toward the centre with the centripetal force:
+    <div class="eq">F = <span class="frac"><span>m v²</span><span>R</span></span> = <span class="frac"><span>m</span><span>R</span></span> · <span class="frac"><span>Γ M</span><span>R</span></span></div></div></div>
+  <div class="eq-step"><div class="eq-num">5</div><div class="eq-body">That pull is gravity:
+    <div class="eq final">F = Γ <span class="frac"><span>M m</span><span>R²</span></span></div>
+    <div class="btn-row" style="margin-top:6px"><button class="btn primary" id="g-btn" style="--sc:var(--green)">${S.gShown ? 'Hide' : 'Compare with'} the accepted value</button></div>
+    <div class="note ${Math.abs(diff) < 5 ? 'good' : 'warn'}" ${S.gShown ? '' : 'hidden'} style="margin-top:8px">
+      Accepted value (CODATA 2022): <b class="mono">G = 6.674 × 10⁻¹¹ m³ kg⁻¹ s⁻²</b><br>
+      Your class: <b class="mono">Γ = ${sci(g, 4)}</b> → difference <b class="mono">${diff >= 0 ? '+' : ''}${diff.toFixed(2)}%</b>.
+      Γ is Newton's gravitational constant G, measured here from orbits rather than in a laboratory.</div>
+  </div></div>`;
+  $('g-btn').addEventListener('click', () => { S.gShown = !S.gShown; save(); renderStage5(); });
+}
+
+// ── Navigation and wiring ───────────────────────────────────
+function goStage(n) {
+  S.stage = n; save();
+  document.querySelectorAll('.step').forEach(b => b.classList.toggle('active', +b.dataset.s === n));
+  document.querySelectorAll('.stage').forEach(s => { s.hidden = s.id !== 'st' + n; });
+  renderAll();
+  if (n >= 4) pull();
+  window.scrollTo(0, 0);
+}
+$('steps').addEventListener('click', e => { const b = e.target.closest('.step'); if (b) goStage(+b.dataset.s); });
+document.querySelectorAll('.seg[data-axes]').forEach(seg => {
+  const key = seg.dataset.axes;
+  const sync = () => seg.querySelectorAll('.btn').forEach(b => b.classList.toggle('active', b.dataset.v === S.axes[key]));
+  seg.addEventListener('click', e => {
+    const b = e.target.closest('.btn'); if (!b) return;
+    S.axes[key] = b.dataset.v; save(); sync(); renderStage4(); redrawVisible();
+  });
+  sync();
+});
+function renderAll() {
+  renderStage1(); renderStage3(); renderStage4(); renderStage5();
+  requestAnimationFrame(redrawVisible);
+}
+
+buildSystemSelect();
+$('team-in').value = S.team;
+$('c-central').value = S.custom.central; $('c-mass').value = S.custom.mass; $('c-text').value = S.custom.text;
+$('c-runit').value = S.custom.rUnit; $('c-vunit').value = S.custom.vUnit;
+setLive();
+goStage(S.stage || 1);
+</script>
+
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  let saved = null; try { saved = localStorage.getItem('theme'); } catch (e) {}
+  if (saved === 'dark') { document.body.classList.add('dark'); btn.textContent = '☀'; }
+  btn.addEventListener('click', () => {
+    const isDark = document.body.classList.toggle('dark');
+    btn.textContent = isDark ? '☀' : '🌙';
+    try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    redrawVisible();
+  });
+})();
+</script>
+</body>
+</html>
