@@ -221,7 +221,7 @@ canvas.chart { display: block; width: 100%; height: 100%; }
 #play-btn:hover { opacity: 0.9; }
 #play-btn.playing { background: #f59e0b; border-color: #f59e0b; }
 #play-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.ro-sound { font-size: 0.78rem; font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; margin-top: 2px; }
+.ro-sound { font-size: 0.8rem; font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; margin-top: 4px; line-height: 1.45; }
 .ro-sound.pos { color: #0ea5e9; } .ro-sound.neg { color: #ea580c; } .ro-sound.off { color: var(--muted); }
 .axis-hint { font-size: 0.68rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
 /* Big x / y readout in the top-right corner while hovering */
@@ -1672,8 +1672,8 @@ function updateCursorReadout() {
     html += `<div class="ro-row ro-m"><span class="ro-k">f′(x)</span> = ${isFinite(m) ? traceFmt(m) : '—'}</div>`;
   }
   if (playing) {
-    const snd = soundInfo(x);
-    html += `<div class="ro-sound ${snd.cls}">${snd.text}</div>`;
+    const info = mathInfo(x);
+    html += `<div class="ro-sound ${info.cls}">${info.text}</div>`;
   }
   el.innerHTML = html;
   el.style.display = 'block';
@@ -1722,13 +1722,19 @@ function isOffScreen(y) {
   const yR = fxTransform ? fxTransform.yR : null;
   return yR && (y > yR.max || y < yR.min);
 }
-function soundInfo(x) {
+// Mathematical description of f at x, shown in the readout during Play:
+// sign of f, monotonicity (sign of f′) and concavity (sign of f″).
+function mathInfo(x) {
   const y = f(x);
-  if (!soundOn) return { cls: 'off', text: '🔇 sound off' };
-  if (!isFinite(y)) return { cls: 'off', text: isNaN(y) ? '♪ silence — f undefined' : '♪ ∞ — top of the range' };
-  const hz = Math.round(pitchFor(y));
-  const where = Math.abs(y) < 1e-12 ? 'on the x-axis' : y > 0 ? 'above the axis · smooth tone' : 'below the axis · buzzy tone';
-  return { cls: y >= 0 ? 'pos' : 'neg', text: `♪ ${hz} Hz · ${where}${isOffScreen(y) ? ' · off screen (wobble)' : ''}` };
+  if (isNaN(y)) return { cls: 'off', text: 'f is undefined at this x (outside the domain)' };
+  if (!isFinite(y)) return { cls: 'off', text: `f(x) → ${y > 0 ? '+∞' : '−∞'} (vertical asymptote)` };
+  const eps = 1e-10;
+  const sign = Math.abs(y) < eps ? 'f(x) = 0 · on the x-axis' : y > 0 ? 'f(x) > 0 · above the x-axis' : 'f(x) < 0 · below the x-axis';
+  const d1 = fPrime(x), d2 = fDouble(x);
+  const mono = !isFinite(d1) ? 'f′ undefined' : Math.abs(d1) < eps ? 'f′ = 0: horizontal tangent' : d1 > 0 ? 'f′ > 0: increasing' : 'f′ < 0: decreasing';
+  const conc = !isFinite(d2) ? 'f″ undefined' : Math.abs(d2) < eps ? 'f″ = 0' : d2 > 0 ? 'f″ > 0: concave up' : 'f″ < 0: concave down';
+  const off = isOffScreen(y) ? `<br>|f(x)| is beyond the visible window` : '';
+  return { cls: Math.abs(y) < eps ? 'off' : y > 0 ? 'pos' : 'neg', text: `${sign}<br>${mono} · ${conc}${off}` };
 }
 
 function updateSound() {
