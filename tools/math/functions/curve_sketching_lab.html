@@ -1619,9 +1619,6 @@ function updateCursorReadout() {
     const m = fPrime(x);
     html += `<div class="ro-row ro-m"><span class="ro-k">f′(x)</span> = ${isFinite(m) ? traceFmt(m) : '—'}</div>`;
   }
-  const kp = keyPoints.find(p => p.x === x);
-  const KP_ONE = { zero: 'zero of f', yint: 'y-intercept', max: 'local maximum', min: 'local minimum', infl: 'inflection point' };
-  if (kp && showKeyPts) html += `<div class="ro-note">● ${KP_ONE[kp.kind]}</div>`;
   el.innerHTML = html;
   el.style.display = 'block';
 }
@@ -1772,19 +1769,12 @@ fxCv.addEventListener('mousemove', e => {
   const px = e.clientX - rect.left, py = e.clientY - rect.top;
   if (!dragState) updateCursorStyle(labelAt(px, py) ? 'label' : zoneAt(px, py, rect.width, rect.height));
   if (dragState || !fxTransform) return;
-  const { pad, W, H, pw, xR } = fxTransform;
+  const { pad, W, H } = fxTransform;
   if (px < pad.l || px > W - pad.r || py < pad.t || py > H - pad.b) {
     if (cursorX !== null) { cursorX = null; drawCharts(); }
     return;
   }
   cursorX = fxTransform.fromX(px);
-  // Snap onto a nearby key point so its exact coordinates show
-  if (showKeyPts) {
-    const toPx = x => pad.l + (x - xR.min) / (xR.max - xR.min) * pw;
-    let best = null, bestD = 9;
-    for (const k of keyPoints) { const d = Math.abs(toPx(k.x) - px); if (d < bestD) { best = k; bestD = d; } }
-    if (best) cursorX = best.x;
-  }
   drawCharts();
 });
 fxCv.addEventListener('mouseleave', () => {
@@ -1840,7 +1830,9 @@ fxCv.addEventListener('wheel', e => {
   const { pad, pw, ph } = fxTransform;
   const dataX = fxTransform.fromX(px);
   const dataY = fxTransform.fromY(py);
-  const factor = Math.exp(-e.deltaY * 0.0015);
+  // Pinch (ctrlKey wheel events with small deltas) zooms faster than a mouse wheel
+  const rate = e.ctrlKey ? 0.012 : 0.003;
+  const factor = Math.exp(-Math.max(-150, Math.min(150, e.deltaY)) * rate);
   const pxPerUnitX = Math.min(4000, Math.max(2, view.pxPerUnitX * factor));
   const pxPerUnitY = Math.min(4000, Math.max(2, view.pxPerUnitY * factor));
   view = {
