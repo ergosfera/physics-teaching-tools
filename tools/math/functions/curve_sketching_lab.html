@@ -229,6 +229,39 @@ canvas.chart { display: block; width: 100%; height: 100%; }
 .cursor-readout .ro-m { font-size: 1rem; }
 .cursor-readout .ro-note { font-size: 0.72rem; color: var(--muted); font-family: 'Segoe UI', system-ui, sans-serif; }
 
+canvas.chart { touch-action: none; }
+.touch-hint { display: none; }
+
+/* Touch screens: bigger targets, touch hints instead of mouse hints */
+@media (hover: none), (pointer: coarse) {
+  .mouse-hint { display: none; }
+  .touch-hint { display: inline; }
+  .vsplit { flex-basis: 14px; }
+  .hsplit { flex-basis: 14px; }
+  .collapse-btn { padding: 6px 12px; font-size: 0.85rem; }
+  .chk-row { padding: 4px 0; }
+  .chk-row input { width: 20px; height: 20px; }
+  .view-btn { padding: 7px 12px; font-size: 0.8rem; }
+}
+
+/* Narrow screens (tablet portrait, phones): stack Function → graph → tables
+   and let the page scroll; columns no longer need resizing */
+@media (max-width: 900px) {
+  html, body { height: auto; min-height: 100%; overflow: auto; }
+  .step-flow { display: none; }
+  #panels-row { flex-direction: column; overflow: visible; }
+  .panel { height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .panel.p1, .panel.p2 { flex: 0 0 auto !important; width: 100%; }
+  .panel.p1 { order: 1; }
+  #graph-panel { order: 2; flex: 0 0 auto; height: 78vh; min-height: 420px; min-width: 0; }
+  #mid-col { order: 3; }
+  .vsplit, .hsplit { display: none; }
+  .ctrl-body { overflow: visible; }
+  #tbl-sec, #kp-sec, #asym-sec { flex: 0 0 auto !important; }
+  .sec:not(.collapsed) .tbl-wrap, .sec:not(.collapsed) .asym-list { max-height: 55vh; }
+  .axis-hint { white-space: normal; }
+}
+
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 </style>
@@ -349,7 +382,8 @@ canvas.chart { display: block; width: 100%; height: 100%; }
         <button class="btn view-btn" id="seg-btn" type="button" title="Show the interval slices and secants">▤ Segments</button>
         <button class="btn view-btn" id="tan-btn" type="button" title="Also draw the tangent line at the hovered point">✥ Tangent</button>
       </div>
-      <span class="axis-hint">🖱 hover to trace values · drag inside to pan · drag labels to move them · drag bottom/left edge to rescale x/y · scroll to zoom · dbl-click to reset</span>
+      <span class="axis-hint mouse-hint">🖱 hover to trace values · drag inside to pan · drag labels to move them · drag bottom/left edge to rescale x/y · scroll to zoom · dbl-click to reset</span>
+      <span class="axis-hint touch-hint">☝ one finger: trace · ✌ two fingers: pan &amp; pinch-zoom · drag labels or the bottom/left edge · double-tap: reset</span>
     </div>
     <div class="graph-wrap" id="fx-wrap">
       <canvas id="fx-cv" class="chart"></canvas>
@@ -1751,10 +1785,10 @@ function zoneAt(px, py, w, h) {
   return null;
 }
 
-function labelAt(px, py) {
+function labelAt(px, py, slop = 0) {
   for (let i = labelRects.length - 1; i >= 0; i--) {
     const r = labelRects[i];
-    if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) return r.key;
+    if (px >= r.x - slop && px <= r.x + r.w + slop && py >= r.y - slop && py <= r.y + r.h + slop) return r.key;
   }
   return null;
 }
@@ -1802,23 +1836,25 @@ fxCv.addEventListener('mousedown', e => {
   else dragState = { mode: 'pan', x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy };
   updateCursorStyle(zone);
 });
-window.addEventListener('mousemove', e => {
+// Applies an ongoing drag (label, pan or per-axis rescale) — shared by mouse and touch
+function applyDrag(clientX, clientY) {
   if (!dragState || !view) return;
   if (dragState.mode === 'label') {
-    labelOffsets[dragState.key] = { dx: dragState.dx + e.clientX - dragState.x, dy: dragState.dy + e.clientY - dragState.y };
+    labelOffsets[dragState.key] = { dx: dragState.dx + clientX - dragState.x, dy: dragState.dy + clientY - dragState.y };
   } else if (dragState.mode === 'pan') {
-    const dx = e.clientX - dragState.x, dy = e.clientY - dragState.y;
+    const dx = clientX - dragState.x, dy = clientY - dragState.y;
     view.cx = dragState.cx - dx / view.pxPerUnitX;
     view.cy = dragState.cy + dy / view.pxPerUnitY;
   } else if (dragState.mode === 'zoomX') {
-    const delta = e.clientX - dragState.start;
+    const delta = clientX - dragState.start;
     view.pxPerUnitX = Math.min(4000, Math.max(2, dragState.startVal * Math.exp(delta / 150)));
   } else if (dragState.mode === 'zoomY') {
-    const delta = -(e.clientY - dragState.start);
+    const delta = -(clientY - dragState.start);
     view.pxPerUnitY = Math.min(4000, Math.max(2, dragState.startVal * Math.exp(delta / 150)));
-  }
+  } else return;
   drawFxChart();
-});
+}
+window.addEventListener('mousemove', e => applyDrag(e.clientX, e.clientY));
 window.addEventListener('mouseup', () => {
   if (dragState) { dragState = null; updateCursorStyle(null); drawCharts(); }
 });
@@ -1842,18 +1878,109 @@ fxCv.addEventListener('wheel', e => {
   };
   drawFxChart();
 }, { passive: false });
-fxCv.addEventListener('dblclick', e => {
+// Re-fit the view: just one axis if (px, py) is on an axis edge strip, else everything
+function resetViewAt(px, py) {
   const rect = fxCv.getBoundingClientRect();
-  const px = e.clientX - rect.left, py = e.clientY - rect.top;
   const zone = zoneAt(px, py, rect.width, rect.height);
-  if (!fxTransform) { view = null; drawFxChart(); return; }
+  if (!fxTransform || !view) { view = null; drawFxChart(); return; }
   const { pw, ph } = fxTransform;
   const fit = computeAutofitView(pw, ph);
   if (zone === 'x') { view.cx = fit.cx; view.pxPerUnitX = fit.pxPerUnitX; }
   else if (zone === 'y') { view.cy = fit.cy; view.pxPerUnitY = fit.pxPerUnitY; }
   else view = null;
   drawFxChart();
+}
+fxCv.addEventListener('dblclick', e => {
+  const rect = fxCv.getBoundingClientRect();
+  resetViewAt(e.clientX - rect.left, e.clientY - rect.top);
 });
+
+// ── Touch & pen: one finger traces the curve (or drags a label / axis edge
+//    strip), two fingers pan and pinch-zoom the graph, double-tap re-fits ──
+const touchPts = new Map();   // pointerId → { x, y } (client coords)
+let pinch = null, tapStart = null, lastTap = null;
+const clampZoom = v => Math.min(4000, Math.max(2, v));
+
+function canvasXY(clientX, clientY) {
+  const r = fxCv.getBoundingClientRect();
+  return { px: clientX - r.left, py: clientY - r.top, w: r.width, h: r.height };
+}
+function traceAt(px) {
+  if (!fxTransform) return;
+  const { pad, pw } = fxTransform;
+  cursorX = fxTransform.fromX(Math.max(pad.l, Math.min(pad.l + pw, px)));
+  drawCharts();
+}
+function pinchMid() {
+  const [a, b] = [...touchPts.values()];
+  const { px, py } = canvasXY((a.x + b.x) / 2, (a.y + b.y) / 2);
+  return { px, py, d: Math.hypot(a.x - b.x, a.y - b.y) || 1 };
+}
+
+fxCv.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' || !view || !fxTransform) return;
+  e.preventDefault();   // also stops the browser's emulated mouse events
+  try { fxCv.setPointerCapture(e.pointerId); } catch (err) {}
+  touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (touchPts.size === 2) {           // second finger: switch to pan + pinch
+    const m = pinchMid();
+    pinch = { d0: m.d, dataX: fxTransform.fromX(m.px), dataY: fxTransform.fromY(m.py), sx: view.pxPerUnitX, sy: view.pxPerUnitY };
+    dragState = { mode: 'pinch' };
+    tapStart = null;
+    drawCharts();
+    return;
+  }
+  if (touchPts.size > 2) return;
+  const { px, py, w, h } = canvasXY(e.clientX, e.clientY);
+  tapStart = { x: e.clientX, y: e.clientY, px, py };
+  const key = labelAt(px, py, 10);
+  if (key) {
+    const off = labelOffsets[key] || { dx: 0, dy: 0 };
+    dragState = { mode: 'label', key, x: e.clientX, y: e.clientY, dx: off.dx, dy: off.dy };
+    return;
+  }
+  const zone = zoneAt(px, py, w, h);
+  if (zone === 'x') dragState = { mode: 'zoomX', start: e.clientX, startVal: view.pxPerUnitX };
+  else if (zone === 'y') dragState = { mode: 'zoomY', start: e.clientY, startVal: view.pxPerUnitY };
+  else traceAt(px);
+});
+fxCv.addEventListener('pointermove', e => {
+  if (e.pointerType === 'mouse' || !touchPts.has(e.pointerId)) return;
+  e.preventDefault();
+  touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (tapStart && Math.hypot(e.clientX - tapStart.x, e.clientY - tapStart.y) > 10) tapStart = null;
+  if (pinch) {
+    if (touchPts.size < 2) return;
+    const m = pinchMid(), s = m.d / pinch.d0;
+    const { pad, pw, ph } = fxTransform;
+    const ppx = clampZoom(pinch.sx * s), ppy = clampZoom(pinch.sy * s);
+    // keep the point that was under the fingers under the fingers (pan + zoom)
+    view = { cx: pinch.dataX - (m.px - pad.l - pw/2) / ppx, cy: pinch.dataY - (pad.t + ph/2 - m.py) / ppy, pxPerUnitX: ppx, pxPerUnitY: ppy };
+    drawFxChart();
+    return;
+  }
+  if (dragState) { applyDrag(e.clientX, e.clientY); return; }
+  if (touchPts.size === 1) traceAt(canvasXY(e.clientX, e.clientY).px);
+}, { passive: false });
+function endTouch(e) {
+  if (e.pointerType === 'mouse' || !touchPts.has(e.pointerId)) return;
+  touchPts.delete(e.pointerId);
+  if (pinch) {                         // wait until every finger is up
+    if (touchPts.size === 0) { pinch = null; dragState = null; drawCharts(); }
+    return;
+  }
+  if (dragState) { dragState = null; drawCharts(); }
+  if (tapStart && e.type === 'pointerup') {   // double-tap → re-fit view
+    const now = performance.now();
+    if (lastTap && now - lastTap.t < 350 && Math.hypot(tapStart.x - lastTap.x, tapStart.y - lastTap.y) < 30) {
+      resetViewAt(tapStart.px, tapStart.py);
+      lastTap = null;
+    } else lastTap = { x: tapStart.x, y: tapStart.y, t: now };
+  }
+  tapStart = null;
+}
+fxCv.addEventListener('pointerup', endTouch);
+fxCv.addEventListener('pointercancel', endTouch);
 
 updateCursorStyle(null);
 
