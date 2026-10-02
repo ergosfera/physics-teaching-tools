@@ -175,6 +175,17 @@ tbody tr:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); 
 td input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
 .ecc-hi { color: var(--orange); font-weight: 800; }
 .tfoot td { font-weight: 800; border-top: 2px solid var(--border); background: var(--bg); }
+table.entry td { padding: 3px 4px; }
+table.entry td.calc { padding: 6px 8px; color: var(--muted); }
+table.entry td.calc.bad { color: var(--red); font-weight: 800; }
+.cell {
+  width: 100%; min-width: 104px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px;
+  padding: 6px 7px; font-family: 'Courier New', monospace; font-size: 0.88rem; color: var(--text); outline: none; text-align: right;
+}
+.cell.name-in { font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; text-align: left; min-width: 100px; }
+.cell.e-in { min-width: 56px; width: 64px; }
+.cell:focus { border-color: var(--accent); background: var(--surface); }
+.cell.bad { border-color: var(--red); background: color-mix(in srgb, var(--red) 8%, var(--bg)); }
 .src { font-size: 0.7rem; color: var(--muted); font-family: 'Segoe UI', system-ui, sans-serif; }
 .x-btn { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0 4px; }
 .x-btn:hover { color: var(--red); }
@@ -257,43 +268,48 @@ canvas.plot { display: block; width: 100%; height: 100%; touch-action: none; }
 <section class="stage" id="st1">
   <div class="side">
     <h2>① Your gravitational system</h2>
-    <p class="lead">Each pair studies <b>one</b> system: a central body and the things that orbit it. At the end, the whole class puts its systems together.</p>
+    <p class="lead">Each pair studies <b>one</b> system: a central body and the things that orbit it. Find the data in a reliable source and type it into the table. At the end, the whole class puts its systems together.</p>
     <div>
       <label class="field-label" for="team-in">Pair / team name</label>
       <input class="win-field" id="team-in" placeholder="e.g. Ana &amp; Luis" maxlength="50" autocomplete="off">
     </div>
-    <div>
-      <label class="field-label" for="sys-sel">System</label>
-      <select class="win-field" id="sys-sel"></select>
+    <div class="row2">
+      <div><label class="field-label" for="c-central">Central body</label><input class="win-field" id="c-central" placeholder="e.g. Jupiter" maxlength="40" autocomplete="off"></div>
+      <div><label class="field-label" for="c-mass">Its mass M (kg)</label><input class="win-field mono" id="c-mass" placeholder="e.g. 1.898e27" autocomplete="off" inputmode="decimal"></div>
     </div>
-
-    <div id="custom-box" hidden>
-      <div class="row2">
-        <div><label class="field-label" for="c-central">Central body</label><input class="win-field" id="c-central" placeholder="e.g. Jupiter" maxlength="40"></div>
-        <div><label class="field-label" for="c-mass">Its mass (kg)</label><input class="win-field mono" id="c-mass" placeholder="1.898e27"></div>
-      </div>
-      <div class="row2" style="margin-top:10px">
-        <div><label class="field-label" for="c-runit">Distance R in</label>
-          <select class="win-field" id="c-runit"><option value="1">m</option><option value="1e3" selected>km</option><option value="1e9">10⁶ km</option><option value="1.495979e11">AU</option></select></div>
-        <div><label class="field-label" for="c-vunit">Second column is</label>
-          <select class="win-field" id="c-vunit"><option value="v:1">v in m/s</option><option value="v:1e3" selected>v in km/s</option><option value="v:0.2777777777777778">v in km/h</option><option value="T:86400">period T in days</option><option value="T:3600">period T in hours</option><option value="T:60">period T in minutes</option></select></div>
-      </div>
-      <label class="field-label" for="c-text" style="margin-top:10px">One body per line: name, R, v (or T). Paste from a spreadsheet works too.</label>
-      <textarea class="win-field" id="c-text" spellcheck="false" placeholder="Io        421700   17.33&#10;Europa    671034   13.74&#10;Ganymede  1070412  10.88"></textarea>
-      <div class="hint" id="c-errors"></div>
+    <div class="hint">Write large numbers like <span class="mono">1.898e27</span> (meaning 1.898 × 10²⁷). A decimal comma works too.</div>
+    <div class="row2">
+      <div><label class="field-label" for="c-runit">Your distances R are in</label>
+        <select class="win-field" id="c-runit"><option value="1">m</option><option value="1e3">km</option><option value="1e9">10⁶ km</option><option value="1.495979e11">AU</option></select></div>
+      <div><label class="field-label" for="c-vunit">Your second column is</label>
+        <select class="win-field" id="c-vunit"><option value="v:1">speed v in m/s</option><option value="v:1e3">speed v in km/s</option><option value="v:0.2777777777777778">speed v in km/h</option><option value="T:86400">period T in days</option><option value="T:3600">period T in hours</option><option value="T:60">period T in minutes</option></select></div>
     </div>
-
     <div class="big-read" id="central-read"></div>
-    <div class="note" id="sys-note"></div>
-    <div class="hint"><b>R</b> is the mean orbital distance (semi-major axis). Where a source gives only the period <b>T</b>, the speed comes from <span class="mono">v = 2πR/T</span>. <b>Δr</b> compares the farthest and nearest distance in the orbit: <span class="mono">(r<sub>max</sub> − r<sub>min</sub>)/r<sub>min</sub></span>. A large Δr means the orbit is far from a circle. Untick bodies you decide to leave out.</div>
+    <details class="card-d" style="--sc:var(--accent)">
+      <summary>📚 Where to find the data</summary>
+      <ul class="q-list">
+        <li><b>Planets around the Sun:</b> <a href="https://nssdc.gsfc.nasa.gov/planetary/factsheet/" target="_blank" rel="noopener">NASA Planetary Fact Sheet</a>. Use "Distance from Sun" (10⁶ km) and "Mean Orbital Velocity" (km/s).</li>
+        <li><b>Moons of a planet:</b> <a href="https://ssd.jpl.nasa.gov/sats/elem/" target="_blank" rel="noopener">JPL Planetary Satellite Mean Elements</a>. Use the semi-major axis <i>a</i> (km) and the period (days).</li>
+        <li><b>Mass of the central body:</b> the same NASA fact sheets, or <a href="https://ssd.jpl.nasa.gov/planets/phys_par.html" target="_blank" rel="noopener">JPL Planetary Physical Parameters</a>.</li>
+        <li><b>Earth's artificial satellites:</b> <a href="https://www.ucs.org/resources/satellite-database" target="_blank" rel="noopener">UCS Satellite Database</a>. It lists altitude above the ground and period in minutes. R must be measured from Earth's <i>centre</i>, so add Earth's radius (6371 km).</li>
+        <li><b>Exoplanets:</b> <a href="https://exoplanetarchive.ipac.caltech.edu/" target="_blank" rel="noopener">NASA Exoplanet Archive</a>. Use the semi-major axis (AU), the orbital period (days) and the star's mass.</li>
+      </ul>
+      <p class="hint" style="margin-top:6px">Avoid bodies on very stretched orbits, such as comets: the method assumes nearly circular motion.</p>
+    </details>
+    <div class="hint"><b>R</b> is the mean orbital distance (semi-major axis). If your source gives the period <b>T</b>, the tool works out <span class="mono">v = 2πR/T</span>. The optional eccentricity <b>e</b> gives <b>Δr</b>, how much the farthest distance exceeds the nearest: <span class="mono">(r<sub>max</sub> − r<sub>min</sub>)/r<sub>min</sub></span>. A large Δr means the orbit is far from a circle. Untick bodies you decide to leave out.</div>
   </div>
   <div class="pane auto">
     <div class="pane-head"><span class="pane-title" id="data-title">📋 Data</span><span class="hint" id="data-count"></span></div>
     <div class="tbl-wrap">
-      <table>
-        <thead><tr><th>Body</th><th>R (m)</th><th>T</th><th>v (m/s)</th><th>Δr</th><th class="c">Use</th></tr></thead>
-        <tbody id="data-body"></tbody>
+      <table class="entry">
+        <thead><tr><th>#</th><th style="text-align:left">Body</th><th id="h-a">R</th><th id="h-b">v</th><th>e <span style="font-weight:400">(opt.)</span></th><th>R (m)</th><th>v (m/s)</th><th>Δr</th><th class="c">Use</th><th></th></tr></thead>
+        <tbody id="entry-body"></tbody>
       </table>
+    </div>
+    <div class="plot-under btn-row" style="align-items:center">
+      <button class="btn" id="row-add">➕ Add row</button>
+      <button class="btn" id="rows-clear">🗑 Clear table</button>
+      <span class="hint">Press <b>Enter</b> to jump to the next row. You can paste several rows at once from a spreadsheet.</span>
     </div>
   </div>
 </section>
@@ -519,8 +535,9 @@ function doPost(e) {
 </script>
 
 <script>
-// ── Data ────────────────────────────────────────────────────
-// Each body: [name, R in km (mean distance / semi-major axis), v in km/s or
+// ── Sample data (teacher's "Sample data" button only) ───────
+// Students type their own data in step ①; these NASA/JPL values are only used
+// to fill the class board for a demonstration. Each body: [name, R in km (mean distance / semi-major axis), v in km/s or
 // null, period T in days or null, eccentricity]. Planets use the speeds the
 // NASA Planetary Fact Sheet lists; moons and satellites list R and T, so v
 // comes from 2πR/T, the same way the fact sheets compute it.
@@ -599,8 +616,9 @@ const G_ACCEPTED = 6.67430e-11;   // CODATA 2022
 // ── State (kept in localStorage; every access is guarded) ───
 const STORE = 'grav-lab';
 const S = {
-  stage: 1, team: '', system: 'jupiter', off: {}, n: 0,
-  custom: { central: '', mass: '', rUnit: '1e3', vUnit: 'v:1e3', text: '' },
+  stage: 1, team: '', n: 0,
+  // rows hold exactly what the students typed (strings), in their own units
+  entry: { central: '', mass: '', rUnit: '1e3', vUnit: 'T:86400', rows: [] },
   axes: { s2: 'lin', s3: 'lin', s4: 'log' },
   live: { url: '', session: '' },
   rows: [],          // class board: {id, team, system, mass, C, n, count, src}
@@ -608,6 +626,10 @@ const S = {
   lsShown: false, gShown: false,
 };
 try { Object.assign(S, JSON.parse(localStorage.getItem(STORE) || '{}')); } catch (e) {}
+delete S.system; delete S.off; delete S.custom;          // from the earlier preloaded-data version
+const blankRow = () => ({ name: '', a: '', b: '', e: '', on: true });
+if (!Array.isArray(S.entry.rows)) S.entry.rows = [];
+while (S.entry.rows.length < 5) S.entry.rows.push(blankRow());
 function save() {
   try { localStorage.setItem(STORE, JSON.stringify({ ...S, rows: S.rows.filter(r => r.src !== 'live') })); } catch (e) {}
 }
@@ -670,45 +692,38 @@ function linfit(xs, ys) {
   return { m, b: my - m * mx, r2: syy ? (sxy * sxy) / (sxx * syy) : 1 };
 }
 
-// ── Current system: bodies in SI ────────────────────────────
+// ── Current system: the students' rows in SI ────────────────
 function parseNum(t) {
-  t = t.trim().replace(/×\s*10\^?/, 'e').replace(/·10\^?/, 'e');
-  if (/^-?\d+,\d+$/.test(t)) t = t.replace(',', '.');
+  t = String(t).replace(/\s+/g, '').replace(/[×x·*]10\^?/i, 'e');
+  if (/^-?\d+,\d+(e[-+]?\d+)?$/i.test(t)) t = t.replace(',', '.');
   if (!/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(t)) return NaN;
   return parseFloat(t);
 }
-function customBodies() {
-  const c = S.custom, rU = parseFloat(c.rUnit), [kind, f] = c.vUnit.split(':'), fac = parseFloat(f);
-  const out = [], errs = [];
-  c.text.split(/\r?\n/).forEach((line, i) => {
-    if (!line.trim()) return;
-    const tok = line.split(/[\t;]+|\s{1,}/).filter(Boolean);
-    if (tok.length < 2) { errs.push(i + 1); return; }
-    const b = parseNum(tok[tok.length - 1]), a = parseNum(tok[tok.length - 2]);
-    if (!(a > 0) || !(b > 0)) { errs.push(i + 1); return; }
-    const name = tok.slice(0, -2).join(' ') || ('#' + (out.length + 1));
-    const R = a * rU;
-    const T = kind === 'T' ? b * fac : null;
-    const v = kind === 'T' ? 2 * Math.PI * R / T : b * fac;
-    out.push({ name, R, v, Tdays: T ? T / 86400 : null, dr: null });
-  });
-  return { bodies: out, errs };
+function units() {
+  const [kind, f] = S.entry.vUnit.split(':');
+  return { rU: parseFloat(S.entry.rUnit), kind, fac: parseFloat(f) };
 }
+// One typed row → {name, R, v, Tdays, dr, on} in SI, or null when incomplete
+function rowSI(r, i) {
+  const { rU, kind, fac } = units();
+  const a = parseNum(r.a), b = parseNum(r.b);
+  if (!(a > 0) || !(b > 0)) return null;
+  const R = a * rU, T = kind === 'T' ? b * fac : null;
+  const v = kind === 'T' ? 2 * Math.PI * R / T : b * fac;
+  const e = parseNum(r.e);
+  return { name: r.name.trim() || 'Body ' + (i + 1), R, v, Tdays: T ? T / 86400 : null,
+           dr: e >= 0 && e < 1 ? 2 * e / (1 - e) : null, on: r.on !== false };
+}
+const rowEmpty = r => !r.name.trim() && !r.a.trim() && !r.b.trim() && !r.e.trim();
 function systemInfo() {
-  if (S.system === 'custom') {
-    const m = parseNum(S.custom.mass || '');
-    return { key: 'custom', central: S.custom.central.trim() || 'My system', mass: m > 0 ? m : NaN, custom: true, ...customBodies() };
-  }
-  const sys = SYSTEMS[S.system];
-  const bodies = sys.bodies.map(([name, Rkm, vk, Td, e]) => {
-    const R = Rkm * 1e3;
-    const v = vk != null ? vk * 1e3 : 2 * Math.PI * R / (Td * 86400);
-    return { name, R, v, Tdays: Td, dr: 2 * e / (1 - e) };
+  const E = S.entry, m = parseNum(E.mass || ''), bodies = [], errs = [];
+  E.rows.forEach((r, i) => {
+    const b = rowSI(r, i);
+    if (b) bodies.push(b); else if (!rowEmpty(r)) errs.push(i + 1);
   });
-  return { key: S.system, central: sys.central, mass: sys.mass, note: sys.note, bodies, errs: [] };
+  return { central: E.central.trim(), mass: m > 0 ? m : NaN, bodies, errs };
 }
-const offKey = (sys, name) => sys + ':' + name;
-function activeBodies(info) { return info.bodies.filter(b => !S.off[offKey(info.key, b.name)]); }
+function activeBodies(info) { return info.bodies.filter(b => b.on); }
 
 // ── Plotting ────────────────────────────────────────────────
 // Small canvas plotter: linear or log axes, labelled points, model curves,
@@ -868,40 +883,103 @@ function drawPlot(P) {
 function redrawVisible() { Object.values(PLOTS).forEach(drawPlot); }
 
 // ── ① System & data ─────────────────────────────────────────
-function buildSystemSelect() {
-  const sel = $('sys-sel');
-  sel.innerHTML = Object.entries(SYSTEMS).map(([k, s]) => `<option value="${k}">${esc(s.label)}</option>`).join('')
-    + '<option value="custom">✏️ My own data…</option>';
-  sel.value = S.system in SYSTEMS || S.system === 'custom' ? S.system : 'jupiter';
+// The entry table is rebuilt only when rows are added, removed or pasted, so
+// typing never loses focus; each keystroke just refreshes that row's SI cells.
+const COLS = ['name', 'a', 'b', 'e'];
+function buildEntryTable() {
+  $('entry-body').innerHTML = S.entry.rows.map((r, i) => `<tr data-i="${i}">
+    <td class="calc" style="text-align:center">${i + 1}</td>
+    <td><input class="cell name-in" data-c="name" value="${esc(r.name)}" placeholder="${i ? '' : 'e.g. Io'}" autocomplete="off"></td>
+    <td><input class="cell" data-c="a" value="${esc(r.a)}" inputmode="decimal" autocomplete="off"></td>
+    <td><input class="cell" data-c="b" value="${esc(r.b)}" inputmode="decimal" autocomplete="off"></td>
+    <td><input class="cell e-in" data-c="e" value="${esc(r.e)}" inputmode="decimal" autocomplete="off"></td>
+    <td class="calc" data-k="R"></td><td class="calc" data-k="v"></td><td class="calc" data-k="dr"></td>
+    <td class="c"><input type="checkbox" data-c="on" ${r.on !== false ? 'checked' : ''}></td>
+    <td><button class="x-btn" data-del="${i}" title="Delete row">✕</button></td></tr>`).join('');
+  S.entry.rows.forEach((r, i) => updateRow(i));
+}
+function updateRow(i) {
+  const tr = $('entry-body').querySelector(`tr[data-i="${i}"]`); if (!tr) return;
+  const r = S.entry.rows[i], b = rowSI(r, i), empty = rowEmpty(r);
+  tr.classList.toggle('off', r.on === false);
+  [['a', r.a], ['b', r.b]].forEach(([c, val]) => tr.querySelector(`[data-c="${c}"]`).classList.toggle('bad', !empty && val.trim() !== '' && !(parseNum(val) > 0)));
+  const eIn = tr.querySelector('[data-c="e"]'), ev = parseNum(r.e);
+  eIn.classList.toggle('bad', r.e.trim() !== '' && !(ev >= 0 && ev < 1));
+  const cell = k => tr.querySelector(`[data-k="${k}"]`);
+  // speeds above light speed or orbits inside a few km are almost surely unit slips
+  const odd = b && (b.v >= 3e8 || b.R < 1e3);
+  cell('R').textContent = b ? sci(b.R, 4) : ''; cell('v').textContent = b ? sci(b.v, 4) : '';
+  cell('R').classList.toggle('bad', !!odd); cell('v').classList.toggle('bad', !!odd);
+  cell('R').title = cell('v').title = odd ? 'Check your units: this value looks impossible' : '';
+  cell('dr').textContent = b && b.dr != null ? (b.dr * 100 >= 100 ? Math.round(b.dr * 100) : (b.dr * 100).toFixed(b.dr < 0.01 ? 2 : 1)) + '%' : '';
+  cell('dr').className = 'calc' + (b && b.dr > 0.3 ? ' ecc-hi' : '');
 }
 function renderStage1() {
-  const info = systemInfo();
-  $('custom-box').hidden = !info.custom;
-  $('sys-note').hidden = info.custom;
-  if (!info.custom) $('sys-note').textContent = info.note;
-  $('central-read').innerHTML = `<small>Central body · mass M</small>${esc(info.central)} · <span class="k">${isFinite(info.mass) ? sci(info.mass, 4) + ' kg' : '— enter the mass'}</span>`;
-  $('c-errors').textContent = info.errs.length ? `⚠ Couldn't read line${info.errs.length > 1 ? 's' : ''} ${info.errs.join(', ')} — each line needs a name and two positive numbers.` : '';
-  $('data-title').textContent = '📋 Data — ' + info.central;
+  const info = systemInfo(), { kind } = units();
+  const rTxt = $('c-runit').selectedOptions[0]?.textContent || '';
+  $('h-a').textContent = `R (${rTxt})`;
+  $('h-b').textContent = kind === 'T' ? `T (${S.entry.vUnit === 'T:86400' ? 'days' : S.entry.vUnit === 'T:3600' ? 'h' : 'min'})` : `v (${$('c-vunit').selectedOptions[0].textContent.replace('speed v in ', '')})`;
+  $('central-read').innerHTML = `<small>Central body · mass M</small>${esc(info.central || '—')} · <span class="k">${isFinite(info.mass) ? sci(info.mass, 4) + ' kg' : (S.entry.mass.trim() ? '⚠ not a number' : 'enter the mass')}</span>`;
+  $('c-mass').classList.toggle('bad', S.entry.mass.trim() !== '' && !isFinite(info.mass));
+  $('data-title').textContent = '📋 Data' + (info.central ? ' — ' + info.central : '');
   const act = activeBodies(info);
-  $('data-count').textContent = `${act.length} of ${info.bodies.length} bodies in use`;
-  $('data-body').innerHTML = info.bodies.length ? info.bodies.map(b => {
-    const off = !!S.off[offKey(info.key, b.name)];
-    const dr = b.dr == null ? '—' : (b.dr * 100 >= 100 ? Math.round(b.dr * 100) : (b.dr * 100).toFixed(b.dr < 0.01 ? 2 : 1)) + '%';
-    return `<tr class="${off ? 'off' : ''}"><td class="name">${esc(b.name)}</td><td>${sci(b.R, 4)}</td><td>${fmtT(b.Tdays)}</td>`
-      + `<td>${sci(b.v, 4)}</td><td class="${b.dr > 0.3 ? 'ecc-hi' : ''}">${dr}</td>`
-      + `<td class="c"><input type="checkbox" data-body="${esc(b.name)}" ${off ? '' : 'checked'}></td></tr>`;
-  }).join('') : '<tr><td colspan="6" class="name" style="text-align:center;color:var(--muted);padding:20px">Type or paste your data on the left.</td></tr>';
+  $('data-count').textContent = `${act.length} bod${act.length === 1 ? 'y' : 'ies'} ready` + (info.errs.length ? ` · row${info.errs.length > 1 ? 's' : ''} ${info.errs.join(', ')} incomplete` : '');
 }
-$('data-body').addEventListener('change', e => {
-  const name = e.target.dataset.body; if (name == null) return;
-  const k = offKey(systemInfo().key, name);
-  if (e.target.checked) delete S.off[k]; else S.off[k] = true;
-  save(); renderAll();
+const eb = $('entry-body');
+eb.addEventListener('input', e => {
+  const c = e.target.dataset.c, i = +e.target.closest('tr').dataset.i;
+  if (!c || c === 'on') return;
+  S.entry.rows[i][c] = e.target.value; save(); updateRow(i); renderAll();
 });
-$('sys-sel').addEventListener('change', e => { S.system = e.target.value; S.lsShown = false; save(); renderAll(); });
+eb.addEventListener('change', e => {
+  if (e.target.dataset.c !== 'on') return;
+  const i = +e.target.closest('tr').dataset.i;
+  S.entry.rows[i].on = e.target.checked; save(); updateRow(i); renderAll();
+});
+eb.addEventListener('click', e => {
+  const d = e.target.dataset.del; if (d == null) return;
+  const r = S.entry.rows[+d];
+  if (!rowEmpty(r) && !confirm(`Delete row ${+d + 1}${r.name ? ' (' + r.name + ')' : ''}?`)) return;
+  S.entry.rows.splice(+d, 1);
+  if (!S.entry.rows.length) S.entry.rows.push(blankRow());
+  save(); buildEntryTable(); renderAll();
+});
+// Enter → same column, next row (adding one at the end)
+eb.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !e.target.classList.contains('cell')) return;
+  e.preventDefault();
+  const c = e.target.dataset.c, i = +e.target.closest('tr').dataset.i;
+  if (i === S.entry.rows.length - 1) { S.entry.rows.push(blankRow()); save(); buildEntryTable(); }
+  eb.querySelector(`tr[data-i="${i + 1}"] [data-c="${c}"]`).focus();
+});
+// Pasting a block from a spreadsheet fills cells to the right and below
+eb.addEventListener('paste', e => {
+  if (!e.target.classList.contains('cell')) return;
+  const text = (e.clipboardData || window.clipboardData).getData('text');
+  if (!/[\t\n]/.test(text.trim())) return;
+  e.preventDefault();
+  const i0 = +e.target.closest('tr').dataset.i, c0 = COLS.indexOf(e.target.dataset.c);
+  text.replace(/\r/g, '').split('\n').filter(l => l.trim()).forEach((line, k) => {
+    const cells = line.includes('\t') ? line.split('\t') : line.trim().split(/;|\s{2,}|\s(?=[-+.\d])/);
+    while (S.entry.rows.length <= i0 + k) S.entry.rows.push(blankRow());
+    cells.forEach((v, j) => { const col = COLS[c0 + j]; if (col) S.entry.rows[i0 + k][col] = v.trim(); });
+  });
+  save(); buildEntryTable(); renderAll();
+});
+$('row-add').addEventListener('click', () => {
+  S.entry.rows.push(blankRow()); save(); buildEntryTable();
+  eb.querySelector(`tr[data-i="${S.entry.rows.length - 1}"] [data-c="name"]`).focus();
+});
+$('rows-clear').addEventListener('click', () => {
+  if (!confirm('Erase every row of the table?')) return;
+  S.entry.rows = Array.from({ length: 5 }, blankRow); S.lsShown = false; save(); buildEntryTable(); renderAll();
+});
 $('team-in').addEventListener('input', e => { S.team = e.target.value; save(); renderStage4(); });
-[['c-central', 'central'], ['c-mass', 'mass'], ['c-text', 'text'], ['c-runit', 'rUnit'], ['c-vunit', 'vUnit']].forEach(([id, k]) => {
-  $(id).addEventListener('input', e => { S.custom[k] = e.target.value; save(); renderAll(); });
+[['c-central', 'central'], ['c-mass', 'mass']].forEach(([id, k]) => {
+  $(id).addEventListener('input', e => { S.entry[k] = e.target.value; save(); renderAll(); });
+});
+[['c-runit', 'rUnit'], ['c-vunit', 'vUnit']].forEach(([id, k]) => {
+  $(id).addEventListener('change', e => { S.entry[k] = e.target.value; save(); buildEntryTable(); renderAll(); });
 });
 
 // ── ② Rotation curve ────────────────────────────────────────
@@ -911,8 +989,8 @@ plot('cv2', () => {
   return {
     xLog: log, yLog: log, xZero: true, yZero: true, color: cssVar('--teal'),
     xName: 'Distance R', xUnit: 'm', yName: 'Orbital speed v', yUnit: 'm/s',
-    empty: 'Choose a system or enter data in step ①',
-    points: info.bodies.map(b => ({ x: b.R, y: b.v, label: b.name, tip: bodyTip(b), off: !!S.off[offKey(info.key, b.name)] })),
+    empty: 'Type your data in step ①',
+    points: info.bodies.map(b => ({ x: b.R, y: b.v, label: b.name, tip: bodyTip(b), off: !b.on })),
   };
 });
 
@@ -931,7 +1009,7 @@ function renderStage3() {
   $('k-head').textContent = 'v·R^(' + (+(-n).toFixed(3)) + ')';
   if (act.length < 2) {
     $('fit-read').innerHTML = '<small>Model</small>Need at least 2 bodies';
-    $('fit-meter').style.width = '0'; $('fit-hint').textContent = 'Go back to step ① and choose bodies.';
+    $('fit-meter').style.width = '0'; $('fit-hint').textContent = 'Go back to step ① and enter at least two bodies.';
     $('s3-body').innerHTML = ''; $('c-read').textContent = '—'; return;
   }
   const f = fitFor(act, n);
@@ -954,7 +1032,7 @@ function renderStage3() {
   $('sq-head').hidden = !showSq;
   const C = act.map(b => b.v * b.v * b.R), cs = stats(C);
   $('s3-body').innerHTML = info.bodies.map(b => {
-    const off = !!S.off[offKey(info.key, b.name)];
+    const off = !b.on;
     return `<tr class="${off ? 'off' : ''}"><td class="name">${esc(b.name)}</td><td>${sci(b.R, 4)}</td><td>${sci(b.v, 4)}</td>`
       + `<td>${sci(b.v * Math.pow(b.R, -n), 4)}</td>${showSq ? `<td>${sci(b.v * b.v * b.R, 4)}</td>` : ''}</tr>`;
   }).join('');
@@ -967,8 +1045,8 @@ plot('cv3', () => {
   const f = act.length >= 2 ? fitFor(act, S.n) : null;
   return {
     xLog: log, yLog: log, xZero: true, yZero: true, color: cssVar('--purple'),
-    xName: 'R', xUnit: 'm', yName: 'v', yUnit: 'm/s', empty: 'Choose a system in step ①',
-    points: info.bodies.map(b => ({ x: b.R, y: b.v, label: b.name, tip: bodyTip(b) + `\nv·R⁻ⁿ = ${sci(b.v * Math.pow(b.R, -S.n), 4)}`, off: !!S.off[offKey(info.key, b.name)] })),
+    xName: 'R', xUnit: 'm', yName: 'v', yUnit: 'm/s', empty: 'Type your data in step ①',
+    points: info.bodies.map(b => ({ x: b.R, y: b.v, label: b.name, tip: bodyTip(b) + `\nv·R⁻ⁿ = ${sci(b.v * Math.pow(b.R, -S.n), 4)}`, off: !b.on })),
     curves: f ? [{ fn: R => f.k * Math.pow(R, S.n), color: cssVar('--orange'), width: 2.5 }] : [],
   };
 });
@@ -985,7 +1063,7 @@ $('sq-d').addEventListener('toggle', renderStage3);
 // ── ④ Class results ─────────────────────────────────────────
 function myResult() {
   const info = systemInfo(), act = activeBodies(info);
-  if (act.length < 2 || !isFinite(info.mass)) return null;
+  if (act.length < 2 || !isFinite(info.mass) || !info.central) return null;
   const C = stats(act.map(b => b.v * b.v * b.R)).mean;
   return { team: S.team.trim(), system: info.central, mass: info.mass, C, n: S.n, count: act.length };
 }
@@ -1024,7 +1102,7 @@ function renderStage4() {
   const r = myResult();
   $('my-result').innerHTML = r
     ? `<small>Your result${r.team ? ' · ' + esc(r.team) : ''}</small>${esc(r.system)}: M = <span class="k">${sci(r.mass, 4)}</span> kg<br>v²R = <span class="k">${sci(r.C, 4)}</span> m³/s²`
-    : '<small>Your result</small>Finish steps ① and ③ first (at least 2 bodies and a mass).';
+    : '<small>Your result</small>Finish step ① first: the central body, its mass, and at least 2 bodies.';
   const live = !!(S.live.url && S.live.session);
   $('send-btn').disabled = !r; $('code-btn').disabled = !r;
   $('send-btn').textContent = live ? '📤 Send to class' : '📤 Add to board';
@@ -1238,10 +1316,10 @@ function renderAll() {
   requestAnimationFrame(redrawVisible);
 }
 
-buildSystemSelect();
 $('team-in').value = S.team;
-$('c-central').value = S.custom.central; $('c-mass').value = S.custom.mass; $('c-text').value = S.custom.text;
-$('c-runit').value = S.custom.rUnit; $('c-vunit').value = S.custom.vUnit;
+$('c-central').value = S.entry.central; $('c-mass').value = S.entry.mass;
+$('c-runit').value = S.entry.rUnit; $('c-vunit').value = S.entry.vUnit;
+buildEntryTable();
 setLive();
 goStage(S.stage || 1);
 </script>
