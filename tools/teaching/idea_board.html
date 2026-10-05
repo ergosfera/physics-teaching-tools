@@ -133,6 +133,13 @@
     }
     #add-btn:hover { border-color: var(--accent); color: var(--accent); }
     #count { font-size: .75rem; color: var(--muted); text-align: center; }
+    #file-status {
+      width: 100%; border-radius: 8px; padding: 6px 8px; cursor: pointer; text-align: left;
+      background: var(--surface2); border: 1px solid var(--border); font-size: .74rem; line-height: 1.35;
+      color: var(--muted); overflow-wrap: anywhere;
+    }
+    #file-status b { color: var(--text); font-weight: 600; }
+    #file-status.warn { border-color: #d29922; color: var(--text); background: color-mix(in srgb, #d29922 14%, transparent); }
 
     /* ── Menus & popovers ── */
     .menu, #pop {
@@ -318,6 +325,7 @@
   <div id="list"></div>
   <div class="side-foot">
     <button id="add-btn">+ Add idea</button>
+    <button id="file-status" hidden></button>
     <div id="count"></div>
   </div>
 </aside>
@@ -364,8 +372,15 @@
   <button data-act="export-csv">📤 Export CSV</button>
   <div class="hint">One idea per row. Optional header with columns <code>text, comments, color, done, group</code>. Colors: hex or names (yellow, blue, verde…). Rows with a <code>group</code> are framed together.</div>
   <hr />
-  <button data-act="save-json">💾 Save board (.json)</button>
-  <button data-act="open-json">📂 Open board (.json)</button>
+  <div data-fs>
+    <button data-act="link-file">🔗 Auto-save to a file…</button>
+    <button data-act="open-link-file">📂 Open a file &amp; keep it updated…</button>
+    <button data-act="unlink-file" hidden>⛓️‍💥 Stop auto-saving to file</button>
+    <div class="hint">Every change is written to a file on your computer (e.g. in Documents or a synced Drive/Dropbox folder).</div>
+    <hr />
+  </div>
+  <button data-act="save-json">💾 Download a copy (.json)</button>
+  <button data-act="open-json">📥 Load a copy (.json)</button>
   <hr />
   <button data-act="clear-ink">🧽 Clear all drawings</button>
   <button data-act="clear-all" class="danger">🗑 Clear everything</button>
@@ -438,10 +453,19 @@
   let saveTimer = 0;
   function save() {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      try { localStorage.setItem(KEY, JSON.stringify({ data, view, ui })); } catch {}
-    }, 250);
+    saveTimer = setTimeout(saveNow, 250);
+    scheduleFileWrite();
   }
+  function saveNow() {
+    clearTimeout(saveTimer);
+    flushInlineEdit();
+    try { localStorage.setItem(KEY, JSON.stringify({ data, view, ui })); } catch {}
+  }
+  // Closing, reloading or hiding the tab saves at once instead of waiting for the timer.
+  addEventListener('pagehide', () => { saveNow(); writeFileNow(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { saveNow(); writeFileNow(); }
+  });
   function normalize(d) {
     return {
       items: Array.isArray(d.items) ? d.items : [],
@@ -1026,6 +1050,11 @@
     editCardInline(it.id);
   });
 
+  // Text being typed directly on a card, not yet committed (see saveNow).
+  let inlineEdit = null;
+  function flushInlineEdit() {
+    if (inlineEdit) inlineEdit.it[inlineEdit.field] = inlineEdit.t.innerText.replace(/\n$/, '');
+  }
   function editCardInline(id, field = 'text') {
     const it = itemById(id);
     const card = cardsEl.querySelector(`[data-id="${id}"]`);
@@ -1038,7 +1067,9 @@
     range.selectNodeContents(t);
     const s = getSelection(); s.removeAllRanges(); s.addRange(range);
     const before = it[field] || '';
+    inlineEdit = { it, field, t };
     const finish = () => {
+      inlineEdit = null;
       t.removeEventListener('blur', finish);
       t.removeAttribute('contenteditable');
       const v = t.innerText.replace(/\n$/, '');
@@ -1321,7 +1352,10 @@
     closeMenus();
     if (act === 'import-csv') $('#file-csv').click();
     if (act === 'export-csv') exportCSV();
-    if (act === 'save-json') download('idea-board.json', JSON.stringify({ app: 'idea-board', version: 1, data }, null, 1), 'application/json');
+    if (act === 'save-json') download('idea-board.json', boardJSON(), 'application/json');
+    if (act === 'link-file') linkNewFile();
+    if (act === 'open-link-file') openAndLinkFile();
+    if (act === 'unlink-file') unlinkFile();
     if (act === 'open-json') $('#file-json').click();
     if (act === 'clear-ink' && data.strokes.length) { checkpoint(); data.strokes = []; renderInk(); save(); }
     if (act === 'clear-all' && confirm('Remove all ideas, groups and drawings? (You can still undo.)')) {
@@ -1451,6 +1485,143 @@
     } catch { toast('Could not read that file'); }
   };
 
+  // ───────────────────────── auto-save to a file (Chrome / Edge) ─────────────────────────
+  // The file handle is kept in IndexedDB so the link survives reloads; the
+  // browser asks again for permission once per session (needs a click).
+  const FS_OK = 'showSaveFilePicker' in window;
+  let fileHandle = null, fileState = 'off', fileSavedAt = null, fileDirty = false;
+  let fileTimer = 0, fileWriting = null, lastWritten = null;
+
+  function idb(mode, fn) {
+    return new Promise((res, rej) => {
+      const rq = indexedDB.open('ergosfera.ideaBoard', 1);
+      rq.onupgradeneeded = () => rq.result.createObjectStore('kv');
+      rq.onerror = () => rej(rq.error);
+      rq.onsuccess = () => {
+        const tx = rq.result.transaction('kv', mode), st = tx.objectStore('kv');
+        const r = fn(st);
+        tx.oncomplete = () => res(r && r.result);
+        tx.onerror = () => rej(tx.error);
+      };
+    });
+  }
+  const idbGet = k => idb('readonly', st => st.get(k)).catch(() => null);
+  const idbSet = (k, v) => idb('readwrite', st => v == null ? st.delete(k) : st.put(v, k)).catch(() => {});
+
+  const boardJSON = () => JSON.stringify({ app: 'idea-board', version: 1, data }, null, 1);
+
+  function renderFileStatus() {
+    const b = $('#file-status');
+    document.querySelector('[data-act=unlink-file]').hidden = !fileHandle;
+    b.hidden = !fileHandle;
+    if (!fileHandle) return;
+    const name = `<b>${fileHandle.name.replace(/[<&]/g, '')}</b>`;
+    b.classList.toggle('warn', fileState !== 'ok');
+    if (fileState === 'ok') {
+      const t = fileSavedAt ? fileSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      b.innerHTML = `💾 Auto-saving to ${name}${t ? ` · saved ${t}` : ''}`;
+      b.title = 'Every change is also written to this file';
+    } else if (fileState === 'prompt') {
+      b.innerHTML = `⚠️ Click to keep auto-saving to ${name}`;
+      b.title = 'The browser needs your OK once per session';
+    } else {
+      b.innerHTML = `⚠️ Could not write ${name} — click to retry`;
+      b.title = 'Maybe the file was moved or deleted';
+    }
+  }
+
+  function scheduleFileWrite() {
+    if (!fileHandle || fileState !== 'ok') return;
+    clearTimeout(fileTimer);
+    fileTimer = setTimeout(writeFileNow, 600);
+  }
+  async function writeFileNow() {
+    clearTimeout(fileTimer);
+    if (!fileHandle || fileState !== 'ok') return;
+    flushInlineEdit();
+    const json = boardJSON();
+    if (json === lastWritten) return;
+    if (fileWriting) { fileDirty = true; return; }
+    fileWriting = (async () => {
+      try {
+        const w = await fileHandle.createWritable();
+        await w.write(json);
+        await w.close();
+        lastWritten = json; fileSavedAt = new Date();
+      } catch (err) {
+        fileState = 'error';
+      }
+    })();
+    await fileWriting;
+    fileWriting = null;
+    renderFileStatus();
+    if (fileDirty) { fileDirty = false; writeFileNow(); }
+  }
+
+  async function ensurePermission(ask) {
+    const opts = { mode: 'readwrite' };
+    let p = await fileHandle.queryPermission(opts);
+    if (p !== 'granted' && ask) p = await fileHandle.requestPermission(opts);
+    return p === 'granted';
+  }
+  async function linkHandle(h) {
+    fileHandle = h; lastWritten = null;
+    await idbSet('fileHandle', h);
+    fileState = await ensurePermission(true) ? 'ok' : 'prompt';
+    renderFileStatus();
+  }
+
+  async function linkNewFile() {
+    try {
+      const h = await showSaveFilePicker({
+        suggestedName: 'idea-board.json',
+        types: [{ description: 'Idea Board', accept: { 'application/json': ['.json'] } }]
+      });
+      await linkHandle(h);
+      await writeFileNow();
+      if (fileState === 'ok') toast(`Auto-saving to ${h.name}`);
+    } catch (err) { if (err.name !== 'AbortError') toast('Could not use that file'); }
+  }
+  async function openAndLinkFile() {
+    try {
+      const [h] = await showOpenFilePicker({
+        types: [{ description: 'Idea Board', accept: { 'application/json': ['.json'] } }]
+      });
+      const j = JSON.parse(await (await h.getFile()).text());
+      checkpoint();
+      data = normalize(j.data || j);
+      sel.clear(); renderAll(); fitAll(); saveNow();
+      await linkHandle(h);
+      lastWritten = boardJSON();
+      toast(`Opened ${h.name} — changes will be saved to it`);
+    } catch (err) { if (err.name !== 'AbortError') toast('Could not read that file'); }
+  }
+  async function unlinkFile() {
+    fileHandle = null; fileState = 'off';
+    await idbSet('fileHandle', null);
+    renderFileStatus();
+    toast('Stopped auto-saving to file');
+  }
+  $('#file-status').onclick = async () => {
+    if (!fileHandle || fileState === 'ok') return;
+    try {
+      if (await ensurePermission(true)) {
+        fileState = 'ok'; lastWritten = null;
+        await writeFileNow();
+      }
+    } catch { fileState = 'error'; }
+    renderFileStatus();
+  };
+  async function restoreFileLink() {
+    if (!FS_OK) return;
+    const h = await idbGet('fileHandle');
+    if (!h) return;
+    fileHandle = h;
+    try { fileState = await ensurePermission(false) ? 'ok' : 'prompt'; } catch { fileState = 'error'; }
+    renderFileStatus();
+    scheduleFileWrite();
+  }
+
   // ───────────────────────── toolbar & keys ─────────────────────────
   document.querySelectorAll('[data-tool]').forEach(b => b.onclick = () => setTool(b.dataset.tool));
   $('#group-sel').onclick = groupSelection;
@@ -1511,6 +1682,8 @@
   applyView();
   renderAll();
   updateUndoBtns();
+  if (!FS_OK) document.querySelector('[data-fs]').hidden = true;
+  restoreFileLink();
   save();
 })();
 </script>
