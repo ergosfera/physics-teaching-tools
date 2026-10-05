@@ -95,19 +95,32 @@
       width: 16px; height: 16px; border-radius: 50%; flex: none; margin-top: 5px;
       border: 1px solid rgba(127, 127, 127, .6); cursor: pointer; padding: 0;
     }
+    .rtext { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .row textarea {
-      flex: 1; min-width: 0; resize: none; overflow: hidden;
+      width: 100%; resize: none; overflow: hidden;
       background: transparent; border: none; outline: none;
       color: var(--text); font: inherit; font-size: .88rem; line-height: 1.4;
       padding: 4px 2px;
     }
     .row textarea::placeholder { color: var(--muted); }
-    .row.done textarea { text-decoration: line-through; color: var(--muted); }
+    .row.done .itxt { text-decoration: line-through; color: var(--muted); }
+    .row .inote {
+      font-size: .78rem; color: var(--muted); padding: 2px 2px 4px 8px;
+      border-left: 2px solid var(--border); margin-left: 2px;
+    }
+    .row .inote:focus { color: var(--text); border-left-color: var(--accent); }
+    .note-btn {
+      background: none; border: none; cursor: pointer; font-size: .8rem; line-height: 26px;
+      width: 18px; flex: none; opacity: 0; filter: grayscale(1);
+    }
+    .row:hover .note-btn, .row.sel .note-btn { opacity: .7; }
+    .note-btn.has { opacity: 1; filter: none; }
     .del {
       background: none; border: none; color: var(--muted); cursor: pointer;
       font-size: 1rem; line-height: 26px; width: 18px; flex: none; opacity: 0;
     }
     .row:hover .del { opacity: 1; }
+    @media (hover: none) { .note-btn { opacity: .7; } }
     .del:hover { color: var(--danger); }
 
     .side-foot {
@@ -185,15 +198,26 @@
     #ink path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
     .card {
-      position: absolute; padding: 10px 12px; border-radius: 8px;
+      position: absolute; border-radius: 9px; background: #ffffff; color: #1f2328;
       box-shadow: var(--shadow); cursor: grab; user-select: none;
       line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere;
-      border: 1px solid rgba(0, 0, 0, .08);
+      border: 1px solid rgba(0, 0, 0, .1);
     }
     .card.sel { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+    .card .band { padding: 9px 12px; border-radius: 8px 8px 0 0; }
+    .card .note {
+      padding: 7px 12px 10px; font-size: .8em; color: #57606a; min-height: 16px;
+      font-weight: 400; font-style: normal;
+    }
     .card .txt:empty::before { content: 'Empty idea'; opacity: .45; font-style: italic; }
-    .card .txt[contenteditable] { cursor: text; outline: none; user-select: text; }
+    .card.sel .note:empty::before, .card:hover .note:empty::before {
+      content: 'Double-click to add comments'; opacity: .55; font-style: italic;
+    }
+    .card .note[contenteditable]:empty::before { content: ''; }
+    .card [contenteditable] { cursor: text; outline: none; user-select: text; }
+    .card .note[contenteditable] { background: #f6f8fa; }
     .card.done .txt { text-decoration: line-through; opacity: .6; }
+    .card.done .note { opacity: .6; }
     .card.done::after {
       content: '✓'; position: absolute; top: -8px; right: -8px;
       width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
@@ -338,7 +362,7 @@
 <div class="menu" id="menu" hidden>
   <button data-act="import-csv">📥 Import CSV…</button>
   <button data-act="export-csv">📤 Export CSV</button>
-  <div class="hint">One idea per row. Optional header with columns <code>text, color, done, group</code>. Colors: hex or names (yellow, blue, verde…). Rows with a <code>group</code> are framed together.</div>
+  <div class="hint">One idea per row. Optional header with columns <code>text, comments, color, done, group</code>. Colors: hex or names (yellow, blue, verde…). Rows with a <code>group</code> are framed together.</div>
   <hr />
   <button data-act="save-json">💾 Save board (.json)</button>
   <button data-act="open-json">📂 Open board (.json)</button>
@@ -348,13 +372,13 @@
 </div>
 
 <div id="pop" hidden>
-  <div class="pop-title">Card color</div>
+  <div class="pop-title">Band color</div>
   <div class="swatches" id="pop-sw"></div>
-  <div class="pop-title">Text size</div>
+  <div class="pop-title">Title size</div>
   <div class="seg" id="pop-size">
     <button data-s="s">S</button><button data-s="m">M</button><button data-s="l">L</button><button data-s="xl">XL</button>
   </div>
-  <div class="pop-title">Text style</div>
+  <div class="pop-title">Title style</div>
   <div class="seg">
     <button id="pop-bold" style="font-weight:800">B</button>
     <button id="pop-italic" style="font-style:italic">I</button>
@@ -375,7 +399,7 @@
   // ───────────────────────── constants ─────────────────────────
   const KEY = 'ergosfera.ideaBoard.v1';
   const PALETTE = ['#fff3a3', '#ffd6a5', '#ffadad', '#ffc6ff', '#bdb2ff', '#a0c4ff',
-                   '#9bf6ff', '#caffbf', '#e9ecef', '#ffffff', '#3a3f47', '#1f6feb',
+                   '#9bf6ff', '#caffbf', '#e9ecef', '#c9ada7', '#3a3f47', '#1f6feb',
                    '#2da44e', '#bf3989', '#d1242f', '#9a6700', '#8250df'];
   const NAMED = {
     yellow: '#fff3a3', amarillo: '#fff3a3', orange: '#ffd6a5', naranja: '#ffd6a5',
@@ -508,7 +532,7 @@
     return { x: x0, y: y0 };
   }
   function newItem(props = {}) {
-    return Object.assign({ id: uid(), text: '', color: PALETTE[0], size: 'm', done: false, z: ++zTop }, props);
+    return Object.assign({ id: uid(), text: '', note: '', color: PALETTE[0], size: 'm', done: false, z: ++zTop }, props);
   }
   let toastTimer = 0;
   function toast(msg) {
@@ -533,8 +557,7 @@
       if (it.x == null) Object.assign(it, findSpot());
       const el = document.createElement('div');
       el.className = 'card'; el.dataset.id = it.id;
-      const t = document.createElement('div'); t.className = 'txt';
-      el.append(t);
+      el.innerHTML = '<div class="band"><div class="txt"></div></div><div class="note"></div>';
       cardsEl.append(el);
       styleCard(el, it);
       zTop = Math.max(zTop, it.z || 0);
@@ -543,13 +566,16 @@
   function styleCard(el, it) {
     const sz = SIZES[it.size || 'm'];
     Object.assign(el.style, {
-      left: it.x + 'px', top: it.y + 'px', zIndex: it.z || 0, width: sz.w + 'px',
+      left: it.x + 'px', top: it.y + 'px', zIndex: it.z || 0, width: sz.w + 'px', fontSize: sz.font + 'px'
+    });
+    Object.assign(el.querySelector('.band').style, {
       background: it.color, color: it.textColor || autoText(it.color),
-      fontSize: sz.font + 'px', fontWeight: it.bold ? '700' : '', fontStyle: it.italic ? 'italic' : ''
+      fontWeight: it.bold ? '700' : '', fontStyle: it.italic ? 'italic' : ''
     });
     el.classList.toggle('done', !!it.done);
-    const t = el.querySelector('.txt');
+    const t = el.querySelector('.txt'), n = el.querySelector('.note');
     if (!t.isContentEditable) t.textContent = it.text;
+    if (!n.isContentEditable) n.textContent = it.note || '';
   }
   function updateCard(it) {
     const el = cardsEl.querySelector(`[data-id="${it.id}"]`);
@@ -618,16 +644,21 @@
       row.innerHTML = `<span class="grip" title="Drag to reorder">⋮⋮</span>` +
         `<input type="checkbox" title="Done" ${it.done ? 'checked' : ''}>` +
         `<button class="dot" title="Color & text style"></button>` +
-        `<textarea rows="1" placeholder="Write an idea…" spellcheck="true"></textarea>` +
+        `<div class="rtext"><textarea class="itxt" rows="1" placeholder="Write an idea…" spellcheck="true"></textarea>` +
+        `<textarea class="inote" rows="1" placeholder="Comments…" spellcheck="true"></textarea></div>` +
+        `<button class="note-btn" title="Comments">💬</button>` +
         `<button class="del" title="Delete">×</button>`;
       row.querySelector('.dot').style.background = it.color;
-      row.querySelector('textarea').value = it.text;
+      row.querySelector('.itxt').value = it.text;
+      row.querySelector('.inote').value = it.note || '';
+      row.querySelector('.inote').hidden = !it.note;
+      row.querySelector('.note-btn').classList.toggle('has', !!it.note);
       list.append(row);
     }
     list.querySelectorAll('textarea').forEach(autosize);
     updateCount();
     if (focusId) {
-      const ta = list.querySelector(`[data-id="${focusId}"] textarea`);
+      const ta = list.querySelector(`[data-id="${focusId}"] .itxt`);
       if (ta) {
         ta.focus();
         const pos = caret == null ? ta.value.length : caret;
@@ -985,7 +1016,7 @@
   board.addEventListener('dblclick', e => {
     if (tool !== 'select' || e.target.closest('#toolbar, .gbtn, input')) return;
     const card = e.target.closest('.card');
-    if (card) return editCardInline(card.dataset.id);
+    if (card) return editCardInline(card.dataset.id, e.target.closest('.note') ? 'note' : 'text');
     if (e.target.closest('.glabel')) return renameGroup(e.target.closest('.glabel').dataset.id);
     const p = toWorld(e);
     checkpoint();
@@ -995,31 +1026,34 @@
     editCardInline(it.id);
   });
 
-  function editCardInline(id) {
+  function editCardInline(id, field = 'text') {
     const it = itemById(id);
     const card = cardsEl.querySelector(`[data-id="${id}"]`);
     if (!it || !card) return;
-    const t = card.querySelector('.txt');
+    const t = card.querySelector(field === 'note' ? '.note' : '.txt');
     try { t.contentEditable = 'plaintext-only'; } catch { t.contentEditable = 'true'; }
     if (t.contentEditable !== 'plaintext-only') t.contentEditable = 'true';
     t.focus();
     const range = document.createRange();
     range.selectNodeContents(t);
     const s = getSelection(); s.removeAllRanges(); s.addRange(range);
-    const before = it.text;
+    const before = it[field] || '';
     const finish = () => {
       t.removeEventListener('blur', finish);
       t.removeAttribute('contenteditable');
       const v = t.innerText.replace(/\n$/, '');
-      if (v !== before) { checkpoint(); it.text = v; save(); }
+      if (v !== before) { checkpoint(); it[field] = v; save(); }
       styleCard(card, it);
-      const ta = list.querySelector(`[data-id="${id}"] textarea`);
-      if (ta) { ta.value = it.text; autosize(ta); }
+      renderList();
+      syncSel();
     };
     t.addEventListener('blur', finish);
+    // Title: Enter commits. Comments: Enter is a new line, Ctrl/⌘+Enter commits.
     t.addEventListener('keydown', ev => {
       ev.stopPropagation();
-      if ((ev.key === 'Enter' && !ev.shiftKey) || ev.key === 'Escape') { ev.preventDefault(); t.blur(); }
+      const commit = field === 'note' ? ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)
+                                      : ev.key === 'Enter' && !ev.shiftKey;
+      if (commit || ev.key === 'Escape') { ev.preventDefault(); t.blur(); }
     });
   }
 
@@ -1057,13 +1091,19 @@
     if (!sel.has(row.dataset.id) || sel.size > 1) selectOnly(row.dataset.id);
     revealCard(row.dataset.id);
   });
-  list.addEventListener('focusout', () => { pendingSnap = null; });
+  list.addEventListener('focusout', e => {
+    pendingSnap = null;
+    if (e.target.classList?.contains('inote') && !e.target.value) e.target.hidden = true;
+  });
 
   list.addEventListener('input', e => {
     if (e.target.tagName !== 'TEXTAREA') return;
     const it = itemById(e.target.closest('.row').dataset.id);
     if (pendingSnap) { undoStack.push(pendingSnap); redoStack = []; pendingSnap = null; updateUndoBtns(); }
-    it.text = e.target.value;
+    if (e.target.classList.contains('inote')) {
+      it.note = e.target.value;
+      e.target.closest('.row').querySelector('.note-btn').classList.toggle('has', !!it.note);
+    } else it.text = e.target.value;
     autosize(e.target); updateCard(it); save();
   });
 
@@ -1081,6 +1121,11 @@
     if (!row) return;
     const id = row.dataset.id;
     if (e.target.closest('.del')) return deleteItems([id]);
+    if (e.target.closest('.note-btn')) {
+      const n = row.querySelector('.inote');
+      n.hidden = false; autosize(n); n.focus();
+      return;
+    }
     if (e.target.closest('.dot')) {
       selectOnly(id);
       const r = e.target.getBoundingClientRect();
@@ -1089,6 +1134,7 @@
   });
 
   list.addEventListener('keydown', e => {
+    if (e.target.classList.contains('inote')) { if (e.key === 'Escape') e.target.blur(); return; }
     if (e.target.tagName !== 'TEXTAREA' || e.isComposing) return;
     const ta = e.target, id = ta.closest('.row').dataset.id;
     const idx = data.items.findIndex(i => i.id === id);
@@ -1117,7 +1163,7 @@
     }
   });
   function focusRow(id, caret) {
-    const ta = list.querySelector(`[data-id="${id}"] textarea`);
+    const ta = list.querySelector(`[data-id="${id}"] .itxt`);
     if (!ta) return;
     ta.focus();
     const p = caret == null ? ta.value.length : caret;
@@ -1126,7 +1172,7 @@
 
   // Pasting several lines creates one idea per line.
   list.addEventListener('paste', e => {
-    if (e.target.tagName !== 'TEXTAREA') return;
+    if (!e.target.classList.contains('itxt')) return;
     const text = (e.clipboardData || window.clipboardData).getData('text');
     const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     if (lines.length < 2) return;
@@ -1310,7 +1356,9 @@
     text: ['text', 'texto', 'idea', 'ideas', 'title', 'titulo', 'título', 'task', 'tarea', 'todo', 'to do', 'name', 'nombre', 'item'],
     color: ['color', 'colour'],
     done: ['done', 'hecho', 'completed', 'completado', 'status', 'estado', 'check'],
-    group: ['group', 'grupo', 'category', 'categoría', 'categoria', 'tag', 'etiqueta']
+    group: ['group', 'grupo', 'category', 'categoría', 'categoria', 'tag', 'etiqueta'],
+    note: ['comments', 'comment', 'comentarios', 'comentario', 'notes', 'note', 'notas', 'nota',
+           'description', 'descripción', 'descripcion', 'details', 'detalles']
   };
   const truthy = v => /^(1|x|y|yes|si|sí|true|done|hecho|ok|✓|✔)$/i.test(String(v).trim());
 
@@ -1321,7 +1369,13 @@
     const col = {};
     for (const k in HEAD) { const i = head.findIndex(h => HEAD[k].includes(h)); if (i >= 0) col[k] = i; }
     const hasHeader = 'text' in col;
-    if (!hasHeader) { col.text = 0; if (rows.some(r => parseColor(r[1]))) col.color = 1; }
+    // No header: text first, then a color and/or comments column in either order.
+    if (!hasHeader) {
+      col.text = 0;
+      const isColor = k => rows.some(r => parseColor(r[k]));
+      if (isColor(1)) { col.color = 1; col.note = 2; }
+      else { col.note = 1; if (isColor(2)) col.color = 2; }
+    }
     const body = hasHeader ? rows.slice(1) : rows;
     checkpoint();
     const added = [], byGroup = new Map();
@@ -1333,7 +1387,9 @@
       const it = newItem({
         text: t,
         color: parseColor(r[col.color]) || PALETTE[0],
-        done: col.done != null && truthy(r[col.done])
+        done: col.done != null && truthy(r[col.done]),
+        note: col.note != null ? (r[col.note] || '').trim() : ''
+      
       });
       const g = col.group != null ? (r[col.group] || '').trim() : '';
       if (g) {
@@ -1347,6 +1403,7 @@
       added.push(it); ci++;
     }
     data.items.push(...added);
+    const rowH = added.some(i => i.note) ? 150 : 110;
     // Lay out each CSV group as a framed column block, to the right of everything else.
     if (byGroup.size) {
       const xs = data.items.filter(i => i.x != null).map(i => i.x + 220)
@@ -1355,11 +1412,11 @@
       const gy = visibleRect().y + 130 / view.z;
       for (const [name, items] of byGroup) {
         const cols = items.length > 6 ? 2 : 1;
-        items.forEach((it, k) => { it.x = gx + 28 + (k % cols) * 210; it.y = gy + 28 + Math.floor(k / cols) * 110; });
+        items.forEach((it, k) => { it.x = gx + 28 + (k % cols) * 210; it.y = gy + 28 + Math.floor(k / cols) * rowH; });
         const rowsN = Math.ceil(items.length / cols);
         data.groups.push({
           id: uid(), name, color: GROUP_COLORS[data.groups.length % GROUP_COLORS.length],
-          x: gx, y: gy, w: cols * 210 + 36, h: rowsN * 110 + 36
+          x: gx, y: gy, w: cols * 210 + 36, h: rowsN * rowH + 36
         });
         gx += cols * 210 + 100;
       }
@@ -1370,11 +1427,11 @@
   }
   function exportCSV() {
     const esc = v => /[",\n\r]/.test(v) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
-    const lines = [['text', 'color', 'done', 'group'].join(',')];
+    const lines = [['text', 'comments', 'color', 'done', 'group'].join(',')];
     for (const it of data.items) {
       const s = cardSize(it), cx = it.x + s.w / 2, cy = it.y + s.h / 2;
       const g = [...data.groups].reverse().find(g => cx > g.x && cx < g.x + g.w && cy > g.y && cy < g.y + g.h);
-      lines.push([esc(it.text), it.color, it.done ? 'yes' : '', esc(g ? g.name : '')].join(','));
+      lines.push([esc(it.text), esc(it.note || ''), it.color, it.done ? 'yes' : '', esc(g ? g.name : '')].join(','));
     }
     download('ideas.csv', '﻿' + lines.join('\r\n'), 'text/csv');
   }
@@ -1441,7 +1498,7 @@
       ['Press G and drag to frame a named group', '#caffbf'],
       ['Press P to draw with the pencil ✏️', '#ffd6a5']
     ];
-    data.items = demo.map(([text, color], k) => newItem({ text, color, x: 40 + (k % 3) * 220, y: 40 + Math.floor(k / 3) * 130 }));
+    data.items = demo.map(([text, color], k) => newItem({ text, color, x: 40 + (k % 3) * 220, y: 40 + Math.floor(k / 3) * 170 }));
   }
   if (!ui.theme) {
     let t = null;
