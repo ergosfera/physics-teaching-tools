@@ -220,9 +220,33 @@
     .card.sel .note:empty::before, .card:hover .note:empty::before {
       content: 'Double-click to add comments'; opacity: .55; font-style: italic;
     }
-    .card .note[contenteditable]:empty::before { content: ''; }
     .card [contenteditable] { cursor: text; outline: none; user-select: text; }
-    .card .note[contenteditable] { background: #f6f8fa; }
+    .card .note.editing { background: #f6f8fa; }
+    .card .note.editing::before { display: none; }
+    .card .note ul, .card .note ol { margin: 2px 0; padding-left: 1.3em; }
+    .card .note li { margin: 1px 0; }
+    .card .note ul.check { list-style: none; padding-left: .1em; }
+    .card .note ul.check li { display: flex; gap: .4em; align-items: flex-start; }
+    .card .note ul.check input { margin-top: .22em; cursor: pointer; accent-color: #2da44e; flex: none; }
+    .card .note li.checked > span { text-decoration: line-through; opacity: .6; }
+    .card .note a { color: #0969da; text-decoration: underline; cursor: pointer; }
+    .card .note a:hover { color: #0550ae; }
+    .note-edit {
+      display: block; width: 100%; resize: none; overflow: hidden; border: none; outline: none;
+      background: transparent; font: inherit; color: inherit; line-height: 1.35; padding: 0;
+    }
+
+    #fmt {
+      position: fixed; z-index: 60; display: flex; gap: 3px; align-items: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 3px; box-shadow: var(--shadow);
+    }
+    #fmt button {
+      height: 26px; min-width: 28px; padding: 0 7px; border-radius: 6px; cursor: pointer;
+      background: none; border: 1px solid transparent; font-size: .8rem; white-space: nowrap;
+    }
+    #fmt button:hover { background: var(--surface2); border-color: var(--border); }
+    #fmt .fmt-hint { font-size: .68rem; color: var(--muted); padding: 0 6px 0 4px; white-space: nowrap; }
     .card.done .txt { text-decoration: line-through; opacity: .6; }
     .card.done .note { opacity: .6; }
     .card.done::after {
@@ -402,6 +426,14 @@
       <input type="color" id="pop-tc" />
     </span>
   </div>
+</div>
+
+<div id="fmt" hidden>
+  <button data-fmt="bullet" title="Bulleted list">• List</button>
+  <button data-fmt="number" title="Numbered list">1. List</button>
+  <button data-fmt="check" title="Checklist">☑ Checklist</button>
+  <button data-fmt="link" title="Insert a link (select text first to use it as the label)">🔗 Link</button>
+  <span class="fmt-hint" id="fmt-hint"></span>
 </div>
 
 <input type="file" id="file-csv" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden />
@@ -599,8 +631,54 @@
     el.classList.toggle('done', !!it.done);
     const t = el.querySelector('.txt'), n = el.querySelector('.note');
     if (!t.isContentEditable) t.textContent = it.text;
-    if (!n.isContentEditable) n.textContent = it.note || '';
+    if (!n.classList.contains('editing')) n.innerHTML = renderNote(it.note || '');
   }
+  // ── Comments: a tiny plain-text format ──
+  //   "- item" / "* item"   → bulleted list      "1. item" → numbered list
+  //   "- [ ] task" / "- [x]" → checklist          URLs and [label](url) → links
+  const LIST_RE = /^(\s*)(?:([-*•])\s+\[( |x|X)\]\s+|\[( |x|X)\]\s+|([-*•])\s+|(\d+)[.)]\s+)/;
+  function lineKind(line) {
+    const m = line.match(LIST_RE);
+    if (!m) return null;
+    const body = line.slice(m[0].length);
+    if (m[3] != null || m[4] != null) return { kind: 'check', checked: /x/i.test(m[3] || m[4]), body, marker: m[0] };
+    if (m[5]) return { kind: 'bullet', body, marker: m[0] };
+    return { kind: 'number', n: +m[6], body, marker: m[0] };
+  }
+  const escHTML = t => t.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const URL_RE = /\[([^\]\n]+)\]\(((?:https?:\/\/|mailto:|www\.)[^\s)]+)\)|((?:https?:\/\/|www\.)[^\s<]*[^\s<.,;:!?)\]'"])/g;
+  function inlineHTML(t) {
+    let out = '', last = 0, m;
+    URL_RE.lastIndex = 0;
+    while ((m = URL_RE.exec(t))) {
+      out += escHTML(t.slice(last, m.index));
+      const url = m[2] || m[3], label = m[1] || m[3];
+      const href = /^www\./i.test(url) ? 'https://' + url : url;
+      out += `<a href="${escHTML(href)}" target="_blank" rel="noopener noreferrer" title="${escHTML(href)}">${escHTML(label)}</a>`;
+      last = m.index + m[0].length;
+    }
+    return out + escHTML(t.slice(last));
+  }
+  function renderNote(text) {
+    if (!text) return '';
+    const lines = text.split('\n');
+    let html = '', open = null;
+    const close = () => { if (open) html += open === 'number' ? '</ol>' : '</ul>'; open = null; };
+    lines.forEach((line, i) => {
+      const k = lineKind(line);
+      if (!k) { close(); html += `<div>${inlineHTML(line) || '<br>'}</div>`; return; }
+      if (open !== k.kind) {
+        close(); open = k.kind;
+        html += k.kind === 'number' ? `<ol${k.n !== 1 ? ` start="${k.n}"` : ''}>` : k.kind === 'check' ? '<ul class="check">' : '<ul>';
+      }
+      if (k.kind === 'check') {
+        html += `<li class="${k.checked ? 'checked' : ''}"><input type="checkbox" data-line="${i}"${k.checked ? ' checked' : ''}><span>${inlineHTML(k.body)}</span></li>`;
+      } else html += `<li>${inlineHTML(k.body)}</li>`;
+    });
+    close();
+    return html;
+  }
+
   function updateCard(it) {
     const el = cardsEl.querySelector(`[data-id="${it.id}"]`);
     if (el) styleCard(el, it);
@@ -801,7 +879,7 @@
     if (tool === 'erase') return startErase(e, p);
     if (tool === 'group') return startMarquee(e, p);
 
-    if (e.target.closest('.gbtn, input, [contenteditable]')) return;
+    if (e.target.closest('.gbtn, input, textarea, a, [contenteditable]')) return;
     const card = e.target.closest('.card');
     const grp = e.target.closest('.group, .glabel');
     if (card) return startCardDrag(e, card.dataset.id, p);
@@ -1038,7 +1116,7 @@
 
   // Double-click: edit card in place, or create a card on empty space.
   board.addEventListener('dblclick', e => {
-    if (tool !== 'select' || e.target.closest('#toolbar, .gbtn, input')) return;
+    if (tool !== 'select' || e.target.closest('#toolbar, .gbtn, input, textarea, a')) return;
     const card = e.target.closest('.card');
     if (card) return editCardInline(card.dataset.id, e.target.closest('.note') ? 'note' : 'text');
     if (e.target.closest('.glabel')) return renameGroup(e.target.closest('.glabel').dataset.id);
@@ -1053,13 +1131,44 @@
   // Text being typed directly on a card, not yet committed (see saveNow).
   let inlineEdit = null;
   function flushInlineEdit() {
-    if (inlineEdit) inlineEdit.it[inlineEdit.field] = inlineEdit.t.innerText.replace(/\n$/, '');
+    if (inlineEdit) inlineEdit.it[inlineEdit.field] = inlineEdit.get();
+  }
+  let keepEditing = false;   // set while a dialog (link prompt) briefly steals focus
+  function editCardNote(it, card) {
+    const n = card.querySelector('.note');
+    const ta = document.createElement('textarea');
+    ta.className = 'note-edit'; ta.rows = 1; ta.spellcheck = true;
+    ta.value = it.note || '';
+    n.classList.add('editing');
+    n.textContent = ''; n.append(ta);
+    autosize(ta); ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    const before = it.note || '';
+    inlineEdit = { it, field: 'note', get: () => ta.value };
+    const finish = () => {
+      if (keepEditing) return;
+      inlineEdit = null;
+      ta.removeEventListener('blur', finish);
+      n.classList.remove('editing');
+      if (ta.value !== before) { checkpoint(); it.note = ta.value; save(); }
+      styleCard(card, it);
+      renderList();
+      syncSel();
+    };
+    ta.addEventListener('blur', finish);
+    ta.addEventListener('input', () => autosize(ta));
+    ta.addEventListener('keydown', ev => {
+      ev.stopPropagation();
+      if ((ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) || ev.key === 'Escape') { ev.preventDefault(); ta.blur(); return; }
+      continueList(ta, ev);
+    });
   }
   function editCardInline(id, field = 'text') {
     const it = itemById(id);
     const card = cardsEl.querySelector(`[data-id="${id}"]`);
     if (!it || !card) return;
-    const t = card.querySelector(field === 'note' ? '.note' : '.txt');
+    if (field === 'note') return editCardNote(it, card);
+    const t = card.querySelector('.txt');
     try { t.contentEditable = 'plaintext-only'; } catch { t.contentEditable = 'true'; }
     if (t.contentEditable !== 'plaintext-only') t.contentEditable = 'true';
     t.focus();
@@ -1067,7 +1176,7 @@
     range.selectNodeContents(t);
     const s = getSelection(); s.removeAllRanges(); s.addRange(range);
     const before = it[field] || '';
-    inlineEdit = { it, field, t };
+    inlineEdit = { it, field, get: () => t.innerText.replace(/\n$/, '') };
     const finish = () => {
       inlineEdit = null;
       t.removeEventListener('blur', finish);
@@ -1079,14 +1188,27 @@
       syncSel();
     };
     t.addEventListener('blur', finish);
-    // Title: Enter commits. Comments: Enter is a new line, Ctrl/⌘+Enter commits.
     t.addEventListener('keydown', ev => {
       ev.stopPropagation();
-      const commit = field === 'note' ? ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)
-                                      : ev.key === 'Enter' && !ev.shiftKey;
-      if (commit || ev.key === 'Escape') { ev.preventDefault(); t.blur(); }
+      if ((ev.key === 'Enter' && !ev.shiftKey) || ev.key === 'Escape') { ev.preventDefault(); t.blur(); }
     });
   }
+
+  // Ticking a checklist box on a card rewrites that line of the comments.
+  cardsEl.addEventListener('change', e => {
+    const cb = e.target.closest('.note input[type=checkbox]');
+    if (!cb) return;
+    const it = itemById(cb.closest('.card').dataset.id);
+    const lines = (it.note || '').split('\n'), i = +cb.dataset.line;
+    if (!lines[i]) return;
+    checkpoint();
+    lines[i] = lines[i].replace(/\[( |x|X)\]/, cb.checked ? '[x]' : '[ ]');
+    it.note = lines.join('\n');
+    updateCard(it);
+    const ta = list.querySelector(`[data-id="${it.id}"] .inote`);
+    if (ta) { ta.value = it.note; autosize(ta); }
+    save();
+  });
 
   board.addEventListener('contextmenu', e => {
     const card = e.target.closest('.card');
@@ -1123,6 +1245,7 @@
     revealCard(row.dataset.id);
   });
   list.addEventListener('focusout', e => {
+    if (keepEditing) return;
     pendingSnap = null;
     if (e.target.classList?.contains('inote') && !e.target.value) e.target.hidden = true;
   });
@@ -1165,7 +1288,10 @@
   });
 
   list.addEventListener('keydown', e => {
-    if (e.target.classList.contains('inote')) { if (e.key === 'Escape') e.target.blur(); return; }
+    if (e.target.classList.contains('inote')) {
+      if (e.key === 'Escape') e.target.blur(); else continueList(e.target, e);
+      return;
+    }
     if (e.target.tagName !== 'TEXTAREA' || e.isComposing) return;
     const ta = e.target, id = ta.closest('.row').dataset.id;
     const idx = data.items.findIndex(i => i.id === id);
@@ -1265,6 +1391,118 @@
     ids.forEach(id => sel.delete(id));
     renderCards(); renderList(focusId); syncSel(); save();
   }
+
+  // ───────────────────────── comment formatting ─────────────────────────
+  // Replace part of a textarea's value and let the usual input handlers react.
+  function replaceRange(ta, start, end, text, caret) {
+    ta.focus();
+    ta.setRangeText(text, start, end, 'end');
+    if (caret != null) ta.setSelectionRange(caret, caret);
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  // Enter inside a list item starts the next item; Enter on an empty item ends the list.
+  function continueList(ta, e) {
+    if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.isComposing) return;
+    const v = ta.value, pos = ta.selectionStart;
+    if (pos !== ta.selectionEnd) return;
+    const ls = v.lastIndexOf('\n', pos - 1) + 1;
+    const k = lineKind(v.slice(ls, pos));
+    if (!k) return;
+    e.preventDefault();
+    if (!k.body.trim() && !v.slice(pos).split('\n')[0].trim()) {
+      replaceRange(ta, ls, pos, '', ls);           // empty item → leave the list
+      return;
+    }
+    const indent = k.marker.match(/^\s*/)[0];
+    const next = k.kind === 'number' ? `${indent}${k.n + 1}. `
+               : k.kind === 'check' ? `${indent}- [ ] `
+               : k.marker.replace(/\s+$/, ' ');
+    replaceRange(ta, pos, pos, '\n' + next);
+    if (k.kind === 'number') renumber(ta);
+  }
+  // Keep consecutive numbered lines counting 1, 2, 3… after edits.
+  function renumber(ta) {
+    const caret = ta.selectionStart;
+    let n = 0, delta = 0, pos = 0;
+    const out = ta.value.split('\n').map(line => {
+      const k = lineKind(line);
+      let res = line;
+      if (k && k.kind === 'number') {
+        n = n ? n + 1 : k.n;
+        const nm = k.marker.replace(/\d+/, n);
+        res = nm + k.body;
+        if (pos < caret) delta += res.length - line.length;
+      } else n = 0;
+      pos += line.length + 1;
+      return res;
+    }).join('\n');
+    if (out !== ta.value) {
+      ta.value = out;
+      ta.setSelectionRange(caret + delta, caret + delta);
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+  // Toolbar: turn the selected lines into a list (or back to plain lines).
+  function applyListFormat(ta, kind) {
+    const v = ta.value;
+    const ls = v.lastIndexOf('\n', ta.selectionStart - 1) + 1;
+    let le = v.indexOf('\n', ta.selectionEnd); if (le < 0) le = v.length;
+    const lines = v.slice(ls, le).split('\n');
+    const all = lines.every(l => lineKind(l)?.kind === kind);
+    const out = lines.map((l, i) => {
+      const body = lineKind(l)?.body ?? l;
+      if (all) return body;
+      return (kind === 'number' ? `${i + 1}. ` : kind === 'check' ? '- [ ] ' : '- ') + body;
+    }).join('\n');
+    replaceRange(ta, ls, le, out);
+    if (kind === 'number' && !all) renumber(ta);
+  }
+  function insertLink(ta) {
+    const s = ta.selectionStart, e = ta.selectionEnd, label = ta.value.slice(s, e).trim();
+    keepEditing = true;
+    let url = prompt('Link address (URL):', 'https://');
+    keepEditing = false;
+    ta.focus();
+    ta.setSelectionRange(s, e);
+    if (!url || url === 'https://') return;
+    url = url.trim();
+    if (!/^(https?:\/\/|mailto:)/i.test(url)) url = 'https://' + url.replace(/^\/+/, '');
+    replaceRange(ta, s, e, label ? `[${label.replace(/[\[\]]/g, '')}](${url})` : url);
+  }
+
+  const fmt = $('#fmt');
+  let fmtTarget = null;
+  const isNoteBox = el => el && el.tagName === 'TEXTAREA' && (el.classList.contains('inote') || el.classList.contains('note-edit'));
+  function placeFmt() {
+    if (!fmtTarget) return;
+    const r = fmtTarget.getBoundingClientRect();
+    fmt.hidden = false;
+    const w = fmt.offsetWidth, h = fmt.offsetHeight;
+    let top = r.top - h - 8;
+    if (top < 6) top = r.bottom + 8;
+    fmt.style.top = top + 'px';
+    fmt.style.left = Math.max(6, Math.min(r.left, innerWidth - w - 6)) + 'px';
+  }
+  document.addEventListener('focusin', e => {
+    if (!isNoteBox(e.target)) return;
+    fmtTarget = e.target;
+    $('#fmt-hint').textContent = e.target.classList.contains('note-edit') ? 'Ctrl+Enter to finish' : '';
+    placeFmt();
+  });
+  document.addEventListener('focusout', e => {
+    if (e.target !== fmtTarget || keepEditing) return;
+    fmtTarget = null; fmt.hidden = true;
+  });
+  document.addEventListener('input', e => { if (e.target === fmtTarget) placeFmt(); });
+  list.addEventListener('scroll', placeFmt);
+  fmt.addEventListener('pointerdown', e => e.preventDefault());   // keep focus in the text box
+  fmt.addEventListener('click', e => {
+    const b = e.target.closest('[data-fmt]');
+    if (!b || !fmtTarget) return;
+    const ta = fmtTarget;
+    if (b.dataset.fmt === 'link') insertLink(ta); else applyListFormat(ta, b.dataset.fmt);
+    placeFmt();
+  });
 
   // ───────────────────────── style popover ─────────────────────────
   let popIds = [];
