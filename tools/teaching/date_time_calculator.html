@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Date &amp; Hour Calculator</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+
+  <style>
+    /* ---- Design tokens: classic Windows 95, single high-contrast skin ----
+       Same skin as the other Teaching tools so it reads well on a projector. */
+    :root {
+      --face:         #c0c0c0;
+      --bevel-hi:     #ffffff;
+      --bevel-lt:     #dfdfdf;
+      --bevel-sh:     #808080;
+      --bevel-dk:     #000000;
+      --win-text:     #000000;
+      --disabled:     #808080;
+      --title-from:   #000080;
+      --title-to:     #1084d0;
+      --title-text:   #ffffff;
+      --field-bg:     #ffffff;
+      --field-text:   #000000;
+      --desktop:      #008080;
+
+      --lcd-bg:       #0a1410;
+      --lcd-digit:    #eaf3ee;
+      --lcd-dim:      #8fb3a0;
+
+      --red:          #a00000;
+
+      --font-mono: ui-monospace, 'SF Mono', 'Fira Code', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--desktop);
+      color: var(--win-text);
+      font-family: Tahoma, 'MS Sans Serif', Geneva, Verdana, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      overflow: hidden;
+    }
+
+    body { display: flex; }
+
+    .bevel-raised {
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+    }
+    .bevel-sunken {
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
+    }
+
+    /* ---- Window chrome ---- */
+    #win95-window {
+      flex: 1;
+      margin: 3px;
+      display: flex;
+      flex-direction: column;
+      background: var(--face);
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+      overflow: hidden;
+    }
+
+    #win95-titlebar {
+      flex-shrink: 0;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 3px 0 6px;
+      background: linear-gradient(90deg, var(--title-from), var(--title-to));
+      color: var(--title-text);
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .tb-icon { font-size: 13px; }
+    .tb-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tb-btns { display: flex; gap: 2px; }
+    .tb-btn {
+      width: 18px; height: 16px; padding: 0;
+      min-width: 0; min-height: 0; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--face); color: var(--win-text);
+      border: none; font-size: 10px; line-height: 1; cursor: pointer;
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+    }
+    .tb-close:hover { background: #c00000; color: #fff; }
+
+    .win95-content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: var(--face);
+    }
+
+    .main {
+      width: min(900px, 100%);
+      margin: 0 auto;
+      padding: 18px 16px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ---- Tabs ---- */
+    .tabs { display: flex; gap: 2px; padding-left: 4px; flex-wrap: wrap; }
+    .tab {
+      position: relative;
+      padding: 7px 16px 5px;
+      border: none;
+      background: var(--face);
+      color: var(--win-text);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow:
+        inset  1px  1px var(--bevel-hi),
+        inset -1px  0   var(--bevel-dk),
+        inset -2px  0   var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+      margin-top: 3px;
+    }
+    .tab[aria-selected="true"] {
+      margin-top: 0;
+      padding-bottom: 8px;
+      z-index: 1;
+      margin-bottom: -2px;
+    }
+    .tab:focus-visible { outline: 1px dotted var(--win-text); outline-offset: -5px; }
+
+    .panel { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+    .panel[hidden] { display: none; }
+
+    /* ---- Group boxes ---- */
+    fieldset {
+      border: none;
+      padding: 14px 12px 12px;
+      position: relative;
+      box-shadow:
+        inset  1px  1px var(--bevel-sh),
+        inset -1px -1px var(--bevel-hi),
+        inset  2px  2px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh);
+    }
+    legend {
+      position: absolute;
+      top: -9px;
+      left: 8px;
+      padding: 0 4px;
+      background: var(--face);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field > span {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    input[type="date"],
+    input[type="time"],
+    input[type="number"],
+    textarea {
+      padding: 6px 8px;
+      border: none;
+      border-radius: 0;
+      background: var(--field-bg);
+      color: var(--field-text);
+      font-family: var(--font-mono);
+      font-size: 16px;
+      outline: none;
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
+    }
+    input[type="number"] { width: 92px; text-align: center; }
+    textarea { width: 100%; resize: vertical; font-size: 14px; line-height: 1.5; }
+    input:focus-visible, textarea:focus-visible { outline: 1px dotted var(--win-text); outline-offset: -3px; }
+
+    label.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+    input[type="checkbox"], input[type="radio"] { width: 15px; height: 15px; accent-color: #000080; }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 14px;
+      border: none;
+      border-radius: 0;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--face);
+      color: var(--win-text);
+      font-family: inherit;
+      white-space: nowrap;
+      box-shadow:
+        inset -1px -1px var(--bevel-dk),
+        inset  1px  1px var(--bevel-hi),
+        inset -2px -2px var(--bevel-sh),
+        inset  2px  2px var(--bevel-lt);
+    }
+    button:active {
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
+    }
+    button:focus-visible { outline: 1px dotted var(--win-text); outline-offset: -4px; }
+    .chip { padding: 4px 10px; font-size: 12px; font-family: var(--font-mono); font-weight: 400; }
+
+    /* Weekday toggles */
+    .weekdays { display: flex; gap: 4px; flex-wrap: wrap; }
+    .weekdays label {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+
+    /* ---- LCD results ---- */
+    .lcd {
+      background: var(--lcd-bg);
+      color: var(--lcd-digit);
+      padding: 14px 16px;
+      font-family: var(--font-mono);
+      text-align: center;
+    }
+    .lcd-main {
+      font-size: clamp(22px, 5vw, 44px);
+      line-height: 1.15;
+      text-shadow: 0 0 6px rgba(234,243,238,0.35);
+      word-break: break-word;
+    }
+    .lcd-sub { margin-top: 6px; font-size: 14px; color: var(--lcd-dim); }
+
+    .results {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 8px;
+    }
+    .res {
+      background: var(--field-bg);
+      padding: 8px 10px;
+    }
+    .res .k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #444; }
+    .res .v { font-family: var(--font-mono); font-size: 17px; font-weight: 700; }
+    .res .n { font-size: 11px; color: #444; }
+
+    .msg { font-size: 12px; color: var(--red); font-weight: 700; min-height: 1em; }
+    .hint { font-size: 12px; line-height: 1.5; }
+    .hint code { font-family: var(--font-mono); background: var(--field-bg); padding: 0 3px; }
+
+    .footer { padding: 4px 0 16px; text-align: center; font-size: 12px; }
+    .footer a { color: #000080; }
+
+    @media (max-width: 640px) {
+      .panel { padding: 12px; }
+      .tab { padding: 6px 10px 4px; font-size: 12px; }
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="win95-window">
+  <div id="win95-titlebar">
+    <span class="tb-icon">📅</span>
+    <span class="tb-title">Date &amp; Hour Calculator</span>
+    <div class="tb-btns">
+      <button class="tb-btn" tabindex="-1" aria-hidden="true">_</button>
+      <button class="tb-btn" tabindex="-1" aria-hidden="true">&#9633;</button>
+      <button class="tb-btn tb-close" tabindex="-1" aria-hidden="true">&#10005;</button>
+    </div>
+  </div>
+
+  <div class="win95-content">
+  <div class="main">
+
+    <div>
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="between" aria-selected="true">📏 Between two dates</button>
+        <button class="tab" role="tab" data-tab="add" aria-selected="false">➕ Add / subtract</button>
+        <button class="tab" role="tab" data-tab="hours" aria-selected="false">🕒 Hours sum</button>
+      </div>
+
+      <div class="bevel-raised">
+
+        <!-- ═══════ BETWEEN TWO DATES ═══════ -->
+        <section class="panel" id="panel-between" role="tabpanel">
+          <div class="row">
+            <fieldset style="flex:1; min-width:260px">
+              <legend>From</legend>
+              <div class="row">
+                <label class="field"><span>Date</span><input type="date" id="bFromDate"></label>
+                <label class="field"><span>Time</span><input type="time" id="bFromTime"></label>
+                <button data-now="bFrom">Now</button>
+              </div>
+            </fieldset>
+            <fieldset style="flex:1; min-width:260px">
+              <legend>To</legend>
+              <div class="row">
+                <label class="field"><span>Date</span><input type="date" id="bToDate"></label>
+                <label class="field"><span>Time</span><input type="time" id="bToTime"></label>
+                <button data-now="bTo">Now</button>
+              </div>
+            </fieldset>
+          </div>
+          <div class="row" style="align-items:center">
+            <button id="bSwap">⇅ Swap</button>
+            <label class="check"><input type="checkbox" id="bIncludeEnd"> Count the end date too (inclusive, +1 day)</label>
+          </div>
+
+          <div class="lcd bevel-sunken">
+            <div class="lcd-main" id="bMain">—</div>
+            <div class="lcd-sub" id="bSub"></div>
+          </div>
+          <div class="results" id="bResults"></div>
+        </section>
+
+        <!-- ═══════ ADD / SUBTRACT ═══════ -->
+        <section class="panel" id="panel-add" role="tabpanel" hidden>
+          <fieldset>
+            <legend>Start</legend>
+            <div class="row">
+              <label class="field"><span>Date</span><input type="date" id="aDate"></label>
+              <label class="field"><span>Time</span><input type="time" id="aTime"></label>
+              <button data-now="a">Now</button>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Amount</legend>
+            <div class="row" style="margin-bottom:10px">
+              <label class="check"><input type="radio" name="aOp" value="1" checked> ➕ Add</label>
+              <label class="check"><input type="radio" name="aOp" value="-1"> ➖ Subtract</label>
+            </div>
+            <div class="row">
+              <label class="field"><span>Years</span><input type="number" id="aY" value="0" step="1"></label>
+              <label class="field"><span>Months</span><input type="number" id="aMo" value="0" step="1"></label>
+              <label class="field"><span>Weeks</span><input type="number" id="aW" value="0" step="1"></label>
+              <label class="field"><span>Days</span><input type="number" id="aD" value="0" step="1"></label>
+              <label class="field"><span>Hours</span><input type="number" id="aH" value="0" step="1"></label>
+              <label class="field"><span>Minutes</span><input type="number" id="aMi" value="0" step="1"></label>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <label class="check"><input type="checkbox" id="aWorking"> Count <b>&nbsp;Days&nbsp;</b> as working days (skip non-working weekdays and days off)</label>
+            </div>
+          </fieldset>
+
+          <div class="lcd bevel-sunken">
+            <div class="lcd-main" id="aMain">—</div>
+            <div class="lcd-sub" id="aSub"></div>
+          </div>
+          <div class="msg" id="aMsg"></div>
+        </section>
+
+        <!-- ═══════ HOURS SUM ═══════ -->
+        <section class="panel" id="panel-hours" role="tabpanel" hidden>
+          <label class="field"><span>Expression — one item per line adds up</span>
+            <textarea id="hExpr" rows="5" spellcheck="false"></textarea>
+          </label>
+          <div class="row">
+            <button class="chip" data-ex="1:45 + 2:30 - 0:15">1:45 + 2:30 - 0:15</button>
+            <button class="chip" data-ex="45m × 12">45m × 12</button>
+            <button class="chip" data-ex="7:15 + 6h 40m">7:15 + 6h 40m</button>
+            <button class="chip" data-ex="(40h - 2h 30m) / 5">(40h - 2h 30m) / 5</button>
+            <button class="chip" data-ex="30h / 45m">30h / 45m</button>
+            <button class="chip" data-ex="1.75h + 90 min">1.75h + 90 min</button>
+          </div>
+          <div class="msg" id="hMsg"></div>
+          <div class="lcd bevel-sunken">
+            <div class="lcd-main" id="hMain">—</div>
+            <div class="lcd-sub" id="hSub"></div>
+          </div>
+          <div class="results" id="hResults"></div>
+          <p class="hint">
+            Write durations as <code>h:mm</code> or <code>h:mm:ss</code>, or with units
+            <code>d</code> <code>h</code> <code>m</code>/<code>min</code> <code>s</code> (e.g. <code>2h 30m</code>, <code>1.5h</code>).
+            Use <code>+ − × ÷</code> and parentheses. Multiply or divide a duration by a plain number
+            (<code>45m × 12</code>); dividing two durations tells how many times one fits in the other
+            (<code>30h / 45m</code>).
+          </p>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- Shared calendar settings (used by the two date tabs) -->
+    <fieldset id="calendarBox">
+      <legend>Working days &amp; days off</legend>
+      <div class="weekdays" id="weekdays"></div>
+      <label class="field" style="margin-top:10px"><span>Days off (holidays, breaks) — optional</span>
+        <textarea id="daysOff" rows="2" spellcheck="false" placeholder="2026-12-24, 2026-12-25, 2026-12-21..2027-01-08"></textarea>
+      </label>
+      <div class="msg" id="offMsg"></div>
+      <p class="hint">Dates as <code>YYYY-MM-DD</code>, separated by commas or new lines. Use <code>..</code> for a range. Days off only affect working-day counts.</p>
+    </fieldset>
+
+    <div class="footer">Everything runs locally in your browser. · <a href="../../index.html">All tools</a></div>
+  </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const DAY = 86400000;
+  const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const STORE_KEY = 'dateHourCalc.v1';
+
+  // ---------- small helpers ----------
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
+  const plural = (n, word) => `${n.toLocaleString()} ${word}${Math.abs(n) === 1 ? '' : 's'}`;
+  const fmtNum = (x, maxDec = 4) => x.toLocaleString(undefined, { maximumFractionDigits: maxDec });
+
+  function readDateTime(dateEl, timeEl) {
+    const d = dateEl.value;
+    if (!/^\d{4,}-\d{2}-\d{2}$/.test(d)) return null;
+    const [y, m, day] = d.split('-').map(Number);
+    const [hh, mm] = (timeEl.value || '00:00').split(':').map(Number);
+    const dt = new Date(y, m - 1, day, hh || 0, mm || 0, 0, 0);
+    dt.setFullYear(y); // years < 100 would otherwise map to 19xx
+    return dt;
+  }
+
+  function writeDateTime(dateEl, timeEl, dt) {
+    dateEl.value = `${pad(dt.getFullYear(), 4)}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+    timeEl.value = `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  }
+
+  // Wall-clock milliseconds: what the calendar and the clock on the wall
+  // show, ignoring daylight-saving jumps.
+  const wall = (d) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds());
+  // Day index: whole days since 1970-01-01 for the local calendar date.
+  const dayIndex = (d) => Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY);
+  // 0 = Sunday … 6 = Saturday (1970-01-01 was a Thursday).
+  const weekdayOfIndex = (i) => (((i + 4) % 7) + 7) % 7;
+  const keyOfIndex = (i) => {
+    const d = new Date(i * DAY);
+    return `${pad(d.getUTCFullYear(), 4)}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+  };
+  const indexOfKey = (k) => {
+    const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(k);
+    if (!m) return null;
+    const y = +m[1], mo = +m[2], d = +m[3];
+    const t = Date.UTC(y, mo - 1, d);
+    const back = new Date(t);
+    if (back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null;
+    return Math.floor(t / DAY);
+  };
+
+  function addMonths(date, n) {
+    const d = new Date(date.getTime());
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + n);
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, last)); // Jan 31 + 1 month → Feb 28/29
+    return d;
+  }
+
+  function isoWeek(date) {
+    const t = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dow = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - dow);
+    const yearStart = Date.UTC(t.getUTCFullYear(), 0, 1);
+    return { week: Math.ceil(((t - yearStart) / DAY + 1) / 7), year: t.getUTCFullYear() };
+  }
+
+  function dayOfYear(date) {
+    return dayIndex(date) - Math.floor(Date.UTC(date.getFullYear(), 0, 1) / DAY) + 1;
+  }
+
+  const fmtDate = (d) => d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const fmtTime = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+  function resultTiles(container, items) {
+    container.innerHTML = '';
+    for (const [k, v, n] of items) {
+      const div = document.createElement('div');
+      div.className = 'res bevel-sunken';
+      div.innerHTML = '<div class="k"></div><div class="v"></div>' + (n ? '<div class="n"></div>' : '');
+      div.querySelector('.k').textContent = k;
+      div.querySelector('.v').textContent = v;
+      if (n) div.querySelector('.n').textContent = n;
+      container.appendChild(div);
+    }
+  }
+
+  // ---------- working days & days off ----------
+  const working = [false, true, true, true, true, true, false]; // Mon–Fri
+
+  const wdBox = $('weekdays');
+  [1, 2, 3, 4, 5, 6, 0].forEach((wd) => {
+    const lab = document.createElement('label');
+    lab.className = 'bevel-raised';
+    lab.innerHTML = `<input type="checkbox" data-wd="${wd}"> ${WEEKDAY_NAMES[wd]}`;
+    wdBox.appendChild(lab);
+  });
+  const syncWeekdayBoxes = () => wdBox.querySelectorAll('input').forEach((cb) => { cb.checked = working[+cb.dataset.wd]; });
+
+  let daysOff = new Set(); // day indices
+
+  function parseDaysOff() {
+    const set = new Set();
+    const bad = [];
+    const parts = $('daysOff').value.split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean);
+    for (const p of parts) {
+      const range = p.split(/\s*(?:\.\.|–|—|\bto\b)\s*/);
+      if (range.length === 1) {
+        const i = indexOfKey(range[0]);
+        if (i === null) bad.push(p); else set.add(i);
+      } else if (range.length === 2) {
+        let a = indexOfKey(range[0]), b = indexOfKey(range[1]);
+        if (a === null || b === null) { bad.push(p); continue; }
+        if (a > b) [a, b] = [b, a];
+        if (b - a > 3660) { bad.push(p + ' (range too long)'); continue; }
+        for (let i = a; i <= b; i++) set.add(i);
+      } else bad.push(p);
+    }
+    daysOff = set;
+    $('offMsg').textContent = bad.length ? `Not understood: ${bad.join(', ')}` : '';
+  }
+
+  const isWorking = (i) => working[weekdayOfIndex(i)] && !daysOff.has(i);
+
+  // Count days in [a, b) by kind, using whole weeks so long spans stay fast.
+  function countDays(a, b) {
+    const n = b - a;
+    const perWeekWorking = working.filter(Boolean).length;
+    const full = Math.floor(n / 7);
+    let weekdays = full * perWeekWorking;
+    let weekend = full * (7 - perWeekWorking);
+    for (let i = a + full * 7; i < b; i++) {
+      if (working[weekdayOfIndex(i)]) weekdays++; else weekend++;
+    }
+    let off = 0;
+    for (const i of daysOff) if (i >= a && i < b && working[weekdayOfIndex(i)]) off++;
+    return { weekdays, weekend, off, workingDays: weekdays - off };
+  }
+
+  // ---------- tab 1: between two dates ----------
+  function calcBetween() {
+    let from = readDateTime($('bFromDate'), $('bFromTime'));
+    let to = readDateTime($('bToDate'), $('bToTime'));
+    if (!from || !to) {
+      $('bMain').textContent = '—';
+      $('bSub').textContent = 'Pick both dates';
+      $('bResults').innerHTML = '';
+      return;
+    }
+    let sign = 1;
+    if (to < from) { [from, to] = [to, from]; sign = -1; }
+    const inclusive = $('bIncludeEnd').checked;
+    const extra = inclusive ? DAY : 0;
+
+    // Calendar breakdown (years, months, days, h, min) on the wall clock.
+    let months = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
+    let anchor = addMonths(from, months);
+    while (months > 0 && wall(anchor) > wall(to)) { months--; anchor = addMonths(from, months); }
+    let rest = wall(to) - wall(anchor) + extra;
+    const cDays = Math.floor(rest / DAY); rest -= cDays * DAY;
+    const cH = Math.floor(rest / 3600000); rest -= cH * 3600000;
+    const cMin = Math.round(rest / 60000);
+    const years = Math.floor(months / 12);
+    const mons = months % 12;
+
+    const wallDiff = wall(to) - wall(from) + extra;
+    const totalDays = Math.floor(wallDiff / DAY);
+    let r = wallDiff - totalDays * DAY;
+    const remH = Math.floor(r / 3600000);
+    const remMin = Math.round((r - remH * 3600000) / 60000);
+
+    // Real elapsed time (differs from the wall clock across a DST change).
+    const realMs = to - from + extra;
+    const neg = sign < 0 ? '−' : '';
+
+    const mainParts = [plural(totalDays, 'day')];
+    if (remH || remMin) mainParts.push(`${remH} h ${pad(remMin)} min`);
+    $('bMain').textContent = neg + mainParts.join(' ');
+
+    const cal = [];
+    if (years) cal.push(plural(years, 'year'));
+    if (mons) cal.push(plural(mons, 'month'));
+    if (cDays || !cal.length) cal.push(plural(cDays, 'day'));
+    if (cH) cal.push(`${cH} h`);
+    if (cMin) cal.push(`${cMin} min`);
+    $('bSub').textContent = (sign < 0 ? 'The “To” date is earlier · ' : '') + cal.join(', ');
+
+    const a = dayIndex(from);
+    const b = dayIndex(to) + (inclusive ? 1 : 0);
+    const c = countDays(a, b);
+    const wdNames = WEEKDAY_NAMES.filter((_, i) => working[i]);
+    const weeks = Math.floor(totalDays / 7);
+
+    const tiles = [
+      ['Weeks', `${neg}${plural(weeks, 'week')}` + (totalDays % 7 ? ` ${plural(totalDays % 7, 'day')}` : ''), null],
+      ['Total hours', neg + fmtNum(realMs / 3600000, 2) + ' h', null],
+      ['Total minutes', neg + fmtNum(realMs / 60000, 0) + ' min', null],
+      ['Total seconds', neg + fmtNum(realMs / 1000, 0) + ' s', null],
+      ['Working days', neg + c.workingDays.toLocaleString(),
+        (wdNames.length ? wdNames.join(' ') : 'none selected') + (c.off ? ` · minus ${c.off} day${c.off === 1 ? '' : 's'} off` : '')],
+      ['Other days', neg + (c.weekend + c.off).toLocaleString(), 'Non-working weekdays + days off'],
+    ];
+    if (realMs !== wall(to) - wall(from) + extra) {
+      tiles.push(['Daylight saving', `${fmtNum((realMs - (wall(to) - wall(from) + extra)) / 3600000, 2)} h`, 'Clock change inside the interval (counted in totals)']);
+    }
+    resultTiles($('bResults'), tiles);
+  }
+
+  // ---------- tab 2: add / subtract ----------
+  function calcAdd() {
+    const start = readDateTime($('aDate'), $('aTime'));
+    $('aMsg').textContent = '';
+    if (!start) { $('aMain').textContent = '—'; $('aSub').textContent = 'Pick a start date'; return; }
+    const sign = +document.querySelector('input[name="aOp"]:checked').value;
+    const num = (id) => {
+      const v = parseFloat($(id).value);
+      return Number.isFinite(v) ? Math.trunc(v) : 0;
+    };
+    const Y = num('aY'), Mo = num('aMo'), W = num('aW'), D = num('aD'), H = num('aH'), Mi = num('aMi');
+
+    let d = addMonths(start, sign * (Y * 12 + Mo));
+    d.setDate(d.getDate() + sign * W * 7);
+
+    if ($('aWorking').checked && D) {
+      if (!working.some(Boolean)) { $('aMsg').textContent = 'Select at least one working weekday below.'; return; }
+      let i = dayIndex(d), left = Math.abs(D), guard = 0;
+      while (left > 0 && guard++ < 200000) {
+        i += sign * Math.sign(D);
+        if (isWorking(i)) left--;
+      }
+      if (left > 0) { $('aMsg').textContent = 'Too many days off — no working day found.'; return; }
+      d.setDate(d.getDate() + (i - dayIndex(d)));
+    } else {
+      d.setDate(d.getDate() + sign * D);
+    }
+    d = new Date(d.getTime() + sign * (H * 3600000 + Mi * 60000));
+
+    if (isNaN(d)) { $('aMain').textContent = '—'; $('aMsg').textContent = 'Result out of range.'; return; }
+    $('aMain').textContent = `${fmtDate(d)} · ${fmtTime(d)}`;
+    const w = isoWeek(d);
+    const i = dayIndex(d);
+    const notes = [`Day ${dayOfYear(d)} of the year`, `ISO week ${w.week}`];
+    if (daysOff.has(i)) notes.push('⚠ a day off');
+    else if (!working[weekdayOfIndex(i)]) notes.push('non-working day');
+    $('aSub').textContent = notes.join(' · ');
+  }
+
+  // ---------- tab 3: hours sum ----------
+  // Values are { s: seconds, dur: true } for durations or { s: number, dur: false }.
+  const UNIT = { d: 86400, day: 86400, days: 86400, h: 3600, hr: 3600, hrs: 3600, hour: 3600, hours: 3600,
+    m: 60, min: 60, mins: 60, minute: 60, minutes: 60, s: 1, sec: 1, secs: 1, second: 1, seconds: 1 };
+
+  function tokenize(src) {
+    const s = src.trim().replace(/\s*\n\s*/g, ' + ').replace(/[×x·]/g, '*').replace(/[÷]/g, '/').replace(/[−–]/g, '-');
+    const toks = [];
+    let i = 0;
+    const clockRe = /^(\d+):(\d{1,2})(?::(\d{1,2}(?:[.,]\d+)?))?/;
+    const unitRe = /^(\d+(?:[.,]\d+)?|[.,]\d+)\s*(days?|d|hours?|hrs?|h|minutes?|mins?|min|m|seconds?|secs?|sec|s)(?![a-z])/i;
+    const numRe = /^(\d+(?:[.,]\d+)?|[.,]\d+)/;
+    while (i < s.length) {
+      const rest = s.slice(i);
+      if (/^\s/.test(rest)) { i++; continue; }
+      if ('+-*/()'.includes(rest[0])) { toks.push({ t: rest[0] }); i++; continue; }
+      let m = clockRe.exec(rest);
+      if (m) {
+        const mm = +m[2], ss = m[3] ? parseFloat(m[3].replace(',', '.')) : 0;
+        if (mm >= 60 || ss >= 60) throw new Error(`“${m[0]}”: minutes and seconds must be below 60`);
+        toks.push({ t: 'v', v: { s: +m[1] * 3600 + mm * 60 + ss, dur: true } });
+        i += m[0].length; continue;
+      }
+      m = unitRe.exec(rest);
+      if (m) {
+        // Compound durations like "2h 30m 15s" become a single value.
+        let total = 0;
+        while (m) {
+          total += parseFloat(m[1].replace(',', '.')) * UNIT[m[2].toLowerCase()];
+          i += m[0].length;
+          const ws = /^\s*/.exec(s.slice(i))[0].length;
+          const next = unitRe.exec(s.slice(i + ws));
+          if (next) i += ws;
+          m = next;
+        }
+        toks.push({ t: 'v', v: { s: total, dur: true } });
+        continue;
+      }
+      m = numRe.exec(rest);
+      if (m) { toks.push({ t: 'v', v: { s: parseFloat(m[1].replace(',', '.')), dur: false } }); i += m[0].length; continue; }
+      throw new Error(`I don't understand “${rest.split(/\s/)[0]}”`);
+    }
+    return toks;
+  }
+
+  function evaluate(src) {
+    const toks = tokenize(src);
+    let p = 0;
+    const peek = () => toks[p] && toks[p].t;
+    const expect = (t) => { if (peek() !== t) throw new Error(`Expected “${t}”`); p++; };
+
+    function expr() {
+      let a = term();
+      while (peek() === '+' || peek() === '-') {
+        const op = toks[p++].t;
+        const b = term();
+        if (a.dur !== b.dur) throw new Error('Can’t add a plain number to a duration — give it a unit (h, m, s) or use h:mm');
+        a = { s: op === '+' ? a.s + b.s : a.s - b.s, dur: a.dur };
+      }
+      return a;
+    }
+    function term() {
+      let a = factor();
+      while (peek() === '*' || peek() === '/') {
+        const op = toks[p++].t;
+        const b = factor();
+        if (op === '*') {
+          if (a.dur && b.dur) throw new Error('Can’t multiply two durations — one side should be a plain number');
+          a = { s: a.s * b.s, dur: a.dur || b.dur };
+        } else {
+          if (b.s === 0) throw new Error('Division by zero');
+          if (!a.dur && b.dur) throw new Error('Can’t divide a number by a duration');
+          a = { s: a.s / b.s, dur: a.dur && !b.dur };
+        }
+      }
+      return a;
+    }
+    function factor() {
+      if (peek() === '-') { p++; const v = factor(); return { s: -v.s, dur: v.dur }; }
+      if (peek() === '+') { p++; return factor(); }
+      if (peek() === '(') { p++; const v = expr(); expect(')'); return v; }
+      if (peek() === 'v') return toks[p++].v;
+      throw new Error(p >= toks.length ? 'The expression ends too early' : `Unexpected “${toks[p].t}”`);
+    }
+
+    const v = expr();
+    if (p < toks.length) throw new Error(`Unexpected “${toks[p].t === 'v' ? 'value' : toks[p].t}” — missing an operator?`);
+    return v;
+  }
+
+  function fmtDuration(sec) {
+    const neg = sec < 0;
+    let t = Math.round(Math.abs(sec));
+    const h = Math.floor(t / 3600); t -= h * 3600;
+    const m = Math.floor(t / 60);
+    const s = t - m * 60;
+    return (neg ? '−' : '') + `${h}:${pad(m)}` + (s ? `:${pad(s)}` : '');
+  }
+
+  function calcHours() {
+    const src = $('hExpr').value;
+    $('hMsg').textContent = '';
+    if (!src.trim()) { $('hMain').textContent = '—'; $('hSub').textContent = ''; $('hResults').innerHTML = ''; return; }
+    let v;
+    try { v = evaluate(src); } catch (e) {
+      $('hMsg').textContent = e.message;
+      $('hMain').textContent = '—'; $('hSub').textContent = ''; $('hResults').innerHTML = '';
+      return;
+    }
+    if (!v.dur) {
+      $('hMain').textContent = fmtNum(v.s, 4);
+      $('hSub').textContent = Number.isInteger(Math.round(v.s * 1e6) / 1e6) ? 'times' : `${Math.floor(v.s)} whole times`;
+      $('hResults').innerHTML = '';
+      return;
+    }
+    const sec = Math.round(v.s * 1000) / 1000;
+    $('hMain').textContent = fmtDuration(sec);
+    $('hSub').textContent = 'hours : minutes' + (Math.round(Math.abs(sec)) % 60 ? ' : seconds' : '');
+
+    const abs = Math.abs(sec), neg = sec < 0 ? '−' : '';
+    const tiles = [
+      ['Decimal hours', neg + fmtNum(abs / 3600, 4) + ' h', null],
+      ['Total minutes', neg + fmtNum(abs / 60, 2) + ' min', null],
+      ['Total seconds', neg + fmtNum(abs, 2) + ' s', null],
+    ];
+    if (abs >= 86400) {
+      const days = Math.floor(abs / 86400);
+      tiles.push(['Days + time', `${neg}${plural(days, 'day')} ${fmtDuration(abs - days * 86400)}`, null]);
+    }
+    if (sec >= 0) {
+      const clock = Math.round(sec) % 86400;
+      const dayShift = Math.floor(Math.round(sec) / 86400);
+      tiles.push(['As a clock time', `${pad(Math.floor(clock / 3600))}:${pad(Math.floor(clock / 60) % 60)}` + (clock % 60 ? `:${pad(clock % 60)}` : ''),
+        dayShift ? `+${plural(dayShift, 'day')} (if the first value is a time of day)` : 'If the first value is a time of day']);
+    }
+    resultTiles($('hResults'), tiles);
+  }
+
+  // ---------- state ----------
+  function save() {
+    try {
+      const state = {
+        tab: document.querySelector('.tab[aria-selected="true"]').dataset.tab,
+        working,
+        daysOff: $('daysOff').value,
+        hExpr: $('hExpr').value,
+        bIncludeEnd: $('bIncludeEnd').checked,
+        aWorking: $('aWorking').checked,
+        aOp: document.querySelector('input[name="aOp"]:checked').value,
+        fields: {},
+      };
+      ['bFromDate', 'bFromTime', 'bToDate', 'bToTime', 'aDate', 'aTime', 'aY', 'aMo', 'aW', 'aD', 'aH', 'aMi']
+        .forEach((id) => { state.fields[id] = $(id).value; });
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    } catch (e) { /* storage unavailable — nothing to keep */ }
+  }
+
+  function load() {
+    let st = null;
+    try { st = JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) { st = null; }
+    const now = new Date();
+    now.setSeconds(0, 0);
+    if (!st) {
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      writeDateTime($('bFromDate'), $('bFromTime'), today);
+      writeDateTime($('bToDate'), $('bToTime'), new Date(now.getFullYear(), 11, 31));
+      writeDateTime($('aDate'), $('aTime'), now);
+      $('aD').value = 30;
+      $('hExpr').value = '1:45\n2:30\n0:50';
+      return 'between';
+    }
+    if (Array.isArray(st.working) && st.working.length === 7) st.working.forEach((v, i) => { working[i] = !!v; });
+    $('daysOff').value = st.daysOff || '';
+    $('hExpr').value = st.hExpr || '';
+    $('bIncludeEnd').checked = !!st.bIncludeEnd;
+    $('aWorking').checked = !!st.aWorking;
+    const op = document.querySelector(`input[name="aOp"][value="${st.aOp}"]`);
+    if (op) op.checked = true;
+    for (const [id, v] of Object.entries(st.fields || {})) if ($(id)) $(id).value = v;
+    return st.tab || 'between';
+  }
+
+  // ---------- wiring ----------
+  function selectTab(name) {
+    document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
+    document.querySelectorAll('.panel').forEach((p) => { p.hidden = p.id !== `panel-${name}`; });
+    $('calendarBox').hidden = name === 'hours';
+  }
+
+  function recalcAll() {
+    parseDaysOff();
+    calcBetween();
+    calcAdd();
+    calcHours();
+    save();
+  }
+
+  document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => { selectTab(t.dataset.tab); save(); }));
+
+  document.querySelectorAll('[data-now]').forEach((btn) => btn.addEventListener('click', () => {
+    const k = btn.dataset.now;
+    const now = new Date();
+    writeDateTime($(k === 'a' ? 'aDate' : k + 'Date'), $(k === 'a' ? 'aTime' : k + 'Time'), now);
+    recalcAll();
+  }));
+
+  $('bSwap').addEventListener('click', () => {
+    [$('bFromDate').value, $('bToDate').value] = [$('bToDate').value, $('bFromDate').value];
+    [$('bFromTime').value, $('bToTime').value] = [$('bToTime').value, $('bFromTime').value];
+    recalcAll();
+  });
+
+  document.querySelectorAll('[data-ex]').forEach((btn) => btn.addEventListener('click', () => {
+    $('hExpr').value = btn.dataset.ex;
+    recalcAll();
+  }));
+
+  wdBox.addEventListener('change', (e) => {
+    const cb = e.target.closest('input[data-wd]');
+    if (!cb) return;
+    working[+cb.dataset.wd] = cb.checked;
+    recalcAll();
+  });
+
+  document.querySelector('.main').addEventListener('input', (e) => {
+    if (e.target.closest('#weekdays')) return;
+    recalcAll();
+  });
+
+  selectTab(load());
+  syncWeekdayBoxes();
+  recalcAll();
+})();
+</script>
+</body>
+</html>
