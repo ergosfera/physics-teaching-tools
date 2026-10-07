@@ -275,6 +275,36 @@
     .res .v { font-family: var(--font-mono); font-size: 17px; font-weight: 700; }
     .res .n { font-size: 11px; color: #444; }
 
+    select {
+      padding: 6px 8px; border: none; border-radius: 0;
+      background: var(--field-bg); color: var(--field-text);
+      font-family: inherit; font-size: 14px; font-weight: 600;
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
+    }
+    select:focus-visible { outline: 1px dotted var(--win-text); outline-offset: -3px; }
+    .hol-details { padding-top: 20px; font-size: 13px; }
+    .hol-details[hidden] { display: none; }
+    .hol-details summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
+    #holYear { width: 90px; font-size: 14px; padding: 3px 6px; }
+    .hol-list {
+      list-style: none; margin-top: 6px; padding: 6px 10px;
+      background: var(--field-bg); font-size: 13px;
+      columns: 2 260px; column-gap: 20px;
+      box-shadow:
+        inset -1px -1px var(--bevel-hi),
+        inset  1px  1px var(--bevel-dk),
+        inset -2px -2px var(--bevel-lt),
+        inset  2px  2px var(--bevel-sh);
+    }
+    .hol-list li { break-inside: avoid; padding: 1px 0; }
+    .hol-list .d { font-family: var(--font-mono); font-weight: 700; margin-right: 6px; }
+    .hol-in-range { margin-top: 4px; font-size: 12px; }
+    .hol-in-range b { font-family: var(--font-mono); }
+
     .msg { font-size: 12px; color: var(--red); font-weight: 700; min-height: 1em; }
     .hint { font-size: 12px; line-height: 1.5; }
     .hint code { font-family: var(--font-mono); background: var(--field-bg); padding: 0 3px; }
@@ -344,6 +374,7 @@
             <div class="lcd-sub" id="bSub"></div>
           </div>
           <div class="results" id="bResults"></div>
+          <div class="hol-in-range" id="bHolidays"></div>
         </section>
 
         <!-- ═══════ ADD / SUBTRACT ═══════ -->
@@ -418,7 +449,21 @@
     <fieldset id="calendarBox">
       <legend>Working days &amp; days off</legend>
       <div class="weekdays" id="weekdays"></div>
-      <label class="field" style="margin-top:10px"><span>Days off (holidays, breaks) — optional</span>
+      <div class="row" style="margin-top:10px; align-items:flex-start">
+        <label class="field"><span>Public holidays</span>
+          <select id="country">
+            <option value="none">None</option>
+            <option value="co">🇨🇴 Colombia (festivos)</option>
+            <option value="us">🇺🇸 United States (federal)</option>
+          </select>
+        </label>
+        <details id="holidayDetails" class="hol-details">
+          <summary>Show holiday list</summary>
+          <label class="check" style="margin-top:6px">Year <input type="number" id="holYear" step="1"></label>
+          <ul id="holidayList" class="hol-list"></ul>
+        </details>
+      </div>
+      <label class="field" style="margin-top:10px"><span>Extra days off (school breaks, local holidays) — optional</span>
         <textarea id="daysOff" rows="2" spellcheck="false" placeholder="2026-12-24, 2026-12-25, 2026-12-21..2027-01-08"></textarea>
       </label>
       <div class="msg" id="offMsg"></div>
@@ -553,7 +598,116 @@
     $('offMsg').textContent = bad.length ? `Not understood: ${bad.join(', ')}` : '';
   }
 
-  const isWorking = (i) => working[weekdayOfIndex(i)] && !daysOff.has(i);
+  // ---------- public holidays ----------
+  // Computed from each country's rules, so every year works.
+  const ymd = (y, m, d) => Math.floor(Date.UTC(y, m - 1, d) / DAY);
+  const yearOfIndex = (i) => new Date(i * DAY).getUTCFullYear();
+
+  function easter(y) { // Anonymous Gregorian algorithm → day index of Easter Sunday
+    const a = y % 19, b = Math.floor(y / 100), c = y % 100;
+    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31);
+    const day = ((h + l - 7 * m + 114) % 31) + 1;
+    return ymd(y, month, day);
+  }
+  // Next Monday on or after a day (Colombia's "Ley Emiliani" moves holidays here).
+  const toMonday = (i) => i + ((8 - weekdayOfIndex(i)) % 7);
+  // n-th given weekday of a month (n = -1 → last).
+  function nthWeekday(y, m, wd, n) {
+    if (n > 0) {
+      const first = ymd(y, m, 1);
+      return first + ((wd - weekdayOfIndex(first) + 7) % 7) + (n - 1) * 7;
+    }
+    const last = ymd(y, m + 1, 1) - 1;
+    return last - ((weekdayOfIndex(last) - wd + 7) % 7);
+  }
+  // US federal rule: Saturday → Friday before, Sunday → Monday after.
+  const observedUS = (i) => {
+    const wd = weekdayOfIndex(i);
+    return wd === 6 ? i - 1 : wd === 0 ? i + 1 : i;
+  };
+
+  const HOLIDAY_RULES = {
+    co(y) { // Ley 51 de 1983 (Ley Emiliani)
+      const e = easter(y);
+      return [
+        [ymd(y, 1, 1), 'Año Nuevo'],
+        [toMonday(ymd(y, 1, 6)), 'Reyes Magos'],
+        [toMonday(ymd(y, 3, 19)), 'San José'],
+        [e - 3, 'Jueves Santo'],
+        [e - 2, 'Viernes Santo'],
+        [ymd(y, 5, 1), 'Día del Trabajo'],
+        [toMonday(e + 39), 'Ascensión del Señor'],
+        [toMonday(e + 60), 'Corpus Christi'],
+        [toMonday(e + 68), 'Sagrado Corazón'],
+        [toMonday(ymd(y, 6, 29)), 'San Pedro y San Pablo'],
+        [ymd(y, 7, 20), 'Día de la Independencia'],
+        [ymd(y, 8, 7), 'Batalla de Boyacá'],
+        [toMonday(ymd(y, 8, 15)), 'Asunción de la Virgen'],
+        [toMonday(ymd(y, 10, 12)), 'Día de la Raza'],
+        [toMonday(ymd(y, 11, 1)), 'Todos los Santos'],
+        [toMonday(ymd(y, 11, 11)), 'Independencia de Cartagena'],
+        [ymd(y, 12, 8), 'Inmaculada Concepción'],
+        [ymd(y, 12, 25), 'Navidad'],
+      ];
+    },
+    us(y) { // 5 U.S.C. 6103 federal holidays, observed dates
+      const list = [
+        [observedUS(ymd(y, 1, 1)), 'New Year’s Day'],
+        [observedUS(ymd(y, 7, 4)), 'Independence Day'],
+        [observedUS(ymd(y, 11, 11)), 'Veterans Day'],
+        [observedUS(ymd(y, 12, 25)), 'Christmas Day'],
+        [nthWeekday(y, 2, 1, 3), 'Washington’s Birthday'],
+        [nthWeekday(y, 5, 1, -1), 'Memorial Day'],
+        [nthWeekday(y, 9, 1, 1), 'Labor Day'],
+        [nthWeekday(y, 10, 1, 2), 'Columbus Day'],
+        [nthWeekday(y, 11, 4, 4), 'Thanksgiving Day'],
+      ];
+      if (y >= 1986) list.push([nthWeekday(y, 1, 1, 3), 'Martin Luther King Jr. Day']);
+      if (y >= 2021) list.push([observedUS(ymd(y, 6, 19)), 'Juneteenth']);
+      return list;
+    },
+  };
+
+  let country = 'none';
+  const holidayCache = new Map();
+  // Map day index → name for the holidays that land in year y. The US
+  // New Year's Day of y+1 can be observed on Dec 31 of y, so look one year ahead.
+  function holidaysOfYear(y) {
+    const key = country + y;
+    if (holidayCache.has(key)) return holidayCache.get(key);
+    const map = new Map();
+    const rule = HOLIDAY_RULES[country];
+    if (rule) {
+      for (const [i, name] of [...rule(y), ...rule(y + 1)]) {
+        if (yearOfIndex(i) !== y) continue;
+        map.set(i, map.has(i) ? `${map.get(i)} / ${name}` : name);
+      }
+    }
+    holidayCache.set(key, map);
+    return map;
+  }
+  const holidayName = (i) => (country === 'none' ? undefined : holidaysOfYear(yearOfIndex(i)).get(i));
+
+  // Every holiday or extra day off in [a, b), sorted, as [index, label].
+  function offDaysIn(a, b) {
+    const map = new Map();
+    if (country !== 'none' && b > a) {
+      const y0 = yearOfIndex(a), y1 = yearOfIndex(b - 1);
+      if (y1 - y0 <= 1000) {
+        for (let y = y0; y <= y1; y++) {
+          for (const [i, name] of holidaysOfYear(y)) if (i >= a && i < b) map.set(i, name);
+        }
+      }
+    }
+    for (const i of daysOff) if (i >= a && i < b && !map.has(i)) map.set(i, 'Day off');
+    return [...map].sort((p, q) => p[0] - q[0]);
+  }
+
+  const isWorking = (i) => working[weekdayOfIndex(i)] && !daysOff.has(i) && !holidayName(i);
 
   // Count days in [a, b) by kind, using whole weeks so long spans stay fast.
   function countDays(a, b) {
@@ -565,9 +719,29 @@
     for (let i = a + full * 7; i < b; i++) {
       if (working[weekdayOfIndex(i)]) weekdays++; else weekend++;
     }
-    let off = 0;
-    for (const i of daysOff) if (i >= a && i < b && working[weekdayOfIndex(i)]) off++;
-    return { weekdays, weekend, off, workingDays: weekdays - off };
+    const offList = offDaysIn(a, b);
+    // Only days off that fall on a working weekday reduce the count.
+    const offWorking = offList.filter(([i]) => working[weekdayOfIndex(i)]);
+    const off = offWorking.length;
+    return { weekdays, weekend, off, offList, offWorking, workingDays: weekdays - off };
+  }
+
+  function renderHolidayList() {
+    const box = $('holidayDetails');
+    box.hidden = country === 'none';
+    if (box.hidden) return;
+    let y = parseInt($('holYear').value, 10);
+    if (!Number.isFinite(y) || y < 1 || y > 9999) y = new Date().getFullYear();
+    const ul = $('holidayList');
+    ul.innerHTML = '';
+    for (const [i, name] of [...holidaysOfYear(y)].sort((p, q) => p[0] - q[0])) {
+      const d = new Date(i * DAY);
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="d"></span><span></span>';
+      li.firstChild.textContent = `${WEEKDAY_NAMES[d.getUTCDay()]} ${d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', timeZone: 'UTC' })}`;
+      li.lastChild.textContent = name;
+      ul.appendChild(li);
+    }
   }
 
   // ---------- tab 1: between two dates ----------
@@ -586,10 +760,12 @@
     const extra = inclusive ? DAY : 0;
 
     // Calendar breakdown (years, months, days, h, min) on the wall clock.
-    let months = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
+    // Inclusive counting moves the end one calendar day later.
+    const end = inclusive ? new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1, to.getHours(), to.getMinutes()) : to;
+    let months = (end.getFullYear() - from.getFullYear()) * 12 + (end.getMonth() - from.getMonth());
     let anchor = addMonths(from, months);
-    while (months > 0 && wall(anchor) > wall(to)) { months--; anchor = addMonths(from, months); }
-    let rest = wall(to) - wall(anchor) + extra;
+    while (months > 0 && wall(anchor) > wall(end)) { months--; anchor = addMonths(from, months); }
+    let rest = wall(end) - wall(anchor);
     const cDays = Math.floor(rest / DAY); rest -= cDays * DAY;
     const cH = Math.floor(rest / 3600000); rest -= cH * 3600000;
     const cMin = Math.round(rest / 60000);
@@ -630,14 +806,29 @@
       ['Total minutes', neg + fmtNum(realMs / 60000, 0) + ' min', null],
       ['Total seconds', neg + fmtNum(realMs / 1000, 0) + ' s', null],
       ['Working days', neg + c.workingDays.toLocaleString(),
-        (wdNames.length ? wdNames.join(' ') : 'none selected') + (c.off ? ` · minus ${c.off} day${c.off === 1 ? '' : 's'} off` : '')],
-      ['Other days', neg + (c.weekend + c.off).toLocaleString(), 'Non-working weekdays + days off'],
+        (wdNames.length ? wdNames.join(' ') : 'none selected') + (c.off ? ` · minus ${c.off} holiday${c.off === 1 ? '' : 's'} / days off` : '')],
+      ['Other days', neg + (c.weekend + c.off).toLocaleString(), 'Non-working weekdays + holidays / days off'],
     ];
     if (realMs !== wall(to) - wall(from) + extra) {
       tiles.push(['Daylight saving', `${fmtNum((realMs - (wall(to) - wall(from) + extra)) / 3600000, 2)} h`, 'Clock change inside the interval (counted in totals)']);
     }
     resultTiles($('bResults'), tiles);
+
+    // Name the holidays that were taken off the working-day count.
+    const hb = $('bHolidays');
+    hb.innerHTML = '';
+    if (c.offWorking.length) {
+      const MAX = 40;
+      const shown = c.offWorking.slice(0, MAX).map(([i, name]) => {
+        const d = new Date(i * DAY);
+        return `<b>${WEEKDAY_NAMES[d.getUTCDay()]} ${keyOfIndex(i)}</b> ${escapeHtml(name)}`;
+      });
+      if (c.offWorking.length > MAX) shown.push(`… and ${c.offWorking.length - MAX} more`);
+      hb.innerHTML = `<strong>Not counted as working days:</strong> ${shown.join(' · ')}`;
+    }
   }
+
+  const escapeHtml = (t) => t.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 
   // ---------- tab 2: add / subtract ----------
   function calcAdd() {
@@ -673,7 +864,9 @@
     const w = isoWeek(d);
     const i = dayIndex(d);
     const notes = [`Day ${dayOfYear(d)} of the year`, `ISO week ${w.week}`];
-    if (daysOff.has(i)) notes.push('⚠ a day off');
+    const hol = holidayName(i);
+    if (hol) notes.push(`⚠ holiday: ${hol}`);
+    else if (daysOff.has(i)) notes.push('⚠ a day off');
     else if (!working[weekdayOfIndex(i)]) notes.push('non-working day');
     $('aSub').textContent = notes.join(' · ');
   }
@@ -823,6 +1016,7 @@
         tab: document.querySelector('.tab[aria-selected="true"]').dataset.tab,
         working,
         daysOff: $('daysOff').value,
+        country,
         hExpr: $('hExpr').value,
         bIncludeEnd: $('bIncludeEnd').checked,
         aWorking: $('aWorking').checked,
@@ -851,6 +1045,7 @@
     }
     if (Array.isArray(st.working) && st.working.length === 7) st.working.forEach((v, i) => { working[i] = !!v; });
     $('daysOff').value = st.daysOff || '';
+    if (st.country && (st.country === 'none' || HOLIDAY_RULES[st.country])) country = st.country;
     $('hExpr').value = st.hExpr || '';
     $('bIncludeEnd').checked = !!st.bIncludeEnd;
     $('aWorking').checked = !!st.aWorking;
@@ -869,6 +1064,7 @@
 
   function recalcAll() {
     parseDaysOff();
+    renderHolidayList();
     calcBetween();
     calcAdd();
     calcHours();
@@ -907,7 +1103,14 @@
     recalcAll();
   });
 
+  $('country').addEventListener('change', () => {
+    country = $('country').value;
+    recalcAll();
+  });
+
   selectTab(load());
+  $('country').value = country;
+  $('holYear').value = new Date().getFullYear();
   syncWeekdayBoxes();
   recalcAll();
 })();
