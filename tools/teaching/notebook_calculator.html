@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Notebook &amp; Calculator</title>
+<title>Notebook &amp; Physics Calculator</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📒</text></svg>">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -99,7 +99,7 @@ body { display:flex; }
 .win95-content { flex: 1; min-height: 0; display: flex; }
 
 /* ── Notebook panel ── */
-#nb-panel { width:70%; height:100%; display:flex; flex-direction:column; }
+#nb-panel { width:64%; height:100%; display:flex; flex-direction:column; }
 
 #nb-panel { border-right: 1px solid var(--bevel-sh); box-shadow: 1px 0 var(--bevel-hi); }
 
@@ -138,7 +138,7 @@ body { display:flex; }
 #draw-canvas { cursor:crosshair; }
 
 /* ── Calculator panel ── */
-#calc-panel { width:30%; height:100%; display:flex; flex-direction:column; background:var(--face); overflow:hidden; }
+#calc-panel { width:36%; height:100%; display:flex; flex-direction:column; background:var(--face); overflow:hidden; }
 
 #calc-header {
   flex-shrink:0; display:flex; align-items:center; justify-content:space-between;
@@ -237,52 +237,72 @@ body { display:flex; }
 .cb-ctrl { background:var(--sem-red); color:#fff; }
 .cb-eq   { background:var(--sem-go); color:#fff; font-size:clamp(1rem,1.8vw,1.3rem); grid-column:span 4; }
 
-/* ── Unit Converter ── */
-#unit-panel {
-  display:none; flex:1; min-height:0; overflow-y:auto;
-  padding:14px 12px; flex-direction:column; gap:12px;
-}
-#unit-panel.show { display:flex; }
+.res-unit { color:var(--sem-navy); margin-left:.3em; }
+.res-unit.tight { margin-left:0; }
 
-.uc-label { font-size:0.78rem; color:var(--dim-text); text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; display:block; font-weight:700; }
-.uc-sel {
-  width:100%; background:var(--field-bg); border:none;
-  color:var(--field-text); padding:7px 8px; font-size:0.9rem; outline:none; cursor:pointer;
+/* ── History tape ── */
+#calc-hist {
+  flex-shrink:0; height:92px; overflow-y:auto; margin:6px 8px 0; padding:3px;
+  background:var(--field-bg); font-family:'Courier New',monospace; font-size:0.85rem;
   box-shadow: inset -1px -1px var(--bevel-hi), inset 1px 1px var(--bevel-dk), inset -2px -2px var(--bevel-lt), inset 2px 2px var(--bevel-sh);
 }
-.uc-row { display:flex; gap:7px; }
-.uc-val {
-  flex:1; background:var(--field-bg); border:none;
-  color:var(--field-text); padding:8px 10px; font-size:1.05rem;
-  font-family:'Courier New',monospace; outline:none;
-  text-align:right;
-  box-shadow: inset -1px -1px var(--bevel-hi), inset 1px 1px var(--bevel-dk), inset -2px -2px var(--bevel-lt), inset 2px 2px var(--bevel-sh);
-}
-.uc-unit { background:var(--field-bg); border:none; color:var(--field-text); padding:6px 8px; font-size:0.85rem; outline:none; cursor:pointer; min-width:72px; box-shadow: inset -1px -1px var(--bevel-hi), inset 1px 1px var(--bevel-dk), inset -2px -2px var(--bevel-lt), inset 2px 2px var(--bevel-sh); }
-.uc-result-box {
-  background:var(--field-bg);
-  padding:10px 12px; text-align:right;
-  font-family:'Courier New',monospace; font-size:1.3rem; font-weight:700; color:var(--field-text);
-  min-height:46px; word-break:break-all;
-  box-shadow: inset -1px -1px var(--bevel-hi), inset 1px 1px var(--bevel-dk), inset -2px -2px var(--bevel-lt), inset 2px 2px var(--bevel-sh);
-}
-.uc-swap-btn {
-  width:100%; background:var(--face); border:none;
-  color:var(--win-text); font-size:0.85rem; font-weight:700;
-  padding:7px; cursor:pointer;
+.hist-row { display:flex; justify-content:space-between; gap:10px; padding:2px 5px; cursor:pointer; white-space:nowrap; }
+.hist-row:hover { background:var(--title-from); color:var(--title-text); }
+.hist-expr { overflow:hidden; text-overflow:ellipsis; color:var(--dim-text); }
+.hist-row:hover .hist-expr { color:var(--title-text); }
+.hist-res  { font-weight:700; flex-shrink:0; }
+.hist-hint { padding:2px 5px; font-family:Tahoma,'MS Sans Serif',Geneva,Verdana,sans-serif; font-size:0.78rem; color:var(--dim-text); line-height:1.55; }
+.hist-hint code { font-family:'Courier New',monospace; font-size:0.85rem; font-weight:700; color:var(--sem-navy); }
+
+/* ── Pad tabs (Keys / Units / Constants) ── */
+#pad-tabs { flex-shrink:0; display:flex; padding:8px 8px 0; }
+.pad-tab {
+  flex:1; background:var(--face); border:none; font-family:inherit; font-size:0.78rem; font-weight:700;
+  letter-spacing:.03em; color:var(--win-text); padding:5px 4px; cursor:pointer;
   box-shadow:
     inset -1px -1px var(--bevel-dk),
     inset  1px  1px var(--bevel-hi),
     inset -2px -2px var(--bevel-sh),
     inset  2px  2px var(--bevel-lt);
 }
-.uc-swap-btn:active {
+.pad-tab.active {
+  color:var(--sem-navy);
   box-shadow:
     inset -1px -1px var(--bevel-hi),
     inset  1px  1px var(--bevel-dk),
     inset -2px -2px var(--bevel-lt),
     inset  2px  2px var(--bevel-sh);
 }
+.pad.hidden { display:none !important; }
+
+#units-pad {
+  flex:1; min-height:0;
+  display:grid; grid-template-columns:repeat(4,1fr); grid-template-rows:repeat(10,1fr);
+  gap:4px; padding:8px;
+}
+.cb-unit { background:#ffffff; color:var(--sem-navy); font-family:'Courier New',monospace; }
+.cb-wide { grid-column:span 2; }
+
+#const-pad { flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:4px; padding:8px; }
+.const-btn {
+  flex-shrink:0; display:grid; grid-template-columns:auto 1fr; column-gap:10px; align-items:baseline;
+  background:var(--face); border:none; padding:6px 10px; cursor:pointer; text-align:left; font-family:inherit; color:var(--win-text);
+  box-shadow:
+    inset -1px -1px var(--bevel-dk),
+    inset  1px  1px var(--bevel-hi),
+    inset -2px -2px var(--bevel-sh),
+    inset  2px  2px var(--bevel-lt);
+}
+.const-btn:active {
+  box-shadow:
+    inset -1px -1px var(--bevel-hi),
+    inset  1px  1px var(--bevel-dk),
+    inset -2px -2px var(--bevel-lt),
+    inset  2px  2px var(--bevel-sh);
+}
+.const-name { grid-row:span 2; font-family:'Courier New',monospace; font-size:1.05rem; font-weight:700; color:var(--sem-navy); min-width:4.2em; }
+.const-val  { font-family:'Courier New',monospace; font-size:0.85rem; font-weight:700; }
+.const-desc { font-size:0.75rem; color:var(--dim-text); }
 
 ::-webkit-scrollbar { width:16px; }
 ::-webkit-scrollbar-track { background:var(--field-bg); }
@@ -301,7 +321,7 @@ body { display:flex; }
 <div id="win95-window">
   <div id="win95-titlebar">
     <span class="win-icon">&#128220;</span>
-    <span class="win-title">Notebook &amp; Calculator</span>
+    <span class="win-title">Notebook &amp; Physics Calculator</span>
     <div class="win-btns">
       <button class="win-btn" tabindex="-1" aria-hidden="true">_</button>
       <button class="win-btn" tabindex="-1" aria-hidden="true">&#9633;</button>
@@ -344,17 +364,16 @@ body { display:flex; }
 <!-- ── Calculator Panel ── -->
 <div id="calc-panel">
   <div id="calc-header">
-    <span class="calc-title">Calculator</span>
+    <span class="calc-title">Physics Calculator</span>
     <div class="mode-wrap">
-      <button class="mode-btn active" data-mode="deg">DEG</button>
-      <button class="mode-btn"        data-mode="rad">RAD</button>
-      <button class="mode-btn"        data-mode="unit">UNIT</button>
+      <button class="mode-btn active" data-mode="deg" title="Plain numbers in sin/cos/tan are degrees">DEG</button>
+      <button class="mode-btn"        data-mode="rad" title="Plain numbers in sin/cos/tan are radians">RAD</button>
     </div>
   </div>
 
-  <!-- Calc display (hidden in UNIT mode) -->
   <div id="calc-display">
-    <input id="calc-expr" type="text" placeholder="type an expression…" autocomplete="off" spellcheck="false">
+    <input id="calc-expr" type="text" placeholder="e.g. 72 km/h to m/s" autocomplete="off" spellcheck="false"
+           title="Numbers can carry units: 3 m/s × 2 s. Convert with “to”: 72 km/h to m/s. ↑/↓ recall earlier lines.">
     <div id="calc-result" class="empty">—</div>
     <div id="calc-ans">ANS = 0</div>
     <div id="calc-opts">
@@ -368,12 +387,28 @@ body { display:flex; }
         <option value="8">8</option><option value="9">9</option>
         <option value="10">10</option>
       </select>
+      <span class="opt-label">Sig. fig.</span>
+      <select id="sig-sel">
+        <option value="auto">auto</option>
+        <option value="1">1</option><option value="2">2</option>
+        <option value="3">3</option><option value="4">4</option>
+        <option value="5">5</option><option value="6">6</option>
+        <option value="7">7</option><option value="8">8</option>
+      </select>
       <button class="opt-btn" id="btn-pow10" title="Toggle ×10^ notation">×10^</button>
     </div>
   </div>
 
-  <!-- Button grid (hidden in UNIT mode) -->
-  <div id="calc-btns">
+  <!-- History tape: click a line to reuse its result -->
+  <div id="calc-hist"></div>
+
+  <div id="pad-tabs">
+    <button class="pad-tab active" data-pad="calc-btns">Keys</button>
+    <button class="pad-tab"        data-pad="units-pad">Units</button>
+    <button class="pad-tab"        data-pad="const-pad">Constants</button>
+  </div>
+
+  <div id="calc-btns" class="pad">
     <button class="cb cb-fn"   data-ins="sin(">sin</button>
     <button class="cb cb-fn"   data-ins="cos(">cos</button>
     <button class="cb cb-fn"   data-ins="tan(">tan</button>
@@ -396,7 +431,7 @@ body { display:flex; }
 
     <button class="cb cb-op"   data-ins="(">(</button>
     <button class="cb cb-op"   data-ins=")">)</button>
-    <button class="cb cb-op"   data-ins=",">,</button>
+    <button class="cb cb-spec" data-ins=" to " title="Convert the result, e.g. 72 km/h to m/s">to</button>
     <button class="cb cb-spec" data-ins="ANS">ANS</button>
 
     <button class="cb cb-num"  data-ins="7">7</button>
@@ -422,28 +457,9 @@ body { display:flex; }
     <button class="cb cb-eq"   data-act="eq">= (Enter)</button>
   </div>
 
-  <!-- Unit converter (shown in UNIT mode) -->
-  <div id="unit-panel">
-    <div>
-      <span class="uc-label">Category</span>
-      <select id="uc-cat" class="uc-sel"></select>
-    </div>
-    <div>
-      <span class="uc-label">From</span>
-      <div class="uc-row">
-        <input  type="number" id="uc-from-val"  class="uc-val" placeholder="Value" step="any">
-        <select id="uc-from-unit" class="uc-unit"></select>
-      </div>
-    </div>
-    <button id="uc-swap" class="uc-swap-btn">⇅ Swap units</button>
-    <div>
-      <span class="uc-label">To</span>
-      <div class="uc-row">
-        <div id="uc-result" class="uc-result-box" style="flex:1">—</div>
-        <select id="uc-to-unit" class="uc-unit"></select>
-      </div>
-    </div>
-  </div>
+  <!-- Filled from UNIT_KEYS / CONSTANTS in the script -->
+  <div id="units-pad" class="pad hidden"></div>
+  <div id="const-pad" class="pad hidden"></div>
 
 </div><!-- end calc-panel -->
 
@@ -638,33 +654,401 @@ resizeCv();
 
 
 /* ══════════════════════════════════════════
-   CALCULATOR
+   PHYSICS CALCULATOR — quantities with units
+   Every value is a quantity {v, d, ang}: v in SI units, d the exponents of
+   the seven SI base units, ang marks a dimensionless angle (v in radians).
 ══════════════════════════════════════════ */
-let angleMode = 'deg', lastAns = 0;
-let decPlaces = null, pow10 = false;
-let resultShown = false;
+const BASE = ['m','kg','s','A','K','mol','cd'];
+const D = (...e) => BASE.map((_, i) => e[i] || 0);
+const NODIM = D();
+const Q = (v, d = NODIM, ang = false) => ({ v, d, ang });
+const near = (a, b) => Math.abs(a - b) < 1e-9;
+const isDimless = d => d.every(x => near(x, 0));
+const sameDim = (a, b) => a.every((x, i) => near(x, b[i]));
+const combine = (a, b, k) => a.map((x, i) => x + k * b[i]);
+
+class CalcError extends Error {}
+const fail = msg => { throw new CalcError(msg); };
+
+const DIM = {
+  len:D(1), mass:D(0,1), time:D(0,0,1), cur:D(0,0,0,1), temp:D(0,0,0,0,1), amount:D(0,0,0,0,0,1),
+  area:D(2), vol:D(3), freq:D(0,0,-1), speed:D(1,0,-1), force:D(1,1,-2), energy:D(2,1,-2),
+  power:D(2,1,-3), press:D(-1,1,-2), charge:D(0,0,1,1), volt:D(2,1,-3,-1), ohm:D(2,1,-3,-2),
+  farad:D(-2,-1,4,2), tesla:D(0,1,-2,-1), weber:D(2,1,-2,-1), henry:D(2,1,-2,-2), dose:D(2,0,-2),
+};
+
+// name → {f: factor to SI, d: dimension, p: accepts SI prefixes, ang: is an angle}
+const UNITS = {};
+function defUnit(names, f, d, p = false, ang = false) {
+  names.split(' ').forEach(n => UNITS[n] = { f, d, p, ang });
+}
+defUnit('m',         1,                DIM.len,    true);
+defUnit('g',         1e-3,             DIM.mass,   true);
+defUnit('s',         1,                DIM.time,   true);
+defUnit('A',         1,                DIM.cur,    true);
+defUnit('K',         1,                DIM.temp,   true);
+defUnit('mol',       1,                DIM.amount, true);
+defUnit('cd',        1,                D(0,0,0,0,0,0,1));
+defUnit('Hz Bq',     1,                DIM.freq,   true);
+defUnit('N',         1,                DIM.force,  true);
+defUnit('J',         1,                DIM.energy, true);
+defUnit('W',         1,                DIM.power,  true);
+defUnit('Pa',        1,                DIM.press,  true);
+defUnit('C',         1,                DIM.charge, true);
+defUnit('V',         1,                DIM.volt,   true);
+defUnit('Ω Ω ohm',   1,                DIM.ohm,    true);
+defUnit('F',         1,                DIM.farad,  true);
+defUnit('T',         1,                DIM.tesla,  true);
+defUnit('Wb',        1,                DIM.weber,  true);
+defUnit('H',         1,                DIM.henry,  true);
+defUnit('Gy Sv',     1,                DIM.dose,   true);
+// time
+defUnit('min',       60,               DIM.time);
+defUnit('h',         3600,             DIM.time);
+defUnit('d day',     86400,            DIM.time);
+defUnit('yr',        3.15576e7,        DIM.time,   true);
+// length, area, volume
+defUnit('Å Å',       1e-10,            DIM.len);
+defUnit('in',        0.0254,           DIM.len);
+defUnit('ft',        0.3048,           DIM.len);
+defUnit('yd',        0.9144,           DIM.len);
+defUnit('mi',        1609.344,         DIM.len);
+defUnit('nmi',       1852,             DIM.len);
+defUnit('AU',        1.495978707e11,   DIM.len);
+defUnit('ly',        9.4607304725808e15, DIM.len);
+defUnit('pc',        3.0856775814914e16, DIM.len);
+defUnit('ha',        1e4,              DIM.area);
+defUnit('L l',       1e-3,             DIM.vol,    true);
+defUnit('gal',       3.785411784e-3,   DIM.vol);
+// mass
+defUnit('t',         1000,             DIM.mass);
+defUnit('u Da',      1.66053906660e-27, DIM.mass,  true);
+defUnit('lb',        0.45359237,       DIM.mass);
+defUnit('oz',        0.028349523125,   DIM.mass);
+// speed
+defUnit('mph',       0.44704,          DIM.speed);
+defUnit('knot',      1852 / 3600,      DIM.speed);
+// force, energy, power, pressure, charge
+defUnit('kgf',       9.80665,          DIM.force);
+defUnit('lbf',       4.4482216152605,  DIM.force);
+defUnit('dyn',       1e-5,             DIM.force);
+defUnit('eV',        1.602176634e-19,  DIM.energy, true);
+defUnit('cal',       4.184,            DIM.energy, true);
+defUnit('Wh',        3600,             DIM.energy, true);
+defUnit('erg',       1e-7,             DIM.energy);
+defUnit('hp',        745.69987158227,  DIM.power);
+defUnit('bar',       1e5,              DIM.press,  true);
+defUnit('atm',       101325,           DIM.press);
+defUnit('mmHg',      133.322387415,    DIM.press);
+defUnit('torr',      101325 / 760,     DIM.press);
+defUnit('psi',       6894.757293168,   DIM.press);
+defUnit('Ah',        3600,             DIM.charge, true);
+// angles (dimensionless, stored in radians)
+defUnit('rad',       1,                NODIM, true, true);
+defUnit('° deg',     Math.PI / 180,    NODIM, false, true);
+defUnit('rev',       2 * Math.PI,      NODIM, false, true);
+defUnit('arcmin',    Math.PI / 10800,  NODIM, false, true);
+defUnit('arcsec',    Math.PI / 648000, NODIM, false, true);
+defUnit('rpm',       2 * Math.PI / 60, DIM.freq);
+// °C / °F: a lone reading such as "25 °C" or "(25 °C)" is a temperature
+// (298.15 K); inside a calculation they are steps, as in J/(kg·°C) × 10 °C.
+const TEMP = { '°C': { f: 1, off: 273.15 }, '°F': { f: 5 / 9, off: 459.67 * 5 / 9 } };
+TEMP.degC = TEMP['°C']; TEMP.degF = TEMP['°F'];
+Object.entries(TEMP).forEach(([n, t]) => defUnit(n, t.f, DIM.temp));
+
+const PREFIX = { f:1e-15, p:1e-12, n:1e-9, 'μ':1e-6, 'µ':1e-6, u:1e-6, m:1e-3, c:1e-2, d:1e-1,
+                 h:1e2, k:1e3, M:1e6, G:1e9, T:1e12, P:1e15 };
+
+const CONSTANTS = [
+  // [name, value, unit, description]
+  ['gn',     '9.80665',           'm/s²',        'g — standard gravity'],
+  ['G',      '6.67430e-11',       'N·m²/kg²',    'gravitational constant'],
+  ['c',      '299792458',         'm/s',         'speed of light in vacuum'],
+  ['hP',     '6.62607015e-34',    'J·s',         'h — Planck constant'],
+  ['hbar',   '1.054571817e-34',   'J·s',         'ħ — reduced Planck constant'],
+  ['kB',     '1.380649e-23',      'J/K',         'Boltzmann constant'],
+  ['NA',     '6.02214076e23',     '1/mol',       'Avogadro constant'],
+  ['R',      '8.314462618',       'J/(mol·K)',   'molar gas constant'],
+  ['qe',     '1.602176634e-19',   'C',           'e — elementary charge'],
+  ['me',     '9.1093837015e-31',  'kg',          'electron mass'],
+  ['mp',     '1.67262192369e-27', 'kg',          'proton mass'],
+  ['mn',     '1.67492749804e-27', 'kg',          'neutron mass'],
+  ['ke',     '8.9875517923e9',    'N·m²/C²',     'Coulomb constant'],
+  ['eps0',   '8.8541878128e-12',  'F/m',         'ε₀ — vacuum permittivity'],
+  ['mu0',    '1.25663706212e-6',  'H/m',         'μ₀ — vacuum permeability'],
+  ['sigma',  '5.670374419e-8',    'W/(m²·K⁴)',   'σ — Stefan–Boltzmann constant'],
+  ['Mearth', '5.972e24',          'kg',          'mass of the Earth'],
+  ['Rearth', '6.371e6',           'm',           'mean radius of the Earth'],
+  ['Mmoon',  '7.342e22',          'kg',          'mass of the Moon'],
+  ['Msun',   '1.989e30',          'kg',          'mass of the Sun'],
+];
+const CONST_Q = { pi: Q(Math.PI), e: Q(Math.E) };
+const CONST_ALIAS = { 'π':'pi', PI:'pi', E:'e', 'ħ':'hbar', 'ε0':'eps0', 'ε₀':'eps0', 'μ0':'mu0', 'μ₀':'mu0', 'σ':'sigma' };
+
+let angleMode = 'deg', lastAns = Q(0);
+const toRad = x => x.ang ? x.v : angleMode === 'deg' ? x.v * Math.PI / 180 : x.v;
+
+// ── Unit names for display ──────────────────────────────────────────
+const SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+function sup(e) {
+  if (near(e, 1)) return '';
+  if (near(e, Math.round(e))) return String(Math.round(e)).replace(/\d/g, c => SUP[c]);
+  return '^' + parseFloat(e.toFixed(3));
+}
+const NAMED = [['N',DIM.force],['J',DIM.energy],['W',DIM.power],['Pa',DIM.press],['Hz',DIM.freq],
+  ['C',DIM.charge],['V',DIM.volt],['Ω',DIM.ohm],['F',DIM.farad],['T',DIM.tesla],['Wb',DIM.weber],['H',DIM.henry]];
+// The way these are usually written in class, ahead of any automatic choice
+const PREFERRED = new Map([
+  [D(1,1,-1), 'kg·m/s'], [D(1,0,-2), 'm/s²'], [D(2,0,-2), 'm²/s²'],
+  [D(0,1,-2), 'N/m'], [D(3,1,-4,-2), 'N·m²/C²'], [D(3,-1,-2), 'N·m²/kg²'],
+].map(([d, s]) => [d.join(), s]));
+const DISPLAY_ORDER = [1, 0, 2, 3, 5, 4, 6];  // kg·m·s·A·mol·K, as usually written
+const cost = d => d.reduce((s, e) => s + Math.abs(e), 0);
+const parts = d => d.filter(e => !near(e, 0)).length;
+
+function compose(num, den, d) {
+  DISPLAY_ORDER.forEach(i => {
+    if (d[i] > 1e-9) num.push(BASE[i] + sup(d[i]));
+    else if (d[i] < -1e-9) den.push(BASE[i] + sup(-d[i]));
+  });
+  let s = num.join('·') || '1';
+  if (den.length) s += '/' + (den.length > 1 ? '(' + den.join('·') + ')' : den[0]);
+  return s;
+}
+
+function unitLabel(d) {
+  if (isDimless(d)) return '';
+  const pref = PREFERRED.get(d.map(x => Math.round(x * 1e6) / 1e6).join());
+  if (pref) return pref;
+  const exact = NAMED.find(([, nd]) => sameDim(d, nd));
+  if (exact) return exact[0];
+  const baseCost = cost(d);
+  if (baseCost <= 2) return compose([], [], d);
+  // Try one named unit times base units, e.g. J/(kg·K) or W/m²
+  let best = null;
+  NAMED.forEach(([name, nd]) => {
+    if (name === 'Hz') return;
+    [1, -1].forEach(sign => {
+      // fewer base units break ties: W/(m²·K⁴) rather than N/(m·s·K⁴)
+      const rest = combine(d, nd, -sign), c = 1 + cost(rest) + 0.1 * parts(rest);
+      if (c < baseCost && (!best || c < best.c)) best = { c, name, sign, rest };
+    });
+  });
+  if (!best) return compose([], [], d);
+  return best.sign > 0 ? compose([best.name], [], best.rest) : compose([], [best.name], best.rest);
+}
+const dimName = d => unitLabel(d) || 'a plain number';
+
+// ── Operations ──────────────────────────────────────────────────────
+function add(a, b, sign) {
+  if (a.ang !== b.ang && isDimless(a.d) && isDimless(b.d))
+    return Q(toRad(a) + sign * toRad(b), NODIM, true);   // plain number joins an angle in DEG/RAD
+  if (!sameDim(a.d, b.d))
+    fail(`can't ${sign > 0 ? 'add' : 'subtract'} ${dimName(b.d)} ${sign > 0 ? 'to' : 'from'} ${dimName(a.d)}`);
+  return Q(a.v + sign * b.v, a.d, a.ang || b.ang);
+}
+function mul(a, b) {
+  const d = combine(a.d, b.d, 1);
+  return Q(a.v * b.v, d, isDimless(d) && a.ang !== b.ang);
+}
+function div(a, b) {
+  const d = combine(a.d, b.d, -1);
+  return Q(a.v / b.v, d, isDimless(d) && a.ang && !b.ang);
+}
+function pow(a, b) {
+  if (!isDimless(b.d)) fail(`an exponent can't have units (got ${unitLabel(b.d)})`);
+  return Q(Math.pow(a.v, b.v), a.d.map(e => e * b.v), a.ang && b.v === 1);
+}
+
+const needPlain = (name, x) => {
+  if (!isDimless(x.d)) fail(`${name}( ) needs a plain number, got ${unitLabel(x.d)}`);
+};
+const trig  = (name, fn) => x => { needPlain(name, x); return Q(fn(toRad(x))); };
+const atrig = (name, fn) => x => { needPlain(name, x); return Q(fn(x.v), NODIM, true); };
+const plain = (name, fn) => x => { needPlain(name, x); return Q(fn(x.v)); };
+const keep  = fn => x => Q(fn(x.v), x.d, x.ang);
+const pick  = fn => (...xs) => {
+  if (!xs.length) fail('max( ) and min( ) need at least one value');
+  xs.forEach(x => { if (!sameDim(x.d, xs[0].d)) fail('max( ) and min( ) need values in the same units'); });
+  const v = fn(...xs.map(x => x.v));
+  return Q(v, xs[0].d, xs[0].ang);
+};
+const FN = {
+  sin: trig('sin', Math.sin), cos: trig('cos', Math.cos), tan: trig('tan', Math.tan),
+  asin: atrig('asin', Math.asin), acos: atrig('acos', Math.acos), atan: atrig('atan', Math.atan),
+  atan2: (y, x) => {
+    if (!sameDim(y.d, x.d)) fail('atan2(y, x) needs y and x in the same units');
+    return Q(Math.atan2(y.v, x.v), NODIM, true);
+  },
+  sinh: plain('sinh', Math.sinh), cosh: plain('cosh', Math.cosh), tanh: plain('tanh', Math.tanh),
+  log: plain('log', Math.log10), ln: plain('ln', Math.log), log2: plain('log2', Math.log2), exp: plain('exp', Math.exp),
+  sqrt: x => Q(Math.sqrt(x.v), x.d.map(e => e / 2)),
+  cbrt: x => Q(Math.cbrt(x.v), x.d.map(e => e / 3)),
+  abs: keep(Math.abs), floor: keep(Math.floor), ceil: keep(Math.ceil), round: keep(Math.round),
+  max: pick(Math.max), min: pick(Math.min),
+};
+
+function lookup(name) {
+  if (name === 'ANS' || name === 'Ans' || name === 'ans') return lastAns;
+  const u = UNITS[name];
+  if (u) return Q(u.f, u.d, u.ang);
+  const c = CONST_Q[CONST_ALIAS[name] || name];
+  if (c) return c;
+  for (const pre in PREFIX) {
+    const b = name.length > pre.length && name.startsWith(pre) && UNITS[name.slice(pre.length)];
+    if (b && b.p) return Q(PREFIX[pre] * b.f, b.d, b.ang);
+  }
+  if (FN[name]) fail(`${name} needs brackets: ${name}( … )`);
+  fail(`unknown unit or symbol "${name}"`);
+}
+
+// ── Tokenizer ───────────────────────────────────────────────────────
+const TOKEN_RE = {
+  ws:  /\s+/y,
+  num: /(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y,
+  sup: /⁻?[⁰¹²³⁴⁵⁶⁷⁸⁹]+/y,
+  id:  /[\p{L}°_][\p{L}\d_°₀-₉]*/uy,
+  op:  /\*\*|->|[-+−*×·⋅/÷^(),→]/y,
+};
+const OP_ALIAS = { '−':'-', '×':'*', '·':'*', '⋅':'*', '÷':'/', '**':'^', '->':'to', '→':'to' };
+
+function tokenize(s) {
+  const toks = [];
+  let i = 0;
+  const match = re => { re.lastIndex = i; const m = re.exec(s); return m && m[0]; };
+  while (i < s.length) {
+    let m;
+    if ((m = match(TOKEN_RE.ws))) { i += m.length; continue; }
+    if ((m = match(TOKEN_RE.num))) toks.push({ t:'num', v:parseFloat(m), raw:m, pos:i });
+    else if ((m = match(TOKEN_RE.sup))) {
+      const n = parseInt([...m].map(c => c === '⁻' ? '-' : SUP.indexOf(c)).join(''), 10);
+      toks.push({ t:'sup', v:n, raw:m, pos:i });
+    }
+    else if ((m = match(TOKEN_RE.id))) toks.push(m === 'to' ? { t:'op', v:'to', raw:m, pos:i } : { t:'id', v:m, raw:m, pos:i });
+    else if ((m = match(TOKEN_RE.op))) toks.push({ t:'op', v:OP_ALIAS[m] || m, raw:m, pos:i });
+    else fail(`unexpected "${s[i]}"`);
+    i += m.length;
+  }
+  return toks;
+}
+
+// ── Parser: evaluates while it reads ────────────────────────────────
+// Implicit multiplication binds tighter than × and ÷, so a number stays
+// with its unit: 10 N / 0.2 m = 50 N/m, and J/kg K = J/(kg·K).
+function evaluate(input) {
+  const src = input.replace(/º/g, '°').replace(/℃/g, '°C').replace(/℉/g, '°F');
+  const toks = tokenize(src);
+  let p = 0;
+  const peek = () => toks[p];
+  const isOp = (tk, ...ops) => tk && tk.t === 'op' && ops.includes(tk.v);
+  const startsOperand = tk => tk && (tk.t === 'num' || tk.t === 'id' || isOp(tk, '('));
+
+  function parseExpr() {
+    const reading = tempReading();
+    if (reading) return reading;
+    let a = parseTerm();
+    while (isOp(peek(), '+', '-')) {
+      const sign = toks[p++].v === '+' ? 1 : -1;
+      a = add(a, parseTerm(), sign);
+    }
+    return a;
+  }
+  // A lone "25 °C", up to the end, a ")" or "to" → 298.15 K
+  function tempReading() {
+    let i = p, sign = 1;
+    if (isOp(toks[i], '-', '+')) { sign = toks[i].v === '-' ? -1 : 1; i++; }
+    const n = toks[i], u = toks[i + 1], after = toks[i + 2];
+    if (!n || n.t !== 'num' || !u || u.t !== 'id' || !TEMP[u.v]) return null;
+    if (after && !isOp(after, ')', 'to')) return null;
+    p = i + 2;
+    return Q(sign * n.v * TEMP[u.v].f + TEMP[u.v].off, DIM.temp);
+  }
+  function parseTerm() {
+    let a = parseGroup();
+    while (isOp(peek(), '*', '/')) {
+      const op = toks[p++].v;
+      a = op === '*' ? mul(a, parseGroup()) : div(a, parseGroup());
+    }
+    return a;
+  }
+  function parseGroup() {
+    let a = parseUnary();
+    while (startsOperand(peek())) a = mul(a, parseUnary());
+    return a;
+  }
+  function parseUnary() {
+    if (isOp(peek(), '-', '+')) {
+      const neg = toks[p++].v === '-';
+      const x = parseUnary();
+      return neg ? Q(-x.v, x.d, x.ang) : x;
+    }
+    let a = parsePrimary();
+    while (peek() && peek().t === 'sup') a = pow(a, Q(toks[p++].v));
+    if (isOp(peek(), '^')) { p++; a = pow(a, parseUnary()); }
+    return a;
+  }
+  function parsePrimary() {
+    const tk = toks[p++];
+    if (!tk) fail('the expression ends too early');
+    if (tk.t === 'num') return Q(tk.v);
+    if (isOp(tk, '(')) {
+      const v = parseExpr();
+      if (!isOp(toks[p++], ')')) fail('missing ")"');
+      return v;
+    }
+    if (tk.t === 'id') {
+      if (FN[tk.v] && isOp(peek(), '(')) {
+        p++;
+        const args = isOp(peek(), ')') ? [] : [parseExpr()];
+        while (isOp(peek(), ',')) { p++; args.push(parseExpr()); }
+        if (!isOp(toks[p++], ')')) fail('missing ")"');
+        const fn = FN[tk.v];
+        if (fn.length && args.length !== fn.length)
+          fail(`${tk.v}( ) takes ${fn.length} value${fn.length > 1 ? 's' : ''}`);
+        return fn(...args);
+      }
+      return lookup(tk.v);
+    }
+    fail(`unexpected "${tk.raw}"`);
+  }
+
+  const q = parseExpr();
+  let conv = null;
+  if (isOp(peek(), 'to')) {
+    p++;
+    const first = peek();
+    if (!first) fail('write a unit after "to", e.g. to km/h');
+    const label = src.slice(first.pos).trim().replace(/\s+/g, ' ');
+    if (first.t === 'id' && TEMP[first.v] && p === toks.length - 1) {
+      p++;
+      if (!sameDim(q.d, DIM.temp)) fail(`can't convert ${dimName(q.d)} to ${label}`);
+      conv = { v: (q.v - TEMP[first.v].off) / TEMP[first.v].f, label };
+    } else {
+      const target = parseExpr();
+      if (!sameDim(q.d, target.d)) fail(`can't convert ${dimName(q.d)} to ${label}`);
+      if (target.v === 0) fail(`can't convert to ${label}`);
+      const v = target.ang && !q.ang && isDimless(q.d) ? toRad(q) : q.v;
+      conv = { v: v / target.v, label };
+    }
+  }
+  if (p < toks.length) fail(`unexpected "${toks[p].raw}"`);
+  return { q, conv };
+}
+
+CONSTANTS.forEach(([name, val, unit]) => CONST_Q[name] = evaluate(`${val} ${unit}`).q);
+
+
+/* ══════════════════════════════════════════
+   CALCULATOR UI
+══════════════════════════════════════════ */
+let decPlaces = null, sigFigs = null, pow10 = false;
+let resultShown = false, lastResult = null;
+let calcHistory = [], histIdx = 0;
 
 const exprEl = document.getElementById('calc-expr');
 const resEl  = document.getElementById('calc-result');
 const ansEl  = document.getElementById('calc-ans');
-
-function mathCtx() {
-  const DEG = angleMode === 'deg';
-  const toR = v => DEG ? v * Math.PI / 180 : v;
-  const frR = v => DEG ? v * 180 / Math.PI : v;
-  return {
-    sin: v => Math.sin(toR(v)), cos: v => Math.cos(toR(v)), tan: v => Math.tan(toR(v)),
-    asin: v => frR(Math.asin(v)), acos: v => frR(Math.acos(v)), atan: v => frR(Math.atan(v)),
-    atan2: (y,x) => frR(Math.atan2(y,x)),
-    sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
-    sqrt: Math.sqrt, cbrt: Math.cbrt,
-    log: Math.log10, ln: Math.log, log2: Math.log2, exp: Math.exp,
-    abs: Math.abs, floor: Math.floor, ceil: Math.ceil, round: Math.round,
-    max: Math.max, min: Math.min,
-    PI: Math.PI, pi: Math.PI, E: Math.E,
-    ANS: lastAns, Ans: lastAns, ans: lastAns,
-  };
-}
+const histEl = document.getElementById('calc-hist');
 
 function withCommas(s) {
   const neg = s.startsWith('-');
@@ -673,55 +1057,126 @@ function withCommas(s) {
   return (neg ? '−' : '') + int.replace(/\B(?=(\d{3})+(?!\d))/g,',') + (dec !== undefined ? '.' + dec : '');
 }
 
-function fmtVal(v) {
+function fmtNum(v) {
   if (!isFinite(v)) return isNaN(v) ? 'undefined' : (v > 0 ? '∞' : '−∞');
-  if (Object.is(v, -0)) return '0';
+  if (Object.is(v, -0)) v = 0;
   const abs = Math.abs(v);
-  const useSci = decPlaces === null && abs !== 0 && (abs >= 1e10 || abs < 1e-4);
-  if (useSci) {
-    const parts = v.toExponential(10).split('e');
-    const exp   = parseInt(parts[1]);
-    const mStr  = String(parseFloat(parseFloat(parts[0]).toPrecision(9)));
-    return pow10 ? withCommas(mStr) + ' ×10^' + exp : withCommas(mStr) + 'e' + exp;
+  const sciRange = abs !== 0 && (abs >= 1e10 || abs < 1e-4);
+  let s;
+  if (sigFigs !== null)        s = sciRange ? v.toExponential(sigFigs - 1) : v.toPrecision(sigFigs);
+  else if (decPlaces !== null) s = v.toFixed(decPlaces);
+  else if (sciRange) {
+    const [m, e] = v.toExponential(8).split('e');
+    s = String(parseFloat(m)) + 'e' + e;
   }
-  const str = decPlaces === null ? String(parseFloat(v.toPrecision(12))) : v.toFixed(decPlaces);
-  return withCommas(str);
+  else s = String(parseFloat(v.toPrecision(12)));
+  const [m, e] = s.split('e');
+  if (e === undefined) return withCommas(m);
+  const exp = parseInt(e, 10);
+  return pow10 ? withCommas(m) + ' ×10^' + exp : withCommas(m) + 'e' + exp;
 }
 
-function calcEval(raw) {
-  let e = raw.trim(); if (!e) return null;
-  e = e.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-')
-        .replace(/\^/g,'**').replace(/π/g,'PI').replace(/\bpi\b/gi,'PI')
-        .replace(/\be\b/g,'E');
-  const ctx   = mathCtx();
-  const names = Object.keys(ctx).join('|');
-  if (/[a-zA-Z_$]/.test(e.replace(new RegExp(`\\b(${names})\\b`,'g'),'')))
-    return { err: 'unknown symbol' };
-  try {
-    const val = new Function(...Object.keys(ctx), `"use strict"; return (${e});`)(...Object.values(ctx));
-    if (typeof val !== 'number') return { err: 'non-numeric' };
-    return { val };
-  } catch(ex) { return { err: ex.message }; }
+// → {num, unit} as shown on screen
+function formatQ(q) {
+  if (q.ang && isDimless(q.d))
+    return angleMode === 'deg' ? { num: fmtNum(q.v * 180 / Math.PI), unit: '°' } : { num: fmtNum(q.v), unit: 'rad' };
+  return { num: fmtNum(q.v), unit: unitLabel(q.d) };
+}
+const formatResult = r => r.conv ? { num: fmtNum(r.conv.v), unit: r.conv.label } : formatQ(r.q);
+const joinOut = o => o.unit ? o.num + (o.unit === '°' ? '' : ' ') + o.unit : o.num;
+
+// Text that types the result back in, at full precision
+function reinsertText(r) {
+  const n = v => String(parseFloat(v.toPrecision(12)));
+  let v, unit;
+  if (r.conv)                          { v = r.conv.v; unit = r.conv.label; }
+  else if (r.q.ang && isDimless(r.q.d)) { v = r.q.v; unit = 'rad'; }
+  else                                 { v = r.q.v; unit = unitLabel(r.q.d); }
+  if (!isFinite(v)) return '';
+  const s = unit ? n(v) + ' ' + unit : n(v);
+  return unit || v < 0 ? '(' + s + ')' : s;
+}
+
+function fitResult() {
+  resEl.style.fontSize = '';
+  let size = 2.8;
+  while (resEl.scrollWidth > resEl.clientWidth && size > 1.2) {
+    size -= 0.1;
+    resEl.style.fontSize = size + 'rem';
+  }
+}
+
+function showResult(out) {
+  resEl.className = '';
+  resEl.textContent = '= ' + out.num;
+  if (out.unit) {
+    const u = document.createElement('span');
+    u.className = 'res-unit' + (out.unit === '°' ? ' tight' : '');
+    u.textContent = out.unit;
+    resEl.appendChild(u);
+  }
+  fitResult();
+}
+
+function showAns() { ansEl.textContent = 'ANS = ' + joinOut(formatQ(lastAns)); }
+
+function renderHistory() {
+  histEl.innerHTML = '';
+  if (!calcHistory.length) {
+    histEl.innerHTML = '<div class="hist-hint">Numbers can carry units: <code>3 m/s × 2 s</code><br>' +
+      'Convert with “to”: <code>72 km/h to m/s</code>, <code>25 °C to °F</code><br>' +
+      'Constants: <code>G Mearth / Rearth^2</code> · ½mv²: <code>1/2 × 2 kg × (3 m/s)^2</code></div>';
+    return;
+  }
+  for (let i = calcHistory.length - 1; i >= 0; i--) {
+    const h = calcHistory[i];
+    const row = document.createElement('div');
+    row.className = 'hist-row';
+    row.title = 'Click to use this result';
+    const ex = document.createElement('span'); ex.className = 'hist-expr'; ex.textContent = h.expr;
+    const rs = document.createElement('span'); rs.className = 'hist-res';  rs.textContent = '= ' + h.out;
+    row.append(ex, rs);
+    row.addEventListener('click', () => { if (h.insert) insertAt(h.insert); });
+    histEl.appendChild(row);
+  }
 }
 
 function resetCalcDisplay() {
   exprEl.value = '';
-  resEl.textContent = '—'; resEl.className = 'empty';
+  resEl.textContent = '—'; resEl.className = 'empty'; resEl.style.fontSize = '';
   resultShown = false;
+}
+
+function showError(msg) {
+  resEl.textContent = '⚠ ' + msg; resEl.className = 'err'; resEl.style.fontSize = '';
 }
 
 function commit() {
   const raw = exprEl.value;
   if (!raw.trim()) return;
-  const r = calcEval(raw);
-  if (!r || r.err) {
-    resEl.textContent = '⚠ ' + (r?.err || 'error'); resEl.className = 'err'; return;
+  let r;
+  try { r = evaluate(raw); }
+  catch (ex) {
+    if (!(ex instanceof CalcError)) console.error(ex);
+    showError(ex instanceof CalcError ? ex.message : 'syntax error');
+    return;
   }
-  lastAns = r.val;
-  ansEl.textContent = 'ANS = ' + fmtVal(lastAns);
-  resEl.textContent = '= ' + fmtVal(r.val); resEl.className = '';
+  lastAns = r.q; lastResult = r;
+  showAns();
+  const out = formatResult(r);
+  showResult(out);
+  calcHistory.push({ expr: raw.trim(), out: joinOut(out), insert: reinsertText(r) });
+  if (calcHistory.length > 50) calcHistory.shift();
+  histIdx = calcHistory.length;
+  renderHistory();
   resultShown = true;
   // expression stays visible so user can see what they calculated
+}
+
+// Re-render after a format or angle-mode change
+function refreshShown() {
+  showAns();
+  if (resultShown && lastResult) showResult(formatResult(lastResult));
 }
 
 // Only content keys should trigger a display reset
@@ -731,38 +1186,61 @@ function isContentKey(e) {
                  'ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'];
   return !skip.includes(e.key);
 }
+// After a result, starting with an operator carries on from ANS
+const CONTINUES = /^\s*([-+−×÷*/^·]|to\b)/;
 
 exprEl.addEventListener('keydown', e => {
   if (e.key === 'Enter')  { e.preventDefault(); commit(); return; }
   if (e.key === 'Escape') { resetCalcDisplay(); return; }
+  if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && calcHistory.length) {
+    e.preventDefault();
+    histIdx = Math.max(0, Math.min(calcHistory.length, histIdx + (e.key === 'ArrowUp' ? -1 : 1)));
+    exprEl.value = histIdx < calcHistory.length ? calcHistory[histIdx].expr : '';
+    resEl.textContent = '—'; resEl.className = 'empty'; resEl.style.fontSize = '';
+    resultShown = false;
+    return;
+  }
   if (resultShown && isContentKey(e)) {
     // Clear before the new character is inserted
-    exprEl.value = '';
-    resEl.textContent = '—'; resEl.className = 'empty';
+    exprEl.value = CONTINUES.test(e.key) ? 'ANS' : '';
+    resEl.textContent = '—'; resEl.className = 'empty'; resEl.style.fontSize = '';
     resultShown = false;
   }
 });
 
 document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.mode-btn').forEach(x => x.classList.toggle('active', x === b));
-  const m = b.dataset.mode;
-  const isUnit = m === 'unit';
-  document.getElementById('calc-display').style.display = isUnit ? 'none' : '';
-  document.getElementById('calc-btns').style.display    = isUnit ? 'none' : '';
-  document.getElementById('unit-panel').classList.toggle('show', isUnit);
-  if (!isUnit) angleMode = m;
+  angleMode = b.dataset.mode;
+  refreshShown();
+}));
+
+document.querySelectorAll('.pad-tab').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.pad-tab').forEach(x => {
+    x.classList.toggle('active', x === b);
+    document.getElementById(x.dataset.pad).classList.toggle('hidden', x !== b);
+  });
 }));
 
 function insertAt(text) {
-  if (resultShown) resetCalcDisplay();
-  const s = exprEl.selectionStart ?? exprEl.value.length;
-  const f = exprEl.selectionEnd   ?? exprEl.value.length;
+  let s, f;
+  if (resultShown) {
+    resetCalcDisplay();
+    if (CONTINUES.test(text)) exprEl.value = 'ANS';
+    s = f = exprEl.value.length;
+  } else {
+    s = exprEl.selectionStart ?? exprEl.value.length;
+    f = exprEl.selectionEnd   ?? exprEl.value.length;
+  }
+  // Keep units and constants apart from what comes before: "3 m s", not "3ms"
+  if (/^[\p{L}°]/u.test(text) && /[\p{L}\d)°⁰-⁹²³¹]$/u.test(exprEl.value.slice(0, s))) text = ' ' + text;
   exprEl.value = exprEl.value.slice(0,s) + text + exprEl.value.slice(f);
   exprEl.setSelectionRange(s + text.length, s + text.length);
   exprEl.focus();
 }
 
-document.querySelectorAll('.cb').forEach(btn => btn.addEventListener('click', () => {
+document.getElementById('calc-panel').addEventListener('click', e => {
+  const btn = e.target.closest('[data-ins],[data-act]');
+  if (!btn) return;
   const ins = btn.dataset.ins, act = btn.dataset.act;
   if (ins !== undefined) { insertAt(ins); return; }
   if (act === 'back') {
@@ -779,94 +1257,63 @@ document.querySelectorAll('.cb').forEach(btn => btn.addEventListener('click', ()
     exprEl.value = v.startsWith('-') ? v.slice(1) : (v ? '-(' + v + ')' : '');
     exprEl.focus();
   }
-}));
+});
 
 document.getElementById('dec-sel').addEventListener('change', e => {
   decPlaces = e.target.value === 'auto' ? null : parseInt(e.target.value);
+  if (decPlaces !== null) { sigFigs = null; document.getElementById('sig-sel').value = 'auto'; }
+  refreshShown();
+});
+document.getElementById('sig-sel').addEventListener('change', e => {
+  sigFigs = e.target.value === 'auto' ? null : parseInt(e.target.value);
+  if (sigFigs !== null) { decPlaces = null; document.getElementById('dec-sel').value = 'auto'; }
+  refreshShown();
 });
 document.getElementById('btn-pow10').addEventListener('click', () => {
   pow10 = !pow10;
   document.getElementById('btn-pow10').classList.toggle('active', pow10);
+  refreshShown();
 });
 
+// ── Units and Constants pads ────────────────────────────────────────
+const UNIT_KEYS = [
+  'm','cm','mm','km',
+  's','min','h','ms',
+  'kg','g','N','J',
+  'W','Pa','Hz','kWh',
+  'm/s','km/h','m/s²','eV',
+  'A','V','Ω','C',
+  'K','°C','°','rad',
+  'L','atm','bar','mol',
+  '·','/','²','³',
+];
+const unitsPad = document.getElementById('units-pad');
+UNIT_KEYS.forEach(u => {
+  const b = document.createElement('button');
+  b.className = 'cb ' + (/^[·/²³]$/.test(u) ? 'cb-op' : 'cb-unit');
+  b.dataset.ins = u;
+  b.textContent = u;
+  unitsPad.appendChild(b);
+});
+unitsPad.insertAdjacentHTML('beforeend',
+  '<button class="cb cb-spec cb-wide" data-ins=" to " title="Convert the result, e.g. 72 km/h to m/s">to</button>' +
+  '<button class="cb cb-ctrl" data-act="back">⌫</button>' +
+  '<button class="cb cb-eq" data-act="eq" style="grid-column:auto">=</button>');
 
-/* ══════════════════════════════════════════
-   UNIT CONVERTER
-══════════════════════════════════════════ */
-const UNIT_DATA = {
-  Length:     {m:1,km:1e3,cm:0.01,mm:1e-3,μm:1e-6,nm:1e-9,'in':0.0254,ft:0.3048,yd:0.9144,mi:1609.344,nmi:1852,ly:9.461e15},
-  Mass:       {kg:1,g:1e-3,mg:1e-6,t:1e3,lb:0.453592,oz:0.028350,u:1.66054e-27},
-  Time:       {s:1,ms:1e-3,μs:1e-6,ns:1e-9,min:60,h:3600,d:86400,wk:604800,yr:3.15576e7},
-  Temperature:'special',
-  Area:       {'m²':1,'cm²':1e-4,'km²':1e6,'mm²':1e-6,'in²':6.4516e-4,'ft²':0.092903,ha:1e4,acre:4046.86},
-  Volume:     {'m³':1,'cm³':1e-6,L:1e-3,mL:1e-6,'in³':1.63871e-5,'ft³':0.028317,gal:0.003785,qt:9.4635e-4,floz:2.9574e-5},
-  Speed:      {'m/s':1,'km/h':1/3.6,mph:0.44704,knot:0.514444,'ft/s':0.3048},
-  Energy:     {J:1,kJ:1e3,MJ:1e6,cal:4.184,kcal:4184,Wh:3600,kWh:3.6e6,eV:1.60218e-19},
-  Force:      {N:1,kN:1e3,MN:1e6,kgf:9.80665,lbf:4.44822,dyn:1e-5},
-  Pressure:   {Pa:1,kPa:1e3,MPa:1e6,bar:1e5,atm:101325,psi:6894.76,mmHg:133.322,torr:133.322},
-  Power:      {W:1,kW:1e3,MW:1e6,hp:745.7},
-  Angle:      {'°':1,rad:180/Math.PI,grad:0.9,arcmin:1/60,arcsec:1/3600},
-};
-const TEMP_UNITS = ['°C','°F','K'];
-
-const ucCat      = document.getElementById('uc-cat');
-const ucFromVal  = document.getElementById('uc-from-val');
-const ucFromUnit = document.getElementById('uc-from-unit');
-const ucToUnit   = document.getElementById('uc-to-unit');
-const ucResult   = document.getElementById('uc-result');
-
-// Populate category dropdown
-Object.keys(UNIT_DATA).forEach(cat => {
-  const o = document.createElement('option'); o.value = cat; o.textContent = cat;
-  ucCat.appendChild(o);
+const constPad = document.getElementById('const-pad');
+CONSTANTS.forEach(([name, val, unit, desc]) => {
+  const b = document.createElement('button');
+  b.className = 'const-btn';
+  b.dataset.ins = name;
+  b.innerHTML = '<span class="const-name"></span><span class="const-val"></span><span class="const-desc"></span>';
+  b.children[0].textContent = name;
+  b.children[1].textContent = `${val.replace(/e(-?\d+)/, ' ×10^$1')} ${unit}`;
+  b.children[2].textContent = desc;
+  constPad.appendChild(b);
 });
 
-function populateUnits(cat) {
-  const units = cat === 'Temperature' ? TEMP_UNITS : Object.keys(UNIT_DATA[cat]);
-  [ucFromUnit, ucToUnit].forEach((sel, i) => {
-    sel.innerHTML = '';
-    units.forEach((u, j) => {
-      const o = document.createElement('option'); o.value = u; o.textContent = u;
-      sel.appendChild(o);
-    });
-    sel.selectedIndex = i === 1 && units.length > 1 ? 1 : 0;
-  });
-}
-
-function doConvert() {
-  const cat  = ucCat.value;
-  const from = ucFromUnit.value;
-  const to   = ucToUnit.value;
-  const val  = parseFloat(ucFromVal.value);
-  if (isNaN(val)) { ucResult.textContent = '—'; return; }
-  let result;
-  if (cat === 'Temperature') {
-    let K;
-    if (from === 'K')  K = val;
-    if (from === '°C') K = val + 273.15;
-    if (from === '°F') K = (val + 459.67) * 5/9;
-    if (to   === 'K')  result = K;
-    if (to   === '°C') result = K - 273.15;
-    if (to   === '°F') result = K * 9/5 - 459.67;
-  } else {
-    result = val * UNIT_DATA[cat][from] / UNIT_DATA[cat][to];
-  }
-  ucResult.textContent = parseFloat(result.toPrecision(10)).toString() + ' ' + to;
-}
-
-ucCat.addEventListener('change', () => { populateUnits(ucCat.value); doConvert(); });
-ucFromVal.addEventListener('input', doConvert);
-ucFromUnit.addEventListener('change', doConvert);
-ucToUnit.addEventListener('change', doConvert);
-
-document.getElementById('uc-swap').addEventListener('click', () => {
-  const tmp = ucFromUnit.value;
-  ucFromUnit.value = ucToUnit.value;
-  ucToUnit.value   = tmp;
-  doConvert();
-});
-
-populateUnits('Length');  // default
+renderHistory();
+exprEl.focus();
 
 /* Keyboard shortcuts (when calc input not focused) */
 document.addEventListener('keydown', e => {
