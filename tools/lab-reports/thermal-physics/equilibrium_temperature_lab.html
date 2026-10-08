@@ -204,6 +204,31 @@
   .summary div::before { content: '○ '; color: var(--muted); }
   .summary div.ok::before { content: '✓ '; color: var(--green); font-weight: 800; }
 
+  /* ── LAB GUIDE ── */
+  dialog.guide {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+    width: min(780px, 94vw); max-height: 90vh; margin: auto; padding: 0;
+  }
+  dialog.guide::backdrop { background: rgba(0,0,0,.55); }
+  .guide-head { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .guide-head h2 { font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .guide-body { padding: 18px; display: grid; gap: 18px; font-size: .92rem; }
+  .guide-body h3 { font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .guide-body ol, .guide-body ul { padding-left: 22px; display: grid; gap: 6px; }
+  .guide-body li b { color: var(--text); }
+  .guide-cols { display: grid; grid-template-columns: 1fr 230px; gap: 18px; align-items: start; }
+  .guide-cols.wide-fig { grid-template-columns: 1fr 280px; }
+  .guide-materials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .guide-cols, .guide-cols.wide-fig, .guide-materials { grid-template-columns: 1fr; } }
+  .guide-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .guide-box .bt { font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  .guide-fig { width: 100%; height: auto; display: block; }
+  .guide-fig text { fill: var(--text); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .guide-foot { padding: 0 18px 18px; display: flex; justify-content: flex-end; }
+  .guide-link { background: none; border: none; color: var(--accent); font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer; padding: 0; text-align: left; justify-self: start; }
+  .guide-link:hover { text-decoration: underline; }
+
+
   footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
   footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
 </style>
@@ -215,6 +240,7 @@
   <h1>🌡️ <span>Equilibrium Temperature</span> Lab</h1>
   <div class="progress" id="progress"></div>
   <span class="save-state" id="save-state">Saved on this device</span>
+  <button class="pill-btn" data-guide>📋 Lab guide</button>
   <button class="pill-btn" id="theme-toggle">☀ Light</button>
 </header>
 
@@ -293,6 +319,7 @@
     <div class="step-head"><span class="num">4</span><h2>Trials: predict, mix, measure</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
+      <button class="guide-link" data-guide>📋 Open the lab guide: materials, setup and procedure</button>
       <p class="lead">Do <b>at least 2 trials</b>, each with a <b>different proportion</b> of hot and cold water. The microwave and the balance are shared by the class, so plan ahead and be ready when it's your turn.</p>
       <ol class="tips">
         <li><b>Cold beaker:</b> put the empty beaker on the balance, press tare (zero), and add tap water. Write the water mass, then measure its temperature T<sub>c</sub>.</li>
@@ -370,6 +397,82 @@
     </div>
   </section>
 </main>
+
+<dialog class="guide" id="guide">
+  <div class="guide-head"><h2>📋 Lab guide: Equilibrium Temperature</h2><button class="pill-btn" data-guide-close>Close</button></div>
+  <div class="guide-body">
+    <p class="note">Read this together before you start. You can open it again at any moment with the <b>📋 Lab guide</b> button at the top.</p>
+
+    <section>
+      <h3>Goal</h3>
+      <p>Predict the final temperature when you mix hot and cold water, using the model <b>Q = m·c·ΔT</b>, and test your prediction in at least <b>two trials</b> with different amounts of hot and cold water.</p>
+    </section>
+
+    <section>
+      <h3>Materials</h3>
+      <div class="guide-materials">
+        <div class="guide-box"><div class="bt">Each pair</div>
+          <ul>
+            <li>Two beakers</li>
+            <li>A thermometer</li>
+            <li>A stirrer</li>
+            <li>Tap water</li>
+            <li>This page, on one phone or laptop</li>
+          </ul>
+        </div>
+        <div class="guide-box"><div class="bt">Shared by the class</div>
+          <ul>
+            <li>The <b>balance</b></li>
+            <li>The <b>microwave oven</b></li>
+          </ul>
+          <p class="caption" style="margin-top:8px">Groups take turns. Plan each trial before your turn so you don't keep others waiting.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="guide-cols wide-fig">
+      <div>
+        <h3>Setup</h3>
+        <ol>
+          <li>Label your beakers <b>C</b> (cold) and <b>H</b> (hot), so you never mix them up.</li>
+          <li>Check that the thermometer reads room temperature, and look at its smallest division.</li>
+          <li><b>Plan your trials.</b> Trial 1: about the same mass of hot and cold water (for example 100 g + 100 g). Trial 2: clearly different (for example 50 g hot + 150 g cold).</li>
+          <li>Decide who goes to the balance and the microwave, who reads the thermometer, and who types and calculates.</li>
+        </ol>
+      </div>
+      <svg class="guide-fig" viewBox="0 0 280 210" aria-label="Hot water beaker H poured into the cold water beaker C, with a thermometer and stirrer in C">
+        <path d="M30 70 L30 170 Q30 180 40 180 L100 180 Q110 180 110 170 L110 70" fill="none" stroke="var(--text)" stroke-width="2"/>
+        <rect x="32" y="105" width="76" height="73" rx="6" fill="var(--cold)" opacity=".35"/>
+        <text x="70" y="200" text-anchor="middle" font-weight="700" fill="var(--cold)">C · cold</text>
+        <polygon points="104,58 155.6,131.7 212.9,91.5 189.4,58" fill="var(--hot)" opacity=".4"/>
+        <polyline points="104,58 155.6,131.7 212.9,91.5 161.3,17.8" fill="none" stroke="var(--text)" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M104 58 C101 68 97 82 96 105" fill="none" stroke="var(--hot)" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+        <text x="190" y="140" text-anchor="middle" font-weight="700" fill="var(--hot)">H · hot</text>
+        <line x1="88" y1="30" x2="88" y2="165" stroke="var(--muted)" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="88" cy="166" r="5" fill="var(--red)"/>
+        <text x="58" y="26" font-size="11">thermometer</text>
+        <line x1="50" y1="45" x2="62" y2="160" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>
+        <text x="10" y="52" font-size="11">stirrer</text>
+      </svg>
+    </section>
+
+    <section>
+      <h3>Procedure (for each trial)</h3>
+      <ol>
+        <li><b>Cold water:</b> put beaker C on the balance, press <b>tare</b> (zero), add tap water, and write the water mass m<sub>c</sub>. Stir and measure its temperature T<sub>c</sub>.</li>
+        <li><b>Hot water:</b> tare beaker H, add water and write m<sub>h</sub>. Heat it in the microwave (about 30 to 60 s; aim for 50 to 70 °C). <b>Take the thermometer and stirrer out before heating.</b></li>
+        <li>Back at your place, stir the hot water and measure T<sub>h</sub> <b>right before pouring</b>.</li>
+        <li>Use the model to <b>calculate your predicted T<sub>eq</sub></b>, type it and <b>lock it</b>.</li>
+        <li><b>Pour all the hot water into beaker C</b>, stir gently and continuously, and watch the thermometer. Write the <b>highest steady temperature</b> it reaches.</li>
+        <li>Answer the discussion question that appears after trial 1.</li>
+        <li><b>Before the next trial:</b> empty both beakers and let them return to room temperature (rinse with tap water and dry). A warm beaker changes the result.</li>
+      </ol>
+    </section>
+
+    <div class="note warn"><b>Safety:</b> hold the hot beaker by the top edge or with a cloth, never let the water boil, never put the thermometer or any metal in the microwave, and handle the glass thermometer with care.</div>
+  </div>
+  <div class="guide-foot"><button class="btn primary" data-guide-close>Got it, let's start</button></div>
+</dialog>
 
 <footer>
   Equilibrium Temperature Lab · Ergosfera Teaching Tools · <button id="reset">Start over (erase this report)</button>
@@ -685,7 +788,7 @@ function refreshEnergy() {
 
 // ── Step 7: submit ──────────────────────────────────────────
 function payload() {
-  const { unlocked, sent, ...data } = S;
+  const { unlocked, sent, guideSeen, ...data } = S;
   return {
     ...data,
     computed: S.trials.map(trialCalc).map(c => c.complete ? { model: c.model, Qlost: c.Qlost, Qgained: c.Qgained } : null),
@@ -752,6 +855,16 @@ function applyTheme(light) {
 let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
 applyTheme(savedTheme === 'light');
 document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
+
+// ── Lab guide: opens by itself the first time, and from the header anytime ──
+const guide = document.getElementById('guide');
+function openGuide() { if (!guide.open) guide.showModal(); }
+document.querySelectorAll('[data-guide]').forEach(b => b.addEventListener('click', openGuide));
+document.querySelectorAll('[data-guide-close]').forEach(b => b.addEventListener('click', () => guide.close()));
+guide.addEventListener('click', e => { if (e.target === guide) guide.close(); });
+guide.addEventListener('close', () => { if (!S.guideSeen) { S.guideSeen = true; save(); } });
+if (!S.guideSeen) openGuide();
+
 
 renderTrials();
 refresh();

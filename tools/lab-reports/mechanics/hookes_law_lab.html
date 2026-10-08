@@ -193,6 +193,31 @@
   .setup-grid { display: grid; grid-template-columns: 1fr 220px; gap: 16px; align-items: start; }
   @media (max-width: 620px) { .setup-grid { grid-template-columns: 1fr; } }
 
+  /* ── LAB GUIDE ── */
+  dialog.guide {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+    width: min(780px, 94vw); max-height: 90vh; margin: auto; padding: 0;
+  }
+  dialog.guide::backdrop { background: rgba(0,0,0,.55); }
+  .guide-head { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .guide-head h2 { font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .guide-body { padding: 18px; display: grid; gap: 18px; font-size: .92rem; }
+  .guide-body h3 { font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .guide-body ol, .guide-body ul { padding-left: 22px; display: grid; gap: 6px; }
+  .guide-body li b { color: var(--text); }
+  .guide-cols { display: grid; grid-template-columns: 1fr 230px; gap: 18px; align-items: start; }
+  .guide-cols.wide-fig { grid-template-columns: 1fr 280px; }
+  .guide-materials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .guide-cols, .guide-cols.wide-fig, .guide-materials { grid-template-columns: 1fr; } }
+  .guide-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .guide-box .bt { font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  .guide-fig { width: 100%; height: auto; display: block; }
+  .guide-fig text { fill: var(--text); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .guide-foot { padding: 0 18px 18px; display: flex; justify-content: flex-end; }
+  .guide-link { background: none; border: none; color: var(--accent); font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer; padding: 0; text-align: left; justify-self: start; }
+  .guide-link:hover { text-decoration: underline; }
+
+
   footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
   footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
 </style>
@@ -204,6 +229,7 @@
   <h1>🧪 <span>Hooke's Law</span> Lab</h1>
   <div class="progress" id="progress"></div>
   <span class="save-state" id="save-state">Saved on this device</span>
+  <button class="pill-btn" data-guide>📋 Lab guide</button>
   <button class="pill-btn" id="theme-toggle">☀ Light</button>
 </header>
 
@@ -255,6 +281,7 @@
     <div class="step-head"><span class="num">3</span><h2>Set up and measure the natural length</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
+      <button class="guide-link" data-guide>📋 Open the lab guide: materials, setup and procedure</button>
       <div class="setup-grid">
         <div style="display:grid;gap:14px">
           <ul class="tips">
@@ -306,6 +333,7 @@
     <div class="step-head"><span class="num">4</span><h2>Measure</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
+      <button class="guide-link" data-guide>📋 Open the lab guide: materials, setup and procedure</button>
       <p class="lead">Add masses one at a time. For each one, write the <b>total hanging mass</b> and the <b>new length L</b>. Wait until the spring is still before you read. Aim for <b>6 to 8 measurements</b> spread over the range your teacher allows, and don't overload the spring.</p>
       <div class="table-wrap">
         <table class="data">
@@ -414,6 +442,92 @@
     </div>
   </section>
 </main>
+
+<dialog class="guide" id="guide">
+  <div class="guide-head"><h2>📋 Lab guide: Hooke's Law</h2><button class="pill-btn" data-guide-close>Close</button></div>
+  <div class="guide-body">
+    <p class="note">Read this together before you start. You can open it again at any moment with the <b>📋 Lab guide</b> button at the top.</p>
+
+    <section>
+      <h3>Goal</h3>
+      <p>Find out how the stretch of a spring depends on the force that pulls it, and measure the <b>spring constant k</b> of your spring.</p>
+    </section>
+
+    <section>
+      <h3>Materials</h3>
+      <div class="guide-materials">
+        <div class="guide-box"><div class="bt">Each pair</div>
+          <ul>
+            <li>A spring (note its label, if it has one)</li>
+            <li>A universal support: base, rod and clamp or hook</li>
+            <li>A ruler with millimetre divisions</li>
+            <li>A set of masses and a mass hanger</li>
+            <li>This page, on one phone or laptop</li>
+          </ul>
+        </div>
+        <div class="guide-box"><div class="bt">Check before you start</div>
+          <ul>
+            <li>The mass written on each mass (and on the hanger)</li>
+            <li>The <b>maximum load</b> your teacher allows for your spring</li>
+            <li>That the support doesn't wobble</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="guide-cols">
+      <div>
+        <h3>Setup</h3>
+        <ol>
+          <li>Screw the rod into the base and fix the clamp near the top of the rod. Check that the support is <b>stable</b>.</li>
+          <li>Hang the spring from the clamp or hook so it hangs freely, without touching the rod.</li>
+          <li>Fix the ruler <b>vertically</b> right next to the spring (clamp or tape it to the rod). It must not move during the whole experiment.</li>
+          <li>Choose two <b>reference points</b> on the spring, for example the top of the top loop and the bottom of the bottom hook. The length L is always measured between these same two points.</li>
+          <li>Decide who hangs the masses, who reads the ruler, and who types.</li>
+        </ol>
+      </div>
+      <svg class="guide-fig" viewBox="0 0 230 330" aria-label="Setup: support with a hanging spring, a ruler beside it and masses on a hanger">
+        <rect x="20" y="300" width="150" height="14" rx="3" fill="var(--surface2)" stroke="var(--muted)"/>
+        <line x1="45" y1="300" x2="45" y2="20" stroke="var(--muted)" stroke-width="5" stroke-linecap="round"/>
+        <line x1="45" y1="30" x2="125" y2="30" stroke="var(--muted)" stroke-width="5" stroke-linecap="round"/>
+        <rect x="140" y="40" width="20" height="240" rx="2" fill="var(--amber-soft)" stroke="var(--amber)"/>
+        <g stroke="var(--amber)" stroke-width="1">
+          <line x1="140" y1="60" x2="150" y2="60"/><line x1="140" y1="85" x2="147" y2="85"/><line x1="140" y1="110" x2="150" y2="110"/>
+          <line x1="140" y1="135" x2="147" y2="135"/><line x1="140" y1="160" x2="150" y2="160"/><line x1="140" y1="185" x2="147" y2="185"/>
+          <line x1="140" y1="210" x2="150" y2="210"/><line x1="140" y1="235" x2="147" y2="235"/><line x1="140" y1="260" x2="150" y2="260"/>
+        </g>
+        <polyline points="115,30 115,48 101,56 129,66 101,76 129,86 101,96 129,106 101,116 129,126 115,134 115,148"
+          fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round"/>
+        <line x1="115" y1="148" x2="115" y2="162" stroke="var(--text)" stroke-width="1.6"/>
+        <rect x="100" y="162" width="30" height="12" rx="2" fill="var(--surface2)" stroke="var(--text)"/>
+        <rect x="100" y="176" width="30" height="12" rx="2" fill="var(--surface2)" stroke="var(--text)"/>
+        <rect x="100" y="190" width="30" height="12" rx="2" fill="var(--surface2)" stroke="var(--text)"/>
+        <text x="182" y="34" font-size="11">clamp</text>
+        <text x="182" y="100" font-size="11" fill="var(--accent)">spring</text>
+        <text x="182" y="160" font-size="11" fill="var(--amber)">ruler</text>
+        <text x="182" y="198" font-size="11">masses</text>
+        <text x="55" y="250" font-size="11">rod</text>
+        <text x="95" y="326" font-size="11" text-anchor="middle">base</text>
+      </svg>
+    </section>
+
+    <section>
+      <h3>Procedure</h3>
+      <ol>
+        <li>With nothing hanging, measure the <b>natural length L₀</b> between your reference points (step 3 on the page).</li>
+        <li>Hang the hanger with the first mass. Wait until the spring is <b>completely still</b>, read L at <b>eye level</b>, and type the total mass and L (step 4).</li>
+        <li>Add masses one at a time, for example in 50 g steps, recording each. Aim for <b>6 to 8 measurements</b> spread over the allowed range. <b>Never exceed the maximum load.</b></li>
+        <li>Watch the graph build as you measure, and answer the discussion question when it appears.</li>
+        <li>Keep one combination of masses <b>unused</b>: you'll need it in step 6 to test your model.</li>
+        <li>When you finish, remove all the masses and check that the spring goes back to L₀. If it doesn't, it was overstretched: tell your teacher.</li>
+      </ol>
+    </section>
+
+    <div class="note warn"><b>Safety:</b> keep hands and feet away from under the hanging masses, add and remove masses gently, and make sure the support can't tip over.</div>
+  </div>
+  <div class="guide-foot"><button class="btn primary" data-guide-close>Got it, let's start</button></div>
+</dialog>
+
 
 <footer>
   Hooke's Law Lab · Ergosfera Teaching Tools · <button id="reset">Start over (erase this report)</button>
@@ -742,7 +856,7 @@ function refreshConclusion() {
 
 // ── Step 8: submit ──────────────────────────────────────────
 function payload() {
-  const { unlocked, sent, ...data } = S;
+  const { unlocked, sent, guideSeen, ...data } = S;
   return { ...data, fit: linfit(points()), submittedAt: new Date().toISOString(), client: 'hookes_law_lab/1' };
 }
 function refreshSummary() {
@@ -806,6 +920,16 @@ function applyTheme(light) {
 let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
 applyTheme(savedTheme === 'light');
 document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
+
+// ── Lab guide: opens by itself the first time, and from the header anytime ──
+const guide = document.getElementById('guide');
+function openGuide() { if (!guide.open) guide.showModal(); }
+document.querySelectorAll('[data-guide]').forEach(b => b.addEventListener('click', openGuide));
+document.querySelectorAll('[data-guide-close]').forEach(b => b.addEventListener('click', () => guide.close()));
+guide.addEventListener('click', e => { if (e.target === guide) guide.close(); });
+guide.addEventListener('close', () => { if (!S.guideSeen) { S.guideSeen = true; save(); } });
+if (!S.guideSeen) openGuide();
+
 
 renderTable();
 refresh();
