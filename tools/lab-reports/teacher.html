@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Lab Reports Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950;
+    --red: #f85149;
+    --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #0969da;
+    --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37;
+    --red: #cf222e;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.45; min-height: 100vh; }
+
+  header {
+    border-bottom: 1px solid var(--border); padding: 24px 40px 20px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+  }
+  header h1 { font-size: clamp(1.3rem, 3vw, 1.8rem); font-weight: 800; letter-spacing: -.5px; }
+  header h1 span { color: var(--accent); }
+  header p { margin-top: 6px; font-size: .88rem; color: var(--muted); max-width: 560px; }
+  .pill-btn {
+    background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 20px; padding: 6px 14px; font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  main { padding: 28px 40px 50px; max-width: 1200px; margin: 0 auto; display: grid; gap: 30px; }
+  @media (max-width: 600px) { header, main { padding-left: 16px; padding-right: 16px; } }
+
+  .section-label {
+    display: flex; align-items: center; gap: 8px; font-size: .72rem; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+  }
+  .section-label .count { font-weight: 600; text-transform: none; letter-spacing: 0; }
+
+  .labs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .lab { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: grid; gap: 8px; align-content: start; }
+  .lab-top { display: flex; align-items: center; gap: 8px; }
+  .lab-top .icon { font-size: 1.3rem; }
+  .lab-top .title { font-weight: 700; font-size: .98rem; }
+  .lab .desc { font-size: .82rem; color: var(--muted); }
+  .lab .counts { font-size: .8rem; color: var(--muted); }
+  .lab .counts b { color: var(--text); }
+  .lab .links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; display: grid; gap: 14px; font-size: .92rem; }
+  .card h2 { font-size: 1.05rem; font-weight: 800; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .status { font-size: .78rem; font-weight: 700; padding: 2px 10px; border-radius: 12px; background: var(--surface2); color: var(--muted); }
+  .status.ok { color: var(--green); }
+  .status.bad { color: var(--red); }
+  .card ol { padding-left: 22px; display: grid; gap: 6px; }
+  .card code { font-family: Consolas, 'Courier New', monospace; font-size: .84rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+  pre.code { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; max-height: 300px; font-family: Consolas, 'Courier New', monospace; font-size: .8rem; line-height: 1.4; }
+  .form-row { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: center; }
+  .form-row label { font-size: .82rem; font-weight: 600; color: var(--muted); }
+  @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; gap: 4px; } }
+  input[type=text], input[type=password] {
+    font: inherit; font-size: .88rem; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; width: 100%;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .btn { font: inherit; font-weight: 700; font-size: .84rem; cursor: pointer; border-radius: 8px; padding: 7px 14px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); text-decoration: none; display: inline-block; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .muted { color: var(--muted); }
+  .note { border-radius: 8px; padding: 10px 14px; font-size: .86rem; background: var(--accent-soft); border-left: 3px solid var(--accent); }
+  details summary { cursor: pointer; font-weight: 700; color: var(--accent); }
+  details[open] summary { margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>📝 <span>Lab Reports</span> · Teacher</h1>
+    <p>The same experiments as the students' Lab Reports page, by topic. Open one to see the class results, get the student link, and download the reports. This page isn't linked from the public site: bookmark it.</p>
+  </div>
+  <button class="pill-btn" id="theme-toggle">☀ Light</button>
+</header>
+
+<main>
+  <div id="topics" style="display:grid;gap:30px"></div>
+
+  <section class="card" id="connection">
+    <h2>Google Sheet connection <span class="status" id="conn-status"></span></h2>
+    <p class="muted">All labs send their reports to one Google Sheet. You set this up once, and every lab page on this browser uses it.</p>
+    <div class="form-row"><label for="api">Web app URL</label><input type="text" id="api" placeholder="https://script.google.com/macros/s/…/exec"></div>
+    <div class="form-row"><label for="key">Teacher key</label><input type="password" id="key"></div>
+    <div class="btns"><button class="btn primary" id="save">Save and test</button><span class="muted" id="save-msg"></span></div>
+    <details id="howto">
+      <summary>How to create the Google Sheet backend (one time, about 10 minutes)</summary>
+      <div style="display:grid;gap:12px">
+        <ol>
+          <li>Create a new Google Sheet, for example <i>Lab reports</i>.</li>
+          <li>In the sheet, open <b>Extensions → Apps Script</b>. Delete what's there and paste the code below.</li>
+          <li>Change <code>TEACHER_KEY</code> to a secret word of your own. Only someone with this word can read the reports.</li>
+          <li>Click <b>Deploy → New deployment</b>, choose type <b>Web app</b>, set <i>Execute as</i>: <b>Me</b> and <i>Who has access</i>: <b>Anyone</b>. Deploy, and authorize when Google asks.</li>
+          <li>Copy the <b>Web app URL</b> (it ends in <code>/exec</code>) and paste it above with your key.</li>
+        </ol>
+        <div class="btns"><button class="btn" id="copy-code">Copy Apps Script code</button><span class="muted" id="copy-msg"></span></div>
+        <pre class="code" id="gs-code"></pre>
+        <div class="note">If you change the code later, use <b>Deploy → Manage deployments → Edit → New version</b> so the URL stays the same. Every report is also a row in the sheet, so you always have a backup. On another computer, open this page and enter the same URL and key.</div>
+      </div>
+    </details>
+  </section>
+</main>
+
+<script type="text/plain" id="gs-source">// Ergosfera lab reports backend (all labs share it).
+// Paste into Extensions → Apps Script of a Google Sheet, then deploy as a Web app.
+const TEACHER_KEY = 'change-this-word';   // teacher pages need this word to read reports
+
+// Students send reports here (POST).
+function doPost(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const data = JSON.parse(e.postData.contents);
+    getSheet_().appendRow([new Date(), data.lab || '', String(data.session || ''), String(data.group || ''),
+      (data.students || []).join(' & '), JSON.stringify(data)]);
+    return json_({ ok: true });
+  } catch (err) {
+    return json_({ ok: false, error: String(err) });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Teacher pages read reports here (GET ?key=…&lab=…&session=…; add &summary=1 for counts only).
+function doGet(e) {
+  const p = e.parameter || {};
+  if (p.key !== TEACHER_KEY) return json_({ ok: false, error: 'Wrong teacher key' });
+  const rows = getSheet_().getDataRange().getValues().slice(1);
+  const out = [];
+  rows.forEach(function (r) {
+    try {
+      const d = JSON.parse(r[5]);
+      if (p.lab && d.lab !== p.lab) return;
+      if (p.session && String(d.session).trim().toLowerCase() !== p.session.trim().toLowerCase()) return;
+      d.receivedAt = r[0];
+      out.push(p.summary ? { lab: d.lab, session: d.session, group: d.group, submittedAt: d.submittedAt } : d);
+    } catch (err) {}
+  });
+  return json_({ ok: true, submissions: out });
+}
+
+function getSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName('Submissions');
+  if (!sh) {
+    sh = ss.insertSheet('Submissions');
+    sh.appendRow(['Received', 'Lab', 'Session', 'Group', 'Students', 'Report (JSON)']);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function json_(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+</script>
+
+<script src="labs.js"></script>
+<script>
+// ── Shared connection (read by every lab's teacher page) ────
+const CKEY = 'labreports_connection';
+const CONN = { api: '', key: '' };
+try { Object.assign(CONN, JSON.parse(localStorage.getItem(CKEY) || '{}')); } catch (e) {}
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let COUNTS = null;   // lab id → { reports, sessions:Set, last }
+
+function renderTopics() {
+  document.getElementById('topics').innerHTML = LAB_TOPICS.map(t => `
+    <section>
+      <p class="section-label">${t.icon} ${esc(t.name)} <span class="count">(${t.labs.length})</span></p>
+      <div class="labs">${t.labs.map(lab => {
+        const c = COUNTS && COUNTS[lab.id];
+        const counts = !COUNTS ? '' : c
+          ? `<b>${c.reports}</b> report${c.reports === 1 ? '' : 's'} · ${c.sessions.size} session${c.sessions.size === 1 ? '' : 's'} · last ${new Date(c.last).toLocaleDateString()}`
+          : 'No reports yet';
+        return `<div class="lab">
+          <div class="lab-top"><span class="icon">${lab.icon}</span><span class="title">${esc(lab.title)}</span></div>
+          <div class="desc">${esc(lab.desc)}</div>
+          ${counts ? `<div class="counts">${counts}</div>` : ''}
+          <div class="links"><a class="btn primary" href="${lab.teacher}">Open results</a><a class="btn" href="${lab.student}" target="_blank" rel="noopener">Student page</a></div>
+        </div>`;
+      }).join('')}</div>
+    </section>`).join('');
+}
+
+const statusEl = document.getElementById('conn-status');
+function setStatus(text, cls) { statusEl.textContent = text; statusEl.className = 'status ' + (cls || ''); }
+
+async function test() {
+  if (!CONN.api || !CONN.key) {
+    setStatus('Not connected', 'bad');
+    document.getElementById('howto').open = true;
+    return;
+  }
+  setStatus('Checking…');
+  try {
+    const u = new URL(CONN.api);
+    u.searchParams.set('key', CONN.key);
+    u.searchParams.set('summary', '1');
+    const j = await (await fetch(u)).json();
+    if (!j.ok) throw new Error(j.error || 'server error');
+    COUNTS = {};
+    j.submissions.forEach(s => {
+      const c = COUNTS[s.lab] || (COUNTS[s.lab] = { reports: 0, sessions: new Set(), last: '' });
+      c.reports++;
+      c.sessions.add(String(s.session || '').trim().toLowerCase());
+      if (String(s.submittedAt) > c.last) c.last = s.submittedAt;
+    });
+    setStatus('Connected ✓', 'ok');
+  } catch (e) {
+    COUNTS = null;
+    setStatus('⚠ ' + (e.message || 'Could not connect'), 'bad');
+  }
+  renderTopics();
+}
+
+document.getElementById('api').value = CONN.api;
+document.getElementById('key').value = CONN.key;
+document.getElementById('save').addEventListener('click', () => {
+  CONN.api = document.getElementById('api').value.trim();
+  CONN.key = document.getElementById('key').value.trim();
+  try { localStorage.setItem(CKEY, JSON.stringify(CONN)); } catch (e) {}
+  document.getElementById('save-msg').textContent = 'Saved';
+  test();
+});
+
+const GS = document.getElementById('gs-source').textContent.trim();
+document.getElementById('gs-code').textContent = GS;
+document.getElementById('copy-code').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(GS); document.getElementById('copy-msg').textContent = 'Copied ✓'; }
+  catch (e) { document.getElementById('copy-msg').textContent = 'Select the code below and copy it'; }
+});
+
+// ── Theme (shared with the tools index) ─────────────────────
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  document.getElementById('theme-toggle').textContent = light ? '☽ Dark' : '☀ Light';
+  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+applyTheme(savedTheme === 'light');
+document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
+
+renderTopics();
+test();
+</script>
+</body>
+</html>

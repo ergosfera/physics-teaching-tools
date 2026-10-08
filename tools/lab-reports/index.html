@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lab Reports</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📝</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #0969da;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.45; min-height: 100vh; }
+
+  header {
+    border-bottom: 1px solid var(--border); padding: 24px 40px 20px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+  }
+  header h1 { font-size: clamp(1.3rem, 3vw, 1.8rem); font-weight: 800; letter-spacing: -.5px; }
+  header h1 span { color: var(--accent); }
+  header p { margin-top: 6px; font-size: .88rem; color: var(--muted); max-width: 560px; }
+  .header-right { display: flex; gap: 8px; }
+  .pill-btn {
+    background: var(--surface); border: 1px solid var(--border); color: var(--muted); text-decoration: none;
+    border-radius: 20px; padding: 6px 14px; font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  main { padding: 28px 40px 50px; max-width: 1200px; margin: 0 auto; display: grid; gap: 30px; }
+  @media (max-width: 600px) { header, main { padding-left: 16px; padding-right: 16px; } }
+
+  .section-label {
+    display: flex; align-items: center; gap: 8px; font-size: .72rem; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+  }
+  .section-label .count { font-weight: 600; text-transform: none; letter-spacing: 0; }
+
+  .labs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .lab {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px;
+    display: grid; gap: 8px; align-content: start; text-decoration: none; color: inherit;
+    transition: border-color .15s, transform .15s;
+  }
+  .lab:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .lab-top { display: flex; align-items: center; gap: 8px; }
+  .lab-top .icon { font-size: 1.3rem; }
+  .lab-top .title { font-weight: 700; font-size: .98rem; }
+  .lab .desc { font-size: .82rem; color: var(--muted); }
+  .lab .open { font-size: .78rem; font-weight: 700; color: var(--accent); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>📝 <span>Lab Reports</span></h1>
+    <p>Choose your experiment. Work with your partner through the report while you measure; the tables and graphs build as you go. When you finish, send it to your teacher.</p>
+  </div>
+  <div class="header-right">
+    <a class="pill-btn" href="../../index.html#lab-reports">← Ergosfera tools</a>
+    <button class="pill-btn" id="theme-toggle">☀ Light</button>
+  </div>
+</header>
+
+<main id="topics"></main>
+
+<script src="labs.js"></script>
+<script>
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// Keep the class link's session and connection when a student opens an experiment from here
+const carry = location.search;
+
+document.getElementById('topics').innerHTML = LAB_TOPICS.map(t => `
+  <section>
+    <p class="section-label">${t.icon} ${esc(t.name)} <span class="count">(${t.labs.length})</span></p>
+    <div class="labs">${t.labs.map(lab => `
+      <a class="lab" href="${lab.student}${carry}">
+        <div class="lab-top"><span class="icon">${lab.icon}</span><span class="title">${esc(lab.title)}</span></div>
+        <div class="desc">${esc(lab.desc)}</div>
+        <span class="open">Open →</span>
+      </a>`).join('')}</div>
+  </section>`).join('');
+
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  document.getElementById('theme-toggle').textContent = light ? '☽ Dark' : '☀ Light';
+  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+applyTheme(savedTheme === 'light');
+document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
+</script>
+</body>
+</html>
