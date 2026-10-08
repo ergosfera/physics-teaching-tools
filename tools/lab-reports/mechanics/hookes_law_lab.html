@@ -218,6 +218,11 @@
   .guide-link:hover { text-decoration: underline; }
 
 
+  /* ── HOW-TO LISTS (instructions where they are used) ── */
+  ol.howto { padding-left: 22px; display: grid; gap: 6px; font-size: .9rem; }
+  ol.howto li::marker { color: var(--accent); font-weight: 800; }
+  ol.howto b { color: var(--text); }
+
   footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
   footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
 </style>
@@ -281,15 +286,16 @@
     <div class="step-head"><span class="num">3</span><h2>Set up and measure the natural length</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
-      <button class="guide-link" data-guide>📋 Open the lab guide: materials, setup and procedure</button>
       <div class="setup-grid">
         <div style="display:grid;gap:14px">
-          <ul class="tips">
-            <li>Hang the spring from the universal support and fix the ruler <b>vertically</b> next to it.</li>
-            <li>Choose two reference points, for example the top of the top loop and the bottom of the bottom hook. <b>Always measure between these same two points.</b></li>
-            <li>Read the ruler <b>at eye level</b> to avoid parallax.</li>
-            <li>If you use a mass hanger, its mass counts too: include it in every mass you write.</li>
-          </ul>
+          <ol class="howto">
+            <li>Decide who hangs the masses, who reads the ruler, and who types.</li>
+            <li>Screw the rod into the base and fix the clamp near the top of the rod. Check that the support is <b>stable</b>.</li>
+            <li>Hang the spring from the clamp or hook so it hangs freely, without touching the rod.</li>
+            <li>Fix the ruler <b>vertically</b> right next to the spring (clamp or tape it to the rod). It must not move during the whole experiment.</li>
+            <li>Choose two <b>reference points</b> on the spring, for example the top of the top loop and the bottom of the bottom hook. Always measure L between these same two points, reading the ruler <b>at eye level</b>.</li>
+            <li>With nothing hanging, measure the <b>natural length L₀</b> and write it below.</li>
+          </ol>
           <div class="grid2">
             <label class="f">Natural length L₀ (cm), with no mass<input type="text" inputmode="decimal" data-bind="L0" placeholder="e.g. 12.4"></label>
             <label class="f">Smallest division of your ruler
@@ -333,8 +339,12 @@
     <div class="step-head"><span class="num">4</span><h2>Measure</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
-      <button class="guide-link" data-guide>📋 Open the lab guide: materials, setup and procedure</button>
-      <p class="lead">Add masses one at a time. For each one, write the <b>total hanging mass</b> and the <b>new length L</b>. Wait until the spring is still before you read. Aim for <b>6 to 8 measurements</b> spread over the range your teacher allows, and don't overload the spring.</p>
+      <ol class="howto">
+        <li>Hang the mass hanger with the first mass. The hanger's mass counts too: include it in every mass you write.</li>
+        <li>Wait until the spring is <b>completely still</b>, read L at eye level, and type the <b>total mass</b> and <b>L</b> in the table.</li>
+        <li>Add masses one at a time (for example in 50 g steps) and record each one. Aim for <b>6 to 8 measurements</b> spread over the range your teacher allows. <b>Never exceed the maximum load.</b></li>
+        <li>Keep one combination of masses <b>unused</b>: you'll need it in step 6 to test your model.</li>
+      </ol>
       <div class="table-wrap">
         <table class="data">
           <thead><tr><th>#</th><th>Mass m (g)</th><th>Length L (cm)</th><th>Force F = mg (N)</th><th>Stretch Δx (cm)</th><th></th></tr></thead>
@@ -387,7 +397,11 @@
     <div class="step-head"><span class="num">6</span><h2>Test your model</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
-      <p class="lead">Pick a mass you have <b>not</b> used yet, for example a combination of masses. Use your value of k to <b>calculate</b> the length L the spring will have. Lock your prediction <b>before</b> you hang the mass.</p>
+      <ol class="howto">
+        <li>Take the combination of masses you kept <b>unused</b> in step 4.</li>
+        <li>Use your value of k to <b>calculate</b> the length L the spring will have, and type it with the mass.</li>
+        <li><b>Lock your prediction before</b> you hang the masses. Then hang them, wait until the spring is still, and measure L.</li>
+      </ol>
       <div class="grid2">
         <label class="f">Mass to test (g)<input type="text" inputmode="decimal" data-bind="test.m" id="test-m"></label>
         <label class="f">Your predicted length L (cm)<input type="text" inputmode="decimal" data-bind="test.pred" id="test-pred"></label>
@@ -397,6 +411,7 @@
         <label class="f">Now hang it. Measured length L (cm)<input type="text" inputmode="decimal" data-bind="test.meas"></label>
       </div>
       <div id="test-result"></div>
+      <div class="note">When you finish: remove all the masses and check that the spring goes back to L₀. If it doesn't, it was overstretched: tell your teacher.</div>
     </div>
   </section>
 
@@ -446,44 +461,23 @@
 <dialog class="guide" id="guide">
   <div class="guide-head"><h2>📋 Lab guide: Hooke's Law</h2><button class="pill-btn" data-guide-close>Close</button></div>
   <div class="guide-body">
-    <p class="note">Read this together before you start. You can open it again at any moment with the <b>📋 Lab guide</b> button at the top.</p>
+    <p class="note">Read this together before you start. It tells you what you'll do in this lab; the detailed instructions are inside each step of the report. You can open it again at any moment with the <b>📋 Lab guide</b> button at the top.</p>
 
     <section>
       <h3>Goal</h3>
       <p>Find out how the stretch of a spring depends on the force that pulls it, and measure the <b>spring constant k</b> of your spring.</p>
     </section>
 
-    <section>
-      <h3>Materials</h3>
-      <div class="guide-materials">
-        <div class="guide-box"><div class="bt">Each pair</div>
-          <ul>
-            <li>A spring (note its label, if it has one)</li>
-            <li>A universal support: base, rod and clamp or hook</li>
-            <li>A ruler with millimeter divisions</li>
-            <li>A set of masses and a mass hanger</li>
-            <li>This page, open on one computer</li>
-          </ul>
-        </div>
-        <div class="guide-box"><div class="bt">Check before you start</div>
-          <ul>
-            <li>The mass written on each mass (and on the hanger)</li>
-            <li>The <b>maximum load</b> your teacher allows for your spring</li>
-            <li>That the support doesn't wobble</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
     <section class="guide-cols">
       <div>
-        <h3>Setup</h3>
+        <h3>What you'll do</h3>
         <ol>
-          <li>Screw the rod into the base and fix the clamp near the top of the rod. Check that the support is <b>stable</b>.</li>
-          <li>Hang the spring from the clamp or hook so it hangs freely, without touching the rod.</li>
-          <li>Fix the ruler <b>vertically</b> right next to the spring (clamp or tape it to the rod). It must not move during the whole experiment.</li>
-          <li>Choose two <b>reference points</b> on the spring, for example the top of the top loop and the bottom of the bottom hook. The length L is always measured between these same two points.</li>
-          <li>Decide who hangs the masses, who reads the ruler, and who types.</li>
+          <li><b>Predict</b> (step 2): decide with your partner how the stretch changes when you double the mass.</li>
+          <li><b>Set up</b> (step 3): hang the spring from the support next to a vertical ruler, and measure its natural length.</li>
+          <li><b>Measure</b> (step 4): hang masses one at a time and record the length of the spring. The force–stretch graph builds as you go, and you'll stop to discuss what it shows.</li>
+          <li><b>Analyze</b> (step 5): the best-fit line gives you the spring constant k. Explain what it means.</li>
+          <li><b>Test your model</b> (step 6): predict the length for a new mass, then hang it and check.</li>
+          <li><b>Conclude and send</b> (steps 7 and 8).</li>
         </ol>
       </div>
       <svg class="guide-fig" viewBox="0 0 230 330" aria-label="Setup: support with a hanging spring, a ruler beside it and masses on a hanger">
@@ -512,15 +506,25 @@
     </section>
 
     <section>
-      <h3>Procedure</h3>
-      <ol>
-        <li>With nothing hanging, measure the <b>natural length L₀</b> between your reference points (step 3 on the page).</li>
-        <li>Hang the hanger with the first mass. Wait until the spring is <b>completely still</b>, read L at <b>eye level</b>, and type the total mass and L (step 4).</li>
-        <li>Add masses one at a time, for example in 50 g steps, recording each. Aim for <b>6 to 8 measurements</b> spread over the allowed range. <b>Never exceed the maximum load.</b></li>
-        <li>Watch the graph build as you measure, and answer the discussion question when it appears.</li>
-        <li>Keep one combination of masses <b>unused</b>: you'll need it in step 6 to test your model.</li>
-        <li>When you finish, remove all the masses and check that the spring goes back to L₀. If it doesn't, it was overstretched: tell your teacher.</li>
-      </ol>
+      <h3>Materials</h3>
+      <div class="guide-materials">
+        <div class="guide-box"><div class="bt">Each pair</div>
+          <ul>
+            <li>A spring (note its label, if it has one)</li>
+            <li>A universal support: base, rod and clamp or hook</li>
+            <li>A ruler with millimeter divisions</li>
+            <li>A set of masses and a mass hanger</li>
+            <li>This page, open on one computer</li>
+          </ul>
+        </div>
+        <div class="guide-box"><div class="bt">Check before you start</div>
+          <ul>
+            <li>The mass written on each mass (and on the hanger)</li>
+            <li>The <b>maximum load</b> your teacher allows for your spring</li>
+            <li>That the support doesn't wobble</li>
+          </ul>
+        </div>
+      </div>
     </section>
 
     <div class="note warn"><b>Safety:</b> keep hands and feet away from under the hanging masses, add and remove masses gently, and make sure the support can't tip over.</div>

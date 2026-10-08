@@ -206,6 +206,11 @@
   .guide-link:hover { text-decoration: underline; }
   kbd { font-family: Consolas, 'Courier New', monospace; font-size: .82rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
 
+  /* ── HOW-TO LISTS (instructions where they are used) ── */
+  ol.howto { padding-left: 22px; display: grid; gap: 6px; font-size: .9rem; }
+  ol.howto li::marker { color: var(--accent); font-weight: 800; }
+  ol.howto b { color: var(--text); }
+
   footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
   footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
 </style>
@@ -277,9 +282,29 @@
     <div class="step-head"><span class="num">3</span><h2>Record and prepare the video</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
-      <button class="guide-link" data-guide>📋 Open the lab guide: how to set up, record, trim and track</button>
-      <p class="lead">Follow parts <b>A to C of the lab guide</b>: set up the tube and the camera, record the cone falling, copy the video to this computer, load it in the <b>Video Tracker</b>, and trim it. Then write down the details of your video:</p>
+      <h3 class="sub">a · Set up</h3>
+      <ol class="howto">
+        <li><b>Make the cone:</b> cut a paper circle, cut a slit from the edge to the center, overlap the edges and tape them. It must be <b>narrower than the tube</b> so it falls without touching the walls.</li>
+        <li>Fix the tube <b>vertically</b> to the support.</li>
+        <li>Put two tape marks on the tube, one near the top and one near the bottom, and measure the distance between them with the meter stick (for example 90.0 cm). You'll use it to <b>calibrate</b> the video.</li>
+        <li>Tape a white sheet behind the tube.</li>
+        <li>Place the camera on a stable support <b>1.5 to 2 m away</b>, at the height of the <b>middle of the tube</b>, facing it straight on (see the picture in the 📋 Lab guide). The whole tube and both marks must fit in the picture. <b>Don't zoom or move the camera</b> while recording.</li>
+        <li>If your camera lets you choose, record at <b>60 frames per second</b>. Write down the frame rate below.</li>
+      </ol>
+      <h3 class="sub">b · Record</h3>
+      <ol class="howto">
+        <li>Start recording, then hold the cone <b>point down</b> just above the top mark and <b>let it go</b>, without pushing it.</li>
+        <li>Record <b>three drops</b>. Stop recording after each landing, or keep recording all three in one video.</li>
+        <li>Watch the video: the cone must be visible all the way down and must not touch the walls. Choose the <b>best drop</b>.</li>
+        <li>Copy the video to this computer (MP4 works best).</li>
+      </ol>
+      <h3 class="sub">c · Load and trim in the Video Tracker</h3>
       <div class="row-btns"><a class="btn primary" href="../../physics/lab-tools/VideoTracker.html" target="_blank" rel="noopener">🎬 Open the Video Tracker</a><span class="caption">It opens in a new tab, so this report stays open here.</span></div>
+      <ol class="howto">
+        <li><b>1 Load Video:</b> type the frame rate of your video in <b>FPS</b> first, then click <b>📂 Load</b> and choose your video.</li>
+        <li><b>2 Trim:</b> use <b>◀ Frame / Frame ▶</b> to find the frame where the cone is released and click <b>▶In</b>. Find the frame where it reaches the bottom mark and click <b>Out◀</b>. If your video has several drops, trim around the best one.</li>
+        <li>Write both frame numbers below, then click <b>Done ✓</b> in the Video Tracker.</li>
+      </ol>
       <div class="grid2">
         <label class="f"><span>Frame rate of your video (frames per second, fps)</span><input type="text" inputmode="decimal" data-bind="video.fps" placeholder="e.g. 30 or 60"></label>
         <label class="f"><span>How many drops did you record?</span><input type="text" inputmode="numeric" data-bind="video.drops" placeholder="e.g. 3"></label>
@@ -298,10 +323,17 @@
     <div class="step-head"><span class="num">4</span><h2>Track the cone and bring your data here</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
-      <p class="lead">Follow <b>part D of the lab guide</b>: calibrate, set the origin, and click the cone's tip in every frame. Then bring two things here:</p>
+      <p class="lead">Keep working in the Video Tracker:</p>
+      <ol class="howto">
+        <li><b>3 Calibrate:</b> choose the unit <b>cm</b>, click on the top mark and then on the bottom mark, and type the real distance between them (for example 90).</li>
+        <li><b>4 Origin:</b> drag the origin to the <b>top mark</b> and leave the axis angle at 0°. The Y axis points <b>up</b>, so the falling cone's y values become negative. Click <b>Done ✓</b>.</li>
+        <li><b>5 Track:</b> click on the <b>tip of the cone</b> in every frame. After each click the video moves to the next frame by itself. If you miss, click <b>↶ Undo</b>.</li>
+        <li>In the <b>Y position vs. Time</b> graph, change <b>No fit</b> to <b>Linear</b>.</li>
+      </ol>
+      <p class="lead">Then bring two things here:</p>
       <h3 class="sub">a · Your tracking data</h3>
       <div class="box">
-        <p class="caption">In the Video Tracker, click <b>⬇ CSV</b> and then <b>Export</b>. Choose the downloaded file here.</p>
+        <p class="caption">In the Video Tracker, click <b>⬇ CSV</b>, keep <b>Time</b> and <b>Y position</b> checked, and click <b>Export</b>. Choose the downloaded file here.</p>
         <div class="row-btns">
           <label class="btn primary" for="csv-file">⬆ Import the CSV file</label><input type="file" id="csv-file" accept=".csv,text/csv,text/plain" hidden>
           <button class="guide-link" id="paste-toggle">or paste the rows of the Data Table instead</button>
@@ -321,7 +353,7 @@
       </div>
       <h3 class="sub">b · A screenshot of your tracking</h3>
       <div class="box">
-        <p class="caption">Show the video with your tracked points <b>and</b> the Y-vs-time graph with its <b>linear fit</b> (part D, last step). Take the screenshot with <kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> (Windows) or <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>4</kbd> (Mac), then press <kbd>Ctrl</kbd>+<kbd>V</kbd> on this page, drop the image file here, or choose it.</p>
+        <p class="caption">Make sure the video with your tracked points <b>and</b> the Y-vs-time graph with its <b>linear fit</b> are both visible. Take the screenshot with <kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> (Windows) or <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>4</kbd> (Mac), then press <kbd>Ctrl</kbd>+<kbd>V</kbd> on this page, drop the image file here, or choose it.</p>
         <div class="drop" id="shot-drop">
           <div id="shot-empty">📷 Paste (<kbd>Ctrl</kbd>+<kbd>V</kbd>) or drop your screenshot here</div>
           <img id="shot-img" alt="Tracking screenshot" hidden>
@@ -450,45 +482,22 @@
 <dialog class="guide" id="guide">
   <div class="guide-head"><h2>📋 Lab guide: Falling Cone</h2><button class="pill-btn" data-guide-close>Close</button></div>
   <div class="guide-body">
-    <p class="note">Read this together before you start. You can open it again at any moment with the <b>📋 Lab guide</b> button at the top.</p>
+    <p class="note">Read this together before you start. It tells you what you'll do in this lab; the detailed instructions are inside each step of the report. You can open it again at any moment with the <b>📋 Lab guide</b> button at the top.</p>
 
     <section>
       <h3>Goal</h3>
       <p>Measure the velocity of a paper cone falling inside a vertical tube with <b>two methods</b> (the slope of the position graph, and the definition v = Δy/Δt), and decide whether the cone falls with <b>uniform velocity</b>.</p>
     </section>
 
-    <section>
-      <h3>Materials</h3>
-      <div class="guide-materials">
-        <div class="guide-box"><div class="bt">Each pair</div>
-          <ul>
-            <li>A paper cone (or paper, scissors and tape to make one)</li>
-            <li>A clear plastic tube, 1 meter long, held vertical</li>
-            <li>Tape for marks, and a meter stick</li>
-            <li>A camera that records video, on a stable support</li>
-            <li>A computer with this page and the Video Tracker</li>
-          </ul>
-        </div>
-        <div class="guide-box"><div class="bt">Tips</div>
-          <ul>
-            <li>A white sheet of paper behind the tube makes the cone easy to see.</li>
-            <li>Good light keeps the cone sharp in every frame.</li>
-            <li>The cone must fall freely, without touching the walls of the tube.</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
     <section class="guide-cols">
       <div>
-        <h3>A · Set up</h3>
+        <h3>What you'll do</h3>
         <ol>
-          <li><b>Make the cone:</b> cut a paper circle, cut a slit from the edge to the center, overlap the edges and tape them. It must be <b>narrower than the tube</b> so it falls without touching the walls.</li>
-          <li>Fix the tube <b>vertically</b> to the support.</li>
-          <li>Put two tape marks on the tube, one near the top and one near the bottom, and measure the distance between them with the meter stick (for example 90.0 cm). You'll use it to <b>calibrate</b> the video.</li>
-          <li>Tape a white sheet behind the tube.</li>
-          <li>Place the camera on a stable support <b>1.5 to 2 m away</b>, at the height of the <b>middle of the tube</b>, facing it straight on. The whole tube and both marks must fit in the picture. <b>Don't zoom or move the camera</b> while recording.</li>
-          <li>If your camera lets you choose, record at <b>60 frames per second</b>. Write down the frame rate: you'll need it.</li>
+          <li><b>Predict</b> (step 2): decide how the cone's speed will change while it falls.</li>
+          <li><b>Set up and record</b> (step 3): build the cone, film it falling through the tube, and trim the video in the Video Tracker.</li>
+          <li><b>Track</b> (step 4): calibrate the video, click the cone in every frame, and bring the data and a screenshot to this report.</li>
+          <li><b>Find the velocity with two methods</b> (steps 5 and 6): the slope of the position graph, and v = Δy/Δt for the whole fall and for four parts of it. You'll stop to discuss how v changes.</li>
+          <li><b>Compare, decide if the motion is uniform, conclude and send</b> (steps 7 to 9).</li>
         </ol>
       </div>
       <svg class="guide-fig" viewBox="0 0 250 300" aria-label="A vertical tube with two tape marks and a falling cone, filmed by a camera on a support placed in front of the middle of the tube">
@@ -512,35 +521,25 @@
     </section>
 
     <section>
-      <h3>B · Record the video</h3>
-      <ol>
-        <li>Start recording, then hold the cone <b>point down</b> just above the top mark and <b>let it go</b>, without pushing it.</li>
-        <li>Record <b>three drops</b>. Stop recording after each landing, or keep recording all three in one video.</li>
-        <li>Watch the video: the cone must be visible all the way down and must not touch the walls. Choose the <b>best drop</b>.</li>
-        <li>Copy the video to this computer (MP4 works best).</li>
-      </ol>
-    </section>
-
-    <section>
-      <h3>C · Load and trim in the Video Tracker</h3>
-      <ol>
-        <li>Open the <b>Video Tracker</b> (button in step 3 of this page).</li>
-        <li><b>1 Load Video:</b> type the frame rate of your video in <b>FPS</b> first, then click <b>📂 Load</b> and choose your video.</li>
-        <li><b>2 Trim:</b> use <b>◀ Frame / Frame ▶</b> to find the frame where the cone is released and click <b>▶In</b>. Find the frame where it reaches the bottom mark and click <b>Out◀</b>. If your video has several drops, trim around the best one. Write both frame numbers in step 3 of this page, then click <b>Done ✓</b>.</li>
-      </ol>
-    </section>
-
-    <section>
-      <h3>D · Track and read the numbers</h3>
-      <ol>
-        <li><b>3 Calibrate:</b> choose the unit <b>cm</b>, click on the top mark and then on the bottom mark, and type the real distance between them (for example 90).</li>
-        <li><b>4 Origin:</b> drag the origin to the <b>top mark</b> and leave the axis angle at 0°. The Y axis points <b>up</b>, so the falling cone's y values become negative. Click <b>Done ✓</b>.</li>
-        <li><b>5 Track:</b> click on the <b>tip of the cone</b> in every frame. After each click the video moves to the next frame by itself. If you miss, click <b>↶ Undo</b>.</li>
-        <li>In the <b>Y position vs. Time</b> graph, change <b>No fit</b> to <b>Linear</b>. Read the equation <b>y = a*t + b</b> and <b>R²</b>: the slope <b>a</b> is the cone's velocity (method 1, step 5 of this page).</li>
-        <li>Click <b>⬇ CSV</b>, keep <b>Time</b> and <b>Y position</b> checked, and click <b>Export</b>. Import that file in step 4 of this page.</li>
-        <li><b>Take the screenshot:</b> make sure the video with your tracked points and the Y graph with its linear fit are both visible, then take a screenshot (<kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> on Windows, <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>4</kbd> on Mac) and paste it in step 4.</li>
-        <li><b>For method 2:</b> open the <b>Data Table</b> and read t and y of the <b>first</b> and the <b>last</b> tracked points. Use them in step 6 to calculate v = Δy/Δt yourself.</li>
-      </ol>
+      <h3>Materials</h3>
+      <div class="guide-materials">
+        <div class="guide-box"><div class="bt">Each pair</div>
+          <ul>
+            <li>A paper cone (or paper, scissors and tape to make one)</li>
+            <li>A clear plastic tube, 1 meter long, held vertical</li>
+            <li>Tape for marks, and a meter stick</li>
+            <li>A camera that records video, on a stable support</li>
+            <li>A computer with this page and the Video Tracker</li>
+          </ul>
+        </div>
+        <div class="guide-box"><div class="bt">Tips</div>
+          <ul>
+            <li>A white sheet of paper behind the tube makes the cone easy to see.</li>
+            <li>Good light keeps the cone sharp in every frame.</li>
+            <li>The cone must fall freely, without touching the walls of the tube.</li>
+          </ul>
+        </div>
+      </div>
     </section>
 
     <div class="note warn"><b>Take care:</b> release the cone gently and keep the tube steady. Don't climb on chairs or tables to reach the top of the tube: lower the support instead.</div>
