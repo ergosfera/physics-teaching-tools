@@ -160,8 +160,40 @@
   .dlg-head h2 { font-size: 1.05rem; margin-right: auto; }
   .dlg-body { padding: 18px; display: grid; gap: 18px; }
 
-  body.big { font-size: 118%; }
-  body.big .plot text { font-size: 14px; }
+  /* ── Presentation (Projector) ── */
+  #show { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; flex-direction: column; }
+  body.presenting { overflow: hidden; }
+  .slide { flex: 1; min-height: 0; padding: 4vh 5vw 2vh; display: flex; flex-direction: column; gap: 2.4vh; overflow: auto; }
+  .slide h2 { font-size: clamp(1.4rem, 2.6vw, 2.6rem); font-weight: 800; letter-spacing: -.5px; line-height: 1.2; }
+  .slide h2 .qn { color: var(--accent); margin-right: .4em; }
+  .slide h2 .page { color: var(--muted); font-weight: 600; font-size: .6em; margin-left: .5em; }
+  .slide .sub { color: var(--muted); font-size: clamp(.9rem, 1.3vw, 1.3rem); }
+  .slide .plot-wrap { flex: 1; min-height: 0; display: flex; justify-content: center; }
+  .slide .plot-wrap svg { height: 100%; width: 100%; max-height: 74vh; }
+  .slide .legend .chip { font-size: clamp(.8rem, 1vw, 1.05rem); cursor: default; }
+  .slide.title { justify-content: center; align-items: center; text-align: center; }
+  .slide.title h1 { font-size: clamp(2.2rem, 6vw, 5.5rem); font-weight: 800; letter-spacing: -1.5px; }
+  .slide.title h1 span { color: var(--accent); }
+  .slide.title .sub { font-size: clamp(1.1rem, 2vw, 2rem); }
+  .slide .tiles .tile .v { font-size: clamp(1.8rem, 3.4vw, 3.4rem); }
+  .slide .tiles .tile .k, .slide .tiles .tile .s { font-size: clamp(.75rem, 1.1vw, 1.1rem); }
+  .slide table.t { font-size: clamp(.9rem, 1.35vw, 1.4rem); }
+  .slide table.t th { font-size: .75em; }
+  .slide .bars .bar { font-size: clamp(.95rem, 1.4vw, 1.45rem); grid-template-columns: minmax(180px, 30%) 1fr 50px; }
+  .slide .bars .track { height: clamp(22px, 3.2vh, 38px); }
+  .slide .answers { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.6vw; align-content: start; }
+  @media (max-width: 900px) { .slide .answers { grid-template-columns: 1fr; } }
+  .slide .ans { font-size: clamp(1rem, 1.45vw, 1.5rem); line-height: 1.4; cursor: zoom-in; padding: 1.4vw 1.6vw; }
+  .slide .ans .who { font-size: .7em; cursor: inherit; }
+  .slide .ans.zoom {
+    position: fixed; z-index: 110; inset: 10vh 12vw auto; max-height: 80vh; overflow: auto;
+    font-size: clamp(1.4rem, 2.6vw, 2.8rem); cursor: zoom-out; box-shadow: 0 0 0 100vmax rgba(0,0,0,.6);
+  }
+  .show-bar { display: flex; align-items: center; gap: 10px; padding: 8px 20px 12px; color: var(--muted); font-size: .8rem; }
+  .show-bar .track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .show-bar .track i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+  .show-bar .pill-btn { opacity: .55; }
+  .show-bar .pill-btn:hover { opacity: 1; }
 
   @media print {
     header .pill-btn, header .ctl, .jump, #setup { display: none !important; }
@@ -181,7 +213,7 @@
   <button class="pill-btn" id="refresh">⟳ Refresh</button>
   <button class="pill-btn" id="auto">Live: off</button>
   <button class="pill-btn" id="names">Names: hidden</button>
-  <button class="pill-btn" id="big">Projector</button>
+  <button class="pill-btn" id="present" title="Present the results as full-screen slides">▶ Projector</button>
   <button class="pill-btn" id="theme-toggle">☀ Light</button>
   <button class="pill-btn" id="setup-toggle">⚙ Setup &amp; data</button>
   <span id="fetch-state"></span>
@@ -262,6 +294,17 @@
   </div>
 </main>
 
+<div id="show" hidden>
+  <div class="slide" id="slide"></div>
+  <div class="show-bar">
+    <button class="pill-btn" id="show-prev" title="Previous (←)">◀</button>
+    <span id="show-count"></span>
+    <div class="track"><i id="show-progress"></i></div>
+    <button class="pill-btn" id="show-next" title="Next (→, space)">▶</button>
+    <button class="pill-btn" id="show-exit" title="Exit (Esc)">✕ Exit</button>
+  </div>
+</div>
+
 <dialog id="dlg">
   <div class="dlg-head"><h2 id="dlg-title"></h2><button class="pill-btn" id="dlg-prev">◀</button><button class="pill-btn" id="dlg-next">▶</button><button class="pill-btn" id="dlg-close">Close</button></div>
   <div class="dlg-body" id="dlg-body"></div>
@@ -293,7 +336,7 @@ const QUESTIONS = [
 const CONN = { api: '', key: '' };
 try { Object.assign(CONN, JSON.parse(localStorage.getItem('labreports_connection') || '{}')); } catch (e) {}
 const SKEY = 'labdash_' + LAB_ID;
-let CFG = { refk: '', g: '', session: '', names: false, big: false };
+let CFG = { refk: '', g: '', session: '', names: false };
 try { Object.assign(CFG, JSON.parse(localStorage.getItem(SKEY) || '{}')); } catch (e) {}
 function saveCfg() { try { localStorage.setItem(SKEY, JSON.stringify(CFG)); } catch (e) {} }
 
@@ -484,6 +527,7 @@ function render() {
   renderSummary();
   renderResults();
   renderQuestions();
+  if (!showEl.hidden) buildSlides();
 }
 
 // Jump links: scroll so the target sits just below the sticky top bar, whatever its height
@@ -546,25 +590,32 @@ document.getElementById('results').addEventListener('click', e => {
 
 function renderQuestions() {
   document.getElementById('questions').innerHTML = QUESTIONS.map((q, qi) => {
-    let extra = '';
-    if (q.chart === 'pred') {
-      const counts = {}; GROUPS.forEach(G => { const c = G.s.prediction?.choice; if (c) counts[c] = (counts[c] || 0) + 1; });
-      extra = `<div class="card"><div class="bars">${Object.keys(PRED_TEXT).map(c => bar(PRED_TEXT[c], counts[c] || 0)).join('')}</div></div>`;
-    } else if (q.chart === 'errors') {
-      const counts = {}; GROUPS.forEach(G => (G.s.conclusion?.errors || []).forEach(e => { counts[e] = (counts[e] || 0) + 1; }));
-      extra = `<div class="card"><div class="bars">${Object.keys(ERRORS).sort((a, b) => (counts[b] || 0) - (counts[a] || 0)).map(e => bar(ERRORS[e], counts[e] || 0)).join('')}</div></div>`;
-    }
-    const cards = GROUPS.map((G, i) => {
-      const text = String(q.get(G.s) || '').trim();
-      const pre = q.id === 'prediction' && G.s.prediction?.choice ? `<b>${esc(PRED_TEXT[G.s.prediction.choice])}.</b> ` : '';
-      if (q.chart === 'errors' && !text) return '';
-      return `<div class="ans">
-        <div class="who" data-i="${i}" title="Open full report"><span class="dot" style="background:${G.color}"></span>${esc(label(G))}${CFG.names ? ' · ' + esc(who(G)) : ''}</div>
-        ${text || pre ? `<div class="text">${pre}${esc(text)}</div>` : '<div class="empty">No answer</div>'}</div>`;
-    }).join('');
-    return `<section class="question"><div class="qt" id="q-${q.id}"><b>Q${qi + 1}</b>${esc(q.title)}</div>${extra}
+    const chart = questionChart(q);
+    const cards = GROUPS.map((G, i) => answerCard(q, G, i)).join('');
+    return `<section class="question"><div class="qt" id="q-${q.id}"><b>Q${qi + 1}</b>${esc(q.title)}</div>${chart ? `<div class="card">${chart}</div>` : ''}
       ${cards ? `<div class="answers">${cards}</div>` : ''}</section>`;
   }).join('');
+}
+// Bar chart of choices for the questions that have one
+function questionChart(q) {
+  if (q.chart === 'pred') {
+    const counts = {}; GROUPS.forEach(G => { const c = G.s.prediction?.choice; if (c) counts[c] = (counts[c] || 0) + 1; });
+    return `<div class="bars">${Object.keys(PRED_TEXT).map(c => bar(PRED_TEXT[c], counts[c] || 0)).join('')}</div>`;
+  }
+  if (q.chart === 'errors') {
+    const counts = {}; GROUPS.forEach(G => (G.s.conclusion?.errors || []).forEach(e => { counts[e] = (counts[e] || 0) + 1; }));
+    return `<div class="bars">${Object.keys(ERRORS).sort((a, b) => (counts[b] || 0) - (counts[a] || 0)).map(e => bar(ERRORS[e], counts[e] || 0)).join('')}</div>`;
+  }
+  return '';
+}
+// One group's answer to a question ('' when an optional answer is empty)
+function answerCard(q, G, i) {
+  const text = String(q.get(G.s) || '').trim();
+  const pre = q.id === 'prediction' && G.s.prediction?.choice ? `<b>${esc(PRED_TEXT[G.s.prediction.choice])}.</b> ` : '';
+  if (q.chart === 'errors' && !text) return '';
+  return `<div class="ans">
+    <div class="who" data-i="${i}" title="Open full report"><span class="dot" style="background:${G.color}"></span>${esc(label(G))}${CFG.names ? ' · ' + esc(who(G)) : ''}</div>
+    ${text || pre ? `<div class="text">${pre}${esc(text)}</div>` : '<div class="empty">No answer</div>'}</div>`;
 }
 document.getElementById('questions').addEventListener('click', e => {
   const w = e.target.closest('.who[data-i]');
@@ -574,6 +625,102 @@ function bar(name, n) {
   const max = Math.max(1, GROUPS.length);
   return `<div class="bar"><span>${esc(name)}</span><div class="track"><div class="fill" style="width:${n / max * 100}%"></div></div><b>${n}</b></div>`;
 }
+
+// ── Presentation: full-screen slides of the class results ──
+const showEl = document.getElementById('show');
+const ANSWERS_PER_SLIDE = 6;
+let SLIDES = [], SLIDE = 0, enteredFullscreen = false;
+
+function buildSlides() {
+  const on = GROUPS.filter(G => G.on);
+  const fits = GROUPS.filter(G => G.fit);
+  SLIDES = [];
+  SLIDES.push({ cls: 'title', html: `
+    <h1>🧪 <span>Hooke's Law</span></h1>
+    <div class="sub">${CFG.session ? 'Session ' + esc(CFG.session) + ' · ' : ''}${GROUPS.length} group report${GROUPS.length === 1 ? '' : 's'}</div>
+    <div class="sub">Force vs stretch · spring constant k · predictions and conclusions</div>` });
+  SLIDES.push({ html: `<h2>What did every group measure?</h2>
+    <div class="plot-wrap"><svg class="plot" id="show-fx"></svg></div>
+    <div class="legend">${on.map(G => `<span class="chip"><i style="background:${G.color}"></i>${esc(label(G))}</span>`).join('')}</div>`,
+    draw: () => plotFx(document.getElementById('show-fx'), on) });
+  SLIDES.push({ html: `<h2>Spring constant k by group</h2>
+    <div class="tiles">${[...new Set(fits.map(G => G.s.spring || '?'))].sort().map(sp => {
+      const ks = fits.filter(G => (G.s.spring || '?') === sp).map(G => G.fit.k);
+      return `<div class="tile"><div class="k">Spring ${esc(sp)} · median k</div><div class="v">${fmt(median(ks))} <small>N/m</small></div><div class="s">${ks.length} group${ks.length === 1 ? '' : 's'} · range ${fmt(Math.min(...ks))}–${fmt(Math.max(...ks))}</div></div>`;
+    }).join('')}</div>
+    <div class="plot-wrap"><svg class="plot" id="show-k"></svg></div>`,
+    draw: () => plotK(document.getElementById('show-k'), on) });
+  SLIDES.push({ html: `<h2>Results by group</h2><div class="table-wrap"><table class="t">${document.getElementById('results').innerHTML}</table></div>` });
+  QUESTIONS.forEach((q, qi) => {
+    const cards = GROUPS.map((G, i) => answerCard(q, G, i)).filter(Boolean);
+    const chart = questionChart(q);
+    const title = `<h2><span class="qn">Q${qi + 1}</span>${esc(q.title)}`;
+    if (chart) SLIDES.push({ html: `${title}</h2><div class="card">${chart}</div>` });
+    if (chart && !cards.length) return;
+    const pages = Math.max(1, Math.ceil(cards.length / ANSWERS_PER_SLIDE));
+    for (let p = 0; p < pages; p++) {
+      const part = cards.slice(p * ANSWERS_PER_SLIDE, (p + 1) * ANSWERS_PER_SLIDE);
+      SLIDES.push({ html: `${title}${pages > 1 ? `<span class="page">${p + 1}/${pages}</span>` : ''}</h2>
+        ${part.length ? `<div class="answers">${part.join('')}</div>` : '<div class="sub">No answers yet.</div>'}
+        <div class="sub" style="margin-top:auto">Click an answer to enlarge it.</div>` });
+    }
+  });
+  showSlide(Math.min(SLIDE, SLIDES.length - 1));
+}
+
+function showSlide(i) {
+  SLIDE = Math.max(0, Math.min(SLIDES.length - 1, i));
+  const sl = SLIDES[SLIDE], el = document.getElementById('slide');
+  el.className = 'slide ' + (sl.cls || '');
+  el.innerHTML = sl.html;
+  el.scrollTop = 0;
+  if (sl.draw) sl.draw();
+  document.getElementById('show-count').textContent = (SLIDE + 1) + ' / ' + SLIDES.length;
+  document.getElementById('show-progress').style.width = ((SLIDE + 1) / SLIDES.length * 100) + '%';
+}
+
+function openShow() {
+  if (!GROUPS.length) { alert('There are no reports to present yet.'); return; }
+  showEl.hidden = false;
+  document.body.classList.add('presenting');
+  SLIDE = 0;
+  buildSlides();
+  enteredFullscreen = false;
+  if (document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().then(() => { enteredFullscreen = true; }).catch(() => {});
+  }
+}
+function closeShow() {
+  showEl.hidden = true;
+  document.body.classList.remove('presenting');
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+// Leaving full screen (Esc in the browser) also ends the presentation
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && enteredFullscreen && !showEl.hidden) closeShow();
+});
+
+document.getElementById('present').addEventListener('click', openShow);
+document.getElementById('show-exit').addEventListener('click', closeShow);
+document.getElementById('show-prev').addEventListener('click', () => showSlide(SLIDE - 1));
+document.getElementById('show-next').addEventListener('click', () => showSlide(SLIDE + 1));
+document.getElementById('slide').addEventListener('click', e => {
+  const card = e.target.closest('.ans');
+  if (!card) return;
+  const was = card.classList.contains('zoom');
+  document.querySelectorAll('#slide .ans.zoom').forEach(c => c.classList.remove('zoom'));
+  if (!was) card.classList.add('zoom');
+});
+document.addEventListener('keydown', e => {
+  if (showEl.hidden) return;
+  const zoomed = document.querySelector('#slide .ans.zoom');
+  if (e.key === 'Escape') { if (zoomed) zoomed.classList.remove('zoom'); else closeShow(); return; }
+  if (zoomed) zoomed.classList.remove('zoom');
+  if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); showSlide(SLIDE + 1); }
+  else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); showSlide(SLIDE - 1); }
+  else if (e.key === 'Home') showSlide(0);
+  else if (e.key === 'End') showSlide(SLIDES.length - 1);
+});
 
 // ── Full report of one group (dialog) ───────────────────────
 const dlg = document.getElementById('dlg');
@@ -654,12 +801,10 @@ sessEl.value = CFG.session;
 sessEl.addEventListener('input', () => { CFG.session = sessEl.value.trim(); saveCfg(); render(); });
 
 function applyToggles() {
-  const n = document.getElementById('names'), b = document.getElementById('big');
+  const n = document.getElementById('names');
   n.textContent = 'Names: ' + (CFG.names ? 'shown' : 'hidden'); n.classList.toggle('on', CFG.names);
-  b.classList.toggle('on', CFG.big); document.body.classList.toggle('big', CFG.big);
 }
 document.getElementById('names').addEventListener('click', () => { CFG.names = !CFG.names; saveCfg(); applyToggles(); render(); });
-document.getElementById('big').addEventListener('click', () => { CFG.big = !CFG.big; saveCfg(); applyToggles(); });
 
 // ── Setup panel ─────────────────────────────────────────────
 const setupEl = document.getElementById('setup');
