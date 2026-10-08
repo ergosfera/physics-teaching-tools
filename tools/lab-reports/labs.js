@@ -12,6 +12,12 @@ const LAB_TOPICS = [
         student: 'mechanics/hookes_law_lab.html',
         teacher: 'mechanics/hookes_law_teacher.html',
       },
+      {
+        id: 'falling-cone', icon: '🔻', title: 'Falling Cone',
+        desc: 'Film a paper cone falling inside a 1-meter tube and track it with the Video Tracker. Find its velocity with two methods and decide if the motion is uniform.',
+        student: 'mechanics/falling_cone_lab.html',
+        teacher: 'mechanics/falling_cone_teacher.html',
+      },
     ],
   },
   {

@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Falling Cone Lab</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔻</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950;
+    --green-soft: rgba(63,185,80,.12);
+    --amber: #d29922;
+    --amber-soft: rgba(210,153,34,.14);
+    --red: #f85149;
+    --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #0969da;
+    --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37;
+    --green-soft: rgba(26,127,55,.09);
+    --amber: #9a6700;
+    --amber-soft: rgba(154,103,0,.10);
+    --red: #cf222e;
+  }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.5; min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.3px; }
+  header h1 span { color: var(--accent); }
+  .progress { flex: 1; min-width: 140px; display: flex; gap: 4px; }
+  .progress i { flex: 1; height: 6px; border-radius: 3px; background: var(--surface2); border: 1px solid var(--border); }
+  .progress i.done { background: var(--green); border-color: var(--green); }
+  .progress i.current { background: var(--accent); border-color: var(--accent); }
+  .save-state { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .pill-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 20px; padding: 5px 12px; font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer;
+  }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  .intro { color: var(--muted); font-size: .92rem; margin-bottom: 20px; }
+  .intro b { color: var(--text); }
+
+  /* ── STEPS ── */
+  .step {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .step-head {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-head .num {
+    width: 30px; height: 30px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; font-weight: 800; font-size: .9rem;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .step.done .num { background: var(--green); border-color: var(--green); color: #fff; }
+  .step.active .num { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step-head h2 { font-size: 1.02rem; font-weight: 700; flex: 1; }
+  .step-head .status { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .step.done .status { color: var(--green); }
+  .step-body { padding: 18px; display: grid; gap: 16px; }
+  .step-lock { display: none; padding: 14px 18px; color: var(--muted); font-size: .88rem; }
+  .step.locked .step-body { display: none; }
+  .step.locked .step-lock { display: block; }
+  .step.locked .step-head { border-bottom: none; opacity: .6; }
+
+  p.lead { font-size: .93rem; }
+  ul.tips, ol.tips { font-size: .86rem; color: var(--muted); padding-left: 20px; display: grid; gap: 3px; }
+  ul.tips b, ol.tips b { color: var(--text); }
+  h3.sub { font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+
+  /* ── FORM ── */
+  label.f { display: grid; gap: 5px; font-size: .82rem; font-weight: 600; color: var(--muted); align-content: end; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; font: inherit; font-size: .95rem; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  input[readonly] { background: var(--surface2); color: var(--muted); }
+  .q { display: grid; gap: 6px; }
+  .q .qt { font-size: .93rem; font-weight: 600; }
+  .q .qt em { font-style: normal; color: var(--accent); }
+  .wc { font-size: .72rem; color: var(--muted); text-align: right; }
+  .wc.ok { color: var(--green); }
+
+  .choices { display: grid; gap: 6px; }
+  .choices label {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: .92rem;
+  }
+  .choices label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px; }
+  .checks label { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; cursor: pointer; }
+  .checks input { margin-top: 4px; }
+
+  .btn {
+    font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;
+    border-radius: 8px; padding: 9px 16px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); text-decoration: none; display: inline-block;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .row-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .note {
+    border-radius: 8px; padding: 10px 14px; font-size: .88rem;
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+  }
+  .note.warn { background: var(--amber-soft); border-left-color: var(--amber); }
+  .note.good { background: var(--green-soft); border-left-color: var(--green); }
+  .discuss {
+    border: 1px dashed var(--accent); border-radius: 10px; padding: 14px; display: grid; gap: 8px;
+    background: var(--accent-soft);
+  }
+  .discuss .tag { font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  .box { border: 1px solid var(--border); border-radius: 10px; padding: 14px; display: grid; gap: 12px; background: var(--bg); }
+
+  /* ── DATA, PLOTS, SCREENSHOT ── */
+  .table-wrap { overflow-x: auto; }
+  table.data { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  table.data th { text-align: left; font-size: .74rem; color: var(--muted); font-weight: 700; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.data td { padding: 5px 8px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.data td input { min-width: 90px; padding: 6px 8px; }
+  table.data td.ok { color: var(--green); font-weight: 700; }
+  table.data td.bad { color: var(--amber); font-weight: 700; }
+  .scroll-table { max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+  .plot { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+  .plot text { fill: var(--muted); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .plot .axis { stroke: var(--muted); stroke-width: 1; }
+  .plot .grid { stroke: var(--border); stroke-width: 1; }
+  .plot .pt { fill: var(--accent); stroke: var(--bg); stroke-width: 1; }
+  .plot .lbl { fill: var(--text); font-weight: 600; }
+  .caption { font-size: .82rem; color: var(--muted); }
+  .drop {
+    border: 2px dashed var(--border); border-radius: 10px; padding: 18px; text-align: center; color: var(--muted);
+    font-size: .88rem; display: grid; gap: 10px; justify-items: center;
+  }
+  .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+  .drop img { max-width: 100%; max-height: 360px; border-radius: 6px; border: 1px solid var(--border); }
+  .eq { font-family: Consolas, 'Courier New', monospace; font-size: .95rem; }
+
+  .summary { display: grid; gap: 4px; font-size: .9rem; }
+  .summary div::before { content: '○ '; color: var(--muted); }
+  .summary div.ok::before { content: '✓ '; color: var(--green); font-weight: 800; }
+
+  /* ── LAB GUIDE ── */
+  dialog.guide {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+    width: min(820px, 94vw); max-height: 90vh; margin: auto; padding: 0;
+  }
+  dialog.guide::backdrop { background: rgba(0,0,0,.55); }
+  .guide-head { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .guide-head h2 { font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .guide-body { padding: 18px; display: grid; gap: 18px; font-size: .92rem; }
+  .guide-body h3 { font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .guide-body h4 { font-size: .9rem; font-weight: 800; margin: 12px 0 6px; }
+  .guide-body ol, .guide-body ul { padding-left: 22px; display: grid; gap: 6px; }
+  .guide-body li b { color: var(--text); }
+  .guide-cols { display: grid; grid-template-columns: 1fr 250px; gap: 18px; align-items: start; }
+  .guide-materials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .guide-cols, .guide-materials { grid-template-columns: 1fr; } }
+  .guide-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .guide-box .bt { font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  .guide-fig { width: 100%; height: auto; display: block; }
+  .guide-fig text { fill: var(--text); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .guide-foot { padding: 0 18px 18px; display: flex; justify-content: flex-end; }
+  .guide-link { background: none; border: none; color: var(--accent); font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer; padding: 0; text-align: left; justify-self: start; }
+  .guide-link:hover { text-decoration: underline; }
+  kbd { font-family: Consolas, 'Courier New', monospace; font-size: .82rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
+
+  footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
+  footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="pill-btn" href="../../../index.html#lab-reports" style="text-decoration:none">← Lab Reports</a>
+  <h1>🔻 <span>Falling Cone</span> Lab</h1>
+  <div class="progress" id="progress"></div>
+  <span class="save-state" id="save-state">Saved on this computer</span>
+  <button class="pill-btn" data-guide>📋 Lab guide</button>
+  <button class="pill-btn" id="theme-toggle">☀ Light</button>
+</header>
+
+<main>
+  <p class="intro">Work <b>with your partner</b> through the steps in order. Each step unlocks the next one. Your work is saved on this computer as you type, so a reload won't lose it. When you finish, send the report to your teacher.</p>
+
+  <!-- 1 TEAM -->
+  <section class="step" data-step="1">
+    <div class="step-head"><span class="num">1</span><h2>Your team</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="grid2">
+        <label class="f"><span>Class / session code</span><input type="text" data-bind="session" id="session-input" placeholder="e.g. 10A"></label>
+        <label class="f"><span>Group number</span><input type="text" inputmode="numeric" data-bind="group" placeholder="e.g. 4"></label>
+      </div>
+      <div class="grid2">
+        <label class="f"><span>Student 1</span><input type="text" data-bind="students.0" placeholder="Full name"></label>
+        <label class="f"><span>Student 2</span><input type="text" data-bind="students.1" placeholder="Full name"></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 PREDICT -->
+  <section class="step" data-step="2">
+    <div class="step-head"><span class="num">2</span><h2>Predict before you measure</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">You will drop a paper cone inside a vertical tube, film it, and measure its velocity. Before touching anything, <b>discuss with your partner</b>:</p>
+      <div class="q">
+        <div class="qt">Once the cone is falling inside the tube, its speed will…</div>
+        <div class="choices" data-radio="prediction.speed">
+          <label><input type="radio" name="pred-speed" value="increase"> keep increasing all the way down</label>
+          <label><input type="radio" name="pred-speed" value="then-constant"> increase at first, then stay about the same</label>
+          <label><input type="radio" name="pred-speed" value="constant"> stay the same from the start</label>
+          <label><input type="radio" name="pred-speed" value="decrease"> decrease</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">If an object moves with <em>constant velocity</em>, its position-vs-time graph is…</div>
+        <div class="choices" data-radio="prediction.graph">
+          <label><input type="radio" name="pred-graph" value="line"> a straight line</label>
+          <label><input type="radio" name="pred-graph" value="steeper"> a curve that gets steeper</label>
+          <label><input type="radio" name="pred-graph" value="flatter"> a curve that gets flatter</label>
+          <label><input type="radio" name="pred-graph" value="horizontal"> a horizontal line</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">Why do you think so? Write the reason you both agree on.</div>
+        <textarea data-bind="prediction.why" data-min="6"></textarea>
+        <div class="wc" data-wc="prediction.why"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 VIDEO -->
+  <section class="step" data-step="3">
+    <div class="step-head"><span class="num">3</span><h2>Record and prepare the video</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <button class="guide-link" data-guide>📋 Open the lab guide: how to set up, record, trim and track</button>
+      <p class="lead">Follow parts <b>A to C of the lab guide</b>: set up the tube and the camera, record the cone falling, copy the video to this computer, load it in the <b>Video Tracker</b>, and trim it. Then write down the details of your video:</p>
+      <div class="row-btns"><a class="btn primary" href="../../physics/lab-tools/VideoTracker.html" target="_blank" rel="noopener">🎬 Open the Video Tracker</a><span class="caption">It opens in a new tab, so this report stays open here.</span></div>
+      <div class="grid2">
+        <label class="f"><span>Frame rate of your video (frames per second, fps)</span><input type="text" inputmode="decimal" data-bind="video.fps" placeholder="e.g. 30 or 60"></label>
+        <label class="f"><span>How many drops did you record?</span><input type="text" inputmode="numeric" data-bind="video.drops" placeholder="e.g. 3"></label>
+      </div>
+      <div class="grid2">
+        <label class="f"><span>Trim: first frame (▶In)</span><input type="text" inputmode="numeric" data-bind="video.trimIn"></label>
+        <label class="f"><span>Trim: last frame (Out◀)</span><input type="text" inputmode="numeric" data-bind="video.trimOut"></label>
+      </div>
+      <label class="f"><span>Calibration distance you used in the Video Tracker (cm)</span><input type="text" inputmode="decimal" data-bind="video.cal" placeholder="e.g. 100" style="max-width:220px"></label>
+      <div id="video-warn"></div>
+    </div>
+  </section>
+
+  <!-- 4 TRACK -->
+  <section class="step" data-step="4">
+    <div class="step-head"><span class="num">4</span><h2>Track the cone and bring your data here</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">Follow <b>part D of the lab guide</b>: calibrate, set the origin, and click the cone's tip in every frame. Then bring two things here:</p>
+      <h3 class="sub">a · Your tracking data</h3>
+      <div class="box">
+        <p class="caption">In the Video Tracker, click <b>⬇ CSV</b> and then <b>Export</b>. Choose the downloaded file here.</p>
+        <div class="row-btns">
+          <label class="btn primary" for="csv-file">⬆ Import the CSV file</label><input type="file" id="csv-file" accept=".csv,text/csv,text/plain" hidden>
+          <button class="guide-link" id="paste-toggle">or paste the rows of the Data Table instead</button>
+        </div>
+        <div id="paste-box" hidden style="display:grid;gap:8px">
+          <textarea id="paste-text" placeholder="Paste here the rows you copied from the Video Tracker's Data Table (#, t, X, Y)"></textarea>
+          <div class="row-btns">
+            <label class="f" style="grid-auto-flow:column;align-items:center"><span>Unit of X and Y</span><select id="paste-unit" style="width:auto"><option value="cm">cm</option><option value="m">m</option></select></label>
+            <button class="btn" id="paste-use">Use the pasted data</button>
+          </div>
+        </div>
+        <div id="track-msg"></div>
+        <div id="track-view" hidden style="display:grid;gap:12px">
+          <svg class="plot" id="yt-plot" viewBox="0 0 640 360"></svg>
+          <div class="scroll-table"><table class="data" id="track-table"></table></div>
+        </div>
+      </div>
+      <h3 class="sub">b · A screenshot of your tracking</h3>
+      <div class="box">
+        <p class="caption">Show the video with your tracked points <b>and</b> the Y-vs-time graph with its <b>linear fit</b> (part D, last step). Take the screenshot with <kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> (Windows) or <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>4</kbd> (Mac), then press <kbd>Ctrl</kbd>+<kbd>V</kbd> on this page, drop the image file here, or choose it.</p>
+        <div class="drop" id="shot-drop">
+          <div id="shot-empty">📷 Paste (<kbd>Ctrl</kbd>+<kbd>V</kbd>) or drop your screenshot here</div>
+          <img id="shot-img" alt="Tracking screenshot" hidden>
+          <div class="row-btns"><label class="btn" for="shot-file">Choose an image file</label><input type="file" id="shot-file" accept="image/*" hidden><button class="btn" id="shot-remove" hidden>Remove</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 METHOD 1 -->
+  <section class="step" data-step="5">
+    <div class="step-head"><span class="num">5</span><h2>Method 1: velocity from the slope</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">In the Video Tracker, set the fit of the <b>Y position vs. Time</b> graph to <b>Linear</b>. It shows an equation like <span class="eq">y = a*t + b</span> and R². The slope <b>a</b> is the cone's average velocity. Copy the numbers exactly as shown:</p>
+      <div class="grid4">
+        <label class="f"><span>Slope a</span><input type="text" inputmode="decimal" data-bind="slope.a" placeholder="e.g. -112.4"></label>
+        <label class="f"><span>Unit of a</span><select data-bind="slope.unit"><option value="cm">cm/s</option><option value="m">m/s</option></select></label>
+        <label class="f"><span>R²</span><input type="text" inputmode="decimal" data-bind="slope.r2" placeholder="e.g. 0.9991"></label>
+      </div>
+      <div id="slope-msg"></div>
+      <div class="q">
+        <div class="qt">Your slope is negative. Why? What does the sign of the velocity tell you about the motion?</div>
+        <textarea data-bind="answers.sign" data-min="8"></textarea>
+        <div class="wc" data-wc="answers.sign"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 METHOD 2 -->
+  <section class="step" data-step="6">
+    <div class="step-head"><span class="num">6</span><h2>Method 2: average velocity v = Δy/Δt</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <h3 class="sub">a · The whole fall</h3>
+      <p class="lead">Open the <b>Data Table</b> in the Video Tracker and read the <b>first</b> and the <b>last</b> tracked points. Calculate <span class="eq">v = (y₂ − y₁) / (t₂ − t₁)</span> yourself.</p>
+      <div class="grid4">
+        <label class="f"><span>First point: t₁ (s)</span><input type="text" inputmode="decimal" data-bind="dydt.t1"></label>
+        <label class="f"><span>First point: y₁ (cm)</span><input type="text" inputmode="decimal" data-bind="dydt.y1"></label>
+        <label class="f"><span>Last point: t₂ (s)</span><input type="text" inputmode="decimal" data-bind="dydt.t2"></label>
+        <label class="f"><span>Last point: y₂ (cm)</span><input type="text" inputmode="decimal" data-bind="dydt.y2"></label>
+      </div>
+      <label class="f"><span>Your result: v = Δy/Δt (cm/s)</span><input type="text" inputmode="decimal" data-bind="dydt.v" style="max-width:220px"></label>
+      <div id="dydt-msg"></div>
+
+      <h3 class="sub">b · Does v change during the fall?</h3>
+      <p class="lead">Your data is split into <b>four parts</b> of the fall. Calculate the average velocity <span class="eq">Δy/Δt</span> in each part.</p>
+      <div class="table-wrap"><table class="data" id="intervals"></table></div>
+      <svg class="plot" id="v-plot" viewBox="0 0 640 300" hidden></svg>
+      <div class="discuss" id="discuss-change" hidden>
+        <span class="tag">💬 Stop and discuss</span>
+        <div class="qt" style="font-weight:600">Compare your four velocities. Does v change during the fall? How big is the change Δv compared with v itself? Is that change bigger than what your clicking and measuring errors could produce?</div>
+        <textarea data-bind="discuss.change" data-min="10"></textarea>
+        <div class="wc" data-wc="discuss.change"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 ANALYZE -->
+  <section class="step" data-step="7">
+    <div class="step-head"><span class="num">7</span><h2>Compare and decide</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div id="compare" class="note"></div>
+      <div class="q">
+        <div class="qt">Compare the velocity from the slope (method 1) with v = Δy/Δt (method 2). Are they equal? Why could they differ? Which method uses more of your data?</div>
+        <textarea data-bind="answers.methods" data-min="10"></textarea>
+        <div class="wc" data-wc="answers.methods"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Does the cone move with <em>uniform velocity</em> (constant v)? Use the shape of your y-vs-t graph and your four velocities as evidence.</div>
+        <textarea data-bind="answers.uniform" data-min="12"></textarea>
+        <div class="wc" data-wc="answers.uniform"></div>
+      </div>
+      <div class="q">
+        <div class="qt">What happens right after you release the cone? Is its velocity constant from the very beginning? Why?</div>
+        <textarea data-bind="answers.start" data-min="8"></textarea>
+        <div class="wc" data-wc="answers.start"></div>
+      </div>
+      <div class="q">
+        <div class="qt">In step 2 you predicted that the speed would <em id="q-pred">…</em>. Were you right? Use your data as evidence.</div>
+        <textarea data-bind="answers.predcheck" data-min="8"></textarea>
+        <div class="wc" data-wc="answers.predcheck"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 CONCLUDE -->
+  <section class="step" data-step="8">
+    <div class="step-head"><span class="num">8</span><h2>Conclude</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="q">
+        <div class="qt">Which sources of error affected your results most? Discuss and choose.</div>
+        <div class="checks" id="err-checks"></div>
+        <textarea data-bind="conclusion.errtext" placeholder="Other sources of error, or how you could reduce them (optional)" style="min-height:60px"></textarea>
+      </div>
+      <div class="q">
+        <div class="qt">Conclusion: what is the velocity of the cone with each method, and does it fall with uniform velocity? Use your numbers.</div>
+        <textarea data-bind="conclusion.text" data-min="25" style="min-height:120px"></textarea>
+        <div class="wc" data-wc="conclusion.text"></div>
+      </div>
+      <div class="q">
+        <div class="qt">How did you share the work? (Who dropped the cone, who recorded, who tracked, who calculated, who wrote…)</div>
+        <textarea data-bind="conclusion.roles" data-min="5" style="min-height:60px"></textarea>
+        <div class="wc" data-wc="conclusion.roles"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 SUBMIT -->
+  <section class="step" data-step="9">
+    <div class="step-head"><span class="num">9</span><h2>Send your report</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="summary" id="summary"></div>
+      <div class="row-btns">
+        <button class="btn primary" id="send">📤 Send to teacher</button>
+        <button class="btn" id="download">⬇ Download backup file</button>
+      </div>
+      <div id="send-status"></div>
+    </div>
+  </section>
+</main>
+
+<dialog class="guide" id="guide">
+  <div class="guide-head"><h2>📋 Lab guide: Falling Cone</h2><button class="pill-btn" data-guide-close>Close</button></div>
+  <div class="guide-body">
+    <p class="note">Read this together before you start. You can open it again at any moment with the <b>📋 Lab guide</b> button at the top.</p>
+
+    <section>
+      <h3>Goal</h3>
+      <p>Measure the velocity of a paper cone falling inside a vertical tube with <b>two methods</b> (the slope of the position graph, and the definition v = Δy/Δt), and decide whether the cone falls with <b>uniform velocity</b>.</p>
+    </section>
+
+    <section>
+      <h3>Materials</h3>
+      <div class="guide-materials">
+        <div class="guide-box"><div class="bt">Each pair</div>
+          <ul>
+            <li>A paper cone (or paper, scissors and tape to make one)</li>
+            <li>A clear plastic tube, 1 meter long, held vertical</li>
+            <li>Tape for marks, and a meter stick</li>
+            <li>A camera that records video, on a stable support</li>
+            <li>A computer with this page and the Video Tracker</li>
+          </ul>
+        </div>
+        <div class="guide-box"><div class="bt">Tips</div>
+          <ul>
+            <li>A white sheet of paper behind the tube makes the cone easy to see.</li>
+            <li>Good light keeps the cone sharp in every frame.</li>
+            <li>The cone must fall freely, without touching the walls of the tube.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="guide-cols">
+      <div>
+        <h3>A · Set up</h3>
+        <ol>
+          <li><b>Make the cone:</b> cut a paper circle, cut a slit from the edge to the center, overlap the edges and tape them. It must be <b>narrower than the tube</b> so it falls without touching the walls.</li>
+          <li>Fix the tube <b>vertically</b> to the support.</li>
+          <li>Put two tape marks on the tube, one near the top and one near the bottom, and measure the distance between them with the meter stick (for example 90.0 cm). You'll use it to <b>calibrate</b> the video.</li>
+          <li>Tape a white sheet behind the tube.</li>
+          <li>Place the camera on a stable support <b>1.5 to 2 m away</b>, at the height of the <b>middle of the tube</b>, facing it straight on. The whole tube and both marks must fit in the picture. <b>Don't zoom or move the camera</b> while recording.</li>
+          <li>If your camera lets you choose, record at <b>60 frames per second</b>. Write down the frame rate: you'll need it.</li>
+        </ol>
+      </div>
+      <svg class="guide-fig" viewBox="0 0 250 300" aria-label="A vertical tube with two tape marks and a falling cone, filmed by a camera on a support placed in front of the middle of the tube">
+        <rect x="40" y="20" width="36" height="250" rx="4" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+        <rect x="76" y="34" width="10" height="4" fill="var(--amber)"/><rect x="76" y="252" width="10" height="4" fill="var(--amber)"/>
+        <line x1="96" y1="36" x2="96" y2="254" stroke="var(--amber)" stroke-width="1.4" marker-start="url(#ar3)" marker-end="url(#ar3)"/>
+        <text x="100" y="150" font-size="11" fill="var(--amber)">90.0 cm</text>
+        <text x="100" y="164" font-size="11" fill="var(--amber)">(calibration)</text>
+        <polygon points="50,92 66,92 58,112" fill="var(--text)" opacity=".85"/>
+        <line x1="58" y1="118" x2="58" y2="140" stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="3 3" marker-end="url(#ar3)"/>
+        <text x="10" y="102" font-size="11">cone</text>
+        <text x="20" y="290" font-size="11">tube (1 m)</text>
+        <rect x="190" y="132" width="34" height="22" rx="4" fill="var(--surface2)" stroke="var(--text)"/>
+        <circle cx="190" cy="143" r="6" fill="var(--bg)" stroke="var(--text)"/>
+        <line x1="207" y1="154" x2="195" y2="270" stroke="var(--muted)" stroke-width="2"/><line x1="207" y1="154" x2="219" y2="270" stroke="var(--muted)" stroke-width="2"/>
+        <text x="190" y="122" font-size="11">camera</text>
+        <line x1="84" y1="143" x2="180" y2="143" stroke="var(--muted)" stroke-dasharray="4 4"/>
+        <text x="132" y="186" font-size="11" text-anchor="middle">1.5–2 m</text>
+        <defs><marker id="ar3" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--amber)"/></marker></defs>
+      </svg>
+    </section>
+
+    <section>
+      <h3>B · Record the video</h3>
+      <ol>
+        <li>Start recording, then hold the cone <b>point down</b> just above the top mark and <b>let it go</b>, without pushing it.</li>
+        <li>Record <b>three drops</b>. Stop recording after each landing, or keep recording all three in one video.</li>
+        <li>Watch the video: the cone must be visible all the way down and must not touch the walls. Choose the <b>best drop</b>.</li>
+        <li>Copy the video to this computer (MP4 works best).</li>
+      </ol>
+    </section>
+
+    <section>
+      <h3>C · Load and trim in the Video Tracker</h3>
+      <ol>
+        <li>Open the <b>Video Tracker</b> (button in step 3 of this page).</li>
+        <li><b>1 Load Video:</b> type the frame rate of your video in <b>FPS</b> first, then click <b>📂 Load</b> and choose your video.</li>
+        <li><b>2 Trim:</b> use <b>◀ Frame / Frame ▶</b> to find the frame where the cone is released and click <b>▶In</b>. Find the frame where it reaches the bottom mark and click <b>Out◀</b>. If your video has several drops, trim around the best one. Write both frame numbers in step 3 of this page, then click <b>Done ✓</b>.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h3>D · Track and read the numbers</h3>
+      <ol>
+        <li><b>3 Calibrate:</b> choose the unit <b>cm</b>, click on the top mark and then on the bottom mark, and type the real distance between them (for example 90).</li>
+        <li><b>4 Origin:</b> drag the origin to the <b>top mark</b> and leave the axis angle at 0°. The Y axis points <b>up</b>, so the falling cone's y values become negative. Click <b>Done ✓</b>.</li>
+        <li><b>5 Track:</b> click on the <b>tip of the cone</b> in every frame. After each click the video moves to the next frame by itself. If you miss, click <b>↶ Undo</b>.</li>
+        <li>In the <b>Y position vs. Time</b> graph, change <b>No fit</b> to <b>Linear</b>. Read the equation <b>y = a*t + b</b> and <b>R²</b>: the slope <b>a</b> is the cone's velocity (method 1, step 5 of this page).</li>
+        <li>Click <b>⬇ CSV</b>, keep <b>Time</b> and <b>Y position</b> checked, and click <b>Export</b>. Import that file in step 4 of this page.</li>
+        <li><b>Take the screenshot:</b> make sure the video with your tracked points and the Y graph with its linear fit are both visible, then take a screenshot (<kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> on Windows, <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>4</kbd> on Mac) and paste it in step 4.</li>
+        <li><b>For method 2:</b> open the <b>Data Table</b> and read t and y of the <b>first</b> and the <b>last</b> tracked points. Use them in step 6 to calculate v = Δy/Δt yourself.</li>
+      </ol>
+    </section>
+
+    <div class="note warn"><b>Take care:</b> release the cone gently and keep the tube steady. Don't climb on chairs or tables to reach the top of the tube: lower the support instead.</div>
+  </div>
+  <div class="guide-foot"><button class="btn primary" data-guide-close>Got it, let's start</button></div>
+</dialog>
+
+<footer>
+  Falling Cone Lab · Ergosfera Teaching Tools · <button id="reset">Start over (erase this report)</button>
+</footer>
+
+<script>
+// ── Config from the link the teacher shares ─────────────────
+const LAB_ID = 'falling-cone';
+const params = new URLSearchParams(location.search);
+const API = params.get('api') || '';
+const LINK_SESSION = params.get('session') || '';
+const STORE = 'lab_' + LAB_ID + '_' + (LINK_SESSION || 'default');
+
+const MIN_POINTS = 8, PARTS = 4;
+const ERRORS = [
+  ['clicking', 'Not clicking exactly on the same point of the cone'],
+  ['blur', 'Blurry cone in some frames'],
+  ['angle', 'Camera not straight in front of the tube (perspective)'],
+  ['calibration', 'Calibration marks not measured precisely'],
+  ['fps', 'Wrong or low frame rate'],
+  ['walls', 'Cone touching the walls of the tube'],
+];
+const PRED_TEXT = { increase: 'keep increasing all the way down', 'then-constant': 'increase at first, then stay about the same', constant: 'stay the same from the start', decrease: 'decrease' };
+
+// ── State ───────────────────────────────────────────────────
+function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+function blank() {
+  return {
+    schema: 1, lab: LAB_ID, id: rid(), session: LINK_SESSION, group: '', students: ['', ''],
+    prediction: { speed: '', graph: '', why: '' },
+    video: { fps: '', drops: '', trimIn: '', trimOut: '', cal: '' },
+    track: { unit: 'cm', rows: [], source: '' },
+    screenshot: '',
+    slope: { a: '', unit: 'cm', r2: '' },
+    dydt: { t1: '', y1: '', t2: '', y2: '', v: '' },
+    intervals: Array(PARTS).fill(''),
+    discuss: { change: '' },
+    answers: { sign: '', methods: '', uniform: '', start: '', predcheck: '' },
+    conclusion: { errors: [], errtext: '', text: '', roles: '' },
+    startedAt: new Date().toISOString(), unlocked: 1, sent: null,
+  };
+}
+let S = blank();
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+  if (saved && saved.lab === LAB_ID) S = Object.assign(blank(), saved);
+} catch (e) {}
+if (LINK_SESSION) S.session = LINK_SESSION;
+
+let saveTimer;
+function save() {
+  let ok = true;
+  try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { ok = false; }
+  const el = document.getElementById('save-state');
+  el.textContent = 'Saving…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { el.textContent = ok ? 'Saved on this computer ✓' : '⚠ Could not save on this computer'; }, 400);
+}
+
+function getPath(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), S); }
+function setPath(path, v) {
+  const keys = path.split('.'); let o = S;
+  keys.slice(0, -1).forEach(k => { o = o[k]; });
+  o[keys[keys.length - 1]] = v;
+}
+
+// ── Helpers ─────────────────────────────────────────────────
+const num = s => { const v = parseFloat(String(s ?? '').trim().replace(',', '.')); return isFinite(v) ? v : NaN; };
+const words = s => String(s || '').trim().split(/\s+/).filter(Boolean).length;
+function fmt(v, sig = 3) {
+  if (!isFinite(v)) return '—';
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e5 || a < 1e-3) return v.toExponential(sig - 1);
+  return String(parseFloat(v.toPrecision(sig)));
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const relDiff = (a, b) => Math.abs(Math.abs(a) - Math.abs(b)) / Math.abs(b);
+
+function linfit(pts) {
+  const n = pts.length;
+  if (n < 2) return null;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0;
+  pts.forEach(p => { sx += p.t; sy += p.y; sxx += p.t * p.t; sxy += p.t * p.y; syy += p.y * p.y; });
+  const Sxx = sxx - sx * sx / n, Sxy = sxy - sx * sy / n, Syy = syy - sy * sy / n;
+  if (Sxx <= 0) return null;
+  const a = Sxy / Sxx, b = (sy - a * sx) / n;
+  const ssr = pts.reduce((s, p) => s + (p.y - a * p.t - b) ** 2, 0);
+  return { a, b, r2: Syy > 0 ? 1 - ssr / Syy : 1 };
+}
+
+// Tracked points (cm), sorted by time
+const rows = () => [...(S.track.rows || [])].sort((p, q) => p.t - q.t);
+// The four parts of the fall: endpoints evenly spaced through the tracked points
+function parts() {
+  const r = rows(), n = r.length;
+  if (n < PARTS + 1) return [];
+  const idx = Array.from({ length: PARTS + 1 }, (_, k) => Math.round(k * (n - 1) / PARTS));
+  return Array.from({ length: PARTS }, (_, k) => {
+    const A = r[idx[k]], B = r[idx[k + 1]];
+    return { A, B, v: (B.y - A.y) / (B.t - A.t), tm: (A.t + B.t) / 2 };
+  });
+}
+const slopeCm = () => num(S.slope.a) * (S.slope.unit === 'm' ? 100 : 1);
+const dydtExpected = () => (num(S.dydt.y2) - num(S.dydt.y1)) / (num(S.dydt.t2) - num(S.dydt.t1));
+const intervalsFilled = () => S.intervals.length === PARTS && S.intervals.every(v => isFinite(num(v)));
+
+// ── Steps: completion rules ─────────────────────────────────
+const DONE = {
+  1: () => S.group.trim() && S.students[0].trim() && S.students[1].trim() && S.session.trim(),
+  2: () => S.prediction.speed && S.prediction.graph && words(S.prediction.why) >= 6,
+  3: () => num(S.video.fps) > 0 && num(S.video.drops) >= 1 && num(S.video.cal) > 0 && num(S.video.trimOut) > num(S.video.trimIn),
+  4: () => rows().length >= MIN_POINTS && !!S.screenshot,
+  5: () => isFinite(num(S.slope.a)) && isFinite(num(S.slope.r2)) && words(S.answers.sign) >= 8,
+  6: () => ['t1', 'y1', 't2', 'y2', 'v'].every(k => isFinite(num(S.dydt[k]))) && intervalsFilled() && words(S.discuss.change) >= 10,
+  7: () => words(S.answers.methods) >= 10 && words(S.answers.uniform) >= 12 && words(S.answers.start) >= 8 && words(S.answers.predcheck) >= 8,
+  8: () => words(S.conclusion.text) >= 25 && words(S.conclusion.roles) >= 5,
+  9: () => !!S.sent,
+};
+const NSTEPS = 9;
+
+function refresh() {
+  // unlock progressively; once unlocked, a step stays open
+  let firstOpen = 1;
+  while (firstOpen < NSTEPS && DONE[firstOpen]()) firstOpen++;
+  S.unlocked = Math.max(S.unlocked || 1, firstOpen);
+
+  const prog = document.getElementById('progress');
+  prog.innerHTML = '';
+  document.querySelectorAll('.step').forEach(sec => {
+    const i = +sec.dataset.step;
+    const done = !!DONE[i]();
+    const locked = i > S.unlocked;
+    sec.classList.toggle('done', done);
+    sec.classList.toggle('locked', locked);
+    sec.classList.toggle('active', !done && !locked);
+    sec.querySelector('.status').textContent = done ? '✓ Done' : locked ? '🔒' : 'In progress';
+    sec.querySelector('.step-lock').textContent = '🔒 Finish step ' + (i - 1) + ' to unlock this one.';
+    const dot = document.createElement('i');
+    if (done) dot.className = 'done'; else if (!locked) dot.className = 'current';
+    prog.appendChild(dot);
+  });
+
+  document.querySelectorAll('[data-wc]').forEach(el => {
+    const path = el.dataset.wc;
+    const min = +document.querySelector(`[data-bind="${path}"]`).dataset.min;
+    const w = words(getPath(path));
+    el.textContent = w + (w === 1 ? ' word' : ' words') + ' · at least ' + min;
+    el.classList.toggle('ok', w >= min);
+  });
+
+  refreshVideo();
+  refreshTrack();
+  refreshShot();
+  refreshSlope();
+  refreshDydt();
+  refreshIntervals();
+  refreshCompare();
+  refreshSummary();
+}
+
+// ── Generic bindings ────────────────────────────────────────
+function bindInputs(root) {
+  root.querySelectorAll('[data-bind]').forEach(el => {
+    const path = el.dataset.bind;
+    el.value = getPath(path) ?? '';
+    el.addEventListener('input', () => { setPath(path, el.value); save(); refresh(); });
+  });
+}
+bindInputs(document);
+if (LINK_SESSION) document.getElementById('session-input').readOnly = true;
+
+document.querySelectorAll('[data-radio]').forEach(box => {
+  const path = box.dataset.radio;
+  box.querySelectorAll('input').forEach(r => {
+    r.checked = r.value === getPath(path);
+    r.addEventListener('change', () => { setPath(path, r.value); save(); refresh(); });
+  });
+});
+
+const errBox = document.getElementById('err-checks');
+ERRORS.forEach(([id, text]) => {
+  const lab = document.createElement('label');
+  lab.innerHTML = `<input type="checkbox" value="${id}"> <span>${esc(text)}</span>`;
+  const cb = lab.querySelector('input');
+  cb.checked = S.conclusion.errors.includes(id);
+  cb.addEventListener('change', () => {
+    S.conclusion.errors = ERRORS.map(e => e[0]).filter(k => errBox.querySelector(`input[value=${k}]`).checked);
+    save(); refresh();
+  });
+  errBox.appendChild(lab);
+});
+
+// ── Step 3: video ───────────────────────────────────────────
+function refreshVideo() {
+  const w = [];
+  const fps = num(S.video.fps), tin = num(S.video.trimIn), tout = num(S.video.trimOut);
+  if (isFinite(fps) && (fps < 10 || fps > 1000)) w.push('That frame rate looks unusual. Check your camera settings (usually 30 or 60 fps).');
+  if (isFinite(tin) && isFinite(tout) && tout <= tin) w.push('The last frame must be after the first frame.');
+  document.getElementById('video-warn').innerHTML = w.map(t => `<div class="note warn">${t}</div>`).join('');
+}
+
+// ── Step 4: tracking data ───────────────────────────────────
+// Reads a Video Tracker CSV export (frame,time_s,x_cm,y_cm…) or rows copied from its Data Table (#, t, X, Y).
+function parseTrack(text, fallbackUnit) {
+  const lines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return { error: 'The data is empty.' };
+  const split = l => l.split(l.includes('\t') ? '\t' : l.includes(';') ? ';' : ',').map(c => c.trim().replace(/^"|"$/g, ''));
+  let head = split(lines[0]).map(h => h.toLowerCase());
+  let ti = -1, yi = -1, unit = fallbackUnit, start = 0;
+  if (head.some(h => h && isNaN(num(h)))) {
+    start = 1;
+    ti = head.findIndex(h => h === 'time_s' || h === 't' || h.startsWith('t (') || h.startsWith('time'));
+    yi = head.findIndex(h => /^y(_|\s|\(|$)/.test(h));
+    const m = yi >= 0 && head[yi].match(/\b(cm|m)\b|_(cm|m)$/);
+    if (m) unit = m[1] || m[2];
+  }
+  if (ti < 0 || yi < 0) {
+    const n = split(lines[start] || '').length;
+    if (n >= 4) { ti = 1; yi = 3; } else if (n === 2) { ti = 0; yi = 1; }
+    else return { error: 'Could not find the time and Y columns. Export the CSV from the Video Tracker, or paste the rows of its Data Table (#, t, X, Y).' };
+  }
+  const k = unit === 'm' ? 100 : 1;
+  const pts = lines.slice(start).map(split).map(c => ({ t: num(c[ti]), y: num(c[yi]) * k })).filter(p => isFinite(p.t) && isFinite(p.y));
+  if (pts.length < 2) return { error: 'Found fewer than 2 data rows.' };
+  return { pts, unit };
+}
+function setTrack(text, unit, source) {
+  const r = parseTrack(text, unit);
+  const msg = document.getElementById('track-msg');
+  if (r.error) { msg.innerHTML = `<div class="note warn">${r.error}</div>`; return; }
+  S.track = { unit: 'cm', rows: r.pts.map(p => ({ t: +p.t.toFixed(4), y: +p.y.toFixed(3) })), source, originalUnit: r.unit };
+  if (!S.slope.a) S.slope.unit = r.unit;
+  document.querySelector('[data-bind="slope.unit"]').value = S.slope.unit;
+  msg.innerHTML = `<div class="note good">✓ Imported ${r.pts.length} points${r.unit === 'm' ? ' (converted from m to cm)' : ''}.</div>`;
+  save(); refresh();
+}
+document.getElementById('csv-file').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (f) setTrack(await f.text(), 'cm', 'csv');
+});
+document.getElementById('paste-toggle').addEventListener('click', () => { const b = document.getElementById('paste-box'); b.hidden = !b.hidden; });
+document.getElementById('paste-use').addEventListener('click', () => setTrack(document.getElementById('paste-text').value, document.getElementById('paste-unit').value, 'paste'));
+
+function niceStep(range, n) {
+  const raw = range / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p;
+}
+// Scatter plot with optional extra marks; pts: [{x, y}]
+function plot(svg, pts, { W, H, xLabel, yLabel, hline, zeroY = false, label } = {}) {
+  const M = { l: 62, r: 20, t: 18, b: 50 };
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y).concat(isFinite(hline) ? [hline] : []).concat(zeroY ? [0] : []);
+  const xa = Math.min(...xs), xb = Math.max(...xs), ya = Math.min(...ys), yb = Math.max(...ys);
+  const xStep = niceStep((xb - xa) || 1, 6), yStep = niceStep((yb - ya) || Math.abs(yb) || 1, 6);
+  const x0 = Math.floor(xa / xStep) * xStep, x1 = Math.ceil(xb / xStep) * xStep || xStep;
+  const y0 = Math.floor(ya / yStep) * yStep - (ya === yb ? yStep : 0), y1 = Math.ceil(yb / yStep) * yStep + (ya === yb ? yStep : 0);
+  const X = v => M.l + (v - x0) / ((x1 - x0) || 1) * (W - M.l - M.r);
+  const Y = v => H - M.b - (v - y0) / ((y1 - y0) || 1) * (H - M.t - M.b);
+  let s = '';
+  for (let v = x0; v <= x1 + 1e-9; v += xStep) s += `<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${M.t}" y2="${H - M.b}"/><text x="${X(v)}" y="${H - M.b + 18}" text-anchor="middle">${fmt(v)}</text>`;
+  for (let v = y0; v <= y1 + 1e-9; v += yStep) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  s += `<line class="axis" x1="${M.l}" x2="${M.l}" y1="${M.t}" y2="${H - M.b}"/><line class="axis" x1="${M.l}" x2="${W - M.r}" y1="${H - M.b}" y2="${H - M.b}"/>`;
+  if (isFinite(hline)) s += `<line x1="${M.l}" x2="${W - M.r}" y1="${Y(hline)}" y2="${Y(hline)}" stroke="var(--green)" stroke-width="2" stroke-dasharray="7 4"/><text x="${W - M.r - 4}" y="${Y(hline) - 6}" text-anchor="end" fill="var(--green)">${esc(label || '')}</text>`;
+  s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 10}" text-anchor="middle">${xLabel}</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">${yLabel}</text>`;
+  pts.forEach(p => { s += `<circle class="pt" cx="${X(p.x)}" cy="${Y(p.y)}" r="${p.r || 4.5}"/>`; });
+  svg.innerHTML = s;
+}
+
+function refreshTrack() {
+  const r = rows();
+  document.getElementById('track-view').hidden = !r.length;
+  if (!r.length) return;
+  plot(document.getElementById('yt-plot'), r.map(p => ({ x: p.t, y: p.y })), { W: 640, H: 360, xLabel: 't (s)', yLabel: 'y (cm)', zeroY: true });
+  document.getElementById('track-table').innerHTML = '<thead><tr><th>#</th><th>t (s)</th><th>y (cm)</th></tr></thead><tbody>' +
+    r.map((p, i) => `<tr><td>${i + 1}</td><td>${p.t.toFixed(4)}</td><td>${p.y.toFixed(2)}</td></tr>`).join('') + '</tbody>';
+  const msg = document.getElementById('track-msg');
+  if (!msg.innerHTML && r.length < MIN_POINTS) msg.innerHTML = `<div class="note warn">Only ${r.length} points. Track at least ${MIN_POINTS}, ideally one per frame from release to the bottom mark.</div>`;
+}
+
+// ── Step 4: screenshot ──────────────────────────────────────
+// Images are reduced (max 1200 px wide, JPEG) so the report stays small enough to send.
+function setScreenshot(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    let w = Math.min(1200, img.width), h = Math.round(img.height * w / img.width), q = 0.8, data;
+    const canvas = document.createElement('canvas');
+    do {
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      data = canvas.toDataURL('image/jpeg', q);
+      if (q > 0.5) q -= 0.1; else { w = Math.round(w * 0.8); h = Math.round(h * 0.8); }
+    } while (data.length > 300000 && w > 400);
+    URL.revokeObjectURL(url);
+    S.screenshot = data; save(); refresh();
+  };
+  img.src = url;
+}
+const drop = document.getElementById('shot-drop');
+document.getElementById('shot-file').addEventListener('change', e => { setScreenshot(e.target.files[0]); e.target.value = ''; });
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); setScreenshot(e.dataTransfer.files[0]); });
+document.addEventListener('paste', e => {
+  if (S.unlocked < 4) return;
+  const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+  if (item) { e.preventDefault(); setScreenshot(item.getAsFile()); }
+});
+document.getElementById('shot-remove').addEventListener('click', () => {
+  if (!confirm('Remove the screenshot?')) return;
+  S.screenshot = ''; save(); refresh();
+});
+function refreshShot() {
+  const img = document.getElementById('shot-img');
+  img.hidden = !S.screenshot;
+  if (S.screenshot && img.src !== S.screenshot) img.src = S.screenshot;
+  document.getElementById('shot-empty').hidden = !!S.screenshot;
+  document.getElementById('shot-remove').hidden = !S.screenshot;
+}
+
+// ── Step 5: method 1 ────────────────────────────────────────
+function refreshSlope() {
+  const out = document.getElementById('slope-msg'), a = slopeCm(), fit = linfit(rows());
+  if (!isFinite(a)) { out.innerHTML = ''; return; }
+  const notes = [];
+  if (fit && relDiff(a, fit.a) > 0.05)
+    notes.push(`<div class="note warn">This slope doesn't match the data you imported in step 4. Check that you read the <b>linear</b> fit of the <b>Y</b> graph (not X), and its unit.</div>`);
+  else if (fit) notes.push(`<div class="note good">✓ Your cone fell at about <b>${fmt(Math.abs(a))} cm/s</b> (${fmt(Math.abs(a) / 100)} m/s) according to the slope.</div>`);
+  const r2 = num(S.slope.r2);
+  if (isFinite(r2) && (r2 < 0 || r2 > 1)) notes.push('<div class="note warn">R² is always between 0 and 1. Check the number.</div>');
+  out.innerHTML = notes.join('');
+}
+
+// ── Step 6: method 2 ────────────────────────────────────────
+function refreshDydt() {
+  const out = document.getElementById('dydt-msg'), r = rows();
+  const v = num(S.dydt.v), exp = dydtExpected();
+  if (!isFinite(v) || !isFinite(exp)) { out.innerHTML = ''; return; }
+  const notes = [];
+  if (relDiff(v, exp) > 0.03) notes.push(`<div class="note warn">Check your calculation: with your numbers, Δy/Δt = (${fmt(num(S.dydt.y2))} − ${fmt(num(S.dydt.y1))}) / (${fmt(num(S.dydt.t2))} − ${fmt(num(S.dydt.t1))}) is not ${fmt(v)}.</div>`);
+  else notes.push('<div class="note good">✓ Your calculation is right.</div>');
+  if (r.length) {
+    const near = (p, t, y) => Math.abs(p.t - t) < 0.002 && Math.abs(p.y - y) < 0.06;
+    if (!near(r[0], num(S.dydt.t1), num(S.dydt.y1)) || !near(r[r.length - 1], num(S.dydt.t2), num(S.dydt.y2)))
+      notes.push('<div class="note warn">These are not the first and last points of the data you imported. Use the first and the last rows of the Data Table.</div>');
+  }
+  out.innerHTML = notes.join('');
+}
+
+const intervalsTable = document.getElementById('intervals');
+function renderIntervals() {
+  const ps = parts();
+  if (!ps.length) { intervalsTable.innerHTML = '<tbody><tr><td class="caption">Import your tracking data in step 4 first.</td></tr></tbody>'; return; }
+  intervalsTable.innerHTML = '<thead><tr><th>Part</th><th>From: t (s), y (cm)</th><th>To: t (s), y (cm)</th><th>Your v = Δy/Δt (cm/s)</th><th></th></tr></thead><tbody>' +
+    ps.map((p, i) => `<tr><td>${i + 1}</td><td>${p.A.t.toFixed(4)}, ${p.A.y.toFixed(2)}</td><td>${p.B.t.toFixed(4)}, ${p.B.y.toFixed(2)}</td>
+      <td><input type="text" inputmode="decimal" data-part="${i}" value="${esc(S.intervals[i] ?? '')}"></td><td data-check="${i}"></td></tr>`).join('') + '</tbody>';
+}
+intervalsTable.addEventListener('input', e => {
+  const i = e.target.dataset.part;
+  if (i == null) return;
+  S.intervals[+i] = e.target.value; save(); refresh();
+});
+let partsSig = '';
+function refreshIntervals() {
+  const ps = parts();
+  const sig = JSON.stringify(ps.map(p => [p.A.t, p.B.t]));
+  if (sig !== partsSig) { partsSig = sig; renderIntervals(); }
+  ps.forEach((p, i) => {
+    const cell = intervalsTable.querySelector(`[data-check="${i}"]`), v = num(S.intervals[i]);
+    if (!cell) return;
+    const ok = isFinite(v) && relDiff(v, p.v) <= 0.03;
+    cell.textContent = !isFinite(v) ? '' : ok ? '✓' : '⚠ check';
+    cell.className = !isFinite(v) ? '' : ok ? 'ok' : 'bad';
+  });
+  const filled = ps.length && intervalsFilled();
+  const svg = document.getElementById('v-plot');
+  svg.hidden = !filled;
+  document.getElementById('discuss-change').hidden = !filled;
+  if (filled) {
+    const a = slopeCm();
+    plot(svg, ps.map((p, i) => ({ x: p.tm, y: Math.abs(num(S.intervals[i])), r: 7 })),
+      { W: 640, H: 300, xLabel: 'Time at the middle of each part (s)', yLabel: 'speed |v| (cm/s)', hline: isFinite(a) ? Math.abs(a) : NaN, label: 'slope (method 1)', zeroY: true });
+  }
+}
+
+// ── Step 7: comparison box ──────────────────────────────────
+function refreshCompare() {
+  const a = Math.abs(slopeCm()), v = Math.abs(num(S.dydt.v));
+  const vs = S.intervals.map(x => Math.abs(num(x))).filter(isFinite);
+  const spread = vs.length === PARTS ? (Math.max(...vs) - Math.min(...vs)) : NaN;
+  document.getElementById('compare').innerHTML = `
+    Method 1 (slope): <b>${fmt(a)} cm/s</b> · Method 2 (Δy/Δt, whole fall): <b>${fmt(v)} cm/s</b>
+    ${isFinite(a) && isFinite(v) ? ` · difference: <b>${fmt(Math.abs(a - v) / a * 100, 2)}%</b>` : ''}
+    ${isFinite(spread) ? `<br>Your four parts: ${vs.map(x => fmt(x)).join(', ')} cm/s · from the smallest to the largest, Δv = <b>${fmt(spread)} cm/s</b>` : ''}`;
+  document.getElementById('q-pred').textContent = PRED_TEXT[S.prediction.speed] || '…';
+}
+
+// ── Step 9: submit ──────────────────────────────────────────
+function payload() {
+  const { unlocked, sent, guideSeen, ...data } = S;
+  return { ...data, submittedAt: new Date().toISOString(), client: 'falling_cone_lab/1' };
+}
+function refreshSummary() {
+  const names = ['Team', 'Prediction', 'Video', 'Tracking data and screenshot', 'Method 1: slope', 'Method 2: Δy/Δt', 'Comparison', 'Conclusion'];
+  document.getElementById('summary').innerHTML = names.map((n, i) => `<div class="${DONE[i + 1]() ? 'ok' : ''}">${n}</div>`).join('');
+  document.getElementById('send').disabled = !API;
+  const st = document.getElementById('send-status');
+  if (!API && !st.dataset.msg) st.innerHTML = '<div class="note warn">This link has no connection to your teacher. Use <b>Download backup file</b> and hand the file in, or ask your teacher for the class link.</div>';
+  else if (S.sent && !st.dataset.msg) st.innerHTML = `<div class="note good">Sent at ${new Date(S.sent).toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`;
+}
+function setStatus(html) { const st = document.getElementById('send-status'); st.dataset.msg = '1'; st.innerHTML = html; }
+
+document.getElementById('send').addEventListener('click', async () => {
+  const missing = [1, 2, 3, 4, 5, 6, 7, 8].filter(i => !DONE[i]());
+  if (missing.length && !confirm('Steps ' + missing.join(', ') + ' are not complete. Send anyway?')) return;
+  const btn = document.getElementById('send');
+  btn.disabled = true; setStatus('<div class="note">Sending…</div>');
+  const body = JSON.stringify(payload());
+  let ok = false, unconfirmed = false, error = '';
+  try {
+    const r = await fetch(API, { method: 'POST', body });
+    const j = await r.json();
+    if (!j.ok) { error = j.error || 'server error'; throw new Error(error); }
+    ok = true;
+  } catch (e) {
+    if (!error) {
+      try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; unconfirmed = true; } catch (e2) {}
+    }
+  }
+  btn.disabled = false;
+  if (ok) {
+    S.sent = new Date().toISOString(); save();
+    setStatus(`<div class="note good">✓ Sent${unconfirmed ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+  } else if (error) {
+    setStatus(`<div class="note warn">Your teacher's sheet could not save this report (${esc(error)}). Use <b>Download backup file</b> and give the file to your teacher.</div>`);
+  } else {
+    setStatus('<div class="note warn">Could not send: check the internet connection and try again. If it keeps failing, use <b>Download backup file</b> and give the file to your teacher.</div>');
+  }
+  refresh();
+});
+
+document.getElementById('download').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(payload(), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  const tag = [S.session, 'group' + (S.group || 'X')].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
+  a.href = URL.createObjectURL(blob);
+  a.download = `falling-cone_${tag}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+  if (!confirm('Erase this whole report from this computer? This cannot be undone.')) return;
+  try { localStorage.removeItem(STORE); } catch (e) {}
+  location.reload();
+});
+
+// ── Theme (shared with the tools index) ─────────────────────
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  document.getElementById('theme-toggle').textContent = light ? '☽ Dark' : '☀ Light';
+  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+applyTheme(savedTheme === 'light');
+document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
+
+// ── Lab guide: opens by itself the first time, and from the header anytime ──
+const guide = document.getElementById('guide');
+function openGuide() { if (!guide.open) guide.showModal(); }
+document.querySelectorAll('[data-guide]').forEach(b => b.addEventListener('click', openGuide));
+document.querySelectorAll('[data-guide-close]').forEach(b => b.addEventListener('click', () => guide.close()));
+guide.addEventListener('click', e => { if (e.target === guide) guide.close(); });
+guide.addEventListener('close', () => { if (!S.guideSeen) { S.guideSeen = true; save(); } });
+if (!S.guideSeen) openGuide();
+
+refresh();
+</script>
+</body>
+</html>

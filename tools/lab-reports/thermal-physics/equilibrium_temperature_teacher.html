@@ -6,354 +6,15 @@
 <meta name="robots" content="noindex" />
 <title>Equilibrium Temperature Teacher</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  [hidden] { display: none !important; }
-
-  :root {
-    --bg: #0d1117;
-    --surface: #161b22;
-    --surface2: #1c2128;
-    --border: #30363d;
-    --text: #e6edf3;
-    --muted: #8b949e;
-    --accent: #58a6ff;
-    --accent-soft: rgba(88,166,255,.12);
-    --green: #3fb950;
-    --amber: #d29922;
-    --amber-soft: rgba(210,153,34,.15);
-    --red: #f85149;
-    --red-soft: rgba(248,81,73,.13);
-    --radius: 12px;
-  }
-  body.light {
-    --bg: #f6f8fa;
-    --surface: #ffffff;
-    --surface2: #f0f3f6;
-    --border: #d0d7de;
-    --text: #1f2328;
-    --muted: #656d76;
-    --accent: #0969da;
-    --accent-soft: rgba(9,105,218,.08);
-    --green: #1a7f37;
-    --amber: #9a6700;
-    --amber-soft: rgba(154,103,0,.11);
-    --red: #cf222e;
-    --red-soft: rgba(207,34,46,.09);
-  }
-
-  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.45; min-height: 100vh; }
-
-.top { position: sticky; top: 0; z-index: 20; }
-  header {
-    background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 12px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  }
-  header h1 { font-size: 1.15rem; font-weight: 800; letter-spacing: -.3px; margin-right: auto; }
-  header h1 span { color: var(--accent); }
-  .ctl { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--muted); font-weight: 600; }
-  .ctl input[type=text] { width: 110px; }
-  .pill-btn {
-    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
-    border-radius: 20px; padding: 5px 12px; font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer; white-space: nowrap;
-  }
-  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
-  .pill-btn.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
-  #fetch-state { font-size: .74rem; color: var(--muted); }
-
-  .jump { background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 24px; display: flex; gap: 6px; flex-wrap: wrap; }
-  .jump a { font-size: .78rem; font-weight: 600; color: var(--muted); text-decoration: none; padding: 3px 10px; border-radius: 14px; }
-  .jump a:hover { color: var(--accent); background: var(--accent-soft); }
-
-  main { padding: 22px 24px 60px; max-width: 1400px; margin: 0 auto; display: grid; gap: 22px; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; min-width: 0; }
-  h2.sec { font-size: 1.15rem; font-weight: 800; margin: 14px 0 -6px; scroll-margin-top: 150px; }
-  .card h3 { font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
-  .two { display: grid; grid-template-columns: 3fr 2fr; gap: 18px; }
-  @media (max-width: 980px) { .two { grid-template-columns: 1fr; } }
-
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
-  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; }
-  .tile .k { font-size: .72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
-  .tile .v { font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-  .tile .v small { font-size: .85rem; color: var(--muted); font-weight: 600; }
-  .tile .s { font-size: .78rem; color: var(--muted); }
-
-  input[type=text], input[type=password], textarea, select {
-    font: inherit; font-size: .88rem; color: var(--text); background: var(--bg);
-    border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px;
-  }
-  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-
-  .plot { width: 100%; height: auto; display: block; }
-  .plot text { fill: var(--muted); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
-  .plot .grid { stroke: var(--border); }
-  .plot .axis { stroke: var(--muted); }
-  .plot .lbl { fill: var(--text); font-weight: 600; }
-
-  .legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-  .chip {
-    display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;
-    border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: .78rem; font-weight: 600; background: var(--surface2);
-  }
-  .chip i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-  .chip.off { opacity: .35; }
-
-  table.t { width: 100%; border-collapse: collapse; font-size: .88rem; }
-  table.t th { text-align: left; font-size: .72rem; color: var(--muted); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  table.t td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; vertical-align: top; }
-  table.t tbody tr.click { cursor: pointer; }
-  table.t tbody tr.click:hover { background: var(--surface2); }
-  .table-wrap { overflow-x: auto; }
-  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
-  .flag { display: inline-block; font-size: .7rem; font-weight: 700; border-radius: 10px; padding: 1px 7px; margin: 1px 2px; background: var(--amber-soft); color: var(--amber); white-space: nowrap; }
-  .flag.red { background: var(--red-soft); color: var(--red); }
-  .muted { color: var(--muted); }
-
-  .question { display: grid; gap: 12px; }
-  .question .qt { font-size: 1.05rem; font-weight: 700; scroll-margin-top: 150px; }
-  .question .qt b { color: var(--accent); margin-right: 6px; }
-  .answers { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
-  .ans { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; font-size: .95rem; display: grid; gap: 6px; align-content: start; }
-  .ans .who { font-size: .76rem; font-weight: 700; color: var(--muted); display: flex; align-items: center; gap: 6px; cursor: pointer; }
-  .ans .who:hover { color: var(--accent); }
-  .ans .text { white-space: pre-wrap; }
-  .ans .empty { color: var(--muted); font-style: italic; }
-
-  .bars { display: grid; gap: 8px; }
-  .bar { display: grid; grid-template-columns: 240px 1fr 40px; gap: 10px; align-items: center; font-size: .9rem; }
-  .bar .track { background: var(--surface2); border-radius: 6px; height: 22px; overflow: hidden; }
-  .bar .fill { background: var(--accent); height: 100%; border-radius: 6px; }
-  .bar b { text-align: right; }
-  @media (max-width: 600px) { .bar { grid-template-columns: 1fr 1fr 30px; } }
-
-  .setup { display: grid; gap: 14px; font-size: .92rem; }
-  .setup ol { padding-left: 22px; display: grid; gap: 6px; }
-  .setup code, .mono { font-family: Consolas, 'Courier New', monospace; font-size: .84rem; }
-  .setup code { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
-  pre.code { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow: auto; max-height: 320px; font-family: Consolas, 'Courier New', monospace; font-size: .8rem; line-height: 1.4; }
-  .form-row { display: grid; grid-template-columns: 170px 1fr; gap: 10px; align-items: center; }
-  .form-row label { font-size: .82rem; font-weight: 600; color: var(--muted); }
-  @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; gap: 4px; } }
-  .btn { font: inherit; font-weight: 700; font-size: .86rem; cursor: pointer; border-radius: 8px; padding: 7px 14px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); text-decoration: none; display: inline-block; }
-  .btn:hover { border-color: var(--accent); color: var(--accent); }
-  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .link-box { display: grid; gap: 16px; }
-  .note { border-radius: 8px; padding: 10px 14px; font-size: .88rem; background: var(--accent-soft); border-left: 3px solid var(--accent); }
-  .setup-grid { display: grid; gap: 18px; }
-  .setup-head { display: flex; align-items: center; gap: 12px; }
-  .setup-head h2 { font-size: 1.15rem; font-weight: 800; margin-right: auto; }
-
-  .empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
-  .empty-state b { color: var(--text); }
-
-  dialog {
-    border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text);
-    width: min(1100px, 96vw); max-height: 92vh; margin: auto; padding: 0;
-  }
-  dialog::backdrop { background: rgba(0,0,0,.55); }
-  .dlg-head { position: sticky; top: 0; background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 18px; display: flex; align-items: center; gap: 10px; z-index: 1; }
-  .dlg-head h2 { font-size: 1.05rem; margin-right: auto; }
-  .dlg-body { padding: 18px; display: grid; gap: 18px; }
-
-  /* ── Presentation (Projector) ── */
-  #show { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; flex-direction: column; }
-  body.presenting { overflow: hidden; }
-  .slide { flex: 1; min-height: 0; padding: 4vh 5vw 2vh; display: flex; flex-direction: column; gap: 2.4vh; overflow: auto; }
-  .slide h2 { font-size: clamp(1.4rem, 2.6vw, 2.6rem); font-weight: 800; letter-spacing: -.5px; line-height: 1.2; }
-  .slide h2 .qn { color: var(--accent); margin-right: .4em; }
-  .slide h2 .page { color: var(--muted); font-weight: 600; font-size: .6em; margin-left: .5em; }
-  .slide .sub { color: var(--muted); font-size: clamp(.9rem, 1.3vw, 1.3rem); }
-  .slide .plot-wrap { flex: 1; min-height: 0; display: flex; justify-content: center; }
-  .slide .plot-wrap svg { height: 100%; width: 100%; max-height: 74vh; }
-  .slide .legend .chip { font-size: clamp(.8rem, 1vw, 1.05rem); cursor: default; }
-  .slide.title { justify-content: center; align-items: center; text-align: center; }
-  .slide.title h1 { font-size: clamp(2.2rem, 6vw, 5.5rem); font-weight: 800; letter-spacing: -1.5px; }
-  .slide.title h1 span { color: var(--accent); }
-  .slide.title .sub { font-size: clamp(1.1rem, 2vw, 2rem); }
-  .slide .tiles .tile .v { font-size: clamp(1.8rem, 3.4vw, 3.4rem); }
-  .slide .tiles .tile .k, .slide .tiles .tile .s { font-size: clamp(.75rem, 1.1vw, 1.1rem); }
-  .slide table.t { font-size: clamp(.9rem, 1.35vw, 1.4rem); }
-  .slide table.t th { font-size: .75em; }
-  .slide .bars .bar { font-size: clamp(.95rem, 1.4vw, 1.45rem); grid-template-columns: minmax(180px, 30%) 1fr 50px; }
-  .slide .bars .track { height: clamp(22px, 3.2vh, 38px); }
-  .slide .answers { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.6vw; align-content: start; }
-  @media (max-width: 900px) { .slide .answers { grid-template-columns: 1fr; } }
-  .slide .ans { font-size: clamp(1rem, 1.45vw, 1.5rem); line-height: 1.4; cursor: zoom-in; padding: 1.4vw 1.6vw; }
-  .slide .ans .who { font-size: .7em; cursor: inherit; }
-  .slide .ans.zoom {
-    position: fixed; z-index: 110; inset: 10vh 12vw auto; max-height: 80vh; overflow: auto;
-    font-size: clamp(1.4rem, 2.6vw, 2.8rem); cursor: zoom-out; box-shadow: 0 0 0 100vmax rgba(0,0,0,.6);
-  }
-  .show-bar { display: flex; align-items: center; gap: 10px; padding: 8px 20px 12px; color: var(--muted); font-size: .8rem; }
-  .show-bar .track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
-  .show-bar .track i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
-  .show-bar .pill-btn { opacity: .55; }
-  .show-bar .pill-btn:hover { opacity: 1; }
-
-  @media print {
-    header .pill-btn, header .ctl, .jump, #setup { display: none !important; }
-    .top { position: static; }
-    body { background: #fff; }
-    .card, .ans, .tile { break-inside: avoid; }
-  }
-</style>
+<link rel="stylesheet" href="../lab-teacher.css">
 </head>
 <body>
-
-<div class="top">
-<header>
-  <a class="pill-btn" href="../teacher.html" style="text-decoration:none">← All labs</a>
-  <h1>📊 <span>Equilibrium Temperature</span> · Lab Reports</h1>
-  <div class="ctl">Session <input type="text" id="session" placeholder="all"></div>
-  <button class="pill-btn" id="refresh">⟳ Refresh</button>
-  <button class="pill-btn" id="auto">Live: off</button>
-  <button class="pill-btn" id="names">Names: hidden</button>
-  <button class="pill-btn" id="present" title="Present the results as full-screen slides">▶ Projector</button>
-  <button class="pill-btn" id="theme-toggle">☀ Light</button>
-  <button class="pill-btn" id="setup-toggle">⚙ Setup &amp; data</button>
-  <span id="fetch-state"></span>
-</header>
-<nav class="jump" id="jump"></nav>
-</div>
-
-<main>
-  <!-- SETUP (hidden unless opened) -->
-  <section id="setup" class="setup-grid" hidden>
-    <div class="setup-head"><h2>⚙ Setup &amp; data</h2><button class="pill-btn" id="setup-close">Close</button></div>
-
-    <div class="card setup">
-      <h3>1 · Connection</h3>
-      <div class="note" id="conn-state"></div>
-    </div>
-
-    <div class="card setup">
-      <h3>2 · Student link for a session</h3>
-      <div class="form-row"><label for="link-session">Session code</label><input type="text" id="link-session" placeholder="e.g. 10A or 10A-oct08"></div>
-      <div class="link-box">
-        <div style="display:grid;gap:8px">
-          <input type="text" id="student-link" readonly class="mono">
-          <div class="btns"><button class="btn" id="copy-link">Copy link</button><a class="btn" id="open-link" target="_blank" rel="noopener">Open student page</a></div>
-          <p class="muted" style="font-size:.8rem">Share it in your class chat or by email. Each pair opens it on one computer. Without the class link, students can still download their report as a file and hand it in.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="card setup">
-      <h3>3 · Data</h3>
-      <div class="btns">
-        <label class="btn" for="import">⬆ Import report files (.json)</label><input type="file" id="import" accept=".json,application/json" multiple hidden>
-        <button class="btn" id="export-json">⬇ Download all reports (JSON)</button>
-        <button class="btn" id="export">⬇ Results table (CSV)</button>
-        <button class="btn" id="demo">Load demo class</button>
-        <button class="btn" id="clear">Clear loaded reports</button>
-      </div>
-      <p class="muted" style="font-size:.8rem">Imported files are also uploaded to your Google Sheet (if it doesn't have them yet), so the sheet keeps every report. "Download all reports" saves the complete reports for the current session, with every answer, in one file you can hand over for evaluation.</p>
-      <span class="muted" id="data-msg"></span>
-    </div>
-  </section>
-
-  <div id="empty" class="empty-state" hidden>
-    <p><b>No reports yet.</b></p>
-    <p>Students' reports for this lab will appear here. Open <b>⚙ Setup &amp; data</b> to get the student link, import report files, or load a demo class.</p>
-  </div>
-
-  <div id="report" style="display:grid;gap:22px">
-    <h2 class="sec" id="sec-summary">Class summary</h2>
-    <div class="tiles" id="tiles"></div>
-    <div class="two">
-      <div class="card">
-        <h3>All trials: how far did each mixture get toward the hot temperature?</h3>
-        <svg class="plot" id="all-plot" viewBox="0 0 720 460"></svg>
-        <div class="legend" id="legend"></div>
-        <div class="muted" style="font-size:.78rem;margin-top:6px">Each point is one trial. Across: fraction of hot water, m<sub>h</sub>/(m<sub>h</sub>+m<sub>c</sub>). Up: (T<sub>eq</sub> − T<sub>c</sub>)/(T<sub>h</sub> − T<sub>c</sub>). On the dashed diagonal the model is exact; below it the mixture ended cooler than the model predicts.</div>
-      </div>
-      <div class="card">
-        <h3>Measured − model temperature (°C)</h3>
-        <svg class="plot" id="diff-plot" viewBox="0 0 520 420"></svg>
-        <div class="muted" style="font-size:.78rem;margin-top:6px">Each dot is one trial. Below zero: the mixture was cooler than the model predicts (energy lost to the surroundings).</div>
-      </div>
-    </div>
-
-    <h2 class="sec" id="sec-results">Results by group</h2>
-    <div class="card">
-      <div class="table-wrap"><table class="t" id="results"></table></div>
-      <p class="muted" style="font-size:.78rem;margin-top:8px">Values are recomputed from each group's raw measurements. Data checks point out things to look at; they are not grades. Click a row to see the full report.</p>
-    </div>
-
-    <h2 class="sec" id="sec-answers">Answers</h2>
-    <div id="questions" style="display:grid;gap:26px"></div>
-  </div>
-</main>
-
-<div id="show" hidden>
-  <div class="slide" id="slide"></div>
-  <div class="show-bar">
-    <button class="pill-btn" id="show-prev" title="Previous (←)">◀</button>
-    <span id="show-count"></span>
-    <div class="track"><i id="show-progress"></i></div>
-    <button class="pill-btn" id="show-next" title="Next (→, space)">▶</button>
-    <button class="pill-btn" id="show-exit" title="Exit (Esc)">✕ Exit</button>
-  </div>
-</div>
-
-<dialog id="dlg">
-  <div class="dlg-head"><h2 id="dlg-title"></h2><button class="pill-btn" id="dlg-prev">◀</button><button class="pill-btn" id="dlg-next">▶</button><button class="pill-btn" id="dlg-close">Close</button></div>
-  <div class="dlg-body" id="dlg-body"></div>
-</dialog>
-
+<script src="../lab-teacher.js"></script>
 <script>
-const LAB_ID = 'equilibrium-temperature';
-const STUDENT_PAGE = 'equilibrium_temperature_lab.html';
+// Equilibrium Temperature: the parts specific to this lab. Everything else comes from ../lab-teacher.js.
 const C_WATER = 4186;   // J/(kg·°C)
-const COLORS = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#17becf', '#bcbd22', '#8c6d31'];
 const PRED_TEXT = { add: 'About 100 °C (they add up)', half: 'About 50 °C', hot: 'Closer to 80 °C', cold: 'Closer to 20 °C' };
-const ERRORS = {
-  air: 'Heat lost to the air', beaker: 'Heat absorbed by the beaker', thermometer: 'Thermometer not stabilized',
-  evaporation: 'Evaporation while heating', stirring: 'Water not fully mixed', delay: 'Hot water cooled before pouring',
-};
-const QUESTIONS = [
-  { id: 'prediction', title: 'Prediction: what will the final temperature be?', get: s => s.prediction?.why, chart: 'pred' },
-  { id: 'first', title: 'After trial 1: was it higher or lower than predicted? Where could the energy have gone?', get: s => s.discuss?.first },
-  { id: 'missing', title: 'Did the cold water gain all the energy the hot water lost? Where did the difference go?', get: s => s.answers?.missing },
-  { id: 'c', title: 'Why does c cancel out? When would it matter?', get: s => s.answers?.c },
-  { id: 'predcheck', title: 'Was your prediction right?', get: s => s.answers?.predcheck },
-  { id: 'errors', title: 'Sources of error', get: s => s.conclusion?.errtext, chart: 'errors' },
-  { id: 'conclusion', title: 'Conclusion', get: s => s.conclusion?.text },
-  { id: 'roles', title: 'How did the pair share the work?', get: s => s.conclusion?.roles },
-];
-
-// ── Settings (this browser only) ────────────────────────────
-// The Google Sheet connection is shared by all labs and set on ../teacher.html
-const CONN = { api: '', key: '' };
-try { Object.assign(CONN, JSON.parse(localStorage.getItem('labreports_connection') || '{}')); } catch (e) {}
-const SKEY = 'labdash_' + LAB_ID;
-let CFG = { session: '', names: false };
-try { Object.assign(CFG, JSON.parse(localStorage.getItem(SKEY) || '{}')); } catch (e) {}
-function saveCfg() { try { localStorage.setItem(SKEY, JSON.stringify(CFG)); } catch (e) {} }
-
-// Reports loaded from any source, keyed by id+submittedAt
-const RAW = new Map();
-try { (JSON.parse(localStorage.getItem('labdash_cache_' + LAB_ID) || '[]')).forEach(addRaw); } catch (e) {}
-const rawKey = s => (s.id || '') + '|' + (s.submittedAt || '');
-function addRaw(s) { if (s && s.lab === LAB_ID) RAW.set(rawKey(s), s); }
-// Reports seen in the Google Sheet on the last successful load (null = not loaded yet)
-let IN_SHEET = null;
-function cacheRaw() { try { localStorage.setItem('labdash_cache_' + LAB_ID, JSON.stringify([...RAW.values()])); } catch (e) {} }
-
-// ── Helpers ─────────────────────────────────────────────────
-const num = s => { const v = parseFloat(String(s ?? '').trim().replace(',', '.')); return isFinite(v) ? v : NaN; };
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-function fmt(v, sig = 3) {
-  if (!isFinite(v)) return '—';
-  if (v === 0) return '0';
-  const a = Math.abs(v);
-  if (a >= 1e5 || a < 1e-3) return v.toExponential(sig - 1);
-  return String(parseFloat(v.toPrecision(sig)));
-}
-const median = a => { const s = [...a].sort((x, y) => x - y), n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : NaN; };
-const norm = s => String(s ?? '').trim().toLowerCase();
+const sub = t => `<tspan baseline-shift="sub" font-size="0.75em">${t}</tspan>`;
 
 // Model equilibrium temperature (°C) from masses (g) and temperatures (°C)
 const teqModel = (mh, Th, mc, Tc) => (mh * Th + mc * Tc) / (mh + mc);
@@ -373,57 +34,17 @@ function trialCalc(t, n) {
   };
 }
 
-// ── Groups: latest report per (session, group), recomputed from raw data ──
-let GROUPS = [];
-const ON_STATE = {};
-function buildGroups() {
-  const sess = norm(CFG.session);
-  const latest = new Map(), versions = new Map();
-  [...RAW.values()].forEach(s => {
-    if (sess && norm(s.session) !== sess) return;
-    const key = norm(s.session) + '|' + norm(s.group);
-    versions.set(key, (versions.get(key) || 0) + 1);
-    const cur = latest.get(key);
-    if (!cur || String(s.submittedAt) > String(cur.submittedAt)) latest.set(key, s);
-  });
-  GROUPS = [...latest.entries()].map(([key, s]) => {
-    const all = (s.trials || []).map((t, i) => trialCalc(t, i + 1));
-    const trials = all.filter(c => c.complete);
-    const mean = f => trials.length ? trials.reduce((a, c) => a + f(c), 0) / trials.length : NaN;
-    return {
-      key, s, all, trials, versions: versions.get(key), on: ON_STATE[key] ?? true,
-      meanDiff: mean(c => c.diff), meanCalc: mean(c => Math.abs(c.calcErr)), meanMissing: mean(c => c.missingPct),
-    };
-  }).sort((a, b) => (num(a.s.group) - num(b.s.group)) || norm(a.s.group).localeCompare(norm(b.s.group)));
-  GROUPS.forEach((G, i) => { G.color = COLORS[i % COLORS.length]; G.checks = dataChecks(G); });
-}
-
-// Things worth a look in the data. Not a grade.
-function dataChecks(G) {
-  const out = [], n = G.trials.length;
-  if (n < 2) out.push([n === 1 ? 'Only 1 trial' : 'No complete trials', 'red']);
-  if (G.all.some(c => isFinite(c.Th) && isFinite(c.Tc) && c.Th <= c.Tc)) out.push(['T_h ≤ T_c', 'red']);
-  const outside = G.trials.filter(c => c.Teq < Math.min(c.Tc, c.Th) - 0.05 || c.Teq > Math.max(c.Tc, c.Th) + 0.05).map(c => c.n);
-  if (outside.length) out.push(['T_eq outside T_c–T_h (trial ' + outside.join(', ') + ')', 'red']);
-  const badCalc = G.trials.filter(c => Math.abs(c.calcErr) > 2).map(c => c.n);
-  if (badCalc.length) out.push(['Calculation error? (trial ' + badCalc.join(', ') + ')', '']);
-  const above = G.trials.filter(c => c.diff > 1).map(c => c.n);
-  if (above.length) out.push(['Warmer than the model (trial ' + above.join(', ') + ')', '']);
-  if (n >= 2 && Math.max(...G.trials.map(c => c.x)) - Math.min(...G.trials.map(c => c.x)) < 0.08) out.push(['Same proportion in every trial', '']);
-  return out;
-}
-
-const label = G => 'Group ' + (G.s.group || '?') + (CFG.session ? '' : ` (${G.s.session || '—'})`);
-const who = G => (G.s.students || []).filter(Boolean).join(' & ');
-const flagsHtml = G => G.checks.map(([t, c]) => `<span class="flag ${c}">${esc(t)}</span>`).join('');
+// Temperature difference with sign, one decimal (°C)
+const signed = v => {
+  if (!isFinite(v)) return '—';
+  const r = Math.round(v * 10) / 10;
+  return (r > 0 ? '+' : r < 0 ? '−' : '') + Math.abs(r).toFixed(1);
+};
+const trialTitle = (G, c) => `${label(G)}, trial ${c.n}: ${fmt(c.mh)} g at ${fmt(c.Th)} °C + ${fmt(c.mc)} g at ${fmt(c.Tc)} °C → model ${fmt(c.model)} °C, measured ${fmt(c.Teq)} °C`;
+const predSummary = s => s.prediction?.equal || s.prediction?.unequal
+  ? `Equal masses: ${PRED_TEXT[s.prediction.equal] || '—'} · 50 g + 150 g: ${PRED_TEXT[s.prediction.unequal] || '—'}.` : '';
 
 // ── Plots ───────────────────────────────────────────────────
-function niceStep(range, n) {
-  const raw = range / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
-  return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p;
-}
-const trialTitle = (G, c) => `${label(G)}, trial ${c.n}: ${fmt(c.mh)} g at ${fmt(c.Th)} °C + ${fmt(c.mc)} g at ${fmt(c.Tc)} °C → model ${fmt(c.model)} °C, measured ${fmt(c.Teq)} °C`;
-
 // Universal plot: fraction of hot water vs fraction of the way from T_c to T_h; the model is the diagonal
 function plotUniversal(svg, groups, W = 720, H = 460) {
   const M = { l: 62, r: 20, t: 18, b: 52 };
@@ -437,8 +58,8 @@ function plotUniversal(svg, groups, W = 720, H = 460) {
   s += `<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="${M.t}" y2="${H - M.b}"/><line class="axis" x1="${M.l}" x2="${W - M.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
   s += `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(1)}" y2="${Y(1)}" stroke="var(--green)" stroke-width="2.2" stroke-dasharray="7 4"/>`;
   s += `<text x="${X(0.9)}" y="${Y(0.9) - 10}" text-anchor="end" fill="var(--green)">model</text>`;
-  s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 10}" text-anchor="middle">Fraction of hot water  m<tspan baseline-shift="sub" font-size="0.75em">h</tspan> / (m<tspan baseline-shift="sub" font-size="0.75em">h</tspan> + m<tspan baseline-shift="sub" font-size="0.75em">c</tspan>)</text>`;
-  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">(T<tspan baseline-shift="sub" font-size="0.75em">eq</tspan> − T<tspan baseline-shift="sub" font-size="0.75em">c</tspan>) / (T<tspan baseline-shift="sub" font-size="0.75em">h</tspan> − T<tspan baseline-shift="sub" font-size="0.75em">c</tspan>)</text>`;
+  s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 10}" text-anchor="middle">Fraction of hot water  m${sub('h')} / (m${sub('h')} + m${sub('c')})</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">(T${sub('eq')} − T${sub('c')}) / (T${sub('h')} − T${sub('c')})</text>`;
   groups.forEach(G => G.trials.forEach(c => {
     s += `<circle cx="${X(c.x)}" cy="${Y(c.y)}" r="6.5" fill="${G.color}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(trialTitle(G, c))}</title></circle>`;
   }));
@@ -459,7 +80,7 @@ function plotDiff(svg, groups) {
   let s = '';
   for (let v = y0; v <= y1 + 1e-9; v += step) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
   s += `<line x1="${M.l}" x2="${W - M.r}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--green)" stroke-width="2" stroke-dasharray="7 4"/>`;
-  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">T<tspan baseline-shift="sub" font-size="0.75em">eq</tspan> measured − model (°C)</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">T${sub('eq')} measured − model (°C)</text>`;
   gs.forEach((G, i) => {
     const k = G.trials.length;
     G.trials.forEach((c, j) => {
@@ -470,32 +91,6 @@ function plotDiff(svg, groups) {
   });
   svg.innerHTML = s;
 }
-
-// ── Consolidated page ───────────────────────────────────────
-function render() {
-  buildGroups();
-  const empty = !GROUPS.length;
-  document.getElementById('empty').hidden = !empty;
-  document.getElementById('report').hidden = empty;
-  document.getElementById('jump').innerHTML = empty ? '' :
-    '<a href="#sec-summary">Summary</a><a href="#sec-results">Results</a>' +
-    QUESTIONS.map((q, i) => `<a href="#q-${q.id}">Q${i + 1} · ${esc(q.title.split(/[?:…]/)[0])}</a>`).join('');
-  if (empty) return;
-  renderSummary();
-  renderResults();
-  renderQuestions();
-  if (!showEl.hidden) buildSlides();
-}
-
-// Jump links: scroll so the target sits just below the sticky top bar, whatever its height
-document.getElementById('jump').addEventListener('click', e => {
-  const a = e.target.closest('a');
-  if (!a) return;
-  e.preventDefault();
-  const el = document.querySelector(a.getAttribute('href'));
-  const top = el.getBoundingClientRect().top + window.scrollY - document.querySelector('.top').offsetHeight - 12;
-  window.scrollTo({ top, behavior: 'smooth' });
-});
 
 function classStats() {
   const trials = GROUPS.flatMap(G => G.trials);
@@ -508,465 +103,201 @@ function classStats() {
     meanMissing: mean(c => c.missingPct),
   };
 }
-// Temperature difference with sign, one decimal (°C)
-const signed = v => {
-  if (!isFinite(v)) return '—';
-  const r = Math.round(v * 10) / 10;
-  return (r > 0 ? '+' : r < 0 ? '−' : '') + Math.abs(r).toFixed(1);
-};
 function statTiles(st) {
   return `
     <div class="tile"><div class="k">Measured − model</div><div class="v">${signed(st.meanDiff)} <small>°C</small></div><div class="s">average of all trials; negative = cooler</div></div>
     <div class="tile"><div class="k">Within 2 °C of the model</div><div class="v">${st.within2}<small>/${st.n}</small></div><div class="s">trials</div></div>
     <div class="tile"><div class="k">Energy missing</div><div class="v">${isFinite(st.meanMissing) ? fmt(st.meanMissing, 2) : '—'}<small>%</small></div><div class="s">heat lost by hot − gained by cold</div></div>`;
 }
-function renderSummary() {
-  const st = classStats();
-  document.getElementById('tiles').innerHTML = `
-    <div class="tile"><div class="k">Reports</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'} · ${st.n} trials</div></div>
-    ${statTiles(st)}
-    <div class="tile"><div class="k">Predictions calculated right</div><div class="v">${st.calcOk}<small>/${st.n}</small></div><div class="s">within 0.5 °C of the model</div></div>`;
 
-  plotUniversal(document.getElementById('all-plot'), GROUPS.filter(G => G.on));
-  plotDiff(document.getElementById('diff-plot'), GROUPS.filter(G => G.on));
-  document.getElementById('legend').innerHTML = GROUPS.map((G, i) => `<span class="chip ${G.on ? '' : 'off'}" data-i="${i}"><i style="background:${G.color}"></i>${esc(label(G))}</span>`).join('') +
-    '<span class="chip" data-all>Show all</span>';
-}
+LabTeacher({
+  id: 'equilibrium-temperature',
+  title: 'Equilibrium Temperature',
+  icon: '🌡️',
+  studentPage: 'equilibrium_temperature_lab.html',
+  tagline: 'Predicting the final temperature with Q = m·c·ΔT',
+  titleExtra: () => ` · ${classStats().n} trials`,
 
-document.getElementById('legend').addEventListener('click', e => {
-  const chip = e.target.closest('.chip');
-  if (!chip) return;
-  if (chip.dataset.all != null) GROUPS.forEach(G => { ON_STATE[G.key] = true; });
-  else { const G = GROUPS[+chip.dataset.i]; ON_STATE[G.key] = !G.on; }
-  render();
-});
-
-function renderResults() {
-  document.getElementById('results').innerHTML = `<thead><tr>
-      <th>Group</th>${CFG.names ? '<th>Students</th>' : ''}<th>Trials</th><th>Prediction vs model (°C)</th><th>Measured − model (°C)</th><th>Energy missing</th><th>Data checks</th>
-    </tr></thead><tbody>` + GROUPS.map((G, i) => `<tr class="click" data-i="${i}">
-        <td><span class="dot" style="background:${G.color}"></span><b>${esc(label(G))}</b>${G.versions > 1 ? ` <span class="muted" title="Sent ${G.versions} times; showing the latest">×${G.versions}</span>` : ''}</td>
-        ${CFG.names ? `<td>${esc(who(G))}</td>` : ''}
-        <td>${G.trials.length}</td>
-        <td>${G.trials.length ? G.trials.map(c => signed(c.calcErr)).join(' · ') : '—'}</td>
-        <td>${G.trials.length ? `<b>${G.trials.map(c => signed(c.diff)).join(' · ')}</b>` : '—'}</td>
-        <td>${isFinite(G.meanMissing) ? fmt(G.meanMissing, 2) + '%' : '—'}</td>
-        <td>${flagsHtml(G)}</td></tr>`).join('') + '</tbody>';
-}
-
-document.getElementById('results').addEventListener('click', e => {
-  const tr = e.target.closest('tr.click');
-  if (tr) openDetail(+tr.dataset.i);
-});
-
-function renderQuestions() {
-  document.getElementById('questions').innerHTML = QUESTIONS.map((q, qi) => {
-    const chart = questionChart(q);
-    const cards = GROUPS.map((G, i) => answerCard(q, G, i)).join('');
-    return `<section class="question"><div class="qt" id="q-${q.id}"><b>Q${qi + 1}</b>${esc(q.title)}</div>${chart ? `<div class="card">${chart}</div>` : ''}
-      ${cards ? `<div class="answers">${cards}</div>` : ''}</section>`;
-  }).join('');
-}
-// Bar chart of choices for the questions that have one
-function questionChart(q) {
-  if (q.chart === 'pred') {
+  errors: {
+    air: 'Heat lost to the air', beaker: 'Heat absorbed by the beaker', thermometer: 'Thermometer not stabilized',
+    evaporation: 'Evaporation while heating', stirring: 'Water not fully mixed', delay: 'Hot water cooled before pouring',
+  },
+  questions: [
+    { id: 'prediction', title: 'Prediction: what will the final temperature be?', get: s => s.prediction?.why, chart: 'pred' },
+    { id: 'first', title: 'After trial 1: was it higher or lower than predicted? Where could the energy have gone?', get: s => s.discuss?.first },
+    { id: 'missing', title: 'Did the cold water gain all the energy the hot water lost? Where did the difference go?', get: s => s.answers?.missing },
+    { id: 'c', title: 'Why does c cancel out? When would it matter?', get: s => s.answers?.c },
+    { id: 'predcheck', title: 'Was your prediction right?', get: s => s.answers?.predcheck },
+    { id: 'errors', title: 'Sources of error', get: s => s.conclusion?.errtext, chart: 'errors' },
+    { id: 'conclusion', title: 'Conclusion', get: s => s.conclusion?.text },
+    { id: 'roles', title: 'How did the pair share the work?', get: s => s.conclusion?.roles },
+  ],
+  questionChart(q) {
     const part = (key, title) => {
       const counts = {}; GROUPS.forEach(G => { const c = G.s.prediction?.[key]; if (c) counts[c] = (counts[c] || 0) + 1; });
       return `<div class="muted" style="font-weight:700;margin:4px 0 8px">${title}</div><div class="bars">${Object.keys(PRED_TEXT).map(c => bar(PRED_TEXT[c], counts[c] || 0)).join('')}</div>`;
     };
     return part('equal', '100 g at 80 °C + 100 g at 20 °C') + '<div style="height:14px"></div>' + part('unequal', '50 g at 80 °C + 150 g at 20 °C');
-  }
-  if (q.chart === 'errors') {
-    const counts = {}; GROUPS.forEach(G => (G.s.conclusion?.errors || []).forEach(e => { counts[e] = (counts[e] || 0) + 1; }));
-    return `<div class="bars">${Object.keys(ERRORS).sort((a, b) => (counts[b] || 0) - (counts[a] || 0)).map(e => bar(ERRORS[e], counts[e] || 0)).join('')}</div>`;
-  }
-  return '';
-}
-const predSummary = s => s.prediction?.equal || s.prediction?.unequal
-  ? `Equal masses: ${PRED_TEXT[s.prediction.equal] || '—'} · 50 g + 150 g: ${PRED_TEXT[s.prediction.unequal] || '—'}.` : '';
-// One group's answer to a question ('' when an optional answer is empty)
-function answerCard(q, G, i) {
-  const text = String(q.get(G.s) || '').trim();
-  const pre = q.id === 'prediction' && predSummary(G.s) ? `<b>${esc(predSummary(G.s))}</b> ` : '';
-  if (q.chart === 'errors' && !text) return '';
-  return `<div class="ans">
-    <div class="who" data-i="${i}" title="Open full report"><span class="dot" style="background:${G.color}"></span>${esc(label(G))}${CFG.names ? ' · ' + esc(who(G)) : ''}</div>
-    ${text || pre ? `<div class="text">${pre}${esc(text)}</div>` : '<div class="empty">No answer</div>'}</div>`;
-}
+  },
+  answerPrefix: (q, s) => q.id === 'prediction' ? predSummary(s) : '',
 
-document.getElementById('questions').addEventListener('click', e => {
-  const w = e.target.closest('.who[data-i]');
-  if (w) openDetail(+w.dataset.i);
-});
-function bar(name, n) {
-  const max = Math.max(1, GROUPS.length);
-  return `<div class="bar"><span>${esc(name)}</span><div class="track"><div class="fill" style="width:${n / max * 100}%"></div></div><b>${n}</b></div>`;
-}
+  analyze(s) {
+    const all = (s.trials || []).map((t, i) => trialCalc(t, i + 1));
+    const trials = all.filter(c => c.complete);
+    const mean = f => trials.length ? trials.reduce((a, c) => a + f(c), 0) / trials.length : NaN;
+    return { all, trials, meanDiff: mean(c => c.diff), meanCalc: mean(c => Math.abs(c.calcErr)), meanMissing: mean(c => c.missingPct) };
+  },
+  checks(G) {
+    const out = [], n = G.trials.length;
+    if (n < 2) out.push([n === 1 ? 'Only 1 trial' : 'No complete trials', 'red']);
+    if (G.all.some(c => isFinite(c.Th) && isFinite(c.Tc) && c.Th <= c.Tc)) out.push(['T_h ≤ T_c', 'red']);
+    const outside = G.trials.filter(c => c.Teq < Math.min(c.Tc, c.Th) - 0.05 || c.Teq > Math.max(c.Tc, c.Th) + 0.05).map(c => c.n);
+    if (outside.length) out.push(['T_eq outside T_c–T_h (trial ' + outside.join(', ') + ')', 'red']);
+    const badCalc = G.trials.filter(c => Math.abs(c.calcErr) > 2).map(c => c.n);
+    if (badCalc.length) out.push(['Calculation error? (trial ' + badCalc.join(', ') + ')', '']);
+    const above = G.trials.filter(c => c.diff > 1).map(c => c.n);
+    if (above.length) out.push(['Warmer than the model (trial ' + above.join(', ') + ')', '']);
+    if (n >= 2 && Math.max(...G.trials.map(c => c.x)) - Math.min(...G.trials.map(c => c.x)) < 0.08) out.push(['Same proportion in every trial', '']);
+    return out;
+  },
 
-// ── Presentation: full-screen slides of the class results ──
-const showEl = document.getElementById('show');
-const ANSWERS_PER_SLIDE = 6;
-let SLIDES = [], SLIDE = 0, enteredFullscreen = false;
+  summaryHtml: `
+    <div class="two">
+      <div class="card">
+        <h3>All trials: how far did each mixture get toward the hot temperature?</h3>
+        <svg class="plot" id="all-plot" viewBox="0 0 720 460"></svg>
+        <div class="legend" id="legend"></div>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">Each point is one trial. Across: fraction of hot water, m<sub>h</sub>/(m<sub>h</sub>+m<sub>c</sub>). Up: (T<sub>eq</sub> − T<sub>c</sub>)/(T<sub>h</sub> − T<sub>c</sub>). On the dashed diagonal the model is exact; below it the mixture ended cooler than the model predicts.</div>
+      </div>
+      <div class="card">
+        <h3>Measured − model temperature (°C)</h3>
+        <svg class="plot" id="diff-plot" viewBox="0 0 520 420"></svg>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">Each dot is one trial. Below zero: the mixture was cooler than the model predicts (energy lost to the surroundings).</div>
+      </div>
+    </div>`,
+  renderSummary(on) {
+    const st = classStats();
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Reports</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'} · ${st.n} trials</div></div>
+      ${statTiles(st)}
+      <div class="tile"><div class="k">Predictions calculated right</div><div class="v">${st.calcOk}<small>/${st.n}</small></div><div class="s">within 0.5 °C of the model</div></div>`;
+    plotUniversal(document.getElementById('all-plot'), on);
+    plotDiff(document.getElementById('diff-plot'), on);
+  },
 
-function buildSlides() {
-  const on = GROUPS.filter(G => G.on);
-  const st = classStats();
-  SLIDES = [];
-  SLIDES.push({ cls: 'title', html: `
-    <h1>🌡️ <span>Equilibrium Temperature</span></h1>
-    <div class="sub">${CFG.session ? 'Session ' + esc(CFG.session) + ' · ' : ''}${GROUPS.length} group report${GROUPS.length === 1 ? '' : 's'} · ${st.n} trials</div>
-    <div class="sub">Predicting the final temperature with Q = m·c·ΔT</div>` });
-  SLIDES.push({ html: `<h2>Did the mixtures reach the predicted temperature?</h2>
-    <div class="plot-wrap"><svg class="plot" id="show-uni"></svg></div>
-    <div class="legend">${on.map(G => `<span class="chip"><i style="background:${G.color}"></i>${esc(label(G))}</span>`).join('')}</div>`,
-    draw: () => plotUniversal(document.getElementById('show-uni'), on) });
-  SLIDES.push({ html: `<h2>How far from the model?</h2>
-    <div class="tiles">${statTiles(st)}</div>
-    <div class="plot-wrap"><svg class="plot" id="show-diff"></svg></div>`,
-    draw: () => plotDiff(document.getElementById('show-diff'), on) });
-  SLIDES.push({ html: `<h2>Results by group</h2><div class="table-wrap"><table class="t">${document.getElementById('results').innerHTML}</table></div>` });
-  QUESTIONS.forEach((q, qi) => {
-    const cards = GROUPS.map((G, i) => answerCard(q, G, i)).filter(Boolean);
-    const chart = questionChart(q);
-    const title = `<h2><span class="qn">Q${qi + 1}</span>${esc(q.title)}`;
-    if (chart) SLIDES.push({ html: `${title}</h2><div class="card">${chart}</div>` });
-    if (chart && !cards.length) return;
-    const pages = Math.max(1, Math.ceil(cards.length / ANSWERS_PER_SLIDE));
-    for (let p = 0; p < pages; p++) {
-      const part = cards.slice(p * ANSWERS_PER_SLIDE, (p + 1) * ANSWERS_PER_SLIDE);
-      SLIDES.push({ html: `${title}${pages > 1 ? `<span class="page">${p + 1}/${pages}</span>` : ''}</h2>
-        ${part.length ? `<div class="answers">${part.join('')}</div>` : '<div class="sub">No answers yet.</div>'}
-        <div class="sub" style="margin-top:auto">Click an answer to enlarge it.</div>` });
-    }
-  });
-  showSlide(Math.min(SLIDE, SLIDES.length - 1));
-}
+  resultsHead: '<th>Trials</th><th>Prediction vs model (°C)</th><th>Measured − model (°C)</th><th>Energy missing</th>',
+  resultsRow: G => `
+    <td>${G.trials.length}</td>
+    <td>${G.trials.length ? G.trials.map(c => signed(c.calcErr)).join(' · ') : '—'}</td>
+    <td>${G.trials.length ? `<b>${G.trials.map(c => signed(c.diff)).join(' · ')}</b>` : '—'}</td>
+    <td>${isFinite(G.meanMissing) ? fmt(G.meanMissing, 2) + '%' : '—'}</td>`,
 
-function showSlide(i) {
-  SLIDE = Math.max(0, Math.min(SLIDES.length - 1, i));
-  const sl = SLIDES[SLIDE], el = document.getElementById('slide');
-  el.className = 'slide ' + (sl.cls || '');
-  el.innerHTML = sl.html;
-  el.scrollTop = 0;
-  if (sl.draw) sl.draw();
-  document.getElementById('show-count').textContent = (SLIDE + 1) + ' / ' + SLIDES.length;
-  document.getElementById('show-progress').style.width = ((SLIDE + 1) / SLIDES.length * 100) + '%';
-}
+  slides(on) {
+    return [
+      { html: `<h2>Did the mixtures reach the predicted temperature?</h2>
+        <div class="plot-wrap"><svg class="plot" id="show-uni"></svg></div>
+        <div class="legend">${on.map(G => `<span class="chip"><i style="background:${G.color}"></i>${esc(label(G))}</span>`).join('')}</div>`,
+        draw: () => plotUniversal(document.getElementById('show-uni'), on) },
+      { html: `<h2>How far from the model?</h2>
+        <div class="tiles">${statTiles(classStats())}</div>
+        <div class="plot-wrap"><svg class="plot" id="show-diff"></svg></div>`,
+        draw: () => plotDiff(document.getElementById('show-diff'), on) },
+    ];
+  },
 
-function openShow() {
-  if (!GROUPS.length) { alert('There are no reports to present yet.'); return; }
-  showEl.hidden = false;
-  document.body.classList.add('presenting');
-  SLIDE = 0;
-  buildSlides();
-  enteredFullscreen = false;
-  if (document.documentElement.requestFullscreen) {
-    document.documentElement.requestFullscreen().then(() => { enteredFullscreen = true; }).catch(() => {});
-  }
-}
-function closeShow() {
-  showEl.hidden = true;
-  document.body.classList.remove('presenting');
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-}
-// Leaving full screen (Esc in the browser) also ends the presentation
-document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement && enteredFullscreen && !showEl.hidden) closeShow();
-});
+  detail(G) {
+    const s = G.s, c = s.conclusion || {};
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">Measured − model</div><div class="v">${signed(G.meanDiff)} <small>°C</small></div><div class="s">average of ${G.trials.length} trial${G.trials.length === 1 ? '' : 's'}</div></div>
+        <div class="tile"><div class="k">Prediction vs model</div><div class="v">${isFinite(G.meanCalc) ? fmt(G.meanCalc, 2) : '—'} <small>°C</small></div><div class="s">average calculation error</div></div>
+        <div class="tile"><div class="k">Energy missing</div><div class="v">${isFinite(G.meanMissing) ? fmt(G.meanMissing, 2) : '—'}<small>%</small></div><div class="s">heat lost by hot − gained by cold</div></div>
+        ${sentTile(G)}
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="card"><h3>Trials</h3>
+        <div class="table-wrap"><table class="t"><thead><tr><th>Trial</th><th>Cold: m (g), T (°C)</th><th>Hot: m (g), T (°C)</th><th>Predicted (°C)</th><th>Model (°C)</th><th>Measured (°C)</th><th>Measured − model</th><th>Q lost / gained (J)</th><th>Missing</th></tr></thead><tbody>
+        ${G.all.map(t => `<tr><td>${t.n}</td><td>${fmt(t.mc, 4)} g, ${fmt(t.Tc, 3)} °C</td><td>${fmt(t.mh, 4)} g, ${fmt(t.Th, 3)} °C</td>
+          <td>${fmt(t.pred, 3)}${t.locked ? '' : ' <span class="flag">not locked</span>'}</td><td>${fmt(t.model, 3)}</td><td>${fmt(t.Teq, 3)}</td>
+          <td>${t.complete ? signed(t.diff) + ' °C' : '—'}</td><td>${t.complete ? fmt(t.Qlost) + ' / ' + fmt(t.Qgained) : '—'}</td><td>${t.complete ? fmt(t.missingPct, 2) + '%' : '—'}</td></tr>`).join('')}
+        </tbody></table></div>
+      </div>
+      <div class="card"><h3>Their trials on the class chart</h3><svg class="plot" id="detail-plot"></svg></div>
+      <div class="answers">
+        ${detailAnswer('Prediction: ' + (predSummary(s) || '—'), s.prediction?.why)}
+        ${detailAnswer('After trial 1: higher or lower? Where did the energy go?', s.discuss?.first)}
+        ${detailAnswer('Where did the missing energy go?', s.answers?.missing)}
+        ${detailAnswer('Why does c cancel out?', s.answers?.c)}
+        ${detailAnswer('Was the prediction right?', s.answers?.predcheck)}
+        ${detailAnswer(errorsTitle(c), c.errtext)}
+        ${detailAnswer('Conclusion', c.text)}
+        ${detailAnswer('How they shared the work', c.roles)}
+      </div>`;
+  },
+  drawDetail: G => plotUniversal(document.getElementById('detail-plot'), [G], 640, 400),
 
-document.getElementById('present').addEventListener('click', openShow);
-document.getElementById('show-exit').addEventListener('click', closeShow);
-document.getElementById('show-prev').addEventListener('click', () => showSlide(SLIDE - 1));
-document.getElementById('show-next').addEventListener('click', () => showSlide(SLIDE + 1));
-document.getElementById('slide').addEventListener('click', e => {
-  const card = e.target.closest('.ans');
-  if (!card) return;
-  const was = card.classList.contains('zoom');
-  document.querySelectorAll('#slide .ans.zoom').forEach(c => c.classList.remove('zoom'));
-  if (!was) card.classList.add('zoom');
-});
-document.addEventListener('keydown', e => {
-  if (showEl.hidden) return;
-  const zoomed = document.querySelector('#slide .ans.zoom');
-  if (e.key === 'Escape') { if (zoomed) zoomed.classList.remove('zoom'); else closeShow(); return; }
-  if (zoomed) zoomed.classList.remove('zoom');
-  if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); showSlide(SLIDE + 1); }
-  else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); showSlide(SLIDE - 1); }
-  else if (e.key === 'Home') showSlide(0);
-  else if (e.key === 'End') showSlide(SLIDES.length - 1);
-});
-
-// ── Full report of one group (dialog) ───────────────────────
-const dlg = document.getElementById('dlg');
-let DLG_I = 0;
-function openDetail(i) {
-  DLG_I = (i + GROUPS.length) % GROUPS.length;
-  const G = GROUPS[DLG_I], s = G.s, c = s.conclusion || {};
-  document.getElementById('dlg-title').innerHTML = `<span class="dot" style="background:${G.color}"></span>${esc(label(G))}${CFG.names ? ' · ' + esc(who(G)) : ''}`;
-  const ans = (title, text) => `<div class="ans"><div class="who" style="cursor:default">${esc(title)}</div>${String(text || '').trim() ? `<div class="text">${esc(text)}</div>` : '<div class="empty">No answer</div>'}</div>`;
-  document.getElementById('dlg-body').innerHTML = `
-    <div class="tiles">
-      <div class="tile"><div class="k">Measured − model</div><div class="v">${signed(G.meanDiff)} <small>°C</small></div><div class="s">average of ${G.trials.length} trial${G.trials.length === 1 ? '' : 's'}</div></div>
-      <div class="tile"><div class="k">Prediction vs model</div><div class="v">${isFinite(G.meanCalc) ? fmt(G.meanCalc, 2) : '—'} <small>°C</small></div><div class="s">average calculation error</div></div>
-      <div class="tile"><div class="k">Energy missing</div><div class="v">${isFinite(G.meanMissing) ? fmt(G.meanMissing, 2) : '—'}<small>%</small></div><div class="s">heat lost by hot − gained by cold</div></div>
-      <div class="tile"><div class="k">Sent</div><div class="v" style="font-size:1rem">${s.submittedAt ? new Date(s.submittedAt).toLocaleString() : '—'}</div><div class="s">${G.versions > 1 ? G.versions + ' versions, showing the latest' : 'session ' + esc(s.session || '—')}</div></div>
-    </div>
-    ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
-    <div class="card"><h3>Trials</h3>
-      <div class="table-wrap"><table class="t"><thead><tr><th>Trial</th><th>Cold: m (g), T (°C)</th><th>Hot: m (g), T (°C)</th><th>Predicted (°C)</th><th>Model (°C)</th><th>Measured (°C)</th><th>Measured − model</th><th>Q lost / gained (J)</th><th>Missing</th></tr></thead><tbody>
-      ${G.all.map(t => `<tr><td>${t.n}</td><td>${fmt(t.mc, 4)} g, ${fmt(t.Tc, 3)} °C</td><td>${fmt(t.mh, 4)} g, ${fmt(t.Th, 3)} °C</td>
-        <td>${fmt(t.pred, 3)}${t.locked ? '' : ' <span class="flag">not locked</span>'}</td><td>${fmt(t.model, 3)}</td><td>${fmt(t.Teq, 3)}</td>
-        <td>${t.complete ? signed(t.diff) + ' °C' : '—'}</td><td>${t.complete ? fmt(t.Qlost) + ' / ' + fmt(t.Qgained) : '—'}</td><td>${t.complete ? fmt(t.missingPct, 2) + '%' : '—'}</td></tr>`).join('')}
-      </tbody></table></div>
-    </div>
-    <div class="card"><h3>Their trials on the class chart</h3><svg class="plot" id="detail-plot"></svg></div>
-    <div class="answers">
-      ${ans('Prediction: ' + (predSummary(s) || '—'), s.prediction?.why)}
-      ${ans('After trial 1: higher or lower? Where did the energy go?', s.discuss?.first)}
-      ${ans('Where did the missing energy go?', s.answers?.missing)}
-      ${ans('Why does c cancel out?', s.answers?.c)}
-      ${ans('Was the prediction right?', s.answers?.predcheck)}
-      ${ans('Error sources: ' + ((c.errors || []).map(e => ERRORS[e] || e).join(', ') || 'none chosen'), c.errtext)}
-      ${ans('Conclusion', c.text)}
-      ${ans('How they shared the work', c.roles)}
-    </div>`;
-  plotUniversal(document.getElementById('detail-plot'), [G], 640, 400);
-  if (!dlg.open) dlg.showModal();
-}
-
-document.getElementById('dlg-close').addEventListener('click', () => dlg.close());
-document.getElementById('dlg-prev').addEventListener('click', () => openDetail(DLG_I - 1));
-document.getElementById('dlg-next').addEventListener('click', () => openDetail(DLG_I + 1));
-dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
-dlg.addEventListener('keydown', e => {
-  if (e.key === 'ArrowLeft') openDetail(DLG_I - 1);
-  if (e.key === 'ArrowRight') openDetail(DLG_I + 1);
-});
-
-// ── Fetch from Google Sheet ─────────────────────────────────
-const fstate = document.getElementById('fetch-state');
-async function load() {
-  if (!CONN.api || !CONN.key) { fstate.textContent = RAW.size ? 'Not connected: showing saved reports' : 'Not connected'; render(); return; }
-  fstate.textContent = 'Loading…';
-  try {
-    const u = new URL(CONN.api);
-    u.searchParams.set('key', CONN.key);
-    u.searchParams.set('lab', LAB_ID);
-    const r = await fetch(u);
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'server error');
-    j.submissions.forEach(addRaw);
-    IN_SHEET = new Set(j.submissions.map(rawKey));
-    cacheRaw();
-    fstate.textContent = 'Updated ' + new Date().toLocaleTimeString();
-  } catch (e) {
-    fstate.textContent = '⚠ ' + (e.message || 'Could not load') + (RAW.size ? ' (showing saved reports)' : '');
-  }
-  render();
-}
-document.getElementById('refresh').addEventListener('click', load);
-
-let autoTimer = null;
-document.getElementById('auto').addEventListener('click', e => {
-  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } else { autoTimer = setInterval(load, 20000); load(); }
-  e.target.textContent = 'Live: ' + (autoTimer ? 'on' : 'off');
-  e.target.classList.toggle('on', !!autoTimer);
-});
-
-const sessEl = document.getElementById('session');
-sessEl.value = CFG.session;
-sessEl.addEventListener('input', () => { CFG.session = sessEl.value.trim(); saveCfg(); render(); });
-
-function applyToggles() {
-  const n = document.getElementById('names');
-  n.textContent = 'Names: ' + (CFG.names ? 'shown' : 'hidden'); n.classList.toggle('on', CFG.names);
-}
-document.getElementById('names').addEventListener('click', () => { CFG.names = !CFG.names; saveCfg(); applyToggles(); render(); });
-
-// ── Setup panel ─────────────────────────────────────────────
-const setupEl = document.getElementById('setup');
-function showSetup(on) {
-  setupEl.hidden = !on;
-  document.getElementById('setup-toggle').classList.toggle('on', on);
-  if (on) { renderLink(); window.scrollTo({ top: 0 }); }
-}
-document.getElementById('setup-toggle').addEventListener('click', () => showSetup(setupEl.hidden));
-document.getElementById('setup-close').addEventListener('click', () => showSetup(false));
-
-document.getElementById('conn-state').innerHTML = CONN.api && CONN.key
-  ? 'Connected to your Google Sheet ✓ (change it on the <a href="../teacher.html" style="color:var(--accent)">Lab Reports teacher page</a>)'
-  : 'Not connected to a Google Sheet yet. Set it up once, for all labs, on the <a href="../teacher.html" style="color:var(--accent)">Lab Reports teacher page</a>. Until then you can import report files.';
-const linkSess = document.getElementById('link-session');
-linkSess.value = CFG.session;
-linkSess.addEventListener('input', renderLink);
-function renderLink() {
-  const u = new URL(STUDENT_PAGE, location.href);
-  if (linkSess.value.trim()) u.searchParams.set('session', linkSess.value.trim());
-  if (CONN.api) u.searchParams.set('api', CONN.api);
-  const link = u.toString();
-  document.getElementById('student-link').value = link;
-  document.getElementById('open-link').href = link;
-}
-document.getElementById('copy-link').addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText(document.getElementById('student-link').value); } catch (e) { document.getElementById('student-link').select(); }
-});
-
-function download(name, text, type) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([text], { type }));
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-}
-const dataMsg = document.getElementById('data-msg');
-const tag = () => CFG.session ? '_' + CFG.session.replace(/[^\w-]+/g, '-') : '';
-// Imported files (e.g. a group that couldn't send) are also uploaded to the Google Sheet,
-// so the sheet stays the complete record. Reports already in the sheet are skipped.
-document.getElementById('import').addEventListener('change', async e => {
-  const imported = [];
-  for (const file of e.target.files) {
-    try {
-      const d = JSON.parse(await file.text());
-      (Array.isArray(d) ? d : d.reports || [d]).forEach(r => {
-        if (r.lab !== LAB_ID) return;
-        const { computed, receivedAt, ...report } = r;
-        addRaw(report); imported.push(report);
-      });
-    } catch (err) {}
-  }
-  e.target.value = '';
-  cacheRaw();
-  const n = imported.length;
-  let msg = `Imported ${n} report${n === 1 ? '' : 's'}.`;
-  dataMsg.textContent = msg;
-  render();
-  if (!n) return;
-  if (!CONN.api || !CONN.key) {
-    dataMsg.textContent = msg + ` Not connected to a Google Sheet, so ${n === 1 ? 'it is' : 'they are'} only saved in this browser.`;
-    return;
-  }
-  await load();
-  if (IN_SHEET === null) { dataMsg.textContent = msg + ` Could not reach the Google Sheet, so ${n === 1 ? 'it was' : 'they were'} not uploaded. Try importing again later.`; return; }
-  const missing = imported.filter(r => !IN_SHEET.has(rawKey(r)));
-  if (!missing.length) { dataMsg.textContent = msg + ` ${n === 1 ? 'It is' : 'They are'} already in your Google Sheet.`; return; }
-  if (!confirm(`Upload ${missing.length} imported report${missing.length === 1 ? '' : 's'} to your Google Sheet, so ${missing.length === 1 ? 'it is' : 'they are'} kept with the others?`)) {
-    dataMsg.textContent = msg + ` Not uploaded: ${missing.length === 1 ? 'it is' : 'they are'} only saved in this browser.`;
-    return;
-  }
-  dataMsg.textContent = 'Uploading…';
-  let sent = 0;
-  for (const r of missing) {
-    try {
-      const j = await (await fetch(CONN.api, { method: 'POST', body: JSON.stringify(r) })).json();
-      if (j.ok) sent++;
-    } catch (err) {}
-  }
-  await load();
-  dataMsg.textContent = sent === missing.length
-    ? `${msg} Uploaded ${sent} to your Google Sheet ✓`
-    : `${msg} Uploaded ${sent} of ${missing.length}; the rest are only saved in this browser. Import the file again to retry.`;
-});
-document.getElementById('clear').addEventListener('click', () => {
-  if (!confirm('Remove all loaded reports from this page? Reports in your Google Sheet are not affected.')) return;
-  RAW.clear(); cacheRaw(); dataMsg.textContent = 'Cleared.'; render();
-});
-// Complete reports (latest version per group) plus the values recomputed here.
-document.getElementById('export-json').addEventListener('click', () => {
-  buildGroups();
-  const out = {
-    lab: LAB_ID, session: CFG.session || 'all', exportedAt: new Date().toISOString(),
-    reports: GROUPS.map(G => ({
-      ...G.s,
-      computed: {
-        trials: G.trials.map(c => ({
-          trial: c.n, model_C: c.model, prediction_minus_model_C: c.calcErr, measured_minus_model_C: c.diff,
-          Q_lost_J: c.Qlost, Q_gained_J: c.Qgained, energy_missing_percent: c.missingPct,
-        })),
-        data_checks: G.checks.map(x => x[0]),
-      },
+  computed: G => ({
+    trials: G.trials.map(c => ({
+      trial: c.n, model_C: c.model, prediction_minus_model_C: c.calcErr, measured_minus_model_C: c.diff,
+      Q_lost_J: c.Qlost, Q_gained_J: c.Qgained, energy_missing_percent: c.missingPct,
     })),
-  };
-  download(`equilibrium-temperature_reports${tag()}.json`, JSON.stringify(out, null, 2), 'application/json');
-});
-// One row per trial, ready for a spreadsheet
-document.getElementById('export').addEventListener('click', () => {
-  buildGroups();
-  const head = ['session', 'group', 'students', 'trial', 'm_cold_g', 'T_cold_C', 'm_hot_g', 'T_hot_C', 'predicted_C', 'model_C', 'measured_C', 'measured_minus_model_C', 'Q_lost_J', 'Q_gained_J', 'energy_missing_pct', 'data_checks'];
-  const rows = GROUPS.flatMap(G => G.all.map(c => [G.s.session, G.s.group, who(G), c.n, c.mc, c.Tc, c.mh, c.Th, c.pred, c.model, c.Teq,
-    c.complete ? c.diff : '', c.complete ? c.Qlost : '', c.complete ? c.Qgained : '', c.complete ? c.missingPct : '', G.checks.map(x => x[0]).join('; ')]));
-  const csv = [head, ...rows].map(r => r.map(v => {
-    const t = typeof v === 'number' ? (isFinite(v) ? String(+v.toPrecision(6)) : '') : String(v ?? '');
-    return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
-  }).join(',')).join('\n');
-  download(`equilibrium-temperature_results${tag()}.csv`, '﻿' + csv, 'text/csv');
-});
+  }),
+  // One row per trial, ready for a spreadsheet
+  csv: {
+    head: ['session', 'group', 'students', 'trial', 'm_cold_g', 'T_cold_C', 'm_hot_g', 'T_hot_C', 'predicted_C', 'model_C', 'measured_C', 'measured_minus_model_C', 'Q_lost_J', 'Q_gained_J', 'energy_missing_pct'],
+    rows: G => G.all.map(c => [G.s.session, G.s.group, who(G), c.n, c.mc, c.Tc, c.mh, c.Th, c.pred, c.model, c.Teq,
+      c.complete ? c.diff : '', c.complete ? c.Qlost : '', c.complete ? c.Qgained : '', c.complete ? c.missingPct : '']),
+  },
 
-// ── Demo class ──────────────────────────────────────────────
-document.getElementById('demo').addEventListener('click', () => {
-  const rnd = (a, b) => a + Math.random() * (b - a);
-  const r1 = v => String(Math.round(v * 10) / 10);
-  const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz',
-    'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva', 'Camila Torres', 'Daniel Ramírez', 'Sara Medina', 'Felipe Ríos'];
-  const predEqual = ['half', 'half', 'add', 'half', 'half', 'hot', 'half', 'half'];
-  const predUnequal = ['cold', 'cold', 'add', 'half', 'cold', 'hot', 'cold', 'half'];
-  const texts = {
-    why: ['With equal masses the hot water cools as much as the cold water warms, so it ends halfway. With more cold water the result is closer to the cold temperature.',
-      'Because mixing waters averages their temperatures.'],
-    first: ['It was 1.8 °C lower than our prediction. Some energy went to the air and to the beaker, which was at room temperature, so the mixture ended cooler.',
-      'Lower, maybe the thermometer was not good.'],
-    missing: ['No. In trial 1 the hot water lost about 600 J more than the cold water gained. That energy heated the beaker and the air around it while we poured and stirred.',
-      'The cold water gained less because heat escaped to the air.'],
-    c: ['Both liquids are water, so c is the same on both sides of the equation and it cancels. If we mixed water with oil we would need both specific heats because they are different.',
-      'Because it is the same number on both sides.'],
-    predcheck: ['Yes, with equal masses we measured 47.5 °C, close to halfway. With more cold water the result was closer to the cold temperature, as we predicted.',
-      'Not completely, the temperature does not just average, it depends on the masses.'],
-    conclusion: ['The model Q = mcΔT predicts the equilibrium temperature well: our measurements were between 1 and 2.5 °C below the predictions in every trial. The difference always goes in the same direction because the mixture loses energy to the beaker and the air, which the model ignores. The calculation itself worked.',
-      'The model works more or less. The temperatures were a bit lower than predicted.'],
-    roles: ['Ana weighed the water and used the microwave, Juan read the thermometer, and we did the calculations together.', 'We did everything together.'],
-  };
-  for (let gi = 1; gi <= 8; gi++) {
-    const good = ![3, 6].includes(gi), nTrials = gi === 7 ? 1 : gi % 3 === 0 ? 3 : 2;
-    const props = gi === 5 ? [[100, 100], [105, 100], [100, 95]] : [[100, 100], [60, 150], [150, 60]];
-    const trials = [];
-    for (let t = 0; t < nTrials; t++) {
-      const [mh, mc] = props[t].map(m => Math.round(m + rnd(-4, 4)));
-      const Tc = rnd(19, 22), Th = rnd(55, 72), model = teqModel(mh, Th, mc, Tc);
-      const loss = rnd(0.8, 2.6) * (good ? 1 : 1.6);
-      const calc = gi === 3 && t === 1 ? (Th + Tc) / 2 : model + rnd(-0.2, 0.2);
-      trials.push({ mc: String(mc), Tc: r1(Tc), mh: String(mh), Th: r1(Th), pred: r1(calc), locked: true,
-        Teq: r1(gi === 8 && t === 1 ? model + 1.6 : model - loss) });
+  demo() {
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const r1 = v => String(Math.round(v * 10) / 10);
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz',
+      'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva', 'Camila Torres', 'Daniel Ramírez', 'Sara Medina', 'Felipe Ríos'];
+    const predEqual = ['half', 'half', 'add', 'half', 'half', 'hot', 'half', 'half'];
+    const predUnequal = ['cold', 'cold', 'add', 'half', 'cold', 'hot', 'cold', 'half'];
+    const texts = {
+      why: ['With equal masses the hot water cools as much as the cold water warms, so it ends halfway. With more cold water the result is closer to the cold temperature.',
+        'Because mixing waters averages their temperatures.'],
+      first: ['It was 1.8 °C lower than our prediction. Some energy went to the air and to the beaker, which was at room temperature, so the mixture ended cooler.',
+        'Lower, maybe the thermometer was not good.'],
+      missing: ['No. In trial 1 the hot water lost about 600 J more than the cold water gained. That energy heated the beaker and the air around it while we poured and stirred.',
+        'The cold water gained less because heat escaped to the air.'],
+      c: ['Both liquids are water, so c is the same on both sides of the equation and it cancels. If we mixed water with oil we would need both specific heats because they are different.',
+        'Because it is the same number on both sides.'],
+      predcheck: ['Yes, with equal masses we measured 47.5 °C, close to halfway. With more cold water the result was closer to the cold temperature, as we predicted.',
+        'Not completely, the temperature does not just average, it depends on the masses.'],
+      conclusion: ['The model Q = mcΔT predicts the equilibrium temperature well: our measurements were between 1 and 2.5 °C below the predictions in every trial. The difference always goes in the same direction because the mixture loses energy to the beaker and the air, which the model ignores. The calculation itself worked.',
+        'The model works more or less. The temperatures were a bit lower than predicted.'],
+      roles: ['Ana weighed the water and used the microwave, Juan read the thermometer, and we did the calculations together.', 'We did everything together.'],
+    };
+    const reports = [];
+    for (let gi = 1; gi <= 8; gi++) {
+      const good = ![3, 6].includes(gi), nTrials = gi === 7 ? 1 : gi % 3 === 0 ? 3 : 2;
+      const props = gi === 5 ? [[100, 100], [105, 100], [100, 95]] : [[100, 100], [60, 150], [150, 60]];
+      const trials = [];
+      for (let t = 0; t < nTrials; t++) {
+        const [mh, mc] = props[t].map(m => Math.round(m + rnd(-4, 4)));
+        const Tc = rnd(19, 22), Th = rnd(55, 72), model = teqModel(mh, Th, mc, Tc);
+        const loss = rnd(0.8, 2.6) * (good ? 1 : 1.6);
+        const calc = gi === 3 && t === 1 ? (Th + Tc) / 2 : model + rnd(-0.2, 0.2);
+        trials.push({ mc: String(mc), Tc: r1(Tc), mh: String(mh), Th: r1(Th), pred: r1(calc), locked: true,
+          Teq: r1(gi === 8 && t === 1 ? model + 1.6 : model - loss) });
+      }
+      const pick = k => good ? texts[k][0] : texts[k][1];
+      reports.push({
+        schema: 1, lab: 'equilibrium-temperature', id: 'demo' + gi, session: 'DEMO', group: String(gi), students: [names[gi * 2 - 2], names[gi * 2 - 1]],
+        prediction: { equal: predEqual[gi - 1], unequal: predUnequal[gi - 1], why: pick('why') }, practice: '60',
+        trials, discuss: { first: pick('first') },
+        answers: { missing: pick('missing'), c: pick('c'), predcheck: pick('predcheck') },
+        conclusion: { errors: ['air', 'beaker', 'thermometer', 'delay'].filter(() => Math.random() < 0.55),
+          errtext: gi === 2 ? 'The microwave queue was long, so our hot water waited a minute before we poured it.' : '', text: pick('conclusion'), roles: pick('roles') },
+        startedAt: new Date().toISOString(), submittedAt: new Date(Date.now() - (9 - gi) * 60000).toISOString(),
+      });
     }
-    const pick = k => good ? texts[k][0] : texts[k][1];
-    addRaw({
-      schema: 1, lab: LAB_ID, id: 'demo' + gi, session: 'DEMO', group: String(gi), students: [names[gi * 2 - 2], names[gi * 2 - 1]],
-      prediction: { equal: predEqual[gi - 1], unequal: predUnequal[gi - 1], why: pick('why') }, practice: '60',
-      trials, discuss: { first: pick('first') },
-      answers: { missing: pick('missing'), c: pick('c'), predcheck: pick('predcheck') },
-      conclusion: { errors: ['air', 'beaker', 'thermometer', 'delay'].filter(() => Math.random() < 0.55),
-        errtext: gi === 2 ? 'The microwave queue was long, so our hot water waited a minute before we poured it.' : '', text: pick('conclusion'), roles: pick('roles') },
-      startedAt: new Date().toISOString(), submittedAt: new Date(Date.now() - (9 - gi) * 60000).toISOString(),
-    });
-  }
-  cacheRaw();
-  CFG.session = 'DEMO'; sessEl.value = 'DEMO'; saveCfg();
-  dataMsg.textContent = 'Demo class loaded (session DEMO).';
-  showSetup(false);
-  render();
+    return reports;
+  },
 });
-
-// ── Theme ───────────────────────────────────────────────────
-function applyTheme(light) {
-  document.body.classList.toggle('light', light);
-  document.getElementById('theme-toggle').textContent = light ? '☽ Dark' : '☀ Light';
-  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
-}
-let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
-applyTheme(savedTheme === 'light');
-document.getElementById('theme-toggle').addEventListener('click', () => { applyTheme(!document.body.classList.contains('light')); render(); });
-
-applyToggles();
-showSetup(!RAW.size && !CONN.api);
-load();
 </script>
 </body>
 </html>

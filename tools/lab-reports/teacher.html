@@ -91,6 +91,7 @@
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .muted { color: var(--muted); }
+  .note.warn { background: rgba(210,153,34,.15); border-left-color: #d29922; }
   .note { border-radius: 8px; padding: 10px 14px; font-size: .86rem; background: var(--accent-soft); border-left: 3px solid var(--accent); }
   details summary { cursor: pointer; font-weight: 700; color: var(--accent); }
   details[open] summary { margin-bottom: 12px; }
@@ -115,6 +116,11 @@
     <div class="form-row"><label for="api">Web app URL</label><input type="text" id="api" placeholder="https://script.google.com/macros/s/…/exec"></div>
     <div class="form-row"><label for="key">Teacher key</label><input type="password" id="key"></div>
     <div class="btns"><button class="btn primary" id="save">Save and test</button><span class="muted" id="save-msg"></span></div>
+    <div class="note warn" id="update-note" hidden>
+      <b>Update your Apps Script.</b> Your sheet runs an older version of the code, which can't store reports with screenshots (for example, Falling Cone).
+      To update: open your sheet → <b>Extensions → Apps Script</b>, replace the code with the new code below (<b>keep your own TEACHER_KEY</b>),
+      save, then <b>Deploy → Manage deployments → ✏ Edit → Version: New version → Deploy</b>. The Web app URL stays the same, and all your reports are kept.
+    </div>
     <details id="howto">
       <summary>How to create the Google Sheet backend (one time, about 10 minutes)</summary>
       <div style="display:grid;gap:12px">
@@ -136,6 +142,10 @@
 <script type="text/plain" id="gs-source">// Ergosfera lab reports backend (all labs share it).
 // Paste into Extensions → Apps Script of a Google Sheet, then deploy as a Web app.
 const TEACHER_KEY = 'change-this-word';   // teacher pages need this word to read reports
+const VERSION = 2;
+// A cell holds at most 50,000 characters, so long reports (for example with a screenshot) are split
+// across several cells. Each piece starts with '~' so Sheets never reads it as a number or a formula.
+const PIECE = 45000;
 
 // Students send reports here (POST).
 function doPost(e) {
@@ -143,9 +153,11 @@ function doPost(e) {
   lock.waitLock(10000);
   try {
     const data = JSON.parse(e.postData.contents);
+    const json = JSON.stringify(data), pieces = [];
+    for (let i = 0; i < json.length; i += PIECE) pieces.push('~' + json.slice(i, i + PIECE));
     getSheet_().appendRow([new Date(), data.lab || '', String(data.session || ''), String(data.group || ''),
-      (data.students || []).join(' & '), JSON.stringify(data)]);
-    return json_({ ok: true });
+      (data.students || []).join(' & ')].concat(pieces));
+    return json_({ ok: true, version: VERSION });
   } catch (err) {
     return json_({ ok: false, error: String(err) });
   } finally {
@@ -161,14 +173,15 @@ function doGet(e) {
   const out = [];
   rows.forEach(function (r) {
     try {
-      const d = JSON.parse(r[5]);
+      const json = r.slice(5).map(function (c) { c = String(c); return c.charAt(0) === '~' ? c.slice(1) : c; }).join('');
+      const d = JSON.parse(json);
       if (p.lab && d.lab !== p.lab) return;
       if (p.session && String(d.session).trim().toLowerCase() !== p.session.trim().toLowerCase()) return;
       d.receivedAt = r[0];
       out.push(p.summary ? { lab: d.lab, session: d.session, group: d.group, submittedAt: d.submittedAt } : d);
     } catch (err) {}
   });
-  return json_({ ok: true, submissions: out });
+  return json_({ ok: true, version: VERSION, submissions: out });
 }
 
 function getSheet_() {
@@ -176,7 +189,7 @@ function getSheet_() {
   let sh = ss.getSheetByName('Submissions');
   if (!sh) {
     sh = ss.insertSheet('Submissions');
-    sh.appendRow(['Received', 'Lab', 'Session', 'Group', 'Students', 'Report (JSON)']);
+    sh.appendRow(['Received', 'Lab', 'Session', 'Group', 'Students', 'Report (JSON, may continue in the next columns)']);
     sh.setFrozenRows(1);
   }
   return sh;
@@ -195,6 +208,7 @@ const CONN = { api: '', key: '' };
 try { Object.assign(CONN, JSON.parse(localStorage.getItem(CKEY) || '{}')); } catch (e) {}
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const BACKEND_VERSION = 2;   // version of the Apps Script code below
 let COUNTS = null;   // lab id → { reports, sessions:Set, last }
 
 function renderTopics() {
@@ -240,6 +254,9 @@ async function test() {
       if (String(s.submittedAt) > c.last) c.last = s.submittedAt;
     });
     setStatus('Connected ✓', 'ok');
+    const outdated = (j.version || 1) < BACKEND_VERSION;
+    document.getElementById('update-note').hidden = !outdated;
+    if (outdated) { setStatus('Connected · update needed', 'bad'); document.getElementById('howto').open = true; }
   } catch (e) {
     COUNTS = null;
     setStatus('⚠ ' + (e.message || 'Could not connect'), 'bad');

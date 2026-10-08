@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Falling Cone Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="../lab-teacher.css">
+</head>
+<body>
+<script src="../lab-teacher.js"></script>
+<script>
+// Falling Cone: the parts specific to this lab. Everything else comes from ../lab-teacher.js.
+const PARTS = 4;
+const SPEED_TEXT = { increase: 'Keeps increasing', 'then-constant': 'Increases, then constant', constant: 'Constant from the start', decrease: 'Decreases' };
+const GRAPH_TEXT = { line: 'Straight line', steeper: 'Curve, steeper', flatter: 'Curve, flatter', horizontal: 'Horizontal line' };
+const relDiff = (a, b) => Math.abs(Math.abs(a) - Math.abs(b)) / Math.abs(b);
+const predSummary = s => s.prediction?.speed || s.prediction?.graph
+  ? `Speed: ${SPEED_TEXT[s.prediction.speed] || '—'} · Constant-velocity graph: ${GRAPH_TEXT[s.prediction.graph] || '—'}.` : '';
+
+// The four parts of the fall, exactly as the student page splits them
+function partsOf(rows) {
+  const n = rows.length;
+  if (n < PARTS + 1) return [];
+  const idx = Array.from({ length: PARTS + 1 }, (_, k) => Math.round(k * (n - 1) / PARTS));
+  return Array.from({ length: PARTS }, (_, k) => {
+    const A = rows[idx[k]], B = rows[idx[k + 1]];
+    return { A, B, v: (B.y - A.y) / (B.t - A.t), tm: (A.t + B.t) / 2 };
+  });
+}
+
+// ── Plots ───────────────────────────────────────────────────
+// Distance fallen vs time for every group, each starting at its first tracked point
+function plotFall(svg, groups, W = 720, H = 420) {
+  const M = { l: 62, r: 20, t: 18, b: 50 };
+  const series = groups.filter(G => G.rows.length).map(G => {
+    const t0 = G.rows[0].t, y0 = G.rows[0].y;
+    return { G, pts: G.rows.map(p => ({ x: p.t - t0, y: y0 - p.y })) };
+  });
+  const xs = series.flatMap(s => s.pts.map(p => p.x)), ys = series.flatMap(s => s.pts.map(p => p.y));
+  const xStep = niceStep(Math.max(0.1, ...xs), 6), yStep = niceStep(Math.max(1, ...ys), 6);
+  const x1 = Math.ceil(Math.max(0.1, ...xs) / xStep) * xStep, y1 = Math.ceil(Math.max(1, ...ys) / yStep) * yStep;
+  const y0 = Math.min(0, Math.floor(Math.min(0, ...ys) / yStep) * yStep);
+  const X = v => M.l + v / x1 * (W - M.l - M.r);
+  const Y = v => H - M.b - (v - y0) / (y1 - y0) * (H - M.t - M.b);
+  let s = '';
+  for (let v = 0; v <= x1 + 1e-9; v += xStep) s += `<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${M.t}" y2="${H - M.b}"/><text x="${X(v)}" y="${H - M.b + 18}" text-anchor="middle">${fmt(v)}</text>`;
+  for (let v = y0; v <= y1 + 1e-9; v += yStep) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  s += `<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="${M.t}" y2="${H - M.b}"/><line class="axis" x1="${M.l}" x2="${W - M.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 8}" text-anchor="middle">Time since the first tracked point (s)</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">Distance fallen (cm)</text>`;
+  series.forEach(({ G, pts }) => {
+    s += `<polyline points="${pts.map(p => `${X(p.x)},${Y(p.y)}`).join(' ')}" fill="none" stroke="${G.color}" stroke-width="1.5" stroke-opacity=".6"/>`;
+    pts.forEach(p => { s += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="3.5" fill="${G.color}"><title>${esc(label(G))}: t = ${fmt(p.x)} s, fallen ${fmt(p.y)} cm</title></circle>`; });
+  });
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+}
+
+// Speeds by group: slope (big dot), Δy/Δt over the whole fall (square), the four parts (small rings)
+function plotV(svg, groups) {
+  const W = 560, H = 420, M = { l: 56, r: 16, t: 18, b: 50 };
+  const gs = groups.filter(G => isFinite(G.vSlope) || isFinite(G.vDydt) || G.ivs.length);
+  if (!gs.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No velocities yet</text>`; return; }
+  const all = gs.flatMap(G => [G.vSlope, G.vDydt, ...G.ivs]).filter(isFinite);
+  const step = niceStep(Math.max(10, ...all), 6), y1 = Math.ceil(Math.max(10, ...all) * 1.05 / step) * step;
+  const Y = v => H - M.b - v / y1 * (H - M.t - M.b);
+  const bw = (W - M.l - M.r) / gs.length, X = i => M.l + bw * (i + 0.5);
+  let s = '';
+  for (let v = 0; v <= y1 + 1e-9; v += step) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">Speed (cm/s)</text>`;
+  gs.forEach((G, i) => {
+    const x = X(i);
+    G.ivs.forEach((v, j) => { s += `<circle cx="${x + (j - 1.5) * Math.min(7, bw / 6)}" cy="${Y(v)}" r="4" fill="none" stroke="${G.color}" stroke-width="1.6"><title>${esc(label(G))}, part ${j + 1}: ${fmt(v)} cm/s</title></circle>`; });
+    if (isFinite(G.vDydt)) s += `<rect x="${x - 6}" y="${Y(G.vDydt) - 6}" width="12" height="12" fill="var(--surface)" stroke="${G.color}" stroke-width="2.2"><title>${esc(label(G))}: Δy/Δt = ${fmt(G.vDydt)} cm/s</title></rect>`;
+    if (isFinite(G.vSlope)) s += `<circle cx="${x}" cy="${Y(G.vSlope)}" r="6.5" fill="${G.color}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(label(G))}: slope = ${fmt(G.vSlope)} cm/s</title></circle>`;
+    s += `<text x="${x}" y="${H - M.b + 18}" text-anchor="middle">G${esc(G.s.group || '?')}</text>`;
+  });
+  svg.innerHTML = s;
+}
+
+// One group's position graph with their tracked points and the fit of those points
+function plotTrack(svg, G) {
+  const W = 640, H = 360, M = { l: 62, r: 20, t: 18, b: 50 };
+  if (!G.rows.length) { svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No tracking data</text>`; return; }
+  const ts = G.rows.map(p => p.t), ys = G.rows.map(p => p.y).concat([0]);
+  const xStep = niceStep((Math.max(...ts) - Math.min(...ts)) || 1, 6), yStep = niceStep((Math.max(...ys) - Math.min(...ys)) || 1, 6);
+  const x0 = Math.floor(Math.min(...ts) / xStep) * xStep, x1 = Math.ceil(Math.max(...ts) / xStep) * xStep;
+  const y0 = Math.floor(Math.min(...ys) / yStep) * yStep, y1 = Math.ceil(Math.max(...ys) / yStep) * yStep;
+  const X = v => M.l + (v - x0) / ((x1 - x0) || 1) * (W - M.l - M.r);
+  const Y = v => H - M.b - (v - y0) / ((y1 - y0) || 1) * (H - M.t - M.b);
+  let s = '';
+  for (let v = x0; v <= x1 + 1e-9; v += xStep) s += `<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${M.t}" y2="${H - M.b}"/><text x="${X(v)}" y="${H - M.b + 18}" text-anchor="middle">${fmt(v)}</text>`;
+  for (let v = y0; v <= y1 + 1e-9; v += yStep) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  if (G.fit) s += `<line x1="${X(x0)}" y1="${Y(G.fit.k * x0 + G.fit.b)}" x2="${X(x1)}" y2="${Y(G.fit.k * x1 + G.fit.b)}" stroke="var(--green)" stroke-width="2" stroke-dasharray="7 4"/>`;
+  s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 8}" text-anchor="middle">t (s)</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">y (cm)</text>`;
+  G.rows.forEach(p => { s += `<circle cx="${X(p.t)}" cy="${Y(p.y)}" r="3.5" fill="${G.color}"/>`; });
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+}
+
+const shotCard = (G, i) => `<div class="shot"><div class="who" data-i="${i}" style="cursor:pointer" title="Open full report"><span class="dot" style="background:${G.color}"></span>${esc(label(G))}${CFG.names ? ' · ' + esc(who(G)) : ''}</div>
+  ${G.s.screenshot ? `<img class="zoomable" src="${G.s.screenshot}" alt="${esc(label(G))}: tracking screenshot">` : '<div class="empty">No screenshot</div>'}</div>`;
+
+function speedTiles() {
+  const vs = GROUPS.map(G => G.vFit).filter(isFinite);
+  const both = GROUPS.filter(G => isFinite(G.vSlope) && isFinite(G.vDydt));
+  const spreads = GROUPS.map(G => G.spreadPct).filter(isFinite);
+  return `
+    <div class="tile"><div class="k">Median speed</div><div class="v">${vs.length ? fmt(median(vs)) : '—'} <small>cm/s</small></div><div class="s">${vs.length ? `fit of the tracked points · range ${fmt(Math.min(...vs))}–${fmt(Math.max(...vs))}` : ''}</div></div>
+    <div class="tile"><div class="k">Methods within 5%</div><div class="v">${both.filter(G => relDiff(G.vDydt, G.vSlope) <= 0.05).length}<small>/${both.length}</small></div><div class="s">slope vs Δy/Δt</div></div>
+    <div class="tile"><div class="k">Change across the 4 parts</div><div class="v">${spreads.length ? fmt(median(spreads), 2) : '—'}<small>%</small></div><div class="s">median of (largest − smallest) / mean</div></div>`;
+}
+
+LabTeacher({
+  id: 'falling-cone',
+  title: 'Falling Cone',
+  icon: '🔻',
+  studentPage: 'falling_cone_lab.html',
+  tagline: 'Velocity from video tracking · slope vs Δy/Δt · is the motion uniform?',
+  backendVersion: 2,
+
+  errors: {
+    clicking: 'Clicking on different points of the cone', blur: 'Blurry cone in some frames', angle: 'Camera not straight in front (perspective)',
+    calibration: 'Calibration marks not precise', fps: 'Wrong or low frame rate', walls: 'Cone touching the walls',
+  },
+  questions: [
+    { id: 'prediction', title: 'Prediction: how will the speed change? What does a constant-velocity graph look like?', get: s => s.prediction?.why, chart: 'pred' },
+    { id: 'sign', title: 'Why is the slope negative? What does the sign tell you?', get: s => s.answers?.sign },
+    { id: 'change', title: 'Does v change during the fall? How big is Δv compared with v?', get: s => s.discuss?.change },
+    { id: 'methods', title: 'Slope vs Δy/Δt: are they equal? Why could they differ?', get: s => s.answers?.methods },
+    { id: 'uniform', title: 'Does the cone move with uniform velocity? Evidence?', get: s => s.answers?.uniform },
+    { id: 'start', title: 'What happens right after the release? Is v constant from the beginning?', get: s => s.answers?.start },
+    { id: 'predcheck', title: 'Was your prediction right?', get: s => s.answers?.predcheck },
+    { id: 'errors', title: 'Sources of error', get: s => s.conclusion?.errtext, chart: 'errors' },
+    { id: 'conclusion', title: 'Conclusion', get: s => s.conclusion?.text },
+    { id: 'roles', title: 'How did the pair share the work?', get: s => s.conclusion?.roles },
+  ],
+  questionChart(q) {
+    const part = (key, texts, title) => {
+      const counts = {}; GROUPS.forEach(G => { const c = G.s.prediction?.[key]; if (c) counts[c] = (counts[c] || 0) + 1; });
+      return `<div class="muted" style="font-weight:700;margin:4px 0 8px">${title}</div><div class="bars">${Object.keys(texts).map(c => bar(texts[c], counts[c] || 0)).join('')}</div>`;
+    };
+    return part('speed', SPEED_TEXT, 'Once falling, the speed…') + '<div style="height:14px"></div>' + part('graph', GRAPH_TEXT, 'A constant-velocity position graph is…');
+  },
+  answerPrefix: (q, s) => q.id === 'prediction' ? predSummary(s) : '',
+
+  analyze(s) {
+    const rows = (s.track?.rows || []).map(p => ({ t: num(p.t), y: num(p.y) })).filter(p => isFinite(p.t) && isFinite(p.y)).sort((a, b) => a.t - b.t);
+    const fit = linfit(rows.map(p => ({ x: p.t, y: p.y })));
+    const d = s.dydt || {};
+    const parts = partsOf(rows);
+    const ivs = (s.intervals || []).map(v => Math.abs(num(v))).filter(isFinite);
+    const spreadVals = ivs.length === PARTS ? ivs : parts.map(p => Math.abs(p.v));
+    const mean = spreadVals.reduce((a, v) => a + v, 0) / spreadVals.length;
+    return {
+      rows, fit, parts, ivs,
+      vFit: fit ? Math.abs(fit.k) : NaN,
+      vSlope: Math.abs(num(s.slope?.a) * (s.slope?.unit === 'm' ? 100 : 1)),
+      vDydt: Math.abs(num(d.v)),
+      vDydtExpected: Math.abs((num(d.y2) - num(d.y1)) / (num(d.t2) - num(d.t1))),
+      spreadPct: spreadVals.length === PARTS ? (Math.max(...spreadVals) - Math.min(...spreadVals)) / mean * 100 : NaN,
+    };
+  },
+  checks(G) {
+    const out = [], s = G.s, n = G.rows.length;
+    if (n < 8) out.push([n ? 'Only ' + n + ' points' : 'No tracking data', 'red']);
+    if (!s.screenshot) out.push(['No screenshot', 'red']);
+    if (!isFinite(G.vSlope)) out.push(['No slope', 'red']);
+    else if (G.fit && relDiff(G.vSlope, G.vFit) > 0.05) out.push(['Slope ≠ their data (unit?)', '']);
+    if (isFinite(G.vDydt) && isFinite(G.vDydtExpected) && relDiff(G.vDydt, G.vDydtExpected) > 0.03) out.push(['Δy/Δt calculation?', '']);
+    const badParts = G.parts.map((p, i) => [p, num(s.intervals?.[i]), i + 1]).filter(([p, v]) => isFinite(v) && relDiff(v, p.v) > 0.03).map(x => x[2]);
+    if (badParts.length) out.push(['Part v calculation? (' + badParts.join(', ') + ')', '']);
+    if (G.fit && G.fit.r2 < 0.98) out.push(['Low R²', '']);
+    if (isFinite(G.vFit) && (G.vFit < 20 || G.vFit > 400)) out.push(['Unusual speed: check calibration', 'red']);
+    return out;
+  },
+
+  summaryHtml: `
+    <div class="two">
+      <div class="card">
+        <h3>All groups: distance fallen vs time</h3>
+        <svg class="plot" id="fall-plot" viewBox="0 0 720 420"></svg>
+        <div class="legend" id="legend"></div>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">Each group's tracked points, starting at their first point. A straight line means constant velocity; its steepness is the speed.</div>
+      </div>
+      <div class="card">
+        <h3>Speed by group (cm/s)</h3>
+        <svg class="plot" id="v-plot" viewBox="0 0 560 420"></svg>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">● slope (method 1) &nbsp;■ Δy/Δt over the whole fall (method 2) &nbsp;○ Δy/Δt in each of the four parts, as the students calculated it.</div>
+      </div>
+    </div>`,
+  renderSummary(on) {
+    const fits = GROUPS.filter(G => G.fit);
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Reports</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'}</div></div>
+      ${speedTiles()}
+      <div class="tile"><div class="k">Median R²</div><div class="v">${fits.length ? median(fits.map(G => G.fit.r2)).toFixed(3) : '—'}</div><div class="s">linear fit of y vs t</div></div>`;
+    plotFall(document.getElementById('fall-plot'), on);
+    plotV(document.getElementById('v-plot'), on);
+  },
+
+  resultsHead: '<th>Points</th><th>v slope (cm/s)</th><th>R²</th><th>v Δy/Δt (cm/s)</th><th>v in the 4 parts (cm/s)</th><th>Change across parts</th>',
+  resultsRow: G => `
+    <td>${G.rows.length}</td>
+    <td>${isFinite(G.vSlope) ? `<b>${fmt(G.vSlope)}</b>` : '—'}</td>
+    <td>${G.fit ? G.fit.r2.toFixed(3) : '—'}</td>
+    <td>${isFinite(G.vDydt) ? fmt(G.vDydt) : '—'}</td>
+    <td>${G.ivs.length ? G.ivs.map(v => fmt(v)).join(' · ') : '—'}</td>
+    <td>${isFinite(G.spreadPct) ? fmt(G.spreadPct, 2) + '%' : '—'}</td>`,
+
+  sections: [{
+    id: 'shots', title: 'Tracking screenshots',
+    render(el) { el.innerHTML = `<div class="shots">${GROUPS.map(shotCard).join('')}</div><p class="muted" style="font-size:.78rem;margin-top:8px">Click a screenshot to see it full size.</p>`; },
+  }],
+
+  slides(on) {
+    const shots = GROUPS.map(shotCard), perSlide = 6, slides = [
+      { html: `<h2>How did each cone fall?</h2>
+        <div class="plot-wrap"><svg class="plot" id="show-fall"></svg></div>
+        <div class="legend">${on.map(G => `<span class="chip"><i style="background:${G.color}"></i>${esc(label(G))}</span>`).join('')}</div>`,
+        draw: () => plotFall(document.getElementById('show-fall'), on) },
+      { html: `<h2>Two methods, one velocity?</h2>
+        <div class="tiles">${speedTiles()}</div>
+        <div class="plot-wrap"><svg class="plot" id="show-v"></svg></div>
+        <div class="sub">● slope &nbsp;■ Δy/Δt (whole fall) &nbsp;○ Δy/Δt in each part</div>`,
+        draw: () => plotV(document.getElementById('show-v'), on) },
+    ];
+    for (let p = 0; p < shots.length; p += perSlide) {
+      const pages = Math.ceil(shots.length / perSlide);
+      slides.push({ html: `<h2>Tracking screenshots${pages > 1 ? `<span class="page">${p / perSlide + 1}/${pages}</span>` : ''}</h2><div class="shots">${shots.slice(p, p + perSlide).join('')}</div><div class="sub" style="margin-top:auto">Click a screenshot to see it full size.</div>` });
+    }
+    return slides;
+  },
+
+  detail(G) {
+    const s = G.s, v = s.video || {}, c = s.conclusion || {};
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">v from the slope</div><div class="v">${fmt(G.vSlope)} <small>cm/s</small></div><div class="s">their data's fit: ${fmt(G.vFit)} cm/s · R² ${G.fit ? G.fit.r2.toFixed(4) : '—'}</div></div>
+        <div class="tile"><div class="k">v = Δy/Δt</div><div class="v">${fmt(G.vDydt)} <small>cm/s</small></div><div class="s">with their numbers: ${fmt(G.vDydtExpected)} cm/s</div></div>
+        <div class="tile"><div class="k">Change across parts</div><div class="v">${isFinite(G.spreadPct) ? fmt(G.spreadPct, 2) : '—'}<small>%</small></div><div class="s">${G.ivs.map(x => fmt(x)).join(' · ') || '—'} cm/s</div></div>
+        ${sentTile(G)}
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="two">
+        <div class="card"><h3>Tracking screenshot</h3>${s.screenshot ? `<img class="zoomable" src="${s.screenshot}" alt="${esc(label(G))}: tracking screenshot">` : '<div class="empty">No screenshot</div>'}
+          <p class="muted" style="font-size:.8rem;margin-top:8px">Video: ${esc(v.fps || '—')} fps · ${esc(v.drops || '—')} drops · frames ${esc(v.trimIn || '—')}–${esc(v.trimOut || '—')} · calibration ${esc(v.cal || '—')} cm</p></div>
+        <div class="card"><h3>Their tracked points (dashed: fit of those points)</h3><svg class="plot" id="detail-plot"></svg></div>
+      </div>
+      <div class="card"><h3>The four parts of the fall</h3>
+        <div class="table-wrap"><table class="t"><thead><tr><th>Part</th><th>From t (s), y (cm)</th><th>To t (s), y (cm)</th><th>Δy/Δt (cm/s)</th><th>They wrote</th></tr></thead><tbody>
+        ${G.parts.map((p, i) => `<tr><td>${i + 1}</td><td>${p.A.t.toFixed(4)}, ${p.A.y.toFixed(2)}</td><td>${p.B.t.toFixed(4)}, ${p.B.y.toFixed(2)}</td><td>${fmt(p.v)}</td><td>${esc(s.intervals?.[i] || '—')}</td></tr>`).join('')}
+        </tbody></table></div>
+      </div>
+      <div class="answers">
+        ${detailAnswer('Prediction: ' + (predSummary(s) || '—'), s.prediction?.why)}
+        ${detailAnswer('Why is the slope negative?', s.answers?.sign)}
+        ${detailAnswer('Does v change? How big is Δv?', s.discuss?.change)}
+        ${detailAnswer('Slope vs Δy/Δt', s.answers?.methods)}
+        ${detailAnswer('Uniform velocity?', s.answers?.uniform)}
+        ${detailAnswer('Right after the release', s.answers?.start)}
+        ${detailAnswer('Was the prediction right?', s.answers?.predcheck)}
+        ${detailAnswer(errorsTitle(c), c.errtext)}
+        ${detailAnswer('Conclusion', c.text)}
+        ${detailAnswer('How they shared the work', c.roles)}
+      </div>`;
+  },
+  drawDetail: G => plotTrack(document.getElementById('detail-plot'), G),
+
+  computed: G => ({
+    points: G.rows.length, v_fit_of_their_data_cm_s: G.vFit, r2: G.fit ? G.fit.r2 : null,
+    v_slope_reported_cm_s: G.vSlope, v_dydt_reported_cm_s: G.vDydt, v_dydt_with_their_numbers_cm_s: G.vDydtExpected,
+    parts_cm_s: G.parts.map(p => p.v), parts_reported: G.s.intervals || [], change_across_parts_percent: G.spreadPct,
+  }),
+  csv: {
+    head: ['session', 'group', 'students', 'points', 'fps', 'v_slope_cm_s', 'v_fit_cm_s', 'R2', 'v_dydt_cm_s', 'part1_cm_s', 'part2_cm_s', 'part3_cm_s', 'part4_cm_s', 'change_across_parts_pct', 'screenshot'],
+    rows: G => [[G.s.session, G.s.group, who(G), G.rows.length, num(G.s.video?.fps), G.vSlope, G.vFit, G.fit ? G.fit.r2 : '', G.vDydt,
+      ...Array.from({ length: PARTS }, (_, i) => num(G.s.intervals?.[i])), G.spreadPct, G.s.screenshot ? 'yes' : 'no']],
+  },
+
+  demo() {
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz',
+      'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva', 'Camila Torres', 'Daniel Ramírez', 'Sara Medina', 'Felipe Ríos'];
+    const texts = {
+      why: ['At first gravity speeds it up, but air resistance grows with speed until it balances the weight; then the speed stays constant and the graph is a straight line.',
+        'Things fall faster and faster because of gravity.'],
+      sign: ['The y axis points up and the cone moves down, so y decreases with time and the velocity is negative: the sign gives the direction.',
+        'Because it goes down.'],
+      change: ['The first part is slower (about 80 cm/s) because the cone is still speeding up after we release it; the other three parts are within 3 cm/s of each other, which is about our clicking error.',
+        'The velocities are different in each part so the speed changes a little.'],
+      methods: ['They differ by about 4%. The slope uses all the tracked points, while Δy/Δt uses only the first and last, so one bad click changes it more; the slope is more reliable.',
+        'They are almost the same.'],
+      uniform: ['Yes, after the first tenth of a second: the graph becomes a straight line and the last three parts give 110, 112 and 109 cm/s, the same within our error.',
+        'Yes because the graph looks straight.'],
+      start: ['No, right after the release the cone starts from rest and accelerates until air resistance equals its weight, then it falls at constant speed.',
+        'It starts slow.'],
+      predcheck: ['Yes, we predicted it would speed up first and then stay constant, and the first part was slower while the rest were equal.',
+        'No, we thought it would keep speeding up.'],
+      conclusion: ['With the slope the cone falls at 108 cm/s and with Δy/Δt at 104 cm/s. Except for the first part, where it is still speeding up, the velocity stays constant within about 3%, so the cone falls with uniform velocity once air resistance balances its weight.',
+        'The cone falls at about one meter per second and the velocity is almost constant.'],
+      roles: ['Ana recorded the video and Juan dropped the cone; we tracked and calculated together.', 'We did it together.'],
+    };
+    const shot = (vel, color) => {
+      const c = document.createElement('canvas'); c.width = 640; c.height = 360;
+      const x = c.getContext('2d');
+      x.fillStyle = '#008080'; x.fillRect(0, 0, 640, 360);
+      x.fillStyle = '#c0c0c0'; x.fillRect(8, 8, 624, 344);
+      x.fillStyle = '#000080'; x.fillRect(8, 8, 624, 22); x.fillStyle = '#fff'; x.font = 'bold 13px sans-serif'; x.fillText('Video Tracker', 16, 24);
+      x.fillStyle = '#eee'; x.fillRect(16, 38, 300, 306);
+      x.strokeStyle = '#7aa'; x.lineWidth = 18; x.beginPath(); x.moveTo(166, 50); x.lineTo(166, 336); x.stroke();
+      for (let i = 0; i < 18; i++) { x.fillStyle = color; x.beginPath(); x.arc(166, 60 + i * 15.5, 3, 0, 7); x.fill(); }
+      x.fillStyle = '#fff'; x.fillRect(324, 38, 300, 306); x.strokeStyle = '#808080'; x.lineWidth = 1; x.strokeRect(344, 60, 264, 250);
+      for (let i = 0; i < 18; i++) { x.fillStyle = '#000080'; x.beginPath(); x.arc(350 + i * 14, 70 + i * 13 + (i < 3 ? (3 - i) * -4 : 0), 2.5, 0, 7); x.fill(); }
+      x.strokeStyle = '#000080'; x.setLineDash([5, 3]); x.beginPath(); x.moveTo(344, 64); x.lineTo(608, 306); x.stroke(); x.setLineDash([]);
+      x.fillStyle = '#000080'; x.font = '12px sans-serif'; x.fillText(`y = ${(-vel).toFixed(1)}*t + 231.7   R^2 = 0.9987`, 350, 52);
+      return c.toDataURL('image/jpeg', 0.7);
+    };
+    const reports = [];
+    for (let gi = 1; gi <= 8; gi++) {
+      const vT = rnd(95, 125), fps = gi % 2 ? 60 : 30, nFrames = gi === 7 ? 6 : Math.round(0.8 * fps), f0 = 100 + gi * 7;
+      const rows = []; let y = 0, v = 0;
+      for (let f = 0; f < nFrames; f++) {
+        rows.push({ t: +((f0 + f) / fps).toFixed(4), y: +(y + rnd(-0.25, 0.25)).toFixed(3) });
+        const dt = 1 / fps; v = Math.min(vT, v + 900 * dt); y -= v * dt;
+      }
+      const fit = linfit(rows.map(p => ({ x: p.t, y: p.y })));
+      const A = rows[0], B = rows[rows.length - 1];
+      const ps = partsOf(rows);
+      const good = ![4, 7].includes(gi);
+      const pick = k => good ? texts[k][0] : texts[k][1];
+      const slopeA = gi === 3 ? fit.k / 100 : fit.k;   // group 3 reads m/s but leaves the unit in cm/s
+      reports.push({
+        schema: 1, lab: 'falling-cone', id: 'demo' + gi, session: 'DEMO', group: String(gi), students: [names[gi * 2 - 2], names[gi * 2 - 1]],
+        prediction: { speed: ['then-constant', 'then-constant', 'increase', 'increase', 'then-constant', 'constant', 'increase', 'then-constant'][gi - 1],
+          graph: ['line', 'line', 'line', 'steeper', 'line', 'line', 'steeper', 'line'][gi - 1], why: pick('why') },
+        video: { fps: String(fps), drops: '3', trimIn: String(f0), trimOut: String(f0 + nFrames - 1), cal: '90' },
+        track: { unit: 'cm', rows, source: 'csv' },
+        screenshot: gi === 6 ? '' : shot(fit.k * -1, COLORS[(gi - 1) % COLORS.length]),
+        slope: { a: slopeA.toPrecision(4), unit: 'cm', r2: fit.r2.toFixed(4) },
+        dydt: { t1: A.t.toFixed(4), y1: A.y.toFixed(2), t2: B.t.toFixed(4), y2: B.y.toFixed(2), v: ((B.y - A.y) / (B.t - A.t) * (gi === 5 ? 1.3 : 1)).toFixed(1) },
+        intervals: ps.map((p, i) => (p.v * (gi === 2 && i === 1 ? 0.8 : 1)).toFixed(1)),
+        discuss: { change: pick('change') },
+        answers: { sign: pick('sign'), methods: pick('methods'), uniform: pick('uniform'), start: pick('start'), predcheck: pick('predcheck') },
+        conclusion: { errors: ['clicking', 'blur', 'angle', 'calibration'].filter(() => Math.random() < 0.5),
+          errtext: gi === 1 ? 'The cone was a bit blurry at the bottom, so we clicked on its shadow for two frames.' : '', text: pick('conclusion'), roles: pick('roles') },
+        startedAt: new Date().toISOString(), submittedAt: new Date(Date.now() - (9 - gi) * 60000).toISOString(),
+      });
+    }
+    return reports;
+  },
+});
+</script>
+</body>
+</html>
