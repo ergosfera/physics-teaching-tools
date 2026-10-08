@@ -14,4 +14,15 @@ const LAB_TOPICS = [
       },
     ],
   },
+  {
+    name: 'Thermal physics', icon: '🌡️',
+    labs: [
+      {
+        id: 'equilibrium-temperature', icon: '☕', title: 'Equilibrium Temperature',
+        desc: 'Mix hot and cold water and predict the final temperature with Q = m·c·ΔT. Test the model in two trials and track where the energy went.',
+        student: 'thermal-physics/equilibrium_temperature_lab.html',
+        teacher: 'thermal-physics/equilibrium_temperature_teacher.html',
+      },
+    ],
+  },
 ];

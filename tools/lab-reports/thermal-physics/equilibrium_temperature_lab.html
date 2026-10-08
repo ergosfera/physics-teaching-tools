@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Equilibrium Temperature Lab</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌡️</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950;
+    --green-soft: rgba(63,185,80,.12);
+    --amber: #d29922;
+    --amber-soft: rgba(210,153,34,.14);
+    --red: #f85149;
+    --hot: #f0883e;
+    --cold: #58a6ff;
+    --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #0969da;
+    --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37;
+    --green-soft: rgba(26,127,55,.09);
+    --amber: #9a6700;
+    --amber-soft: rgba(154,103,0,.10);
+    --red: #cf222e;
+    --hot: #bc4c00;
+    --cold: #0969da;
+  }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.5; min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.3px; }
+  header h1 span { color: var(--accent); }
+  .progress { flex: 1; min-width: 140px; display: flex; gap: 4px; }
+  .progress i { flex: 1; height: 6px; border-radius: 3px; background: var(--surface2); border: 1px solid var(--border); }
+  .progress i.done { background: var(--green); border-color: var(--green); }
+  .progress i.current { background: var(--accent); border-color: var(--accent); }
+  .save-state { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .pill-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 20px; padding: 5px 12px; font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer;
+  }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  .intro { color: var(--muted); font-size: .92rem; margin-bottom: 20px; }
+  .intro b { color: var(--text); }
+
+  /* ── STEPS ── */
+  .step {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .step-head {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-head .num {
+    width: 30px; height: 30px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; font-weight: 800; font-size: .9rem;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .step.done .num { background: var(--green); border-color: var(--green); color: #fff; }
+  .step.active .num { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step-head h2 { font-size: 1.02rem; font-weight: 700; flex: 1; }
+  .step-head .status { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .step.done .status { color: var(--green); }
+  .step-body { padding: 18px; display: grid; gap: 16px; }
+  .step-lock { display: none; padding: 14px 18px; color: var(--muted); font-size: .88rem; }
+  .step.locked .step-body { display: none; }
+  .step.locked .step-lock { display: block; }
+  .step.locked .step-head { border-bottom: none; opacity: .6; }
+
+  p.lead { font-size: .93rem; }
+  ul.tips, ol.tips { font-size: .86rem; color: var(--muted); padding-left: 20px; display: grid; gap: 3px; }
+  ul.tips b, ol.tips b { color: var(--text); }
+
+  /* ── FORM ── */
+  label.f { display: grid; gap: 5px; font-size: .82rem; font-weight: 600; color: var(--muted); align-content: end; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; font: inherit; font-size: .95rem; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  input[readonly] { background: var(--surface2); color: var(--muted); }
+  .q { display: grid; gap: 6px; }
+  .q .qt { font-size: .93rem; font-weight: 600; }
+  .q .qt em { font-style: normal; color: var(--accent); }
+  .wc { font-size: .72rem; color: var(--muted); text-align: right; }
+  .wc.ok { color: var(--green); }
+
+  .choices { display: grid; gap: 6px; }
+  .choices label {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: .92rem;
+  }
+  .choices label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px; }
+  .checks label { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; cursor: pointer; }
+  .checks input { margin-top: 4px; }
+
+  .btn {
+    font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;
+    border-radius: 8px; padding: 9px 16px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text);
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .row-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .note {
+    border-radius: 8px; padding: 10px 14px; font-size: .88rem;
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+  }
+  .note.warn { background: var(--amber-soft); border-left-color: var(--amber); }
+  .note.good { background: var(--green-soft); border-left-color: var(--green); }
+  .discuss {
+    border: 1px dashed var(--accent); border-radius: 10px; padding: 14px; display: grid; gap: 8px;
+    background: var(--accent-soft);
+  }
+  .discuss .tag { font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+
+  .model {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+    display: grid; gap: 8px; font-size: .92rem;
+  }
+  .eq { font-family: Consolas, 'Courier New', monospace; font-size: 1rem; text-align: center; padding: 6px 0; }
+  .eq .h { color: var(--hot); font-weight: 700; }
+  .eq .c { color: var(--cold); font-weight: 700; }
+
+  /* ── TRIALS ── */
+  .trial { border: 1px solid var(--border); border-radius: 10px; padding: 14px; display: grid; gap: 12px; background: var(--bg); }
+  .trial-head { display: flex; align-items: center; gap: 10px; font-weight: 800; }
+  .trial-head .st { margin-left: auto; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .trial.complete .trial-head .st { color: var(--green); }
+  .trial .wait { color: var(--muted); font-size: .88rem; }
+  .trial.waiting .trial-body { display: none; }
+  .trial:not(.waiting) .wait { display: none; }
+  .trial-body { display: grid; gap: 12px; }
+  .beakers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .beakers { grid-template-columns: 1fr; } }
+  .beaker { border-radius: 8px; padding: 10px 12px; display: grid; gap: 8px; border: 1px solid var(--border); }
+  .beaker.cold { border-left: 4px solid var(--cold); }
+  .beaker.hot { border-left: 4px solid var(--hot); }
+  .beaker .bt { font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+  .beaker.cold .bt { color: var(--cold); }
+  .beaker.hot .bt { color: var(--hot); }
+  .pred-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end; }
+  @media (max-width: 560px) { .pred-row { grid-template-columns: 1fr; } }
+
+  /* ── PLOT / TABLE ── */
+  .plot { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+  .plot text { fill: var(--muted); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .plot .axis { stroke: var(--muted); stroke-width: 1; }
+  .plot .grid { stroke: var(--border); stroke-width: 1; }
+  .plot .pt { fill: var(--accent); stroke: var(--bg); stroke-width: 1.5; }
+  .plot .model-line { stroke: var(--green); stroke-width: 2.2; stroke-dasharray: 7 4; }
+  .plot .lbl { fill: var(--text); font-weight: 600; }
+  .plot .ptl { fill: var(--text); font-weight: 700; font-size: 11px; }
+  .caption { font-size: .82rem; color: var(--muted); }
+
+  .table-wrap { overflow-x: auto; }
+  table.data { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  table.data th { text-align: left; font-size: .74rem; color: var(--muted); font-weight: 700; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.data td { padding: 6px 8px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.data td.calc { color: var(--accent); font-weight: 600; }
+
+  .summary { display: grid; gap: 4px; font-size: .9rem; }
+  .summary div::before { content: '○ '; color: var(--muted); }
+  .summary div.ok::before { content: '✓ '; color: var(--green); font-weight: 800; }
+
+  footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
+  footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="pill-btn" href="../../../index.html#lab-reports" style="text-decoration:none">← Lab Reports</a>
+  <h1>🌡️ <span>Equilibrium Temperature</span> Lab</h1>
+  <div class="progress" id="progress"></div>
+  <span class="save-state" id="save-state">Saved on this device</span>
+  <button class="pill-btn" id="theme-toggle">☀ Light</button>
+</header>
+
+<main>
+  <p class="intro">Work <b>with your partner</b> through the steps in order. Each step unlocks the next one. Your work is saved on this device as you type, so a reload won't lose it. When you finish, send the report to your teacher.</p>
+
+  <!-- 1 TEAM -->
+  <section class="step" data-step="1">
+    <div class="step-head"><span class="num">1</span><h2>Your team</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="grid2">
+        <label class="f"><span>Class / session code</span><input type="text" data-bind="session" id="session-input" placeholder="e.g. 10A"></label>
+        <label class="f"><span>Group number</span><input type="text" inputmode="numeric" data-bind="group" placeholder="e.g. 4"></label>
+      </div>
+      <div class="grid2">
+        <label class="f"><span>Student 1</span><input type="text" data-bind="students.0" placeholder="Full name"></label>
+        <label class="f"><span>Student 2</span><input type="text" data-bind="students.1" placeholder="Full name"></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 PREDICT -->
+  <section class="step" data-step="2">
+    <div class="step-head"><span class="num">2</span><h2>Predict before you measure</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">You will mix hot and cold water and predict the final temperature. Before touching anything, <b>discuss with your partner</b>:</p>
+      <div class="q">
+        <div class="qt">You mix <em>100 g of water at 80 °C</em> with <em>100 g of water at 20 °C</em>. The final temperature will be…</div>
+        <div class="choices" data-radio="prediction.equal">
+          <label><input type="radio" name="pred-equal" value="add"> about 100 °C (the temperatures add up)</label>
+          <label><input type="radio" name="pred-equal" value="half"> about 50 °C</label>
+          <label><input type="radio" name="pred-equal" value="hot"> closer to 80 °C</label>
+          <label><input type="radio" name="pred-equal" value="cold"> closer to 20 °C</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">Now you mix <em>50 g of water at 80 °C</em> with <em>150 g of water at 20 °C</em>. The final temperature will be…</div>
+        <div class="choices" data-radio="prediction.unequal">
+          <label><input type="radio" name="pred-unequal" value="add"> about 100 °C (the temperatures add up)</label>
+          <label><input type="radio" name="pred-unequal" value="half"> about 50 °C</label>
+          <label><input type="radio" name="pred-unequal" value="hot"> closer to 80 °C</label>
+          <label><input type="radio" name="pred-unequal" value="cold"> closer to 20 °C</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">Why do you think so? Write the reason you both agree on.</div>
+        <textarea data-bind="prediction.why" data-min="6"></textarea>
+        <div class="wc" data-wc="prediction.why"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 MODEL -->
+  <section class="step" data-step="3">
+    <div class="step-head"><span class="num">3</span><h2>The model</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="model">
+        <p>When the two waters mix, energy flows from the hot water to the cold water until both reach the same temperature, the <b>equilibrium temperature T<sub>eq</sub></b>. The energy needed to change the temperature of a mass m by ΔT is <b>Q = m·c·ΔT</b>. If no energy escapes:</p>
+        <div class="eq">heat lost by the <span class="h">hot</span> water = heat gained by the <span class="c">cold</span> water</div>
+        <div class="eq"><span class="h">m<sub>h</sub></span> · c · (<span class="h">T<sub>h</sub></span> − T<sub>eq</sub>) = <span class="c">m<sub>c</sub></span> · c · (T<sub>eq</sub> − <span class="c">T<sub>c</sub></span>)</div>
+        <p>c = 4186 J/(kg·°C) is the specific heat of water. <b>Solve this equation for T<sub>eq</sub> in your notebook.</b> You will use it to predict the result of every trial.</p>
+      </div>
+      <div class="q">
+        <div class="qt">Practice: <em>150 g of water at 70 °C</em> is mixed with <em>50 g of water at 30 °C</em>. Use your equation: what is T<sub>eq</sub>?</div>
+        <div class="row-btns"><input type="text" inputmode="decimal" data-bind="practice" style="max-width:140px"> <b>°C</b></div>
+        <div id="practice-feedback"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 TRIALS -->
+  <section class="step" data-step="4">
+    <div class="step-head"><span class="num">4</span><h2>Trials: predict, mix, measure</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">Do <b>at least 2 trials</b>, each with a <b>different proportion</b> of hot and cold water. The microwave and the balance are shared by the class, so plan ahead and be ready when it's your turn.</p>
+      <ol class="tips">
+        <li><b>Cold beaker:</b> put the empty beaker on the balance, press tare (zero), and add tap water. Write the water mass, then measure its temperature T<sub>c</sub>.</li>
+        <li><b>Hot beaker:</b> tare the second beaker, add water and weigh it. Heat it in the microwave (aim for 50–70 °C; never let it boil). <b>Handle it with care.</b></li>
+        <li>Stir the hot water and measure T<sub>h</sub> <b>right before pouring</b>.</li>
+        <li>Use the model to <b>calculate your prediction</b> and lock it.</li>
+        <li>Pour all the hot water into the cold beaker, stir, and write the <b>highest steady temperature</b> the thermometer reaches.</li>
+      </ol>
+      <div id="trials" style="display:grid;gap:14px"></div>
+      <div class="row-btns"><button class="btn" id="add-trial">+ Add a trial (optional)</button></div>
+      <svg class="plot" id="plot" viewBox="0 0 640 400"></svg>
+      <p class="caption">Each point is one trial. Across: the fraction of the water that was hot. Up: how far the mixture moved from T<sub>c</sub> toward T<sub>h</sub> (0 = stayed at T<sub>c</sub>, 1 = reached T<sub>h</sub>). If the model were perfect, every point would sit on the dashed diagonal.</p>
+    </div>
+  </section>
+
+  <!-- 5 ENERGY -->
+  <section class="step" data-step="5">
+    <div class="step-head"><span class="num">5</span><h2>Energy balance</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">With your measured T<sub>eq</sub>, the page calculates how much energy the hot water <b>lost</b> and how much the cold water <b>gained</b> (Q = m·c·ΔT, c = 4186 J/(kg·°C)).</p>
+      <div class="table-wrap"><table class="data" id="energy"></table></div>
+      <div class="q">
+        <div class="qt">Did the cold water gain all the energy the hot water lost? <em id="q-missing"></em> Where did the difference go? Use your data.</div>
+        <textarea data-bind="answers.missing" data-min="10"></textarea>
+        <div class="wc" data-wc="answers.missing"></div>
+      </div>
+      <div class="q">
+        <div class="qt">The specific heat c cancels out of your prediction. Why? When would it matter (for example, mixing water with oil)?</div>
+        <textarea data-bind="answers.c" data-min="10"></textarea>
+        <div class="wc" data-wc="answers.c"></div>
+      </div>
+      <div class="q">
+        <div class="qt">In step 2 you predicted <em id="q-pred">…</em>. Were you right? Use your trials as evidence.</div>
+        <textarea data-bind="answers.predcheck" data-min="8"></textarea>
+        <div class="wc" data-wc="answers.predcheck"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 CONCLUDE -->
+  <section class="step" data-step="6">
+    <div class="step-head"><span class="num">6</span><h2>Conclude</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="q">
+        <div class="qt">Which sources of error affected your results most? Discuss and choose.</div>
+        <div class="checks" id="err-checks"></div>
+        <textarea data-bind="conclusion.errtext" placeholder="Other sources of error, or how you could reduce them (optional)" style="min-height:60px"></textarea>
+      </div>
+      <div class="q">
+        <div class="qt">Conclusion: does the model Q = m·c·ΔT predict the equilibrium temperature well? By how many degrees, and in which direction, did your measurements differ from your predictions? Why?</div>
+        <textarea data-bind="conclusion.text" data-min="25" style="min-height:120px"></textarea>
+        <div class="wc" data-wc="conclusion.text"></div>
+      </div>
+      <div class="q">
+        <div class="qt">How did you share the work? (Who weighed, who heated, who read the thermometer, who calculated, who wrote…)</div>
+        <textarea data-bind="conclusion.roles" data-min="5" style="min-height:60px"></textarea>
+        <div class="wc" data-wc="conclusion.roles"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 SUBMIT -->
+  <section class="step" data-step="7">
+    <div class="step-head"><span class="num">7</span><h2>Send your report</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="summary" id="summary"></div>
+      <div class="row-btns">
+        <button class="btn primary" id="send">📤 Send to teacher</button>
+        <button class="btn" id="download">⬇ Download backup file</button>
+      </div>
+      <div id="send-status"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Equilibrium Temperature Lab · Ergosfera Teaching Tools · <button id="reset">Start over (erase this report)</button>
+</footer>
+
+<script>
+// ── Config from the link the teacher shares ─────────────────
+const LAB_ID = 'equilibrium-temperature';
+const params = new URLSearchParams(location.search);
+const API = params.get('api') || '';
+const LINK_SESSION = params.get('session') || '';
+const STORE = 'lab_' + LAB_ID + '_' + (LINK_SESSION || 'default');
+
+const C_WATER = 4186;          // J/(kg·°C)
+const MIN_TRIALS = 2, MAX_TRIALS = 4;
+const PRACTICE = { mh: 150, Th: 70, mc: 50, Tc: 30 };   // answer: 60 °C
+const ERRORS = [
+  ['air', 'Heat lost to the air'],
+  ['beaker', 'Heat absorbed by the beaker'],
+  ['thermometer', 'Thermometer read before it stabilized'],
+  ['evaporation', 'Water evaporated while heating'],
+  ['stirring', 'Water not fully mixed'],
+  ['delay', 'Hot water cooled before pouring'],
+];
+const PRED_TEXT = { add: 'about 100 °C', half: 'about 50 °C', hot: 'closer to 80 °C', cold: 'closer to 20 °C' };
+
+// ── State ───────────────────────────────────────────────────
+function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+const blankTrial = () => ({ mc: '', Tc: '', mh: '', Th: '', pred: '', locked: false, Teq: '' });
+function blank() {
+  return {
+    schema: 1, lab: LAB_ID, id: rid(), session: LINK_SESSION, group: '', students: ['', ''],
+    prediction: { equal: '', unequal: '', why: '' },
+    practice: '',
+    trials: [blankTrial(), blankTrial()],
+    discuss: { first: '' },
+    answers: { missing: '', c: '', predcheck: '' },
+    conclusion: { errors: [], errtext: '', text: '', roles: '' },
+    startedAt: new Date().toISOString(), unlocked: 1, sent: null,
+  };
+}
+let S = blank();
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+  if (saved && saved.lab === LAB_ID) S = Object.assign(blank(), saved);
+} catch (e) {}
+if (LINK_SESSION) S.session = LINK_SESSION;
+
+let saveTimer;
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {}
+  const el = document.getElementById('save-state');
+  el.textContent = 'Saving…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { el.textContent = 'Saved on this device ✓'; }, 400);
+}
+
+function getPath(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), S); }
+function setPath(path, v) {
+  const keys = path.split('.'); let o = S;
+  keys.slice(0, -1).forEach(k => { o = o[k]; });
+  o[keys[keys.length - 1]] = v;
+}
+
+// ── Helpers ─────────────────────────────────────────────────
+const num = s => { const v = parseFloat(String(s ?? '').trim().replace(',', '.')); return isFinite(v) ? v : NaN; };
+const words = s => String(s || '').trim().split(/\s+/).filter(Boolean).length;
+function fmt(v, sig = 3) {
+  if (!isFinite(v)) return '—';
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e5 || a < 1e-3) return v.toExponential(sig - 1);
+  return String(parseFloat(v.toPrecision(sig)));
+}
+const fmt1 = v => isFinite(v) ? (Math.round(v * 10) / 10).toFixed(1) : '—';
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// Model equilibrium temperature (°C) from masses (g) and temperatures (°C)
+const teqModel = (mh, Th, mc, Tc) => (mh * Th + mc * Tc) / (mh + mc);
+
+// Numbers and derived values of one trial
+function trialCalc(t) {
+  const mc = num(t.mc), Tc = num(t.Tc), mh = num(t.mh), Th = num(t.Th), pred = num(t.pred), Teq = num(t.Teq);
+  const inputsOk = mc > 0 && mh > 0 && isFinite(Tc) && isFinite(Th);
+  const model = inputsOk ? teqModel(mh, Th, mc, Tc) : NaN;
+  const complete = inputsOk && t.locked && isFinite(pred) && isFinite(Teq);
+  const Qlost = mh / 1000 * C_WATER * (Th - Teq), Qgained = mc / 1000 * C_WATER * (Teq - Tc);
+  return {
+    mc, Tc, mh, Th, pred, Teq, inputsOk, model, complete, Qlost, Qgained,
+    x: mh / (mh + mc), y: (Teq - Tc) / (Th - Tc),
+    missingPct: (Qlost - Qgained) / Qlost * 100,
+  };
+}
+const completeTrials = () => S.trials.map(trialCalc).filter(c => c.complete);
+
+// ── Steps: completion rules ─────────────────────────────────
+const practiceOk = () => Math.abs(num(S.practice) - teqModel(PRACTICE.mh, PRACTICE.Th, PRACTICE.mc, PRACTICE.Tc)) <= 0.5;
+const firstTrialDone = () => trialCalc(S.trials[0]).complete;
+const discussDone = () => words(S.discuss.first) >= 8;
+const DONE = {
+  1: () => S.group.trim() && S.students[0].trim() && S.students[1].trim() && S.session.trim(),
+  2: () => S.prediction.equal && S.prediction.unequal && words(S.prediction.why) >= 6,
+  3: () => practiceOk(),
+  4: () => completeTrials().length >= MIN_TRIALS && discussDone(),
+  5: () => words(S.answers.missing) >= 10 && words(S.answers.c) >= 10 && words(S.answers.predcheck) >= 8,
+  6: () => words(S.conclusion.text) >= 25 && words(S.conclusion.roles) >= 5,
+  7: () => !!S.sent,
+};
+const NSTEPS = 7;
+
+function refresh() {
+  // unlock progressively; once unlocked, a step stays open
+  let firstOpen = 1;
+  while (firstOpen < NSTEPS && DONE[firstOpen]()) firstOpen++;
+  S.unlocked = Math.max(S.unlocked || 1, firstOpen);
+
+  const prog = document.getElementById('progress');
+  prog.innerHTML = '';
+  document.querySelectorAll('.step').forEach(sec => {
+    const i = +sec.dataset.step;
+    const done = !!DONE[i]();
+    const locked = i > S.unlocked;
+    sec.classList.toggle('done', done);
+    sec.classList.toggle('locked', locked);
+    sec.classList.toggle('active', !done && !locked);
+    sec.querySelector('.status').textContent = done ? '✓ Done' : locked ? '🔒' : 'In progress';
+    sec.querySelector('.step-lock').textContent = '🔒 Finish step ' + (i - 1) + ' to unlock this one.';
+    const dot = document.createElement('i');
+    if (done) dot.className = 'done'; else if (!locked) dot.className = 'current';
+    prog.appendChild(dot);
+  });
+
+  document.querySelectorAll('[data-wc]').forEach(el => {
+    const path = el.dataset.wc;
+    const min = +document.querySelector(`[data-bind="${path}"]`).dataset.min;
+    const w = words(getPath(path));
+    el.textContent = w + (w === 1 ? ' word' : ' words') + ' · at least ' + min;
+    el.classList.toggle('ok', w >= min);
+  });
+
+  refreshPractice();
+  refreshTrials();
+  refreshEnergy();
+  refreshSummary();
+}
+
+// ── Generic bindings ────────────────────────────────────────
+function bindInputs(root) {
+  root.querySelectorAll('[data-bind]').forEach(el => {
+    const path = el.dataset.bind;
+    el.value = getPath(path) ?? '';
+    el.addEventListener('input', () => { setPath(path, el.value); save(); refresh(); });
+  });
+}
+bindInputs(document);
+if (LINK_SESSION) document.getElementById('session-input').readOnly = true;
+
+document.querySelectorAll('[data-radio]').forEach(box => {
+  const path = box.dataset.radio;
+  box.querySelectorAll('input').forEach(r => {
+    r.checked = r.value === getPath(path);
+    r.addEventListener('change', () => { setPath(path, r.value); save(); refresh(); });
+  });
+});
+
+const errBox = document.getElementById('err-checks');
+ERRORS.forEach(([id, text]) => {
+  const lab = document.createElement('label');
+  lab.innerHTML = `<input type="checkbox" value="${id}"> <span>${esc(text)}</span>`;
+  const cb = lab.querySelector('input');
+  cb.checked = S.conclusion.errors.includes(id);
+  cb.addEventListener('change', () => {
+    S.conclusion.errors = ERRORS.map(e => e[0]).filter(k => errBox.querySelector(`input[value=${k}]`).checked);
+    save(); refresh();
+  });
+  errBox.appendChild(lab);
+});
+
+// ── Step 3: practice ────────────────────────────────────────
+function refreshPractice() {
+  const v = num(S.practice), out = document.getElementById('practice-feedback');
+  if (!isFinite(v)) { out.innerHTML = ''; return; }
+  if (practiceOk()) { out.innerHTML = '<div class="note good">✓ Correct! The hot water has more mass, so the mixture ends closer to 70 °C. You\'re ready for the trials.</div>'; return; }
+  const avg = (PRACTICE.Th + PRACTICE.Tc) / 2;
+  out.innerHTML = Math.abs(v - avg) <= 0.5
+    ? '<div class="note warn">That is the plain average of the two temperatures. But the masses are different: which water should "pull" the result more? Use the equation.</div>'
+    : (v < PRACTICE.Tc || v > PRACTICE.Th)
+      ? `<div class="note warn">The final temperature must be between ${PRACTICE.Tc} °C and ${PRACTICE.Th} °C. Check your algebra.</div>`
+      : '<div class="note warn">Not quite. Write the equation with the numbers, then group the T<sub>eq</sub> terms on one side. Try again.</div>';
+}
+
+// ── Step 4: trials ──────────────────────────────────────────
+const trialsBox = document.getElementById('trials');
+function renderTrials() {
+  trialsBox.innerHTML = '';
+  S.trials.forEach((t, i) => {
+    const card = document.createElement('div');
+    card.className = 'trial';
+    card.dataset.t = i;
+    card.innerHTML = `
+      <div class="trial-head">Trial ${i + 1}<span class="st"></span></div>
+      <div class="wait">Answer the discussion question above before starting trial ${i + 1}.</div>
+      <div class="trial-body">
+        <div class="beakers">
+          <div class="beaker cold"><span class="bt">❄ Cold water</span>
+            <label class="f"><span>Mass m<sub>c</sub> (g)</span><input type="text" inputmode="decimal" data-bind="trials.${i}.mc"></label>
+            <label class="f"><span>Temperature T<sub>c</sub> (°C)</span><input type="text" inputmode="decimal" data-bind="trials.${i}.Tc"></label>
+          </div>
+          <div class="beaker hot"><span class="bt">🔥 Hot water</span>
+            <label class="f"><span>Mass m<sub>h</sub> (g)</span><input type="text" inputmode="decimal" data-bind="trials.${i}.mh"></label>
+            <label class="f"><span>Temperature T<sub>h</sub> (°C), right before pouring</span><input type="text" inputmode="decimal" data-bind="trials.${i}.Th"></label>
+          </div>
+        </div>
+        <div class="warns"></div>
+        <div class="pred-row">
+          <label class="f"><span>Your predicted T<sub>eq</sub> (°C), calculated with the model</span><input type="text" inputmode="decimal" data-bind="trials.${i}.pred" class="pred-in"></label>
+          <button class="btn primary lock-btn">🔒 Lock prediction</button>
+        </div>
+        <div class="measure"><label class="f"><span>Now pour the hot water into the cold beaker and stir. Highest steady temperature T<sub>eq</sub> (°C)</span><input type="text" inputmode="decimal" data-bind="trials.${i}.Teq"></label></div>
+        <div class="result"></div>
+      </div>`;
+    bindInputs(card);
+    card.querySelector('.lock-btn').addEventListener('click', () => {
+      if (!confirm(`Lock your prediction for trial ${i + 1}? You won't be able to change it afterwards.`)) return;
+      S.trials[i].locked = true; save(); refresh();
+    });
+    trialsBox.appendChild(card);
+    if (i === 0) {
+      const d = document.createElement('div');
+      d.className = 'discuss';
+      d.id = 'discuss-first';
+      d.innerHTML = `<span class="tag">💬 Stop and discuss</span>
+        <div class="qt" style="font-weight:600">Was the measured temperature higher or lower than your prediction? By how much? Where could the energy have gone?</div>
+        <textarea data-bind="discuss.first" data-min="8"></textarea>
+        <div class="wc" data-wc="discuss.first"></div>`;
+      bindInputs(d);
+      trialsBox.appendChild(d);
+    }
+  });
+}
+document.getElementById('add-trial').addEventListener('click', () => {
+  S.trials.push(blankTrial()); renderTrials(); save(); refresh();
+});
+
+function refreshTrials() {
+  const first = trialsBox.querySelector('[data-t="0"]') && trialCalc(S.trials[0]);
+  [...trialsBox.querySelectorAll('.trial')].forEach(card => {
+    const i = +card.dataset.t, t = S.trials[i], c = trialCalc(t);
+    card.classList.toggle('waiting', i > 0 && !discussDone());
+    card.classList.toggle('complete', c.complete);
+    card.querySelector('.st').textContent = c.complete ? '✓ Done' : t.locked ? 'Mix and measure' : '';
+    card.querySelector('.pred-in').readOnly = t.locked;
+    const lockBtn = card.querySelector('.lock-btn');
+    lockBtn.hidden = t.locked;
+    lockBtn.disabled = !(c.inputsOk && isFinite(c.pred));
+    card.querySelector('.measure').hidden = !t.locked;
+
+    const warns = [];
+    if (c.inputsOk && c.Th <= c.Tc) warns.push('The hot water must be hotter than the cold water.');
+    if (c.Th > 90) warns.push('That is very hot. Be careful, and keep it below boiling.');
+    if (c.inputsOk && isFinite(c.pred) && (c.pred < Math.min(c.Tc, c.Th) || c.pred > Math.max(c.Tc, c.Th)))
+      warns.push('Your prediction must be between T<sub>c</sub> and T<sub>h</sub>. Check your calculation.');
+    if (i > 0 && first && first.inputsOk && c.inputsOk && Math.abs(c.x - first.x) < 0.08)
+      warns.push('This proportion of hot to cold water is almost the same as trial 1. Use clearly different amounts so the trials test the model in different situations.');
+    if (c.complete && (c.Teq < Math.min(c.Tc, c.Th) || c.Teq > Math.max(c.Tc, c.Th)))
+      warns.push('The measured T<sub>eq</sub> is outside the range between T<sub>c</sub> and T<sub>h</sub>, which is impossible. Check your readings.');
+    card.querySelector('.warns').innerHTML = warns.map(w => `<div class="note warn">${w}</div>`).join('');
+
+    const out = card.querySelector('.result');
+    if (!c.complete) { out.innerHTML = ''; return; }
+    const calcErr = c.pred - c.model, diff = c.Teq - c.pred;
+    out.innerHTML = `<div class="note ${Math.abs(diff) <= 2 ? 'good' : 'warn'}">
+      Predicted <b>${fmt1(c.pred)} °C</b>, measured <b>${fmt1(c.Teq)} °C</b>: the measurement was <b>${fmt1(Math.abs(diff))} °C ${diff < 0 ? 'lower' : 'higher'}</b> than your prediction.
+      ${Math.abs(calcErr) > 0.5 ? `<br>⚠ Your calculation gives ${fmt1(c.pred)} °C but the model gives <b>${fmt1(c.model)} °C</b>. Check your algebra.` : '<br>✓ Your calculation agrees with the model.'}
+    </div>`;
+  });
+  document.getElementById('discuss-first').hidden = !firstTrialDone();
+  const addBtn = document.getElementById('add-trial');
+  addBtn.hidden = S.trials.length >= MAX_TRIALS || !discussDone();
+  drawPlot(document.getElementById('plot'), S.trials.map(trialCalc).map((c, i) => ({ ...c, n: i + 1 })).filter(c => c.complete));
+}
+
+// Universal plot: fraction of hot water vs fraction of the way to T_h; the model is y = x
+function drawPlot(svg, pts) {
+  const W = 640, H = 400, M = { l: 62, r: 20, t: 18, b: 52 };
+  const X = v => M.l + (v + 0.05) / 1.1 * (W - M.l - M.r);
+  const Y = v => H - M.b - (v + 0.05) / 1.1 * (H - M.t - M.b);
+  let s = '';
+  for (let v = 0; v <= 1.0001; v += 0.2) {
+    s += `<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${M.t}" y2="${H - M.b}"/><text x="${X(v)}" y="${H - M.b + 18}" text-anchor="middle">${v.toFixed(1)}</text>`;
+    s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${v.toFixed(1)}</text>`;
+  }
+  s += `<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="${M.t}" y2="${H - M.b}"/><line class="axis" x1="${M.l}" x2="${W - M.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  s += `<line class="model-line" x1="${X(0)}" y1="${Y(0)}" x2="${X(1)}" y2="${Y(1)}"/><text x="${X(0.86)}" y="${Y(0.86) - 10}" text-anchor="end" fill="var(--green)">model</text>`;
+  s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 10}" text-anchor="middle">Fraction of hot water  m<tspan baseline-shift="sub" font-size="0.75em">h</tspan> / (m<tspan baseline-shift="sub" font-size="0.75em">h</tspan> + m<tspan baseline-shift="sub" font-size="0.75em">c</tspan>)</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">(T<tspan baseline-shift="sub" font-size="0.75em">eq</tspan> − T<tspan baseline-shift="sub" font-size="0.75em">c</tspan>) / (T<tspan baseline-shift="sub" font-size="0.75em">h</tspan> − T<tspan baseline-shift="sub" font-size="0.75em">c</tspan>)</text>`;
+  pts.forEach(p => { s += `<circle class="pt" cx="${X(p.x)}" cy="${Y(p.y)}" r="7"/><text class="ptl" x="${X(p.x) + 10}" y="${Y(p.y) + 4}">${p.n}</text>`; });
+  if (!pts.length) s += `<text x="${W / 2}" y="${H / 2 + 40}" text-anchor="middle">Your trials will appear here</text>`;
+  svg.innerHTML = s;
+}
+
+// ── Step 5: energy balance ──────────────────────────────────
+function refreshEnergy() {
+  const done = S.trials.map(trialCalc).map((c, i) => ({ ...c, n: i + 1 })).filter(c => c.complete);
+  document.getElementById('energy').innerHTML = `<thead><tr><th>Trial</th><th>Heat lost by hot water (J)</th><th>Heat gained by cold water (J)</th><th>Difference (J)</th><th>Missing</th></tr></thead><tbody>` +
+    done.map(c => `<tr><td>${c.n}</td><td class="calc">${fmt(c.Qlost)}</td><td class="calc">${fmt(c.Qgained)}</td><td class="calc">${fmt(c.Qlost - c.Qgained)}</td><td class="calc">${fmt(c.missingPct, 2)}%</td></tr>`).join('') + '</tbody>';
+  const c0 = done[0];
+  document.getElementById('q-missing').textContent = c0 ? `(In trial 1 the hot water lost ${fmt(c0.Qlost)} J and the cold water gained ${fmt(c0.Qgained)} J.)` : '';
+  document.getElementById('q-pred').textContent = S.prediction.equal
+    ? `${PRED_TEXT[S.prediction.equal]} for equal masses and ${PRED_TEXT[S.prediction.unequal] || '…'} for 50 g hot + 150 g cold`
+    : '…';
+}
+
+// ── Step 7: submit ──────────────────────────────────────────
+function payload() {
+  const { unlocked, sent, ...data } = S;
+  return {
+    ...data,
+    computed: S.trials.map(trialCalc).map(c => c.complete ? { model: c.model, Qlost: c.Qlost, Qgained: c.Qgained } : null),
+    submittedAt: new Date().toISOString(), client: 'equilibrium_temperature_lab/1',
+  };
+}
+function refreshSummary() {
+  const names = ['Team', 'Prediction', 'Model practice', 'Trials', 'Energy balance', 'Conclusion'];
+  document.getElementById('summary').innerHTML = names.map((n, i) => `<div class="${DONE[i + 1]() ? 'ok' : ''}">${n}</div>`).join('');
+  document.getElementById('send').disabled = !API;
+  const st = document.getElementById('send-status');
+  if (!API && !st.dataset.msg) st.innerHTML = '<div class="note warn">This link has no connection to your teacher. Use <b>Download backup file</b> and hand the file in, or ask your teacher for the class link.</div>';
+  else if (S.sent && !st.dataset.msg) st.innerHTML = `<div class="note good">Sent at ${new Date(S.sent).toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`;
+}
+function setStatus(html) { const st = document.getElementById('send-status'); st.dataset.msg = '1'; st.innerHTML = html; }
+
+document.getElementById('send').addEventListener('click', async () => {
+  const missing = [1, 2, 3, 4, 5, 6].filter(i => !DONE[i]());
+  if (missing.length && !confirm('Steps ' + missing.join(', ') + ' are not complete. Send anyway?')) return;
+  const btn = document.getElementById('send');
+  btn.disabled = true; setStatus('<div class="note">Sending…</div>');
+  const body = JSON.stringify(payload());
+  let ok = false, unconfirmed = false;
+  try {
+    const r = await fetch(API, { method: 'POST', body });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'server error');
+    ok = true;
+  } catch (e) {
+    try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; unconfirmed = true; } catch (e2) {}
+  }
+  btn.disabled = false;
+  if (ok) {
+    S.sent = new Date().toISOString(); save();
+    setStatus(`<div class="note good">✓ Sent${unconfirmed ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+  } else {
+    setStatus('<div class="note warn">Could not send: check the internet connection and try again. If it keeps failing, use <b>Download backup file</b> and give the file to your teacher.</div>');
+  }
+  refresh();
+});
+
+document.getElementById('download').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(payload(), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  const tag = [S.session, 'group' + (S.group || 'X')].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
+  a.href = URL.createObjectURL(blob);
+  a.download = `equilibrium-temperature_${tag}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+  if (!confirm('Erase this whole report from this device? This cannot be undone.')) return;
+  try { localStorage.removeItem(STORE); } catch (e) {}
+  location.reload();
+});
+
+// ── Theme (shared with the tools index) ─────────────────────
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  document.getElementById('theme-toggle').textContent = light ? '☽ Dark' : '☀ Light';
+  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+applyTheme(savedTheme === 'light');
+document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
+
+renderTrials();
+refresh();
+</script>
+</body>
+</html>
