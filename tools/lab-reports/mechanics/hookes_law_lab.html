@@ -200,7 +200,7 @@
 <body>
 
 <header>
-  <a class="pill-btn" id="back" href="../index.html" style="text-decoration:none">← Lab Reports</a>
+  <a class="pill-btn" href="../../../index.html#lab-reports" style="text-decoration:none">← Lab Reports</a>
   <h1>🧪 <span>Hooke's Law</span> Lab</h1>
   <div class="progress" id="progress"></div>
   <span class="save-state" id="save-state">Saved on this device</span>
@@ -806,9 +806,6 @@ function applyTheme(light) {
 let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
 applyTheme(savedTheme === 'light');
 document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
-
-// back to the experiment list, keeping the class link's session and connection
-document.getElementById('back').search = location.search;
 
 renderTable();
 refresh();

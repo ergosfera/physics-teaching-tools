@@ -530,21 +530,8 @@
   </div>
 
   <!-- ══════════════ LAB REPORTS ══════════════ -->
-  <div class="tab-panel" id="tab-lab-reports">
-
-    <div class="section">
-      <div class="cards">
-
-        <a class="card" href="tools/lab-reports/index.html">
-          <div class="card-top"><span class="card-icon">📝</span><span class="card-title">Lab Reports</span></div>
-          <div class="card-desc">Guided lab reports for pairs, by topic: predict, measure, watch tables and graphs build live, discuss, conclude and send to the teacher.</div>
-          <span class="card-open">Open →</span>
-        </a>
-
-      </div>
-    </div>
-
-  </div>
+  <!-- Experiments by topic, built from tools/lab-reports/labs.js (shared with the teacher page) -->
+  <div class="tab-panel" id="tab-lab-reports"></div>
 
 </main>
 
@@ -554,10 +541,31 @@
     Coded with <a href="https://www.anthropic.com/claude-code" target="_blank">Anthropic Claude Code</a> &nbsp;·&nbsp;
     <a href="https://github.com/ergosfera/physics-teaching-tools" target="_blank">View source on GitHub</a>
   </p>
-  <p class="footer-note">All tools run locally in your browser. No data is sent to any server.</p>
+  <p class="footer-note">All tools run locally in your browser. No data is sent to any server, except lab reports, which go to your teacher's Google Sheet.</p>
 </footer>
 
+<script src="tools/lab-reports/labs.js"></script>
 <script>
+  (function renderLabReports() {
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    let total = 0;
+    document.getElementById('tab-lab-reports').innerHTML = LAB_TOPICS.map(t => {
+      total += t.labs.length;
+      return `
+    <div class="section">
+      <p class="section-label">${t.icon} ${esc(t.name)} <span class="count">(${t.labs.length})</span></p>
+      <div class="cards">${t.labs.map(lab => `
+        <a class="card" href="tools/lab-reports/${lab.student}">
+          <div class="card-top"><span class="card-icon">${lab.icon}</span><span class="card-title">${esc(lab.title)}</span></div>
+          <div class="card-desc">${esc(lab.desc)}</div>
+          <span class="card-open">Open →</span>
+        </a>`).join('')}
+      </div>
+    </div>`;
+    }).join('');
+    document.querySelector('.tab-btn[data-tab="lab-reports"] .tab-count').textContent = total;
+  })();
+
   function applyTheme(light) {
     document.body.classList.toggle('light', light);
     document.getElementById('theme-icon').textContent  = light ? '☽' : '☀';

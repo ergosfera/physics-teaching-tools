@@ -257,7 +257,7 @@
         <button class="btn" id="demo">Load demo class</button>
         <button class="btn" id="clear">Clear loaded reports</button>
       </div>
-      <p class="muted" style="font-size:.8rem">"Download all reports" saves the complete reports for the current session, with every answer, in one file you can hand over for evaluation.</p>
+      <p class="muted" style="font-size:.8rem">Imported files are also uploaded to your Google Sheet (if it doesn't have them yet), so the sheet keeps every report. "Download all reports" saves the complete reports for the current session, with every answer, in one file you can hand over for evaluation.</p>
       <span class="muted" id="data-msg"></span>
     </div>
   </section>
@@ -343,7 +343,10 @@ function saveCfg() { try { localStorage.setItem(SKEY, JSON.stringify(CFG)); } ca
 // Reports loaded from any source, keyed by id+submittedAt
 const RAW = new Map();
 try { (JSON.parse(localStorage.getItem('labdash_cache_' + LAB_ID) || '[]')).forEach(addRaw); } catch (e) {}
-function addRaw(s) { if (s && s.lab === LAB_ID) RAW.set((s.id || '') + '|' + (s.submittedAt || ''), s); }
+const rawKey = s => (s.id || '') + '|' + (s.submittedAt || '');
+function addRaw(s) { if (s && s.lab === LAB_ID) RAW.set(rawKey(s), s); }
+// Reports seen in the Google Sheet on the last successful load (null = not loaded yet)
+let IN_SHEET = null;
 function cacheRaw() { try { localStorage.setItem('labdash_cache_' + LAB_ID, JSON.stringify([...RAW.values()])); } catch (e) {} }
 
 // ── Helpers ─────────────────────────────────────────────────
@@ -780,6 +783,7 @@ async function load() {
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || 'server error');
     j.submissions.forEach(addRaw);
+    IN_SHEET = new Set(j.submissions.map(rawKey));
     cacheRaw();
     fstate.textContent = 'Updated ' + new Date().toLocaleTimeString();
   } catch (e) {
@@ -858,15 +862,51 @@ function download(name, text, type) {
 }
 const dataMsg = document.getElementById('data-msg');
 const tag = () => CFG.session ? '_' + CFG.session.replace(/[^\w-]+/g, '-') : '';
+// Imported files (e.g. a group that couldn't send) are also uploaded to the Google Sheet,
+// so the sheet stays the complete record. Reports already in the sheet are skipped.
 document.getElementById('import').addEventListener('change', async e => {
-  let n = 0;
+  const imported = [];
   for (const file of e.target.files) {
-    try { const d = JSON.parse(await file.text()); (Array.isArray(d) ? d : d.reports || [d]).forEach(s => { if (s.lab === LAB_ID) { addRaw(s); n++; } }); } catch (err) {}
+    try {
+      const d = JSON.parse(await file.text());
+      (Array.isArray(d) ? d : d.reports || [d]).forEach(r => {
+        if (r.lab !== LAB_ID) return;
+        const { computed, receivedAt, ...report } = r;
+        addRaw(report); imported.push(report);
+      });
+    } catch (err) {}
   }
-  cacheRaw();
-  dataMsg.textContent = `Imported ${n} report${n === 1 ? '' : 's'}.`;
   e.target.value = '';
+  cacheRaw();
+  const n = imported.length;
+  let msg = `Imported ${n} report${n === 1 ? '' : 's'}.`;
+  dataMsg.textContent = msg;
   render();
+  if (!n) return;
+  if (!CONN.api || !CONN.key) {
+    dataMsg.textContent = msg + ` Not connected to a Google Sheet, so ${n === 1 ? 'it is' : 'they are'} only saved in this browser.`;
+    return;
+  }
+  await load();
+  if (IN_SHEET === null) { dataMsg.textContent = msg + ` Could not reach the Google Sheet, so ${n === 1 ? 'it was' : 'they were'} not uploaded. Try importing again later.`; return; }
+  const missing = imported.filter(r => !IN_SHEET.has(rawKey(r)));
+  if (!missing.length) { dataMsg.textContent = msg + ` ${n === 1 ? 'It is' : 'They are'} already in your Google Sheet.`; return; }
+  if (!confirm(`Upload ${missing.length} imported report${missing.length === 1 ? '' : 's'} to your Google Sheet, so ${missing.length === 1 ? 'it is' : 'they are'} kept with the others?`)) {
+    dataMsg.textContent = msg + ` Not uploaded: ${missing.length === 1 ? 'it is' : 'they are'} only saved in this browser.`;
+    return;
+  }
+  dataMsg.textContent = 'Uploading…';
+  let sent = 0;
+  for (const r of missing) {
+    try {
+      const j = await (await fetch(CONN.api, { method: 'POST', body: JSON.stringify(r) })).json();
+      if (j.ok) sent++;
+    } catch (err) {}
+  }
+  await load();
+  dataMsg.textContent = sent === missing.length
+    ? `${msg} Uploaded ${sent} to your Google Sheet ✓`
+    : `${msg} Uploaded ${sent} of ${missing.length}; the rest are only saved in this browser. Import the file again to retry.`;
 });
 document.getElementById('clear').addEventListener('click', () => {
   if (!confirm('Remove all loaded reports from this page? Reports in your Google Sheet are not affected.')) return;

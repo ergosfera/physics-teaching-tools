@@ -1,5 +1,5 @@
-// Lab reports by topic. Shared by the student page (index.html) and the teacher page (teacher.html):
-// add an experiment here and it appears on both.
+// Lab reports by topic. Shared by the Lab Reports tab of the site's index (students) and
+// teacher.html (unlisted): add an experiment here and it appears on both.
 //   student: the page pairs fill in during the lab
 //   teacher: the consolidated class results for the same experiment
 const LAB_TOPICS = [
