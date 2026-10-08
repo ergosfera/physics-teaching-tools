@@ -139,10 +139,7 @@
   .btn:hover { border-color: var(--accent); color: var(--accent); }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .link-box { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start; }
-  #qr { background: #fff; padding: 10px; border-radius: 8px; width: max-content; }
-  #qr:empty { display: none; }
-  @media (max-width: 700px) { .link-box { grid-template-columns: 1fr; } }
+  .link-box { display: grid; gap: 16px; }
   .note { border-radius: 8px; padding: 10px 14px; font-size: .88rem; background: var(--accent-soft); border-left: 3px solid var(--accent); }
   .setup-grid { display: grid; gap: 18px; }
   .setup-head { display: flex; align-items: center; gap: 12px; }
@@ -242,9 +239,8 @@
         <div style="display:grid;gap:8px">
           <input type="text" id="student-link" readonly class="mono">
           <div class="btns"><button class="btn" id="copy-link">Copy link</button><a class="btn" id="open-link" target="_blank" rel="noopener">Open student page</a></div>
-          <p class="muted" style="font-size:.8rem">Share it by QR or in your class chat. Each pair opens it on one device. Without the class link, students can still download their report as a file and hand it in.</p>
+          <p class="muted" style="font-size:.8rem">Share it in your class chat or by email. Each pair opens it on one computer. Without the class link, students can still download their report as a file and hand it in.</p>
         </div>
-        <div id="qr"></div>
       </div>
     </div>
 
@@ -310,7 +306,6 @@
   <div class="dlg-body" id="dlg-body"></div>
 </dialog>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 const LAB_ID = 'hookes-law';
 const STUDENT_PAGE = 'hookes_law_lab.html';
@@ -845,9 +840,6 @@ function renderLink() {
   const link = u.toString();
   document.getElementById('student-link').value = link;
   document.getElementById('open-link').href = link;
-  const qr = document.getElementById('qr');
-  qr.innerHTML = '';
-  if (window.QRCode) new QRCode(qr, { text: link, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.L });
 }
 document.getElementById('copy-link').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(document.getElementById('student-link').value); } catch (e) { document.getElementById('student-link').select(); }

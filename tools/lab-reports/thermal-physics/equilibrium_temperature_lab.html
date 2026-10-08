@@ -239,13 +239,13 @@
   <a class="pill-btn" href="../../../index.html#lab-reports" style="text-decoration:none">← Lab Reports</a>
   <h1>🌡️ <span>Equilibrium Temperature</span> Lab</h1>
   <div class="progress" id="progress"></div>
-  <span class="save-state" id="save-state">Saved on this device</span>
+  <span class="save-state" id="save-state">Saved on this computer</span>
   <button class="pill-btn" data-guide>📋 Lab guide</button>
   <button class="pill-btn" id="theme-toggle">☀ Light</button>
 </header>
 
 <main>
-  <p class="intro">Work <b>with your partner</b> through the steps in order. Each step unlocks the next one. Your work is saved on this device as you type, so a reload won't lose it. When you finish, send the report to your teacher.</p>
+  <p class="intro">Work <b>with your partner</b> through the steps in order. Each step unlocks the next one. Your work is saved on this computer as you type, so a reload won't lose it. When you finish, send the report to your teacher.</p>
 
   <!-- 1 TEAM -->
   <section class="step" data-step="1">
@@ -417,7 +417,7 @@
             <li>A thermometer</li>
             <li>A stirrer</li>
             <li>Tap water</li>
-            <li>This page, on one phone or laptop</li>
+            <li>This page, open on one computer</li>
           </ul>
         </div>
         <div class="guide-box"><div class="bt">Shared by the class</div>
@@ -527,7 +527,7 @@ function save() {
   const el = document.getElementById('save-state');
   el.textContent = 'Saving…';
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => { el.textContent = 'Saved on this device ✓'; }, 400);
+  saveTimer = setTimeout(() => { el.textContent = 'Saved on this computer ✓'; }, 400);
 }
 
 function getPath(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), S); }
@@ -696,7 +696,7 @@ function renderTrials() {
       </div>`;
     bindInputs(card);
     card.querySelector('.lock-btn').addEventListener('click', () => {
-      if (!confirm(`Lock your prediction for trial ${i + 1}? You won't be able to change it afterwards.`)) return;
+      if (!confirm(`Lock your prediction for trial ${i + 1}? You won't be able to change it afterward.`)) return;
       S.trials[i].locked = true; save(); refresh();
     });
     trialsBox.appendChild(card);
@@ -841,7 +841,7 @@ document.getElementById('download').addEventListener('click', () => {
 });
 
 document.getElementById('reset').addEventListener('click', () => {
-  if (!confirm('Erase this whole report from this device? This cannot be undone.')) return;
+  if (!confirm('Erase this whole report from this computer? This cannot be undone.')) return;
   try { localStorage.removeItem(STORE); } catch (e) {}
   location.reload();
 });
