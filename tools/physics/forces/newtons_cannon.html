@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Newton's Cannon</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💣</text></svg>">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+:root {
+  --border:  #c8d4e0;
+  --text:    #1a2234;
+  --muted:   #607080;
+  --accent:  #1858a8;
+  --surface: #ffffff;
+  --bg:      #f0f4f8;
+  --green:   #16a34a;
+  --red:     #dc2626;
+  --purple:  #7c3aed;
+  --orange:  #ea580c;
+  --teal:    #0d9488;
+  --grid:    #e3e9f0;
+  --dim:     #b8c4d0;
+}
+body.dark {
+  --border:  #30363d;
+  --text:    #e6edf3;
+  --muted:   #8b949e;
+  --accent:  #58a6ff;
+  --surface: #161b22;
+  --bg:      #0d1117;
+  --green:   #3fb950;
+  --red:     #f85149;
+  --purple:  #a78bfa;
+  --orange:  #fb923c;
+  --teal:    #2dd4bf;
+  --grid:    #21262d;
+  --dim:     #3d444d;
+}
+#theme-toggle {
+  position: fixed; bottom: 10px; right: 10px; z-index: 50;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 12px; cursor: pointer;
+  font-size: 0.8rem; font-weight: 600; color: var(--muted); user-select: none;
+}
+#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text); background: var(--bg); font-size: 15px; }
+body { display: flex; flex-direction: column; }
+button, input, select { font: inherit; color: inherit; }
+
+/* ── Top bar ── */
+#top-bar {
+  flex-shrink: 0; min-height: 48px;
+  display: flex; align-items: center; flex-wrap: wrap; padding: 6px 14px; gap: 8px 14px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+}
+#top-bar h1 { font-size: 1.05rem; font-weight: 800; letter-spacing: .02em; white-space: nowrap; }
+#top-bar .sub { font-size: 0.8rem; color: var(--muted); }
+
+/* ── Layout ── */
+#main { flex: 1; display: flex; min-height: 0; }
+#stage { flex: 1; position: relative; min-width: 0; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; }
+#cv.dragging { cursor: grabbing; }
+#panel {
+  width: 330px; flex-shrink: 0; overflow-y: auto; padding: 14px 14px 60px;
+  background: var(--surface); border-left: 2px solid var(--border);
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+/* ── Overlay on the scene ── */
+#hud {
+  position: absolute; top: 10px; left: 10px; pointer-events: none;
+  background: rgba(255,255,255,.88); color: #1a2234; border-radius: 10px;
+  padding: 8px 12px; font-size: 0.82rem; line-height: 1.5; min-width: 190px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.15);
+}
+#hud b { font-variant-numeric: tabular-nums; }
+#hud .big { font-size: 1.05rem; font-weight: 800; }
+#hud .res-land   { color: #b45309; }
+#hud .res-orbit  { color: #15803d; }
+#hud .res-escape { color: #7c3aed; }
+#zoom-note {
+  position: absolute; top: 10px; right: 10px; pointer-events: none;
+  background: rgba(255,255,255,.88); color: #1a2234; border-radius: 10px;
+  padding: 6px 10px; font-size: 0.75rem; box-shadow: 0 2px 10px rgba(0,0,0,.15);
+}
+#reset-view {
+  position: absolute; bottom: 12px; right: 12px; z-index: 5;
+  border: 1px solid var(--border); background: var(--surface); border-radius: 20px;
+  padding: 5px 12px; font-size: 0.78rem; font-weight: 700; color: var(--accent); cursor: pointer;
+}
+#stage #reset-view { right: 12px; bottom: 12px; }
+
+/* ── Panel controls ── */
+.group { display: flex; flex-direction: column; gap: 6px; }
+.group > label, .group-title {
+  font-size: 0.72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.group > label .val { font-size: 0.95rem; letter-spacing: 0; text-transform: none; color: var(--text); font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip {
+  border: 1px solid var(--border); background: var(--bg); border-radius: 14px;
+  padding: 2px 9px; font-size: 0.74rem; font-weight: 700; cursor: pointer; color: var(--text);
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.row { display: flex; gap: 6px; }
+.btn {
+  flex: 1; border: 2px solid var(--accent); background: var(--accent); color: #fff;
+  border-radius: 10px; padding: 8px 10px; font-weight: 800; cursor: pointer; font-size: 0.9rem;
+}
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn.orange { border-color: var(--orange); background: var(--orange); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn:hover:not(:disabled) { filter: brightness(1.08); }
+.num-in {
+  width: 92px; border: 1px solid var(--border); background: var(--bg); border-radius: 6px;
+  padding: 2px 6px; text-align: right; font-variant-numeric: tabular-nums;
+}
+.hint {
+  font-size: 0.8rem; line-height: 1.45; border-radius: 10px; padding: 9px 11px;
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--orange) 45%, transparent);
+}
+.hint b { color: var(--orange); }
+details { border: 1px solid var(--border); border-radius: 10px; padding: 8px 11px; font-size: 0.82rem; line-height: 1.5; }
+details summary { cursor: pointer; font-weight: 800; color: var(--accent); }
+details p { margin-top: 6px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.76rem; font-variant-numeric: tabular-nums; }
+th, td { padding: 3px 4px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th { color: var(--muted); font-weight: 700; font-size: 0.7rem; }
+th:first-child, td:first-child { text-align: left; }
+.swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.empty { color: var(--muted); font-size: 0.8rem; font-style: italic; }
+.note { font-size: 0.74rem; color: var(--muted); }
+.note:empty { display: none; }
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+  <h1>💣 Newton's Cannon</h1>
+  <span class="sub">Fire faster and faster: the range grows until the ground curves away beneath the ball and it never comes down.</span>
+</div>
+
+<div id="main">
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="hud"></div>
+    <div id="zoom-note"></div>
+    <button id="reset-view" hidden>⤢ Fit last shot</button>
+  </div>
+
+  <aside id="panel">
+    <div class="group">
+      <label>Launch speed <span class="val"><input id="v-num" class="num-in" type="number" min="1" max="12000" step="any"> m/s</span></label>
+      <input id="v-slider" type="range" min="0" max="1000" step="1">
+      <div class="chips" id="v-chips"></div>
+    </div>
+
+    <div class="group">
+      <label>Launch angle <span class="val"><input id="a-num" class="num-in" type="number" min="-90" max="90" step="any"> °</span></label>
+      <input id="a-slider" type="range" min="0" max="90" step="1">
+      <div class="chips">
+        <button class="chip" data-a="0">0°</button>
+        <button class="chip" data-a="15">15°</button>
+        <button class="chip" data-a="30">30°</button>
+        <button class="chip" data-a="45">45°</button>
+        <button class="chip" data-a="60">60°</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <label>Cannon height <span class="val"><input id="h-num" class="num-in" type="number" min="0" max="40000" step="any"> km</span></label>
+      <input id="h-slider" type="range" min="0" max="100" step="1">
+      <div class="note" id="h-note"></div>
+    </div>
+    <div class="note">Type a value and press <b>Enter</b> to fire. <b>Space</b> also fires.</div>
+
+    <div class="row">
+      <button class="btn" id="fire">🔥 Fire</button>
+      <button class="btn orange" id="demo">▶ Speed-up demo</button>
+    </div>
+    <div class="row">
+      <button class="btn ghost" id="newton">⛰ Newton's mountain</button>
+      <button class="btn ghost" id="clear">🧹 Clear</button>
+    </div>
+
+    <div class="hint" id="hint" hidden></div>
+
+    <div class="group">
+      <div class="group-title">Shots</div>
+      <div id="log"></div>
+    </div>
+
+    <details>
+      <summary>What is going on?</summary>
+      <p>On flat ground, a ball launched at 45° travels a range <i>v</i>²/<i>g</i>: ten times faster means a hundred times farther.</p>
+      <p>When the range becomes hundreds of kilometers, the Earth's curvature matters: the ground drops away below the ball while it falls, so it lands farther than the flat-ground formula predicts.</p>
+      <p>At about 7.9 km/s (fired horizontally), the ground curves away exactly as fast as the ball falls. The ball keeps falling forever and never reaches the ground: it is in <b>orbit</b>. Faster still, about 11.2 km/s, and it escapes the Earth.</p>
+      <p>Why can't a 45° shot from the ground orbit? A closed orbit always comes back to the point where it started, and it dips below that height on the way. To orbit, the ball must be launched horizontally from above the ground — Newton's mountain.</p>
+    </details>
+
+    <details>
+      <summary>What the simulation leaves out</summary>
+      <p>No air resistance and no Earth rotation. The cannon, the ball and the mountain are not drawn to scale: they keep the same size on screen while the view zooms. The continents are a rough sketch, and the cannon sits in northern Québec so the Americas face you. Gravity is Newton's inverse-square law, so <i>g</i> weakens as the ball climbs.</p>
+    </details>
+  </aside>
+</div>
+
+<button id="theme-toggle">🌙</button>
+
+<script>
+// ── Constants ───────────────────────────────────────────────
+const GM = 3.986004e14;      // m³/s²
+const R  = 6.371e6;          // m
+const G0 = GM / (R * R);     // ≈ 9.82 m/s²
+const V_MIN = 1, V_MAX = 12000;
+const H_MAX = 4e7;           // keyboard limit (m); the slider reaches 1000 km
+const SPEED_CHIPS = [10, 100, 1000, 3000, 5000, 7000, 7900, 9000, 11200];
+const DEMO_SPEEDS = [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 7500];
+const PALETTE = ['#e11d48', '#ea580c', '#d97706', '#65a30d', '#059669', '#0891b2', '#2563eb', '#7c3aed', '#c026d3', '#db2777'];
+// Cannon drawing, in screen pixels: the barrel pivots PIVOT_Y above the ground and the muzzle is MUZZLE from the pivot
+const PIVOT_Y = 12, MUZZLE = 39;
+
+// ── State ───────────────────────────────────────────────────
+const S = { v: 10, angle: 45, h: 0 };
+try {
+  const old = JSON.parse(localStorage.getItem('newtons_cannon') || '{}');
+  if (old.h === undefined && old.hIdx !== undefined) old.h = [0, 10, 100, 1e3, 1e4, 1e5, 2e5, 5e5, 1e6][old.hIdx] || 0;
+  delete old.hIdx;
+  Object.assign(S, old);
+} catch (e) {}
+const save = () => { try { localStorage.setItem('newtons_cannon', JSON.stringify(S)); } catch (e) {} };
+
+let shots = [];          // every shot on screen (orbits keep moving)
+let current = null;      // shot in its first flight
+let demo = null;         // { list, i } while the demo runs
+let cam = { cx: 0, cy: R + 2, s: 60 };
+let camAnim = null;      // { from, to, t0, dur, then }
+let lastFit = null;
+
+// ── Formatting ──────────────────────────────────────────────
+function sig(x, n = 3) {
+  if (x === 0) return '0';
+  const d = Math.max(0, n - 1 - Math.floor(Math.log10(Math.abs(x))));
+  return x.toLocaleString('en-US', { maximumFractionDigits: Math.min(d, 6), minimumFractionDigits: 0 });
+}
+function fmtLen(m) {
+  if (m < 1) return sig(m * 100) + ' cm';
+  if (m < 1000) return sig(m) + ' m';
+  return sig(m / 1000) + ' km';
+}
+function fmtSpeed(v) { return v < 1000 ? sig(v) + ' m/s' : sig(v / 1000) + ' km/s'; }
+function fmtTime(t) {
+  if (t < 60) return sig(t) + ' s';
+  if (t < 3600) return sig(t / 60) + ' min';
+  if (t < 172800) return sig(t / 3600) + ' h';
+  return sig(t / 86400) + ' days';
+}
+
+// ── Physics: RK4 under inverse-square gravity ───────────────
+// Earth's center is the origin; the cannon sits on top at (0, R + h) and fires toward +x.
+function simulate(v, angleDeg, h) {
+  const th = angleDeg * Math.PI / 180;
+  const r0 = R + h;
+  let x = 0, y = r0, vx = v * Math.cos(th), vy = v * Math.sin(th);
+  const E = v * v / 2 - GM / r0;
+  const Torb = 2 * Math.PI * Math.sqrt(r0 ** 3 / GM);
+  const tau = Math.min(2 * v / G0 + Math.sqrt(2 * h / G0) + 1e-3, Torb);
+  const dt0 = tau / 4000;
+  const acc = (px, py) => { const r2 = px * px + py * py, k = -GM / (r2 * Math.sqrt(r2)); return [k * px, k * py]; };
+
+  const pts = [[x, y, 0]];
+  let t = 0, swept = 0, prevPhi = 0, maxR = r0, result = 'orbit', impact = null;
+  for (let step = 0; step < 80000; step++) {
+    const r = Math.hypot(x, y);
+    const dt = dt0 * Math.pow(r / r0, 1.5);
+    const [a1x, a1y] = acc(x, y);
+    const [a2x, a2y] = acc(x + vx * dt / 2, y + vy * dt / 2);
+    const k2vx = vx + a1x * dt / 2, k2vy = vy + a1y * dt / 2;
+    const [a3x, a3y] = acc(x + k2vx * dt / 2, y + k2vy * dt / 2);
+    const k3vx = vx + a2x * dt / 2, k3vy = vy + a2y * dt / 2;
+    const [a4x, a4y] = acc(x + k3vx * dt, y + k3vy * dt);
+    const k4vx = vx + a3x * dt, k4vy = vy + a3y * dt;
+    const nx = x + dt / 6 * (vx + 2 * k2vx + 2 * k3vx + k4vx);
+    const ny = y + dt / 6 * (vy + 2 * k2vy + 2 * k3vy + k4vy);
+    vx += dt / 6 * (a1x + 2 * a2x + 2 * a3x + a4x);
+    vy += dt / 6 * (a1y + 2 * a2y + 2 * a3y + a4y);
+    const nr = Math.hypot(nx, ny);
+
+    if (nr < R) {                       // hit the ground: interpolate to r = R
+      const f = (r - R) / (r - nr);
+      const ix = x + (nx - x) * f, iy = y + (ny - y) * f;
+      t += dt * f;
+      const phi = Math.atan2(ix, iy);
+      let d = phi - prevPhi; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI;
+      swept += d;
+      pts.push([ix, iy, t]);
+      result = 'land'; impact = { x: ix, y: iy };
+      break;
+    }
+    x = nx; y = ny; t += dt;
+    const phi = Math.atan2(x, y);
+    let d = phi - prevPhi; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI;
+    swept += d; prevPhi = phi;
+    maxR = Math.max(maxR, nr);
+    pts.push([x, y, t]);
+    // One full turn around the Earth: the orbit repeats from here on
+    if (Math.abs(swept) >= 2 * Math.PI) { result = 'orbit'; break; }
+    if (E >= 0 && nr > 6 * R) { result = 'escape'; break; }
+  }
+  if (result !== 'land' && E >= 0) result = 'escape';
+
+  // Keep at most ~2500 points for drawing
+  const stride = Math.max(1, Math.ceil(pts.length / 2500));
+  const kept = pts.filter((p, i) => i % stride === 0 || i === pts.length - 1);
+
+  return {
+    v, angle: angleDeg, h, pts: kept, result, impact, tEnd: t,
+    range: result === 'land' ? R * Math.abs(swept) : null,
+    maxH: maxR - R,
+    flat: h === 0 ? v * v * Math.sin(2 * th) / G0 : null,
+    vc: Math.sqrt(GM / r0),
+  };
+}
+
+// ── Globe: rough continents in orthographic projection ──────
+// The view looks at (35°S, 75°W) with north up, so the cannon on top of the disk stands
+// in northern Québec (55°N, 75°W) and the Americas face the viewer. Outlines are [lon, lat].
+const LAND = [
+  // North America
+  [-168,66,-162,70,-156,71,-140,70,-128,70,-115,68,-95,72,-85,70,-82,66,-88,64,-94,60,-92,57,-82,55,-79,52,-78,57,-77,62,-72,62,-65,60,-61,56,-56,52,-59,48,-66,45,-70,42,-74,40,-76,37,-76,35,-81,31,-80,27,-80,25,-82,27,-83,29,-89,30,-94,29,-97,26,-97,22,-96,19,-91,19,-90,21,-87,21,-88,16,-84,15,-83,11,-80,9,-77,8,-79,7,-83,8,-86,12,-92,14,-96,16,-105,20,-106,23,-110,24,-112,29,-114,30,-117,32,-120,34,-123,38,-124,42,-124,47,-127,50,-131,54,-136,58,-142,60,-150,61,-154,58,-160,56,-165,55,-158,58,-162,60,-165,62,-166,64],
+  // Arctic islands of Canada
+  [-120,75,-110,78,-95,80,-80,83,-65,82,-62,79,-78,76,-80,73,-90,72,-100,73,-115,72],
+  // Greenland
+  [-73,78,-60,82,-40,83,-22,82,-18,76,-22,70,-30,68,-40,65,-43,60,-48,61,-52,65,-54,69,-58,75,-68,77],
+  // Cuba and Hispaniola
+  [-85,22,-80,23,-74,20,-78,20,-82,21.5], [-74,20,-68,19,-69,18,-72,18],
+  // South America
+  [-77,8,-72,12,-64,10,-60,8,-52,5,-50,0,-44,-2,-38,-4,-35,-7,-35,-10,-39,-15,-39,-19,-41,-22,-45,-23,-48,-26,-49,-29,-53,-33,-57,-35,-57,-38,-62,-39,-65,-42,-64,-45,-67,-47,-68,-51,-69,-53,-68,-55,-72,-54,-74,-50,-75,-45,-73,-40,-72,-35,-71,-30,-70,-24,-70,-18,-75,-15,-77,-12,-80,-7,-81,-4,-80,-1,-80,1,-78,3],
+  // Africa
+  [-17,21,-13,28,-10,30,-9,33,-6,36,0,36,10,37,11,33,20,31,25,32,32,31,34,28,37,22,39,16,43,12,51,12,48,6,42,-1,40,-5,39,-10,41,-15,35,-20,35,-25,32,-29,28,-33,20,-35,18,-32,15,-26,12,-18,13,-12,12,-5,9,0,9,4,5,6,0,6,-5,5,-8,4,-13,8,-15,11,-17,14],
+  // Madagascar
+  [44,-25,47,-25,50,-15,49,-12,44,-16],
+  // Eurasia
+  [-9,37,-9,43,-2,43.5,-1,46,-4.5,48,-1,49.5,2,51,4,52,8,54,8.5,57,10.5,57.5,10.5,54.5,14,54,19,54.5,21,57,24,59,30,60,24,60.5,22,61,21.5,63,25,65,21,65.5,18,62.5,17,60.5,18.5,59.5,16.5,56.5,14,55.5,12.5,56,11,59,8,58,5.5,59,5,62,10,64,14,67.5,19,70,26,71,33,69.5,40,67,44,68,54,68.5,60,69.5,68,72,72,72.5,80,73,87,75,100,77,105,78,113,73.5,130,71,140,72,150,71,160,70,170,70,180,68,180,65,177,62,170,60,163,59,162,55,156,51,156,57,152,59,143,59,137,54,140,50,135,43,130,42,129,36,126,35,126,38,122,40,118,39,121,37,119,35,122,31,121,28,117,23,110,21,108,21,106,18,109,12,105,9,103,10,100,13,100,8,104,1,101,3,98,8,98,16,94,17,92,22,88,22,86,20,80,15,80,10,77,8,73,17,72,21,67,24,62,25,57,26,56,27,50,30,48,30,50,26,52,24,56,24,58,22,59,22,55,17,52,16,45,13,43,15,39,21,35,28,33,31,35,33,36,36,30,36,27,37,26,40,23,40,23,37,21,38,20,40,19,42,15,45,13,45.5,12,44,14,42,16,40,16,38,15.5,40,12,42,10,44,7.5,44,3,43,3,42,0,40,-1,37,-5,36],
+  // Great Britain, Ireland, Iceland
+  [-5,50,1,51,2,52.5,0,54,-2,56,-2,57.5,-4,58.6,-5,58,-6,56,-5,55,-3,54.5,-3,53.5,-4.5,53,-5,51.8,-3,51.5,-5.5,50],
+  [-6,52,-6,54.5,-8,55,-10,54,-10,52,-8,51.5],
+  [-24,65.5,-22,66.5,-15,66.5,-13.5,65,-18,63.4,-22,63.8],
+  // Japan
+  [130,31,131,34,135,34,140,35,141,38,142,41,140,41,139,38,136,36,133,35.5,130,33.5], [140,42,142,46,145,44,143,42],
+  // Southeast Asia islands
+  [95,5.5,98,4,104,-2,106,-6,102,-4,100,-1,96,3], [109,2,111,-3,116,-4,119,1,117,7,115,5], [105,-6,114,-8,106,-7.5],
+  [131,-1,138,-1.5,145,-4,150,-10,143,-9,138,-8,135,-4,132,-2.5], [120,18,122,18,124,13,126,7,122,7,120,14],
+  // Australia and New Zealand
+  [114,-22,114,-26,115,-34,118,-35,124,-34,129,-31.5,135,-35,138,-35,140,-38,146,-39,150,-37,153,-31,153,-25,149,-21,146,-18,145,-15,143,-11,141,-13,141,-17,137,-16,136,-12,132,-11,129,-15,126,-14,122,-18,119,-20],
+  [172.6,-34.4,178.5,-37.7,176.8,-39.8,174.8,-41.4,173.8,-39.2,174.6,-37], [174.2,-41.2,171.5,-44,169,-46.6,166.5,-46,168,-44,172,-40.7],
+];
+const DESERT = [
+  [-15,18,-12,26,-5,30,10,31,25,30,32,27,35,22,30,16,15,15,0,16],
+  [38,28,47,29,55,22,51,17,44,16,40,20],
+  [117,-22,128,-19,138,-21,143,-25,140,-30,128,-30,118,-28],
+  [-71,-20,-69,-26,-70,-30,-68,-28,-67,-21],
+  [-116,36,-110,37,-104,32,-106,29,-112,30],
+];
+const ICE = [
+  [-73,78,-60,82,-40,83,-22,82,-18,76,-22,70,-30,68,-40,65,-43,60,-48,61,-52,65,-54,69,-58,75,-68,77],
+  // Antarctica circles the South Pole
+  [-180,-78,-160,-77,-150,-76,-140,-74,-120,-73,-100,-72,-80,-72,-75,-71,-68,-67,-62,-64,-57,-63.5,-60,-66,-62,-70,-60,-74,-45,-78,-30,-76,-20,-73,0,-70,20,-70,40,-69,60,-67,80,-67,100,-66,120,-66,140,-66,160,-70,170,-72,180,-78],
+];
+const VIEW_C = [-75, -35], VIEW_TOP = [-75, 55];
+const unit = (lon, lat) => {
+  const a = lon * Math.PI / 180, b = lat * Math.PI / 180;
+  return [Math.cos(b) * Math.cos(a), Math.cos(b) * Math.sin(a), Math.sin(b)];
+};
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const EZ = unit(...VIEW_C), EY = unit(...VIEW_TOP);
+const EX = [EY[1] * EZ[2] - EY[2] * EZ[1], EY[2] * EZ[0] - EY[0] * EZ[2], EY[0] * EZ[1] - EY[1] * EZ[0]];
+// Unit-sphere coordinates in the view: x right, y up, z toward the viewer
+function project(lon, lat) {
+  const u = unit(lon, lat);
+  return [dot(u, EX), dot(u, EY), dot(u, EZ)];
+}
+// Outlines are cut where they go behind the globe; the hidden stretch is replaced by
+// the shorter arc along the edge of the disk between where it left and where it came back.
+function toDisk(list) {
+  const polys = [];
+  for (const flat of list) {
+    const p = [];
+    for (let i = 0; i < flat.length; i += 2) p.push(project(flat[i], flat[i + 1]));
+    const first = p.findIndex(q => q[2] >= 0);
+    if (first < 0) continue;
+    const ring = p.slice(first).concat(p.slice(0, first), [p[first]]);
+    const out = [[ring[0][0], ring[0][1]]];
+    let exitAng = null;
+    for (let i = 1; i < ring.length; i++) {
+      const a = ring[i - 1], b = ring[i];
+      if ((a[2] >= 0) !== (b[2] >= 0)) {
+        const f = a[2] / (a[2] - b[2]);
+        const cx = a[0] + (b[0] - a[0]) * f, cy = a[1] + (b[1] - a[1]) * f;
+        const ang = Math.atan2(cy, cx);
+        if (a[2] >= 0) { exitAng = ang; out.push([Math.cos(ang), Math.sin(ang)]); }
+        else {
+          let d = ang - exitAng;
+          while (d > Math.PI) d -= 2 * Math.PI;
+          while (d < -Math.PI) d += 2 * Math.PI;
+          const n = Math.ceil(Math.abs(d) / 0.05);
+          for (let k = 1; k <= n; k++) out.push([Math.cos(exitAng + d * k / n), Math.sin(exitAng + d * k / n)]);
+        }
+      }
+      if (b[2] >= 0) out.push([b[0], b[1]]);
+    }
+    polys.push(out);
+  }
+  return polys;
+}
+const LAND_D = toDisk(LAND), DESERT_D = toDisk(DESERT), ICE_D = toDisk(ICE);
+// Clouds: fixed pseudo-random blobs
+const CLOUDS = (() => {
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const out = [];
+  for (let i = 0; i < 110; i++) {
+    const lat = (rnd() * 2 - 1) * 70, lon = rnd() * 360 - 180;
+    const [x, y, z] = project(lon, lat);
+    if (z > 0.08) out.push({ x, y, z, r: 0.015 + 0.045 * rnd(), stretch: 1.2 + 2 * rnd(), tilt: (rnd() - 0.5) * 0.8, a: 0.25 + 0.35 * rnd() });
+  }
+  return out;
+})();
+
+// ── Canvas & camera ─────────────────────────────────────────
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = window.devicePixelRatio || 1;
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+}
+const sx = x => W / 2 + (x - cam.cx) * cam.s;
+const sy = y => H / 2 - (y - cam.cy) * cam.s;
+const clamp01 = u => Math.min(1, Math.max(0, u));
+
+function fitView(shot) {
+  let minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
+  for (const [x, y] of shot.pts) {
+    if (x < minx) minx = x; if (x > maxx) maxx = x;
+    if (y < miny) miny = y; if (y > maxy) maxy = y;
+  }
+  let w = Math.max(maxx - minx, 0.5), hgt = Math.max(maxy - miny, 0.25);
+  // Show some ground under the shot
+  miny -= Math.max(0.12 * Math.max(w, hgt), 0.15);
+  hgt = maxy - miny;
+  const s = Math.min((W * 0.82) / w, (H * 0.78) / hgt);
+  return { cx: (minx + maxx) / 2, cy: (miny + maxy) / 2 + 0.03 * hgt, s };
+}
+
+function animateCam(to, dur, then) {
+  camAnim = { from: { ...cam }, to, t0: performance.now(), dur, then };
+}
+function stepCam(now) {
+  if (!camAnim) return;
+  const { from, to, t0, dur, then } = camAnim;
+  let u = Math.min(1, (now - t0) / dur);
+  u = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+  const s = Math.exp(Math.log(from.s) + (Math.log(to.s) - Math.log(from.s)) * u);
+  // Move the center in proportion to how the field of view changes, so the zoom feels steady
+  const w = Math.abs(1 / to.s - 1 / from.s) < 1e-15 ? u : (1 / s - 1 / from.s) / (1 / to.s - 1 / from.s);
+  cam = { cx: from.cx + (to.cx - from.cx) * w, cy: from.cy + (to.cy - from.cy) * w, s };
+  if (u >= 1) { camAnim = null; then && then(); }
+}
+
+// ── Drawing ─────────────────────────────────────────────────
+function mix(a, b, u) { return a.map((v, i) => Math.round(v + (b[i] - v) * u)); }
+const rgb = c => `rgb(${c[0]},${c[1]},${c[2]})`;
+
+function drawSky(viewW) {
+  // Blue sky near the ground, black space once the view spans thousands of km
+  const L = Math.log10(viewW);
+  const u = clamp01((L - 5) / 1.5);
+  const top = mix([120, 180, 235], [4, 7, 18], u), bot = mix([200, 228, 250], [10, 14, 30], u);
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, rgb(top)); g.addColorStop(1, rgb(bot));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  if (u > 0.3) {               // a few stars
+    ctx.fillStyle = `rgba(255,255,255,${(u - 0.3) * 0.9})`;
+    for (let i = 0; i < 140; i++) {
+      const px = (Math.sin(i * 91.7) * 0.5 + 0.5) * W, py = (Math.sin(i * 47.3 + 1) * 0.5 + 0.5) * H;
+      ctx.fillRect(px, py, i % 7 === 0 ? 2 : 1, i % 7 === 0 ? 2 : 1);
+    }
+  }
+  return u;
+}
+
+// Up close: the ground seen from the side, grass over soil
+function drawGround() {
+  const halfDiag = Math.hypot(W, H) / 2 / cam.s;
+  const phiC = Math.atan2(cam.cx, cam.cy);
+  const d = Math.hypot(cam.cx, cam.cy);
+  const span = Math.min(Math.PI, Math.asin(Math.min(1, halfDiag / d)) * 1.3 + 0.002);
+  const N = 300, depth = Math.min(R, 4 * halfDiag);
+  const surf = [];
+  for (let i = 0; i <= N; i++) {
+    const p = phiC - span + 2 * span * i / N;
+    surf.push([sx(R * Math.sin(p)), sy(R * Math.cos(p))]);
+  }
+  ctx.save();
+  ctx.beginPath();
+  surf.forEach(([X, Y], i) => i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y));
+  for (let i = N; i >= 0; i--) {
+    const p = phiC - span + 2 * span * i / N, rr = R - depth;
+    ctx.lineTo(sx(rr * Math.sin(p)), sy(rr * Math.cos(p)));
+  }
+  ctx.closePath();
+  const top = Math.min(...surf.map(p => p[1]));
+  const g = ctx.createLinearGradient(0, Math.max(top, 0), 0, H);
+  g.addColorStop(0, '#8a6440'); g.addColorStop(1, '#5a3f26');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.clip();
+  // Grass: a strip just under the surface line
+  ctx.beginPath();
+  surf.forEach(([X, Y], i) => i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y));
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#4f8f2f'; ctx.lineWidth = 26; ctx.stroke();
+  ctx.strokeStyle = '#6fb23f'; ctx.lineWidth = 10; ctx.stroke();
+  ctx.restore();
+  ctx.beginPath();
+  surf.forEach(([X, Y], i) => i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y));
+  ctx.strokeStyle = '#3e7424'; ctx.lineWidth = 1.5; ctx.stroke();
+}
+
+// From far away: the planet, with oceans, continents, ice, clouds and the atmosphere
+function drawGlobe(alpha) {
+  const X0 = sx(0), Y0 = sy(0), RS = R * cam.s;
+  const P = ([x, y]) => [X0 + x * RS, Y0 - y * RS];
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  // Atmosphere glow
+  const glow = ctx.createRadialGradient(X0, Y0, RS * 0.98, X0, Y0, RS * 1.07);
+  glow.addColorStop(0, 'rgba(120,190,255,0.75)'); glow.addColorStop(1, 'rgba(120,190,255,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(X0, Y0, RS * 1.07, 0, 2 * Math.PI); ctx.fill();
+  // Ocean
+  ctx.beginPath(); ctx.arc(X0, Y0, RS, 0, 2 * Math.PI);
+  const sea = ctx.createRadialGradient(X0 - 0.35 * RS, Y0 - 0.3 * RS, RS * 0.05, X0, Y0, RS);
+  sea.addColorStop(0, '#2f86c8'); sea.addColorStop(0.7, '#1a5a9a'); sea.addColorStop(1, '#0c2f5c');
+  ctx.fillStyle = sea; ctx.fill();
+  ctx.save(); ctx.clip();
+  const fillPolys = (polys, color) => {
+    ctx.fillStyle = color;
+    for (const poly of polys) {
+      ctx.beginPath();
+      poly.forEach((p, i) => { const [X, Y] = P(p); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); });
+      ctx.closePath(); ctx.fill();
+    }
+  };
+  fillPolys(LAND_D, '#4c8a3a');
+  fillPolys(DESERT_D, '#c9a86a');
+  fillPolys(ICE_D, '#eef3f8');
+  // Clouds, flattened toward the edge of the disk
+  for (const c of CLOUDS) {
+    const [X, Y] = P([c.x, c.y]);
+    const rad = Math.atan2(-c.y, c.x);
+    ctx.fillStyle = `rgba(255,255,255,${c.a})`;
+    ctx.beginPath();
+    ctx.ellipse(X, Y, c.r * RS * c.stretch, Math.max(0.5, c.r * RS * c.z), rad + Math.PI / 2 + c.tilt * c.z, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+  // Sunlight from the upper left, darker toward the edge
+  const shade = ctx.createRadialGradient(X0 - 0.4 * RS, Y0 - 0.4 * RS, RS * 0.1, X0, Y0, RS * 1.02);
+  shade.addColorStop(0, 'rgba(255,255,255,0.12)'); shade.addColorStop(0.55, 'rgba(0,0,0,0)'); shade.addColorStop(1, 'rgba(0,5,25,0.55)');
+  ctx.fillStyle = shade; ctx.fillRect(X0 - RS, Y0 - RS, 2 * RS, 2 * RS);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(160,215,255,0.8)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(X0, Y0, RS, 0, 2 * Math.PI); ctx.stroke();
+  ctx.restore();
+}
+
+function drawEarth(viewW) {
+  // Between 150 km and 1500 km views, the ground fades into the globe
+  const u = clamp01((Math.log10(viewW) - 5.2) / 1.0);
+  if (u > 0) drawGlobe(1);
+  if (u < 1) { ctx.save(); ctx.globalAlpha = 1 - u; drawGround(); ctx.restore(); }
+}
+
+function drawMountain(h) {
+  if (h <= 0) return;
+  const halfBase = Math.min(1.4 * h, 0.25 * R);
+  const a = halfBase / R;
+  const base = [[R * Math.sin(-a), R * Math.cos(-a)], [R * Math.sin(a), R * Math.cos(a)]];
+  const peak = [0, R + h];
+  const lerp = (p, q, u) => [p[0] + (q[0] - p[0]) * u, p[1] + (q[1] - p[1]) * u];
+  ctx.beginPath();
+  [base[0], peak, base[1]].forEach(([x, y], i) => i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y)));
+  ctx.closePath();
+  const g = ctx.createLinearGradient(sx(base[0][0]), 0, sx(base[1][0]), 0);
+  g.addColorStop(0, '#9a8466'); g.addColorStop(0.5, '#7d6a50'); g.addColorStop(1, '#5e4f3b');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#4e4030'; ctx.lineWidth = 1.2; ctx.stroke();
+  // Snow cap
+  const l = lerp(peak, base[0], 0.22), r = lerp(peak, base[1], 0.22);
+  ctx.beginPath();
+  ctx.moveTo(sx(peak[0]), sy(peak[1])); ctx.lineTo(sx(l[0]), sy(l[1]));
+  const m = lerp(peak, [0, R], 0.16);
+  ctx.lineTo(sx((l[0] + m[0]) / 2), sy(m[1])); ctx.lineTo(sx(m[0]), sy((l[1] + m[1]) / 2));
+  ctx.lineTo(sx((r[0] + m[0]) / 2), sy(m[1])); ctx.lineTo(sx(r[0]), sy(r[1]));
+  ctx.closePath(); ctx.fillStyle = '#f4f7fa'; ctx.fill();
+}
+
+function drawCannon(angleDeg, flash) {
+  const X = sx(0), Y = sy(R + S.h);
+  if (X < -100 || X > W + 100 || Y < -100 || Y > H + 100) return;
+  const th = angleDeg * Math.PI / 180;
+  ctx.save(); ctx.translate(X, Y);
+  // Barrel
+  ctx.save(); ctx.translate(0, -PIVOT_Y); ctx.rotate(-th);
+  if (flash > 0) {
+    ctx.fillStyle = `rgba(255,190,60,${flash})`;
+    ctx.beginPath(); ctx.arc(MUZZLE + 5, 0, 10 + 14 * flash, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = `rgba(255,240,180,${flash})`;
+    ctx.beginPath(); ctx.arc(MUZZLE + 3, 0, 6 + 6 * flash, 0, 2 * Math.PI); ctx.fill();
+  }
+  const g = ctx.createLinearGradient(0, -7, 0, 7);
+  g.addColorStop(0, '#6b7280'); g.addColorStop(0.45, '#374151'); g.addColorStop(1, '#111827');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.moveTo(-10, -8); ctx.lineTo(MUZZLE - 3, -6); ctx.lineTo(MUZZLE - 3, 6); ctx.lineTo(-10, 8); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#1f2937'; ctx.fillRect(MUZZLE - 5, -7.5, 5, 15);
+  ctx.fillStyle = '#0b0f17'; ctx.beginPath(); ctx.ellipse(MUZZLE, 0, 1.6, 4.5, 0, 0, 2 * Math.PI); ctx.fill();
+  ctx.fillStyle = '#1f2937'; ctx.beginPath(); ctx.arc(-10, 0, 8, 0, 2 * Math.PI); ctx.fill();
+  ctx.restore();
+  // Carriage and wheel
+  ctx.fillStyle = '#7c4a1e';
+  ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(-6, -16); ctx.lineTo(8, -16); ctx.lineTo(14, 0); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#4a2c10'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(0, -8, 8, 0, 2 * Math.PI); ctx.fillStyle = '#a16207'; ctx.fill(); ctx.stroke();
+  ctx.lineWidth = 1.5;
+  for (let k = 0; k < 4; k++) {
+    const b = k * Math.PI / 4 + .3;
+    ctx.beginPath(); ctx.moveTo(-8 * Math.cos(b), -8 - 8 * Math.sin(b)); ctx.lineTo(8 * Math.cos(b), -8 + 8 * Math.sin(b)); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function posAt(shot, t) {
+  const p = shot.pts;
+  let lo = 0, hi = p.length - 1;
+  if (t >= p[hi][2]) return p[hi];
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (p[m][2] <= t) lo = m; else hi = m; }
+  const f = (t - p[lo][2]) / (p[hi][2] - p[lo][2] || 1);
+  return [p[lo][0] + (p[hi][0] - p[lo][0]) * f, p[lo][1] + (p[hi][1] - p[lo][1]) * f];
+}
+
+// The cannon is drawn at a fixed size on screen, so the path is shifted to start at the muzzle,
+// and the shift shrinks steadily to zero by the end of the first flight. A shift that is linear
+// in time keeps a parabola a smooth parabola, and the landing point stays exact.
+// Returns the screen position at `upto`.
+function drawPath(shot, upto, color, width) {
+  const p = shot.pts, th = shot.angle * Math.PI / 180;
+  const ox = MUZZLE * Math.cos(th), oy = -PIVOT_Y - MUZZLE * Math.sin(th);
+  const LIM = 1e5;
+  let pen = false, out = null;
+  const add = (x, y, t) => {
+    const X = sx(x), Y = sy(y);
+    // A finished orbit is drawn unshifted, so the ball going around again follows its line
+    const w = shot.result === 'orbit' && shot !== current ? 0 : clamp01(1 - t / shot.tEnd);
+    const DX = X + ox * w, DY = Y + oy * w;
+    if (Math.abs(DX) > LIM || Math.abs(DY) > LIM) pen = false;
+    else { pen ? ctx.lineTo(DX, DY) : ctx.moveTo(DX, DY); pen = true; }
+    out = [DX, DY];
+  };
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath();
+  add(p[0][0], p[0][1], 0);
+  let i = 1;
+  for (; i < p.length && p[i][2] <= upto; i++) add(p[i][0], p[i][1], p[i][2]);
+  if (i < p.length) { const q = posAt(shot, upto); add(q[0], q[1], upto); }
+  ctx.stroke();
+  return out;
+}
+
+function drawBall(X, Y) {
+  const g = ctx.createRadialGradient(X - 2, Y - 2, 1, X, Y, 6);
+  g.addColorStop(0, '#9ca3af'); g.addColorStop(1, '#111827');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(X, Y, 6, 0, 2 * Math.PI); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1; ctx.stroke();
+}
+
+function drawImpact(shot, color) {
+  const X = sx(shot.impact.x), Y = sy(shot.impact.y);
+  if (X < -50 || X > W + 50 || Y < -50 || Y > H + 50) return;
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(X - 5, Y - 5); ctx.lineTo(X + 5, Y + 5); ctx.moveTo(X + 5, Y - 5); ctx.lineTo(X - 5, Y + 5); ctx.stroke();
+}
+
+function drawLabel(text, X, Y, color) {
+  ctx.font = '700 13px Segoe UI, system-ui, sans-serif';
+  const w = ctx.measureText(text).width + 12;
+  X = Math.min(Math.max(X - w / 2, 6), W - w - 6); Y = Math.min(Math.max(Y, 22), H - 10);
+  ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(X, Y - 17, w, 22, 6); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#1a2234'; ctx.fillText(text, X + 6, Y - 1);
+}
+
+function drawScaleBar() {
+  const target = 120 / cam.s;
+  const p = Math.pow(10, Math.floor(Math.log10(target)));
+  const L = [1, 2, 5, 10].map(k => k * p).filter(v => v <= target * 1.3).pop() || p;
+  const px = L * cam.s, X = 16, Y = H - 22;
+  ctx.fillStyle = 'rgba(255,255,255,.88)';
+  ctx.beginPath(); ctx.roundRect(X - 8, Y - 26, px + 16, 38, 8); ctx.fill();
+  ctx.strokeStyle = '#1a2234'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(X, Y - 5); ctx.lineTo(X, Y + 3); ctx.lineTo(X + px, Y + 3); ctx.lineTo(X + px, Y - 5); ctx.stroke();
+  ctx.fillStyle = '#1a2234'; ctx.font = '700 12px Segoe UI, system-ui, sans-serif';
+  ctx.fillText(fmtLen(L), X, Y - 10);
+}
+
+// Simulated time since a shot left the cannon
+const simTime = (sh, now) => Math.max(0, (now - sh.t0) / 1000 * sh.warp);
+
+let flash = 0;
+function draw(now) {
+  stepCam(now);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const viewW = W / cam.s;
+  drawSky(viewW);
+  drawEarth(viewW);
+  drawMountain(S.h);
+
+  // Earlier shots; orbiting balls keep going around
+  const balls = [];
+  shots.forEach(sh => {
+    if (sh === current) return;
+    drawPath(sh, Infinity, sh.color + 'aa', 2);
+    if (sh.impact) drawImpact(sh, sh.color);
+    if (sh.result === 'orbit') {
+      const [x, y] = posAt(sh, simTime(sh, now) % sh.tEnd);
+      balls.push([sx(x), sy(y)]);
+    }
+  });
+
+  // Current shot
+  if (current && now >= current.t0) {
+    const t = Math.min(current.tEnd, simTime(current, now));
+    const end = drawPath(current, t, current.color, 3.5);
+    if (t >= current.tEnd) {
+      if (current.impact) drawImpact(current, current.color);
+      if (current.result === 'orbit') balls.push(end);
+      finishShot();
+    } else balls.push(end);
+  }
+
+  drawCannon(S.angle, flash);
+  flash = Math.max(0, flash - 0.06);
+  balls.forEach(([X, Y]) => drawBall(X, Y));
+
+  // Label for the latest finished shot
+  const last = shots[shots.length - 1];
+  if (last && !current) {
+    if (last.result === 'land') drawLabel('Range ' + fmtLen(last.range), sx(last.impact.x), sy(last.impact.y) - 14, last.color);
+    else {
+      const top = last.pts.reduce((a, b) => (sy(b[1]) < sy(a[1]) ? b : a));
+      drawLabel(last.result === 'orbit' ? 'In orbit — it never lands!' : 'Escaped the Earth!', sx(top[0]), sy(top[1]) - 12, last.color);
+    }
+  }
+
+  drawScaleBar();
+  updateHud(now);
+  document.getElementById('zoom-note').textContent = 'View width ≈ ' + fmtLen(viewW);
+  requestAnimationFrame(draw);
+}
+
+// ── HUD ─────────────────────────────────────────────────────
+const hud = document.getElementById('hud');
+function updateHud(now) {
+  const sh = current || shots[shots.length - 1];
+  if (!sh) {
+    hud.innerHTML = `<div class="big">Ready</div>Speed <b>${fmtSpeed(S.v)}</b> · Angle <b>${sig(S.angle)}°</b><br>Press <b>Fire</b> or run the demo.`;
+    return;
+  }
+  const running = sh === current;
+  const orbiting = !running && sh.result === 'orbit';
+  const t = running || orbiting ? Math.min(running ? sh.tEnd : Infinity, simTime(sh, now)) : sh.tEnd;
+  const res = running ? '<span>In flight…</span>'
+    : sh.result === 'land' ? '<span class="res-land">Landed</span>'
+    : orbiting ? '<span class="res-orbit">Orbit</span>' : '<span class="res-escape">Escape</span>';
+  let lines = `<div class="big">${fmtSpeed(sh.v)} at ${sig(sh.angle)}° · ${res}</div>`;
+  lines += `Time <b>${fmtTime(t)}</b>`;
+  if (running || orbiting) lines += ` <span style="color:#607080">(×${sig(sh.warp, 2)} speed)</span>`;
+  if (orbiting) lines += `<br>Lap <b>${Math.floor(t / sh.tEnd) + 1}</b> · one lap takes <b>${fmtTime(sh.tEnd)}</b>`;
+  if (!running && sh.result === 'land') {
+    lines += `<br>Range <b>${fmtLen(sh.range)}</b>`;
+    if (sh.flat !== null && sh.flat > 0) lines += `<br>Flat-ground v²sin2θ/g: <b>${fmtLen(sh.flat)}</b>`;
+  }
+  if (!running) lines += `<br>Highest point <b>${fmtLen(Math.max(sh.maxH, 0))}</b>`;
+  hud.innerHTML = lines;
+}
+
+// ── Shots ───────────────────────────────────────────────────
+function fire(after) {
+  if (current) return;
+  const sh = simulate(S.v, S.angle, S.h);
+  sh.color = PALETTE[shots.length % PALETTE.length];
+  const dur = sh.result === 'land' ? Math.min(5, 2 + 0.3 * Math.log10(Math.max(sh.range, 1))) : sh.result === 'orbit' ? 7 : 5;
+  sh.warp = sh.tEnd / dur;
+  sh.after = after;
+  const target = fitView(sh);
+  lastFit = target;
+  document.getElementById('reset-view').hidden = true;
+  current = sh;
+  sh.t0 = Infinity;
+  shots.push(sh);
+  setBusy(true);
+  const start = () => { flash = 1; sh.t0 = performance.now(); };
+  // Zoom first, then shoot; the zoom is quicker when the scale barely changes
+  const ratio = Math.abs(Math.log10(target.s / cam.s));
+  if (ratio < 0.05) { cam = target; start(); }
+  else animateCam(target, Math.min(1400, 450 + 350 * ratio), start);
+}
+
+function finishShot() {
+  const sh = current;
+  current = null;
+  renderLog();
+  updateHint(sh);
+  setBusy(false);
+  if (sh.after) sh.after();
+}
+
+function setBusy(b) {
+  document.getElementById('fire').disabled = b;
+  document.getElementById('clear').disabled = b;
+  document.getElementById('demo').textContent = demo ? '■ Stop demo' : '▶ Speed-up demo';
+}
+
+function renderLog() {
+  const done = shots.filter(s => s !== current);
+  const el = document.getElementById('log');
+  if (!done.length) { el.innerHTML = '<div class="empty">No shots yet.</div>'; return; }
+  const rows = done.slice().reverse().map(s => {
+    const out = s.result === 'land' ? fmtLen(s.range) : s.result === 'orbit' ? '🛰 orbit' : '🚀 escape';
+    const flat = s.flat !== null && s.flat > 0 ? fmtLen(s.flat) : '—';
+    const time = s.result === 'orbit' ? fmtTime(s.tEnd) + '/lap' : fmtTime(s.tEnd);
+    return `<tr><td><span class="swatch" style="background:${s.color}"></span>${fmtSpeed(s.v)}</td><td>${sig(s.angle)}°</td><td>${out}</td><td>${flat}</td><td>${time}</td></tr>`;
+  }).join('');
+  el.innerHTML = `<table><thead><tr><th>Speed</th><th>Angle</th><th>Range</th><th>Flat v²sin2θ/g</th><th>Time</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function updateHint(sh) {
+  const el = document.getElementById('hint');
+  if (sh && sh.result !== 'orbit' && sh.angle >= 20 && sh.v >= 0.85 * sh.vc) {
+    el.innerHTML = (sh.result === 'escape'
+      ? `<b>It never lands, but it leaves for good.</b> That is escape, not orbit. `
+      : `<b>Fast enough, but it still came down.</b> `) + `At ${sig(sh.angle)}° the ball climbs and then falls back toward the Earth: a closed orbit always returns to its starting height and dips below it. To orbit, fire <b>horizontally from above the ground</b>. Try <b>⛰ Newton's mountain</b>.`;
+    el.hidden = false;
+  } else if (sh && sh.result === 'orbit') {
+    el.innerHTML = `<b>It never lands.</b> The ball is still falling, but the ground curves away just as fast. Circular-orbit speed here is <b>${fmtSpeed(sh.vc)}</b>.`;
+    el.hidden = false;
+  } else el.hidden = true;
+}
+
+// ── Demo: same angle, faster and faster ─────────────────────
+function runDemo() {
+  if (demo) { demo = null; setBusy(!!current); return; }
+  const list = DEMO_SPEEDS.slice();
+  const vc = Math.sqrt(GM / (R + S.h));
+  if (S.angle === 0 && S.h > 0) list.push(Math.ceil(vc));        // last step puts it in orbit
+  else list.push(7900, 9000, 11200);
+  shots = []; renderLog();
+  demo = { list, i: 0 };
+  const next = () => {
+    if (!demo) return;
+    if (demo.i >= demo.list.length) { demo = null; setBusy(false); return; }
+    setSpeed(demo.list[demo.i++]);
+    fire(() => setTimeout(next, 700));
+  };
+  next();
+}
+
+// ── Controls ────────────────────────────────────────────────
+const vSlider = document.getElementById('v-slider'), vNum = document.getElementById('v-num');
+const aSlider = document.getElementById('a-slider'), aNum = document.getElementById('a-num');
+const hSlider = document.getElementById('h-slider'), hNum = document.getElementById('h-num');
+const toSlider = v => Math.round(1000 * Math.log(v / V_MIN) / Math.log(V_MAX / V_MIN));
+const fromSlider = s => V_MIN * Math.pow(V_MAX / V_MIN, s / 1000);
+function niceV(v) { const p = Math.pow(10, Math.floor(Math.log10(v)) - 1); return Math.round(v / p) * p; }
+// Height slider: 0, then 10 m to 1000 km on a log scale
+const hToSlider = h => h <= 0 ? 0 : Math.min(100, Math.max(1, Math.round(1 + 99 * Math.log10(h / 10) / 5)));
+const hFromSlider = s => s <= 0 ? 0 : niceV(10 * Math.pow(10, 5 * (s - 1) / 99));
+
+function setSpeed(v) {
+  S.v = Math.min(V_MAX, Math.max(V_MIN, v));
+  vSlider.value = toSlider(S.v);
+  vNum.value = +S.v.toPrecision(5);
+  document.querySelectorAll('#v-chips .chip').forEach(c => c.classList.toggle('on', +c.dataset.v === S.v));
+  save();
+}
+function setAngle(a) {
+  S.angle = Math.min(90, Math.max(-90, a));
+  aSlider.value = S.angle; aNum.value = +S.angle.toPrecision(4);
+  document.querySelectorAll('[data-a]').forEach(c => c.classList.toggle('on', +c.dataset.a === S.angle));
+  save();
+}
+function setHeight(h) {
+  S.h = Math.min(H_MAX, Math.max(0, h));
+  hSlider.value = hToSlider(S.h);
+  hNum.value = +(S.h / 1000).toPrecision(5);
+  document.getElementById('h-note').textContent = S.h === 0 ? 'Ground level.' : S.h > 10000 ? fmtLen(S.h) + ': a mountain this tall is not realistic.' : fmtLen(S.h) + ' above the ground.';
+  save();
+}
+
+// Typed values: apply on change, and Enter applies and fires
+const applyTyped = {
+  'v-num': () => { const v = parseFloat(vNum.value); setSpeed(v > 0 ? v : S.v); },
+  'a-num': () => { const a = parseFloat(aNum.value); setAngle(isFinite(a) ? a : S.angle); },
+  'h-num': () => { const h = parseFloat(hNum.value); setHeight(isFinite(h) && h >= 0 ? h * 1000 : S.h); },
+};
+Object.entries(applyTyped).forEach(([id, fn]) => {
+  const el = document.getElementById(id);
+  el.addEventListener('change', fn);
+  el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fn(); el.select(); fire(); } });
+  el.addEventListener('focus', () => el.select());
+});
+
+document.getElementById('v-chips').innerHTML = SPEED_CHIPS.map(v => `<button class="chip" data-v="${v}">${fmtSpeed(v)}</button>`).join('');
+document.getElementById('v-chips').addEventListener('click', e => { const c = e.target.closest('[data-v]'); if (c) setSpeed(+c.dataset.v); });
+vSlider.addEventListener('input', () => setSpeed(niceV(fromSlider(+vSlider.value))));
+aSlider.addEventListener('input', () => setAngle(+aSlider.value));
+document.querySelectorAll('[data-a]').forEach(c => c.addEventListener('click', () => setAngle(+c.dataset.a)));
+hSlider.addEventListener('input', () => setHeight(hFromSlider(+hSlider.value)));
+document.getElementById('fire').addEventListener('click', () => fire());
+document.getElementById('demo').addEventListener('click', runDemo);
+document.getElementById('clear').addEventListener('click', () => { shots = []; renderLog(); updateHint(null); });
+document.getElementById('newton').addEventListener('click', () => { setAngle(0); setHeight(200000); setSpeed(1000); updateHint(null); });
+document.getElementById('reset-view').addEventListener('click', () => {
+  if (lastFit) animateCam(lastFit, 700);
+  document.getElementById('reset-view').hidden = true;
+});
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+  if (e.code === 'Space') { e.preventDefault(); fire(); }
+});
+
+// Wheel zoom and drag to pan
+function userView() { camAnim = null; document.getElementById('reset-view').hidden = !lastFit; }
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  const wx = cam.cx + (mx - W / 2) / cam.s, wy = cam.cy - (my - H / 2) / cam.s;
+  const k = Math.exp(-e.deltaY * 0.0015);
+  cam.s = Math.min(5000, Math.max(1e-6, cam.s * k));
+  cam.cx = wx - (mx - W / 2) / cam.s; cam.cy = wy + (my - H / 2) / cam.s;
+  userView();
+}, { passive: false });
+let drag = null;
+cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY }; cv.classList.add('dragging'); cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  cam.cx -= (e.clientX - drag.x) / cam.s; cam.cy += (e.clientY - drag.y) / cam.s;
+  drag = { x: e.clientX, y: e.clientY }; userView();
+});
+cv.addEventListener('pointerup', () => { drag = null; cv.classList.remove('dragging'); });
+
+window.addEventListener('resize', resize);
+resize();
+setSpeed(S.v); setAngle(S.angle); setHeight(S.h);
+renderLog();
+cam = fitView({ pts: [[-3, R], [3, R + S.h + 2]] });
+requestAnimationFrame(draw);
+</script>
+
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  let saved = null; try { saved = localStorage.getItem('theme'); } catch (e) {}
+  if (saved === 'dark') { document.body.classList.add('dark'); btn.textContent = '☀'; }
+  btn.addEventListener('click', () => {
+    const isDark = document.body.classList.toggle('dark');
+    btn.textContent = isDark ? '☀' : '🌙';
+    try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (e) {}
+  });
+})();
+</script>
+</body>
+</html>
