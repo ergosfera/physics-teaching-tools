@@ -226,7 +226,6 @@ const DEMO_SPEEDS = [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 3000, 4000, 5000,
 const PALETTE = ['#e11d48', '#ea580c', '#d97706', '#65a30d', '#059669', '#0891b2', '#2563eb', '#7c3aed', '#c026d3', '#db2777'];
 // Cannon drawing, in screen pixels: the barrel pivots PIVOT_Y above the ground and the muzzle is MUZZLE from the pivot
 const PIVOT_Y = 12, MUZZLE = 39;
-const FADE_ANGLE = 0.47;     // rad around the Earth (≈ 3000 km) over which the muzzle offset fades
 
 // ── State ───────────────────────────────────────────────────
 const S = { v: 10, angle: 45, h: 0 };
@@ -320,13 +319,9 @@ function simulate(v, angleDeg, h) {
   // Keep at most ~2500 points for drawing
   const stride = Math.max(1, Math.ceil(pts.length / 2500));
   const kept = pts.filter((p, i) => i % stride === 0 || i === pts.length - 1);
-  // The drawn path starts at the muzzle; that offset fades out over the first ~3000 km of flight
-  // (or the whole flight if shorter), so a long flight or an orbit isn't drawn shifted into the ground
-  const far = pts.find(p => Math.abs(Math.atan2(p[0], p[1])) >= FADE_ANGLE);
-  const tFade = far ? far[2] : t;
 
   return {
-    v, angle: angleDeg, h, pts: kept, result, impact, tEnd: t, tFade,
+    v, angle: angleDeg, h, pts: kept, result, impact, tEnd: t,
     range: result === 'land' ? R * Math.abs(swept) : null,
     maxH: maxR - R,
     flat: h === 0 ? v * v * Math.sin(2 * th) / G0 : null,
@@ -661,9 +656,10 @@ function posAt(shot, t) {
 }
 
 // The cannon is drawn at a fixed size on screen, so the path is shifted to start at the muzzle,
-// and the shift shrinks steadily to zero by tFade: the landing for short shots, the first ~3000 km
-// for long ones. A shift that is linear in time keeps a parabola a smooth parabola, and the landing
-// point stays exact.
+// and the shift shrinks steadily to zero by the end of the first flight. A shift that is linear
+// in time keeps a parabola a smooth parabola, and the landing point stays exact. The shift turns
+// with the ball around the Earth (forward along the ground and up from it), so a long flight or
+// an orbit is never drawn pushed into the ground.
 // Returns the screen position at `upto`.
 function drawPath(shot, upto, color, width) {
   const p = shot.pts, th = shot.angle * Math.PI / 180;
@@ -673,8 +669,9 @@ function drawPath(shot, upto, color, width) {
   const add = (x, y, t) => {
     const X = sx(x), Y = sy(y);
     // A finished orbit is drawn unshifted, so the ball going around again follows its line
-    const w = shot.result === 'orbit' && shot !== current ? 0 : clamp01(1 - t / shot.tFade);
-    const DX = X + ox * w, DY = Y + oy * w;
+    const w = shot.result === 'orbit' && shot !== current ? 0 : clamp01(1 - t / shot.tEnd);
+    const phi = Math.atan2(x, y), c = Math.cos(phi), sn = Math.sin(phi);
+    const DX = X + (ox * c - oy * sn) * w, DY = Y + (ox * sn + oy * c) * w;
     if (Math.abs(DX) > LIM || Math.abs(DY) > LIM) pen = false;
     else { pen ? ctx.lineTo(DX, DY) : ctx.moveTo(DX, DY); pen = true; }
     out = [DX, DY];
