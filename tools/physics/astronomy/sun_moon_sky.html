@@ -249,6 +249,22 @@
   th.sun-h { color: var(--sun) !important; }
   th.moon-h { color: var(--moon) !important; }
 
+  .wx-status { font-size: 0.63rem; color: var(--muted); margin-bottom: 8px; line-height: 1.4; }
+  .wx-status button { background: none; border: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; padding: 0; }
+  .wx-now { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .wx-now .ic { font-size: 1.9rem; line-height: 1; }
+  .wx-now .desc { font-size: 0.82rem; font-weight: 700; }
+  .wx-now .sub { font-size: 0.66rem; color: var(--muted); margin-top: 2px; }
+  .wx-bar { display: inline-block; width: 60px; height: 7px; border-radius: 4px; background: var(--surface2); border: 1px solid var(--border); vertical-align: middle; margin-right: 6px; overflow: hidden; }
+  .wx-bar i { display: block; height: 100%; background: var(--muted); }
+  .wx-night { margin-top: 10px; padding: 8px 10px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); font-size: 0.72rem; line-height: 1.5; }
+  .wx-night .head { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-weight: 700; margin-bottom: 3px; }
+  .wx-badge { font-size: 0.66rem; font-weight: 800; border-radius: 10px; padding: 1px 8px; border: 1px solid currentColor; white-space: nowrap; }
+  .wx-badge.r4, .wx-badge.r3 { color: var(--green); }
+  .wx-badge.r2 { color: var(--yellow); }
+  .wx-badge.r1, .wx-badge.r0 { color: var(--red); }
+  .wx-night .m { color: var(--muted); }
+
   .phase-list { display: flex; flex-direction: column; gap: 5px; font-size: 0.74rem; }
   .phase-list div { display: flex; justify-content: space-between; gap: 8px; }
   .phase-list .when { font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -346,6 +362,7 @@
       <label class="check"><input type="checkbox" id="opt-moonpath" checked> Moon's path for the day</label>
       <label class="check"><input type="checkbox" id="opt-hours" checked> Hour marks on paths</label>
       <label class="check"><input type="checkbox" id="opt-equator" checked> Celestial equator &amp; pole</label>
+      <label class="check"><input type="checkbox" id="opt-clouds" checked> Clouds from the weather forecast</label>
     </div>
 
     <div class="panel-section notes">
@@ -354,6 +371,7 @@
       <p><b>Rise / set</b> = the upper edge touches the horizon, including ≈34′ of atmospheric refraction (h₀ = −0.83° for the Sun). Twilight ends when the Sun is 6°, 12° and 18° below the horizon.</p>
       <p>The Moon moves ≈13° east per day along its orbit, so it rises on average <b>≈50 min later</b> each day.</p>
       <p>The lit side of the Moon always faces the Sun, but its <b>tilt</b> in your sky depends on latitude: near the equator a crescent lies like a boat; in the southern hemisphere the Moon looks upside-down compared with the north.</p>
+      <p><b>Clouds</b> decide whether you can see anything at all. Low clouds (below ≈2 km) block the sky; thin high clouds (cirrus) often still let the Moon and bright planets through. A bright Moon washes out faint stars, so the best stargazing nights are clear <i>and</i> moonless.</p>
       <p style="font-style:italic">Low-precision Meeus algorithms: positions within a few arcminutes, times within ≈1–2 min.</p>
     </div>
   </aside>
@@ -397,6 +415,12 @@
 
   <!-- ═════════ RIGHT: DATA ═════════ -->
   <aside class="right-panel">
+    <div class="panel-section" id="wx-section">
+      <div class="section-label">☁ Weather &amp; sky visibility</div>
+      <div class="wx-status" id="wx-status"></div>
+      <div id="wx-body"></div>
+    </div>
+
     <div class="panel-section">
       <div class="section-label">
         Moon phase
@@ -429,7 +453,7 @@
     <div class="panel-section">
       <div class="section-label">Week ahead</div>
       <table class="week" id="week-table"></table>
-      <div class="field-hint">Click a row to jump to that day. % lit at local noon.</div>
+      <div class="field-hint">Click a row to jump to that day. % lit at local noon. ☁ night = average forecast cloud cover while the sky is dark.</div>
     </div>
   </aside>
 </div>
@@ -702,7 +726,7 @@
     preset: 'bogota', lat: 4.711, lon: -74.072, tz: 'America/Bogota', offset: -5,
     utc: Date.now(), live: true, playing: false, speed: 3600,
     view: 'dome', facing: 180, orient: 'sky',
-    showSun: true, showMoon: true, showHours: true, showEquator: true,
+    showSun: true, showMoon: true, showHours: true, showEquator: true, showClouds: true,
   };
 
   const fmtCache = {};
@@ -753,6 +777,190 @@
   const COMPASS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
   const compass = az => COMPASS[Math.round(norm360(az) / 22.5) % 16];
   const deg = (x, d = 1) => x.toFixed(d) + '°';
+
+
+  // ═══════════════════════════════════════════════════════════════
+  //  WEATHER FORECAST  (Open-Meteo: free, no key; hourly, yesterday → +15 days)
+  // ═══════════════════════════════════════════════════════════════
+  const WX_VARS = 'cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,visibility,precipitation_probability,relative_humidity_2m,temperature_2m,weather_code';
+  const WX = { key: null, status: 'idle', msg: '', data: null, fetchedAt: 0, rev: 0, timer: null };
+  const wxKey = () => `${S.lat.toFixed(2)},${S.lon.toFixed(2)}`;
+
+  function wxEnsure() {
+    const key = wxKey();
+    const stale = Date.now() - WX.fetchedAt > 30 * MIN;
+    if (key === WX.key && (WX.status === 'loading' || !stale)) return;
+    if (key !== WX.key) { WX.key = key; WX.data = null; WX.rev++; }
+    WX.status = 'loading';
+    clearTimeout(WX.timer);
+    WX.timer = setTimeout(() => wxFetch(key), WX.fetchedAt ? 0 : 600);   // short wait while coordinates are typed
+  }
+  async function wxFetch(key) {
+    requestRender();
+    const [la, lo] = key.split(',');
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&hourly=${WX_VARS}` +
+      '&timeformat=unixtime&timezone=GMT&past_days=1&forecast_days=16';
+    try {
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 12000);
+      const r = await fetch(url, { signal: ctl.signal });
+      clearTimeout(to);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      if (key !== WX.key) return;
+      const H = j.hourly;
+      WX.data = { t: H.time.map(x => x * 1000), cc: H.cloud_cover, lo: H.cloud_cover_low, mid: H.cloud_cover_mid,
+        hi: H.cloud_cover_high, vis: H.visibility, pp: H.precipitation_probability, rh: H.relative_humidity_2m,
+        temp: H.temperature_2m, code: H.weather_code };
+      WX.status = 'ok';
+    } catch (e) {
+      if (key !== WX.key) return;
+      WX.status = 'error';
+      WX.msg = e.name === 'AbortError' ? 'the forecast server did not answer' : 'no connection to the forecast server';
+    }
+    WX.fetchedAt = Date.now();
+    WX.rev++; weekKey = null; requestRender();
+  }
+  function wxRetry() { WX.fetchedAt = 0; WX.status = 'idle'; wxEnsure(); }
+
+  // Forecast at a time: nearest hour, cloud cover interpolated between hours
+  function wxAt(utc) {
+    const D = WX.data; if (!D) return null;
+    const u = (utc - D.t[0]) / HOUR;
+    if (u < 0 || u > D.t.length - 1) return null;
+    const i = Math.round(u), a = Math.floor(u), b = Math.min(D.t.length - 1, a + 1), f = u - a;
+    if (D.cc[i] == null) return null;
+    const lerp = arr => (arr[a] == null || arr[b] == null) ? arr[i] : arr[a] * (1 - f) + arr[b] * f;
+    return { cc: lerp(D.cc), lo: lerp(D.lo), mid: lerp(D.mid), hi: lerp(D.hi), vis: D.vis[i], pp: D.pp[i], rh: D.rh[i], temp: D.temp[i], code: D.code[i] };
+  }
+  const WMO = {
+    0: ['Clear sky', '☀️', '🌙'], 1: ['Mainly clear', '🌤️', '🌙'], 2: ['Partly cloudy', '⛅', '☁️'], 3: ['Overcast', '☁️'],
+    45: ['Fog', '🌫️'], 48: ['Freezing fog', '🌫️'], 51: ['Light drizzle', '🌦️'], 53: ['Drizzle', '🌦️'], 55: ['Heavy drizzle', '🌧️'],
+    56: ['Freezing drizzle', '🌧️'], 57: ['Freezing drizzle', '🌧️'], 61: ['Light rain', '🌦️'], 63: ['Rain', '🌧️'], 65: ['Heavy rain', '🌧️'],
+    66: ['Freezing rain', '🌧️'], 67: ['Freezing rain', '🌧️'], 71: ['Light snow', '🌨️'], 73: ['Snow', '🌨️'], 75: ['Heavy snow', '❄️'],
+    77: ['Snow grains', '🌨️'], 80: ['Rain showers', '🌦️'], 81: ['Rain showers', '🌧️'], 82: ['Violent showers', '🌧️'],
+    85: ['Snow showers', '🌨️'], 86: ['Snow showers', '🌨️'], 95: ['Thunderstorm', '⛈️'], 96: ['Thunderstorm, hail', '⛈️'], 99: ['Thunderstorm, hail', '⛈️'],
+  };
+  const wmo = (code, night) => { const w = WMO[code] || ['—', '❔']; return [w[0], night && w[2] ? w[2] : w[1]]; };
+  const RATINGS = ['Very poor', 'Poor', 'Fair', 'Good', 'Excellent'];
+  const cloudWord = cc => cc < 15 ? 'clear' : cc < 35 ? 'mostly clear' : cc < 60 ? 'partly cloudy' : cc < 85 ? 'mostly cloudy' : 'overcast';
+
+  // The dark hours (Sun below −12°) between noon of a day and noon of the next, with clouds and moonlight
+  const nightCache = new Map();
+  function nightSummary(dayStart) {
+    const key = `${WX.rev}|${S.lat}|${S.lon}|${dayStart}`;
+    if (nightCache.has(key)) return nightCache.get(key);
+    let res = null;
+    const hours = [];
+    for (let t = Math.ceil((dayStart + 12 * HOUR) / HOUR) * HOUR; t <= dayStart + 36 * HOUR; t += HOUR) {
+      const sn = snapshot(t, S.lat, S.lon);
+      if (sn.sunAlt > -12) continue;
+      const w = wxAt(t);
+      if (!w) { hours.length = 0; break; }
+      hours.push({ t, cc: w.cc, moonUp: sn.moonAlt > 0, k: sn.moonAlt > 0 ? moonPhase(sn, S.lat).k : 0 });
+    }
+    if (hours.length) {
+      const mean = hours.reduce((a, h) => a + h.cc, 0) / hours.length;
+      const moonLight = hours.reduce((a, h) => a + h.k, 0) / hours.length;   // 0 = dark … 1 = full Moon all night
+      let best = null, run = null;
+      for (const h of hours) {
+        if (h.cc <= 30) {
+          run = run && h.t - run.end === HOUR ? { start: run.start, end: h.t } : { start: h.t, end: h.t };
+          if (!best || run.end - run.start > best.end - best.start) best = run;
+        } else run = null;
+      }
+      const score = (1 - mean / 100) * (1 - 0.45 * moonLight);
+      const rating = score > 0.8 ? 4 : score > 0.6 ? 3 : score > 0.4 ? 2 : score > 0.2 ? 1 : 0;
+      res = { mean, best, rating, moonLight, moonHrs: hours.filter(h => h.moonUp).length, n: hours.length };
+    }
+    nightCache.set(key, res);
+    if (nightCache.size > 60) nightCache.delete(nightCache.keys().next().value);
+    return res;
+  }
+
+  // Soft clouds over a sky region; how many follows the forecast cover, how bright follows the Sun
+  const PUFFS = Array.from({ length: 140 }, (_, i) => {
+    const r = n => { const x = Math.sin(i * 127.1 + n * 311.7) * 43758.5453; return x - Math.floor(x); };
+    return { x: r(1), y: r(2), s: r(3), o: r(4) };
+  });
+  function drawClouds(ctx, clipPath, box, w, sunAlt, sizeRef) {
+    if (!S.showClouds || !w) return;
+    const n = Math.round(w.cc / 100 * PUFFS.length);
+    if (!n) return;
+    const lit = clamp((sunAlt + 8) / 14, 0, 1);
+    const c = `${Math.round(70 + 160 * lit)},${Math.round(74 + 162 * lit)},${Math.round(84 + 160 * lit)}`;
+    ctx.save();
+    clipPath(); ctx.clip();
+    ctx.fillStyle = `rgba(${c},${0.25 * w.cc / 100})`; ctx.fillRect(box.x, box.y, box.w, box.h);
+    for (let j = 0; j < n; j++) {
+      const p = PUFFS[j], x = box.x + p.x * box.w, y = box.y + p.y * box.h, r = sizeRef * (0.11 + 0.08 * p.s);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(${c},${0.55 + 0.3 * p.o})`); g.addColorStop(1, `rgba(${c},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function cloudTag(ctx, x, y, w) {
+    if (!S.showClouds || !w) return;
+    ctx.save();
+    ctx.font = '700 11px Segoe UI, system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    const txt = `☁ ${Math.round(w.cc)}% cloud cover (forecast)`;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x, y - 18, ctx.measureText(txt).width + 10, 18);
+    ctx.fillStyle = '#fff'; ctx.fillText(txt, x + 5, y - 3);
+    ctx.restore();
+  }
+
+  function updateWeather(day, now, ph) {
+    const st = $('wx-status'), body = $('wx-body');
+    const retry = ' <button class="wx-retry">Retry</button>';
+    const bindRetry = () => st.querySelectorAll('.wx-retry').forEach(b => b.onclick = wxRetry);
+    if (!WX.data) {
+      st.innerHTML = WX.status === 'error' ? `Weather unavailable: ${WX.msg}.` + retry : 'Loading the forecast…';
+      body.innerHTML = ''; bindRetry(); return;
+    }
+    st.innerHTML = `Forecast by <a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:var(--accent)">Open-Meteo</a> · updated ${fmtLocal(WX.fetchedAt)}` +
+      (WX.status === 'error' ? ' · refresh failed.' + retry : '');
+    bindRetry();
+    const w = wxAt(now.utc);
+    let html = '';
+    if (!w) {
+      html = `<div class="field-hint" style="font-size:.7rem">No forecast for this date and time: it covers ${fmtLocal(WX.data.t[0], true)} to ${fmtLocal(WX.data.t[WX.data.t.length - 1], true)}. Press <b>Now</b> to come back.</div>`;
+    } else {
+      const night = now.sunAlt < -6;
+      const [desc, ic] = wmo(w.code, night);
+      const bar = v => `<span class="wx-bar"><i style="width:${clamp(v, 0, 100)}%"></i></span>${Math.round(v)} %`;
+      const blocked = w.lo > 70 || w.cc > 90 || w.code >= 45 || (w.vis != null && w.vis < 1000);
+      let sees;
+      if (now.sunAlt > 0) sees = blocked ? 'The Sun is up but hidden by clouds.' : 'The Sun is up.';
+      else if (now.moonAlt > 0) sees = blocked ? 'The Moon is up but probably hidden by clouds.' : w.cc > 50 ? 'The Moon is up: look for it through gaps in the clouds.' : 'The Moon is up and should be easy to see.';
+      else sees = 'The Moon is below the horizon.';
+      if (night && !blocked) sees += now.moonAlt > 0 && ph.k > 0.5 ? ' Moonlight hides the faintest stars.' : w.cc < 30 ? ' Dark, clear sky: good for stars and planets.' : ' Some stars may show between the clouds.';
+      html += `<div class="wx-now"><span class="ic">${ic}</span><div><div class="desc">${desc}${w.temp != null ? ' · ' + Math.round(w.temp) + ' °C' : ''}</div><div class="sub">${S.live ? 'now' : fmtLocal(now.utc, true)}</div></div></div>`;
+      html += '<table class="kv">' +
+        row('Cloud cover', bar(w.cc), cloudWord(w.cc)) +
+        row('&nbsp;&nbsp;low (below 2 km)', bar(w.lo)) +
+        row('&nbsp;&nbsp;middle (2–6 km)', bar(w.mid)) +
+        row('&nbsp;&nbsp;high (above 6 km)', bar(w.hi)) +
+        (w.vis != null ? row('Visibility', (w.vis / 1000).toFixed(w.vis >= 10000 ? 0 : 1) + ' km', w.vis < 1000 ? 'fog' : w.vis < 5000 ? 'haze or mist' : 'clear air') : '') +
+        (w.pp != null ? row('Chance of rain', w.pp + ' %') : '') +
+        (w.rh != null ? row('Humidity', w.rh + ' %', w.rh > 90 ? 'dew likely on lenses' : '') : '') +
+        '</table>' +
+        `<div class="field-hint" style="font-size:.68rem;margin-top:6px">${sees}</div>`;
+    }
+    const n = nightSummary(day.start);
+    if (n) {
+      const winTxt = n.best ? `${fmtLocal(n.best.start)}–${fmtLocal(n.best.end + HOUR)}` : 'none (over 30 % cloud all night)';
+      const moonTxt = n.moonHrs === 0 ? 'The Moon stays below the horizon while it is dark: no moonlight.'
+        : `The Moon is up ${n.moonHrs} of the ${n.n} dark hours` + (n.moonLight > 0.4 ? ' and bright: faint stars are washed out.' : '.');
+      const d = new Date(day.start + 12 * HOUR + offsetAt(day.start + 12 * HOUR) * HOUR);
+      html += `<div class="wx-night"><div class="head"><span>🔭 Stargazing, night of ${WD[d.getUTCDay()]} ${d.getUTCDate()} ${MON[d.getUTCMonth()]}</span><span class="wx-badge r${n.rating}">${RATINGS[n.rating]}</span></div>
+        <div>Average cloud cover while dark: <b>${Math.round(n.mean)} %</b> <span class="m">(${cloudWord(n.mean)})</span></div>
+        <div>Clearest stretch: <b>${winTxt}</b></div>
+        <div class="m">${moonTxt}</div></div>`;
+    } else {
+      html += '<div class="wx-night m">No forecast for the night of this date.</div>';
+    }
+    body.innerHTML = html;
+  }
 
   // ═══════════════════════════════════════════════════════════════
   //  CACHES
@@ -980,6 +1188,9 @@
       proj, minAlt: MIN_ALT, broken: () => false,
       upRot: (x, y) => Math.atan2(cx - x, -(cy - y)),
     });
+    const wx = wxAt(now.utc);
+    drawClouds(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy, RH, 0, Math.PI * 2); }, { x: cx - RH, y: cy - RH, w: 2 * RH, h: 2 * RH }, wx, now.sunAlt, RH);
+    cloudTag(ctx, 8, h - 8, wx);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -1026,6 +1237,9 @@
       proj, minAlt: MIN_ALT, broken: (a, b) => Math.abs(a.x - b.x) > w / 2,
       upRot: () => 0,
     });
+    const wx = wxAt(now.utc);
+    drawClouds(ctx, () => { ctx.beginPath(); ctx.rect(0, T, w, y0 - T); }, { x: 0, y: T, w, h: y0 - T }, wx, now.sunAlt, Math.min(w, (y0 - T) * 2));
+    cloudTag(ctx, 8, h - B - 4, wx);
   }
 
   function drawOverlays(ctx, day, now, ph, P) {
@@ -1126,6 +1340,21 @@
     ctx.fillText('horizon', CH.L + 4, yOf(0) + 2);
     ctx.restore();
 
+    // forecast cloud cover strip along the top
+    if (WX.data && S.showClouds) {
+      const SH = 14;
+      ctx.save();
+      for (let t = day.start; t < day.start + DAY; t += HOUR / 2) {
+        const w = wxAt(t + HOUR / 4); if (!w) continue;
+        const x1 = xOf(t), x2 = xOf(t + HOUR / 2);
+        ctx.fillStyle = 'rgba(20,24,32,0.55)'; ctx.fillRect(x1, CH.T, x2 - x1 + 0.5, SH);
+        ctx.fillStyle = `rgba(215,220,230,${0.1 + 0.85 * w.cc / 100})`; ctx.fillRect(x1, CH.T, x2 - x1 + 0.5, SH);
+      }
+      ctx.font = '700 11px Segoe UI, system-ui, sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+      ctx.fillStyle = muted; ctx.fillText('☁', CH.L / 2 - 2, CH.T + SH / 2);
+      ctx.restore();
+    }
+
     // curves
     const curve = (key, color) => {
       ctx.save();
@@ -1198,7 +1427,8 @@
       `<span class="clock">${pad2(Math.floor(p.min / 60))}:${pad2(p.min % 60)}</span>
        <span class="muted">${WD[dt.getUTCDay()]} ${p.d} ${MON[p.m - 1]} ${p.y} · ${fmtOffset(S.offset)}</span>
        <span><span class="sun-c">☀</span> alt ${deg(now.sunAlt)} · az ${deg(now.sunAz, 0)} ${compass(now.sunAz)}</span>
-       <span><span class="moon-c">☾</span> alt ${deg(now.moonAlt)} · az ${deg(now.moonAz, 0)} ${compass(now.moonAz)}</span>`;
+       <span><span class="moon-c">☾</span> alt ${deg(now.moonAlt)} · az ${deg(now.moonAz, 0)} ${compass(now.moonAz)}</span>` +
+      (() => { const w = wxAt(now.utc); return w ? `<span>☁ ${Math.round(w.cc)}% · ${wmo(w.code, now.sunAlt < -6)[0]}</span>` : ''; })();
 
     // moon phase
     $('phase-name').textContent = ph.name;
@@ -1254,10 +1484,10 @@
   let weekKey = null;
   function updateWeek() {
     const p = localParts(S.utc);
-    const key = `${S.lat}|${S.lon}|${S.offset}|${S.tz}|${p.y}-${p.m}-${p.d}`;
+    const key = `${S.lat}|${S.lon}|${S.offset}|${S.tz}|${p.y}-${p.m}-${p.d}|${WX.rev}`;
     if (key === weekKey) return;
     weekKey = key;
-    let html = `<thead><tr><th>Day</th><th class="sun-h">☀ rise</th><th class="sun-h">☀ set</th><th class="moon-h">☾ rise</th><th class="moon-h">☾ set</th><th class="moon-h">% lit</th></tr></thead><tbody>`;
+    let html = `<thead><tr><th>Day</th><th class="sun-h">☀ rise</th><th class="sun-h">☀ set</th><th class="moon-h">☾ rise</th><th class="moon-h">☾ set</th><th class="moon-h">% lit</th><th>☁ night</th></tr></thead><tbody>`;
     for (let i = 0; i < 7; i++) {
       const dt = new Date(Date.UTC(p.y, p.m - 1, p.d + i));
       const y = dt.getUTCFullYear(), m = dt.getUTCMonth() + 1, d = dt.getUTCDate();
@@ -1268,7 +1498,7 @@
       const ss = day.sun.always ? (day.sun.always === 'up' ? '∞' : '·') : t(day.sun.set);
       html += `<tr class="${i === 0 ? 'sel' : ''}" data-y="${y}" data-m="${m}" data-d="${d}">
         <td>${WD[dt.getUTCDay()]} ${d}</td><td>${sr}</td><td>${ss}</td>
-        <td>${t(day.moon.rise)}</td><td>${t(day.moon.set)}</td><td>${Math.round(ph.k * 100)}</td></tr>`;
+        <td>${t(day.moon.rise)}</td><td>${t(day.moon.set)}</td><td>${Math.round(ph.k * 100)}</td><td>${(n => n ? Math.round(n.mean) + '%' : '—')(nightSummary(day.start))}</td></tr>`;
     }
     $('week-table').innerHTML = html + '</tbody>';
   }
@@ -1323,7 +1553,9 @@
     }
 
     updateTexts(day, now, ph);
+    updateWeather(day, now, ph);
     updateWeek();
+    wxEnsure();
   }
 
   let lastFrame = performance.now(), lastSecond = 0;
@@ -1364,7 +1596,7 @@
   function onCoord() {
     const la = parseFloat($('lat').value), lo = parseFloat($('lon').value);
     if (!isFinite(la) || !isFinite(lo)) return;
-    S.lat = clamp(la, -90, 90); S.lon = norm180(lo);
+    S.lat = clamp(la, -90, 90); S.lon = +norm180(lo).toFixed(4);
     S.preset = 'custom'; weekKey = null; requestRender();
   }
   $('lat').addEventListener('change', onCoord);
@@ -1415,6 +1647,7 @@
   bindCheck('opt-moonpath', 'showMoon');
   bindCheck('opt-hours', 'showHours');
   bindCheck('opt-equator', 'showEquator');
+  bindCheck('opt-clouds', 'showClouds');
 
   document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
     S.view = b.dataset.view;
