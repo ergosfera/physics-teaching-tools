@@ -1116,6 +1116,14 @@
     ctx.restore();
   }
 
+  function haloText(ctx, txt, x, y, fill) {
+    ctx.save();
+    ctx.lineJoin = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(10,14,24,0.75)';
+    ctx.strokeText(txt, x, y);
+    ctx.fillStyle = fill; ctx.fillText(txt, x, y);
+    ctx.restore();
+  }
+
   function hourMarks(ctx, pts, color, labelEvery) {
     ctx.save();
     ctx.font = '600 10px Segoe UI, system-ui, sans-serif';
@@ -1129,8 +1137,7 @@
       ctx.beginPath(); ctx.arc(p.x, p.y, 2.6, 0, Math.PI * 2); ctx.fill();
       const hr = j / perHour;
       if (hr % labelEvery === 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0.85)';
-        ctx.fillText(hr + 'h', p.x + 11, p.y - 8);
+        haloText(ctx, hr + 'h', p.x + 11, p.y - 8, '#ffffff');
       }
     }
     ctx.restore();
@@ -1152,12 +1159,17 @@
     const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, RH);
     g.addColorStop(0, interp(SKY, now.sunAlt, 1)); g.addColorStop(1, interp(SKY, now.sunAlt, 2));
     ctx.beginPath(); ctx.arc(cx, cy, RH, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+    const wx = wxAt(now.utc);
+    drawClouds(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy, RH, 0, Math.PI * 2); }, { x: cx - RH, y: cy - RH, w: 2 * RH, h: 2 * RH }, wx, now.sunAlt, RH);
 
     // grid
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.16)'; ctx.lineWidth = 1;
     ctx.setLineDash([3, 4]);
-    for (const a of [30, 60, -10]) { ctx.beginPath(); ctx.arc(cx, cy, rOf(a), 0, Math.PI * 2); ctx.stroke(); }
+    for (const [col, lw] of [['rgba(20,30,50,0.25)', 2.5], ['rgba(255,255,255,0.25)', 1]]) {
+      ctx.strokeStyle = col; ctx.lineWidth = lw;
+      for (const a of [30, 60, -10]) { ctx.beginPath(); ctx.arc(cx, cy, rOf(a), 0, Math.PI * 2); ctx.stroke(); }
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.16)'; ctx.lineWidth = 1;
     ctx.setLineDash([]);
     for (let az = 0; az < 360; az += 45) {
       const [x1, y1] = proj(90, az), [x2, y2] = proj(MIN_ALT, az);
@@ -1165,11 +1177,10 @@
     }
     ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(cx, cy, RH, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.font = '10px Segoe UI, system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    for (const a of [30, 60]) ctx.fillText(a + '°', cx + 3, cy - rOf(a) + 7);
-    ctx.fillText('0°', cx + 3, cy - RH + 7);
-    ctx.fillText('below horizon', cx + 3, cy - rOf(-10) + 7);
+    ctx.font = '600 10px Segoe UI, system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    for (const a of [30, 60]) haloText(ctx, a + '°', cx + 3, cy - rOf(a) + 7, 'rgba(255,255,255,0.9)');
+    haloText(ctx, '0°', cx + 3, cy - RH + 7, 'rgba(255,255,255,0.9)');
+    haloText(ctx, 'below horizon', cx + 3, cy - rOf(-10) + 7, 'rgba(255,255,255,0.9)');
     ctx.restore();
 
     // cardinal labels
@@ -1188,8 +1199,6 @@
       proj, minAlt: MIN_ALT, broken: () => false,
       upRot: (x, y) => Math.atan2(cx - x, -(cy - y)),
     });
-    const wx = wxAt(now.utc);
-    drawClouds(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy, RH, 0, Math.PI * 2); }, { x: cx - RH, y: cy - RH, w: 2 * RH, h: 2 * RH }, wx, now.sunAlt, RH);
     cloudTag(ctx, 8, h - 8, wx);
   }
 
@@ -1206,6 +1215,8 @@
     const g = ctx.createLinearGradient(0, T, 0, y0);
     g.addColorStop(0, interp(SKY, now.sunAlt, 1)); g.addColorStop(1, interp(SKY, now.sunAlt, 2));
     ctx.fillStyle = g; ctx.fillRect(0, T, w, y0 - T);
+    const wx = wxAt(now.utc);
+    drawClouds(ctx, () => { ctx.beginPath(); ctx.rect(0, T, w, y0 - T); }, { x: 0, y: T, w, h: y0 - T }, wx, now.sunAlt, Math.min(w, (y0 - T) * 2));
     ctx.fillStyle = interp(SKY, now.sunAlt, 3); ctx.fillRect(0, y0, w, h - B - y0);
 
     ctx.save();
@@ -1214,7 +1225,7 @@
     ctx.textBaseline = 'bottom';
     for (const a of [30, 60, 90]) {
       ctx.beginPath(); ctx.moveTo(0, yOf(a)); ctx.lineTo(w, yOf(a)); ctx.stroke();
-      ctx.fillText(a + '°', 4, yOf(a) - 1);
+      haloText(ctx, a + '°', 4, yOf(a) - 1, 'rgba(255,255,255,0.9)');
     }
     for (let az = 0; az < 360; az += 45) {
       const x = xOf(az);
@@ -1237,8 +1248,6 @@
       proj, minAlt: MIN_ALT, broken: (a, b) => Math.abs(a.x - b.x) > w / 2,
       upRot: () => 0,
     });
-    const wx = wxAt(now.utc);
-    drawClouds(ctx, () => { ctx.beginPath(); ctx.rect(0, T, w, y0 - T); }, { x: 0, y: T, w, h: y0 - T }, wx, now.sunAlt, Math.min(w, (y0 - T) * 2));
     cloudTag(ctx, 8, h - B - 4, wx);
   }
 
@@ -1271,11 +1280,13 @@
 
     // bodies below the horizon are drawn faded
     const sp = mk(now.sunAlt, now.sunAz);
-    ctx.save(); ctx.globalAlpha = sp.alt >= 0 ? 1 : 0.4;
+    const wxn = S.showClouds ? wxAt(now.utc) : null;
+    const veil = wxn ? 1 - 0.6 * clamp((Math.max(wxn.lo, wxn.cc * 0.8) - 40) / 60, 0, 1) : 1;   // thick cover hides the disc
+    ctx.save(); ctx.globalAlpha = sp.alt >= 0 ? veil : 0.4;
     if (sp.vis) drawSunDisc(ctx, sp.x, sp.y, 8);
     ctx.restore();
     const mp = mk(now.moonAlt, now.moonAz);
-    ctx.save(); ctx.globalAlpha = mp.alt >= 0 ? 1 : 0.4;
+    ctx.save(); ctx.globalAlpha = mp.alt >= 0 ? veil : 0.4;
     if (mp.vis) drawMoonDisc(ctx, mp.x, mp.y, 10, ph, upRot(mp.x, mp.y) + ph.q);
     ctx.restore();
   }
