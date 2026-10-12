@@ -714,7 +714,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let about = appMenu.addItem(withTitle: "About Countdown Timer", action: #selector(TimerView.showAbout), keyEquivalent: "")
         about.target = view
         appMenu.addItem(.separator())
-        let settings =appMenu.addItem(withTitle: "Settings…", action: #selector(TimerView.openSettings), keyEquivalent: ",")
+        let settings = appMenu.addItem(withTitle: "Settings…", action: #selector(TimerView.openSettings), keyEquivalent: ",")
         settings.target = view
         appMenu.addItem(.separator())
         let minimize = appMenu.addItem(withTitle: "Minimize", action: #selector(TimerView.minimizeWindow), keyEquivalent: "m")
