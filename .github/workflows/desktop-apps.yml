@@ -1,6 +1,7 @@
-# Builds the Countdown Timer desktop apps and publishes them on the
-# "countdown-timer" release: CountdownTimer.dmg (Mac) and CountdownTimer.exe (Windows).
-name: Countdown Timer apps
+# Builds the desktop apps and publishes them on GitHub releases:
+#   "countdown-timer":    CountdownTimer.dmg (Mac) and CountdownTimer.exe (Windows)
+#   "physics-calculator": PhysicsCalculator.dmg (Mac) and PhysicsCalculator.exe (Windows)
+name: Desktop apps
 
 on:
   push:
@@ -11,34 +12,55 @@ on:
   workflow_dispatch:
 
 jobs:
-  mac:
+  timer-mac:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - run: ./desktop-apps/countdown-timer-mac/build.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: mac
+          name: timer-mac
           path: desktop-apps/countdown-timer-mac/build/CountdownTimer.dmg
 
-  windows:
+  timer-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop-apps/countdown-timer/build.ps1
       - uses: actions/upload-artifact@v4
         with:
-          name: windows
+          name: timer-windows
           path: desktop-apps/countdown-timer/CountdownTimer.exe
 
-  release:
-    needs: [mac, windows]
+  calc-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./desktop-apps/physics-calculator/mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calc-mac
+          path: desktop-apps/physics-calculator/mac/build/PhysicsCalculator.dmg
+
+  calc-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop-apps/physics-calculator/windows/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calc-windows
+          path: desktop-apps/physics-calculator/windows/PhysicsCalculator.exe
+
+  release-timer:
+    needs: [timer-mac, timer-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
+          pattern: timer-*
           path: dist
           merge-multiple: true
       - name: Publish to the countdown-timer release
@@ -51,3 +73,25 @@ jobs:
               --notes "Countdown timer desktop app. Mac: download CountdownTimer.dmg. Windows: download CountdownTimer.exe."
           gh release upload countdown-timer dist/* -R "$REPO" --clobber
           gh release edit countdown-timer -R "$REPO" --draft=false
+
+  release-calc:
+    needs: [calc-mac, calc-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: calc-*
+          path: dist
+          merge-multiple: true
+      - name: Publish to the physics-calculator release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release view physics-calculator -R "$REPO" > /dev/null 2>&1 || \
+            gh release create physics-calculator -R "$REPO" --latest=false --title "Physics Calculator" \
+              --notes "Physics calculator desktop app. Mac: download PhysicsCalculator.dmg. Windows: download PhysicsCalculator.exe."
+          gh release upload physics-calculator dist/* -R "$REPO" --clobber
+          gh release edit physics-calculator -R "$REPO" --draft=false

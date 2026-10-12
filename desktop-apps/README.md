@@ -1,24 +1,30 @@
-# Countdown Timer
+# Ergosfera Desktop Apps
 
-A small, free countdown timer for Windows and macOS.
+Small, free desktop apps for Windows and macOS, made for teaching:
 
-- Set hours, minutes and seconds, then start.
-- A bar shrinks as time runs out and turns from green to yellow to red, at percentages you choose.
-- Optional "always on top" so the timer stays visible over other windows.
-- Optional sound when the time is up.
+- **Countdown Timer**: a compact countdown whose bar and numbers turn from green to yellow to red.
+- **Physics Calculator**: the calculator from the Ergosfera *Notebook & Physics Calculator* web tool, where numbers carry units.
 
 ## Download and install
 
-**Windows (10 or 11):** download `CountdownTimer.exe` and double-click it. No installation is needed.
-The app isn't signed with a paid certificate, so the first time Windows may show
+Download the file for your system from the app's release page:
+[Countdown Timer](https://github.com/ergosfera/physics-teaching-tools/releases/tag/countdown-timer) ·
+[Physics Calculator](https://github.com/ergosfera/physics-teaching-tools/releases/tag/physics-calculator).
+
+**Windows (10 or 11):** double-click the `.exe`. No installation is needed.
+The apps aren't signed with a paid certificate, so the first time Windows may show
 "Windows protected your PC". Click **More info**, then **Run anyway**.
 
-**macOS (11 Big Sur or later; Apple Silicon and Intel):** open `CountdownTimer.dmg` and drag
-**Countdown Timer** into **Applications**. The app isn't signed with a paid Apple Developer ID,
-so the first time macOS may block it. Open **System Settings → Privacy & Security** and
-click **Open Anyway**.
+**macOS (11 Big Sur or later; Apple Silicon and Intel):** open the `.dmg` and drag the app
+into **Applications**. The apps aren't signed with a paid Apple Developer ID, so the first time
+macOS may block them. Open **System Settings → Privacy & Security** and click **Open Anyway**.
 
-## How to use
+## Countdown Timer
+
+- Set hours, minutes and seconds, then start.
+- A bar shrinks as time runs out and turns from green to yellow to red, at percentages you choose.
+- Optional "always on top" keeps the timer visible over other windows.
+- Optional sound when the time is up.
 
 | Action | Mouse | Keyboard |
 |---|---|---|
@@ -31,28 +37,41 @@ click **Open Anyway**.
 
 Move the window by dragging any empty area.
 
+## Physics Calculator
+
+- Numbers carry units: `3 m/s × 2 s` gives `6 m`, and `10 N / 0.2 m` gives `50 N/m`.
+- Convert with "to": `72 km/h to m/s`, `25 °C to °F`.
+- Built-in constants (`G`, `c`, `hP`, `kB`, `NA`, `Mearth`…) on the **Constants** pad, and common units on the **Units** pad.
+- DEG/RAD mode, decimal places or significant figures, and ×10^ notation.
+- A history tape: click a line to reuse its result; ↑/↓ recall earlier expressions.
+- Optional "always on top" (pin button) and an **About** button (?).
+
+It gives the same results as the web version: both desktop versions are checked against
+[`physics-calculator/tests.tsv`](physics-calculator/tests.tsv), 230 results recorded from the web calculator.
+
 ## Privacy
 
-Countdown Timer **collects no personal data and never connects to the internet**.
-It only saves its own settings on your computer: the last time you set, the color levels,
-the sound and always-on-top options, and the window position.
+These apps **collect no personal data and never connect to the internet**.
+They only save their own settings on your computer (for example the last time set, display
+options, always-on-top and the window position).
 
-- Windows: `%APPDATA%\CountdownTimer\settings.ini`
-- macOS: the app's standard preferences (`net.ergosfera.countdowntimer`)
+- Windows: `%APPDATA%\CountdownTimer\` and `%APPDATA%\PhysicsCalculator\`
+- macOS: each app's standard preferences (`net.ergosfera.countdowntimer`, `net.ergosfera.physicscalculator`)
 
 ## Disclaimer
 
 This software is provided **"as is", without warranty of any kind**. Don't rely on it
-where an inaccurate or interrupted countdown could cause harm or loss. The author is not liable
-for any claim, damages or other liability arising from its use. See [LICENSE](LICENSE)
-for the full terms.
+where an inaccurate result or an interrupted countdown could cause harm or loss, and check
+important results independently. The author is not liable for any claim, damages or other
+liability arising from its use. See [LICENSE](LICENSE) for the full terms.
 
 ## Building from source
 
-- **Windows:** run `powershell -ExecutionPolicy Bypass -File countdown-timer/build.ps1`.
+- **Windows:** run `powershell -ExecutionPolicy Bypass -File <app>\build.ps1`
+  (`countdown-timer\build.ps1` or `physics-calculator\windows\build.ps1`).
   It uses the C# compiler included with Windows, so nothing needs to be installed.
 - **macOS:** install the Xcode Command Line Tools (`xcode-select --install`), then run
-  `countdown-timer-mac/build.sh`. It creates `build/Countdown Timer.app` and `build/CountdownTimer.dmg`.
+  `countdown-timer-mac/build.sh` or `physics-calculator/mac/build.sh`. Each creates the app and a `.dmg` in its `build/` folder.
 
 ## License
 
