@@ -1,0 +1,53 @@
+# Builds the Countdown Timer desktop apps and publishes them on the
+# "countdown-timer" release: CountdownTimer.dmg (Mac) and CountdownTimer.exe (Windows).
+name: Countdown Timer apps
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop-apps/**'
+      - '.github/workflows/desktop-apps.yml'
+  workflow_dispatch:
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./desktop-apps/countdown-timer-mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: desktop-apps/countdown-timer-mac/build/CountdownTimer.dmg
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop-apps/countdown-timer/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: desktop-apps/countdown-timer/CountdownTimer.exe
+
+  release:
+    needs: [mac, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish to the countdown-timer release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release view countdown-timer -R "$REPO" > /dev/null 2>&1 || \
+            gh release create countdown-timer -R "$REPO" --latest=false --title "Countdown Timer" \
+              --notes "Countdown timer desktop app. Mac: download CountdownTimer.dmg. Windows: download CountdownTimer.exe."
+          gh release upload countdown-timer dist/* -R "$REPO" --clobber
+          gh release edit countdown-timer -R "$REPO" --draft=false
