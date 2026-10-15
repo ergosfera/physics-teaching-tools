@@ -6,3 +6,6 @@ desktop-apps/countdown-timer-mac/build/
 desktop-apps/physics-calculator/windows/PhysicsCalculator.exe
 desktop-apps/physics-calculator/windows/app.ico
 desktop-apps/physics-calculator/mac/build/
+desktop-apps/field-timer/windows/Field.exe
+desktop-apps/field-timer/windows/app.ico
+desktop-apps/field-timer/mac/build/

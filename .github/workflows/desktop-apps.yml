@@ -1,11 +1,17 @@
 # Builds the desktop apps and publishes them on GitHub releases:
 #   "countdown-timer":    CountdownTimer.dmg (Mac) and CountdownTimer.exe (Windows)
 #   "physics-calculator": PhysicsCalculator.dmg (Mac) and PhysicsCalculator.exe (Windows)
+#   "field-timer":        Field.dmg (Mac) and Field.exe (Windows)
+# Pull requests only build the apps, so a broken build shows up before it reaches main.
 name: Desktop apps
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'desktop-apps/**'
+      - '.github/workflows/desktop-apps.yml'
+  pull_request:
     paths:
       - 'desktop-apps/**'
       - '.github/workflows/desktop-apps.yml'
@@ -52,7 +58,28 @@ jobs:
           name: calc-windows
           path: desktop-apps/physics-calculator/windows/PhysicsCalculator.exe
 
+  field-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./desktop-apps/field-timer/mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: field-mac
+          path: desktop-apps/field-timer/mac/build/Field.dmg
+
+  field-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop-apps/field-timer/windows/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: field-windows
+          path: desktop-apps/field-timer/windows/Field.exe
+
   release-timer:
+    if: github.event_name != 'pull_request'
     needs: [timer-mac, timer-windows]
     runs-on: ubuntu-latest
     permissions:
@@ -75,6 +102,7 @@ jobs:
           gh release edit countdown-timer -R "$REPO" --draft=false
 
   release-calc:
+    if: github.event_name != 'pull_request'
     needs: [calc-mac, calc-windows]
     runs-on: ubuntu-latest
     permissions:
@@ -95,3 +123,26 @@ jobs:
               --notes "Physics calculator desktop app. Mac: download PhysicsCalculator.dmg. Windows: download PhysicsCalculator.exe."
           gh release upload physics-calculator dist/* -R "$REPO" --clobber
           gh release edit physics-calculator -R "$REPO" --draft=false
+
+  release-field:
+    if: github.event_name != 'pull_request'
+    needs: [field-mac, field-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: field-*
+          path: dist
+          merge-multiple: true
+      - name: Publish to the field-timer release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release view field-timer -R "$REPO" > /dev/null 2>&1 || \
+            gh release create field-timer -R "$REPO" --latest=false --title "Field" \
+              --notes "Field dot timer desktop app. Mac: download Field.dmg. Windows: download Field.exe."
+          gh release upload field-timer dist/* -R "$REPO" --clobber
+          gh release edit field-timer -R "$REPO" --draft=false

@@ -4,12 +4,14 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 
 - **Countdown Timer**: a compact countdown whose bar and numbers turn from green to yellow to red.
 - **Physics Calculator**: the calculator from the Ergosfera *Notebook & Physics Calculator* web tool, where numbers carry units.
+- **Field**: the Ergosfera *Field* dot timer, a field of dots that go dark as time runs out, with no numbers.
 
 ## Download and install
 
 Download the file for your system from the app's release page:
 [Countdown Timer](https://github.com/ergosfera/physics-teaching-tools/releases/tag/countdown-timer) ·
-[Physics Calculator](https://github.com/ergosfera/physics-teaching-tools/releases/tag/physics-calculator).
+[Physics Calculator](https://github.com/ergosfera/physics-teaching-tools/releases/tag/physics-calculator) ·
+[Field](https://github.com/ergosfera/physics-teaching-tools/releases/tag/field-timer).
 
 **Windows (10 or 11):** double-click the `.exe`. No installation is needed.
 The apps aren't signed with a paid certificate, so the first time Windows may show
@@ -49,14 +51,30 @@ Move the window by dragging any empty area.
 It gives the same results as the web version: both desktop versions are checked against
 [`physics-calculator/tests.tsv`](physics-calculator/tests.tsv), 230 results recorded from the web calculator.
 
+## Field
+
+- Drag up or down on the field to set the time, from 1 second to 6 hours. The lit dots show how much.
+- Press **Start**. The dots go dark one by one from the bottom, and a box says when the time is up.
+- Click the field to pause or resume.
+- Full screen for a projector, optional "always on top" (pin button) and optional sound at the end.
+
+| Action | Mouse | Keyboard |
+|---|---|---|
+| Set the time | Drag up or down on the field, or scroll over it | ↑ / ↓ |
+| Start / pause / resume | **Start** button, then click the field | Space or Enter |
+| Cancel | × button (top right of the field) | Esc |
+| Full screen | Full-screen button in the top bar | F11 on Windows, ⌃⌘F on Mac (Esc leaves) |
+| Always on top | Pin button in the top bar | — |
+| Sound, About | Right-click the window | — |
+
 ## Privacy
 
 These apps **collect no personal data and never connect to the internet**.
 They only save their own settings on your computer (for example the last time set, display
 options, always-on-top and the window position).
 
-- Windows: `%APPDATA%\CountdownTimer\` and `%APPDATA%\PhysicsCalculator\`
-- macOS: each app's standard preferences (`net.ergosfera.countdowntimer`, `net.ergosfera.physicscalculator`)
+- Windows: `%APPDATA%\CountdownTimer\`, `%APPDATA%\PhysicsCalculator\` and `%APPDATA%\FieldTimer\`
+- macOS: each app's standard preferences (`net.ergosfera.countdowntimer`, `net.ergosfera.physicscalculator`, `net.ergosfera.fieldtimer`)
 
 ## Disclaimer
 
@@ -68,10 +86,10 @@ liability arising from its use. See [LICENSE](LICENSE) for the full terms.
 ## Building from source
 
 - **Windows:** run `powershell -ExecutionPolicy Bypass -File <app>\build.ps1`
-  (`countdown-timer\build.ps1` or `physics-calculator\windows\build.ps1`).
+  (`countdown-timer\build.ps1`, `physics-calculator\windows\build.ps1` or `field-timer\windows\build.ps1`).
   It uses the C# compiler included with Windows, so nothing needs to be installed.
 - **macOS:** install the Xcode Command Line Tools (`xcode-select --install`), then run
-  `countdown-timer-mac/build.sh` or `physics-calculator/mac/build.sh`. Each creates the app and a `.dmg` in its `build/` folder.
+  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh` or `field-timer/mac/build.sh`. Each creates the app and a `.dmg` in its `build/` folder.
 
 ## License
 
