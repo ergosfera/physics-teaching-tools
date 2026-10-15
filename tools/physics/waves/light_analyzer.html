@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Light Analyzer</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💡</text></svg>">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+:root {
+  --border:  #c8d4e0;
+  --text:    #1a2234;
+  --muted:   #607080;
+  --accent:  #1858a8;
+  --surface: #ffffff;
+  --bg:      #f0f4f8;
+  --green:   #16a34a;
+  --red:     #dc2626;
+  --blue:    #2563eb;
+  --purple:  #7c3aed;
+  --orange:  #ea580c;
+  --teal:    #0d9488;
+  --grid:    #e3e9f0;
+  --dim:     #b8c4d0;
+}
+body.dark {
+  --border:  #30363d;
+  --text:    #e6edf3;
+  --muted:   #8b949e;
+  --accent:  #58a6ff;
+  --surface: #161b22;
+  --bg:      #0d1117;
+  --green:   #3fb950;
+  --red:     #f85149;
+  --blue:    #60a5fa;
+  --purple:  #a78bfa;
+  --orange:  #fb923c;
+  --teal:    #2dd4bf;
+  --grid:    #21262d;
+  --dim:     #3d444d;
+}
+#theme-toggle {
+  position: fixed; bottom: 10px; right: 10px; z-index: 50;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 12px; cursor: pointer;
+  font-size: 0.8rem; font-weight: 600; color: var(--muted); user-select: none;
+}
+#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text); background: var(--bg); font-size: 15px; }
+body { display: flex; flex-direction: column; }
+button, input, select { font: inherit; color: inherit; }
+
+/* ── Top bar ── */
+#top-bar {
+  flex-shrink: 0; min-height: 48px;
+  display: flex; align-items: center; flex-wrap: wrap; padding: 6px 14px; gap: 8px 14px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+}
+#top-bar h1 { font-size: 1.05rem; font-weight: 800; letter-spacing: .02em; white-space: nowrap; }
+#top-bar .sub { font-size: 0.8rem; color: var(--muted); flex: 1; min-width: 200px; }
+#tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab {
+  border: 1px solid var(--border); background: var(--bg); border-radius: 16px;
+  padding: 4px 12px; font-size: 0.82rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.tab:hover { border-color: var(--accent); color: var(--accent); }
+.tab.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── Layout ── */
+#main { flex: 1; display: flex; min-height: 0; }
+#stage { flex: 1; position: relative; min-width: 0; }
+.view { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 8px; gap: 8px; }
+.plot { position: relative; flex: 1; min-height: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.plot canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.plot .cap {
+  position: absolute; top: 6px; left: 10px; pointer-events: none;
+  font-size: 0.72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+}
+#panel {
+  width: 340px; flex-shrink: 0; overflow-y: auto; padding: 14px 14px 60px;
+  background: var(--surface); border-left: 2px solid var(--border);
+}
+.pane { display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Panel controls ── */
+.group { display: flex; flex-direction: column; gap: 6px; }
+.group > label, .group-title {
+  font-size: 0.72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  display: flex; justify-content: space-between; align-items: baseline; gap: 6px;
+}
+.group > label .val { font-size: 0.95rem; letter-spacing: 0; text-transform: none; color: var(--text); font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip {
+  border: 1px solid var(--border); background: var(--bg); border-radius: 14px;
+  padding: 2px 9px; font-size: 0.74rem; font-weight: 700; cursor: pointer; color: var(--text);
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.row { display: flex; gap: 6px; }
+.btn {
+  flex: 1; border: 2px solid var(--accent); background: var(--accent); color: #fff;
+  border-radius: 10px; padding: 8px 10px; font-weight: 800; cursor: pointer; font-size: 0.88rem; text-align: center;
+}
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn.orange { border-color: var(--orange); background: var(--orange); }
+.btn.green { border-color: var(--green); background: var(--green); }
+.btn.small { flex: 0 0 auto; padding: 4px 10px; font-size: 0.8rem; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn:hover:not(:disabled) { filter: brightness(1.08); }
+.num-in {
+  width: 84px; border: 1px solid var(--border); background: var(--bg); border-radius: 6px;
+  padding: 2px 6px; text-align: right; font-variant-numeric: tabular-nums;
+}
+.num-in.small { width: 52px; }
+select { border: 1px solid var(--border); background: var(--bg); border-radius: 6px; padding: 4px 6px; max-width: 190px; }
+.check { display: flex; align-items: center; gap: 6px; font-size: 0.84rem; cursor: pointer; }
+.check input { accent-color: var(--accent); }
+.group > label.check { font-size: 0.84rem; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text); justify-content: flex-start; }
+.hint {
+  font-size: 0.8rem; line-height: 1.45; border-radius: 10px; padding: 9px 11px;
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--orange) 45%, transparent);
+}
+.hint b { color: var(--orange); }
+.info {
+  font-size: 0.8rem; line-height: 1.45; border-radius: 10px; padding: 9px 11px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+details { border: 1px solid var(--border); border-radius: 10px; padding: 8px 11px; font-size: 0.82rem; line-height: 1.5; }
+details summary { cursor: pointer; font-weight: 800; color: var(--accent); }
+details p { margin-top: 6px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.76rem; font-variant-numeric: tabular-nums; }
+th, td { padding: 3px 4px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th { color: var(--muted); font-weight: 700; font-size: 0.7rem; }
+th:first-child, td:first-child { text-align: left; }
+.x-btn { border: none; background: none; color: var(--muted); cursor: pointer; font-weight: 800; padding: 0 4px; }
+.x-btn:hover { color: var(--red); }
+.empty { color: var(--muted); font-size: 0.8rem; font-style: italic; }
+.note { font-size: 0.74rem; color: var(--muted); line-height: 1.4; }
+.note:empty { display: none; }
+.bar { display: inline-block; height: 8px; border-radius: 4px; background: var(--accent); vertical-align: middle; }
+.tag { font-size: 0.66rem; font-weight: 800; border-radius: 8px; padding: 1px 6px; }
+.tag.strong { background: color-mix(in srgb, var(--green) 20%, transparent); color: var(--green); }
+.tag.notice { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+.tag.faint  { background: color-mix(in srgb, var(--muted) 20%, transparent); color: var(--muted); }
+.tag.invis  { background: color-mix(in srgb, var(--purple) 18%, transparent); color: var(--purple); }
+.tag.dark   { background: color-mix(in srgb, var(--text) 14%, transparent); color: var(--text); }
+.partial { display: grid; grid-template-columns: 18px 70px 14px 1fr 40px 18px; gap: 4px; align-items: center; font-size: 0.78rem; }
+.partial input[type=number] { width: 100%; }
+.partial .db { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--border); vertical-align: middle; flex-shrink: 0; }
+.big-read { font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; text-align: center; }
+.meas { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+.meas .k { color: var(--muted); }
+.meas .v { text-align: right; font-weight: 700; }
+.meas .v.res { color: var(--green); font-size: 1rem; }
+.err { color: var(--red); font-size: 0.8rem; }
+.mini { position: relative; height: 250px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.mini canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+@media (max-width: 760px) {
+  html, body { overflow: auto; height: auto; }
+  #main { flex-direction: column; }
+  #stage { height: 72vh; flex: none; }
+  #panel { width: 100%; border-left: none; border-top: 2px solid var(--border); overflow: visible; }
+}
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+  <h1>💡 Light Analyzer</h1>
+  <nav id="tabs">
+    <button class="tab" data-mode="spectrum">① Spectrum</button>
+    <button class="tab" data-mode="range">② Visible range</button>
+    <button class="tab" data-mode="brightness">③ Brightness</button>
+    <button class="tab" data-mode="speed">④ Speed of light</button>
+  </nav>
+  <span class="sub" id="sub"></span>
+</div>
+
+<div id="main">
+  <div id="stage">
+    <!-- ① Spectrum -->
+    <div class="view" data-view="spectrum">
+      <div class="plot" id="top-plot" style="flex:0.55"><canvas id="cv-strip"></canvas><span class="cap" id="strip-cap">What you would see in a spectroscope</span></div>
+      <div class="plot"><canvas id="cv-spec"></canvas><span class="cap" id="spec-cap">Spectrum: how much power at each wavelength</span></div>
+    </div>
+    <!-- ② Visible range -->
+    <div class="view" data-view="range">
+      <div class="plot" style="flex:1.5"><canvas id="cv-em"></canvas><span class="cap">The electromagnetic spectrum</span></div>
+      <div class="plot"><canvas id="cv-emwave"></canvas><span class="cap">The wave: electric field vs distance</span></div>
+    </div>
+    <!-- ③ Brightness -->
+    <div class="view" data-view="brightness">
+      <div class="plot" style="flex:1.2"><canvas id="cv-eye"></canvas><span class="cap">Sensitivity of the eye</span></div>
+      <div class="plot"><canvas id="cv-exp"></canvas><span class="cap" id="exp-cap"></span></div>
+    </div>
+    <!-- ④ Speed of light -->
+    <div class="view" data-view="speed">
+      <div class="plot" style="flex:0.9"><canvas id="cv-tube"></canvas><span class="cap" id="tube-cap">Light entering a material</span></div>
+      <div class="plot"><canvas id="cv-px"></canvas><span class="cap">Snapshot: electric field vs position</span></div>
+      <div class="plot"><canvas id="cv-pt"></canvas><span class="cap">At the detector: electric field vs time</span></div>
+    </div>
+  </div>
+
+  <aside id="panel">
+    <!-- ① Spectrum -->
+    <div class="pane" data-pane="spectrum">
+      <div class="group">
+        <div class="group-title">Where the light comes from</div>
+        <div class="chips">
+          <button class="chip" data-src="sim">💡 Light sources</button>
+          <button class="chip" data-src="cam">📷 Camera spectroscope</button>
+          <button class="chip" data-src="photo">🖼 Spectrum photo</button>
+        </div>
+      </div>
+
+      <div class="pane" id="sim-box">
+        <div class="group">
+          <div class="chips" id="src-chips"></div>
+        </div>
+        <div class="group" id="hot-box">
+          <label>Temperature <span class="val"><input id="s-T" class="num-in" type="number" min="800" max="12000" step="50"> K</span></label>
+          <input id="s-T-slider" type="range" min="800" max="12000" step="50">
+          <div class="chips" id="T-chips"></div>
+        </div>
+        <div class="group" id="mix-box">
+          <div class="group-title">Wavelengths in the light <span class="note" style="text-transform:none;letter-spacing:0">on · nm · strength</span></div>
+          <div class="chips" id="mix-presets"></div>
+          <div id="mix-rows" class="group"></div>
+          <div class="row"><button class="btn ghost small" id="add-line">＋ Add a wavelength</button></div>
+        </div>
+        <div class="group">
+          <label>Compare with <span class="val"><select id="s-cmp"></select></span></label>
+        </div>
+        <div class="group">
+          <div class="group-title">Display</div>
+          <div class="chips" id="rng-chips">
+            <span class="note" style="align-self:center">Wavelengths:</span>
+            <button class="chip" data-rng="vis">Visible only</button>
+            <button class="chip" data-rng="wide">With UV and infrared</button>
+          </div>
+          <div class="chips" id="ax-chips">
+            <span class="note" style="align-self:center">Strength axis:</span>
+            <button class="chip" data-ax="lin">Linear</button>
+            <button class="chip" data-ax="log">Logarithmic</button>
+          </div>
+        </div>
+        <div class="group">
+          <div class="group-title">The color the eye sees</div>
+          <div class="mini"><canvas id="cv-xy"></canvas></div>
+          <div class="note" id="xy-note"></div>
+        </div>
+      </div>
+
+      <div class="pane" id="cam-box" hidden>
+        <div class="row" id="c-cam-row">
+          <button class="btn" id="c-start">▶ Start camera</button>
+          <button class="btn ghost" id="c-switch" disabled>🔄 Switch</button>
+        </div>
+        <div class="row" id="c-photo-row">
+          <label class="btn" for="c-file">📂 Open a photo</label>
+          <input type="file" id="c-file" accept="image/*" hidden>
+        </div>
+        <div class="row"><button class="btn ghost" id="c-freeze" disabled>❄ Freeze</button></div>
+        <div class="err" id="c-err" hidden></div>
+        <div class="note" id="c-wb"></div>
+        <div class="group">
+          <div class="group-title">Reading the rainbow</div>
+          <div class="note">Drag on the picture to put the white band across the rainbow, along its length.</div>
+          <label class="check"><input type="checkbox" id="c-rot"> The rainbow is vertical (turn the picture)</label>
+          <div class="group">
+            <label>Band thickness <span class="val" id="c-bh-val"></span></label>
+            <input type="range" id="c-bh" min="1" max="30" step="1" value="4">
+          </div>
+        </div>
+        <div class="group">
+          <div class="group-title">Calibrate the wavelength scale</div>
+          <div class="note">Point the spectroscope at a fluorescent lamp. Drag cursor A onto one bright line and cursor B onto another, say which lines they are, then press Calibrate.</div>
+          <div class="group">
+            <label>Cursor A is on <span class="val"><select id="c-la"></select></span></label>
+            <label>Cursor B is on <span class="val"><select id="c-lb"></select></span></label>
+          </div>
+          <div class="row">
+            <button class="btn green" id="c-cal">📏 Calibrate</button>
+            <button class="btn ghost" id="c-uncal">Reset</button>
+          </div>
+          <div class="note" id="c-cal-note"></div>
+        </div>
+        <div class="group">
+          <label>Reference lines <span class="val"><select id="c-ref"></select></span></label>
+          <div class="note">Draws the known lines of a lamp on the calibrated graph, so you can identify what you see.</div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="group-title" id="peaks-title">What is in this light</div>
+        <div id="peaks"><div class="empty">–</div></div>
+        <div class="note" id="peaks-note"></div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Measure a wavelength</div>
+        <div class="note" id="m-help">Click or drag on the spectrum to place cursor A.</div>
+        <div class="meas">
+          <span class="k">Wavelength λ</span><span class="v" id="m-lam">–</span>
+          <span class="k">Color</span><span class="v" id="m-col">–</span>
+          <span class="k">Frequency f = c / λ</span><span class="v" id="m-f">–</span>
+          <span class="k">Photon energy E = h · f</span><span class="v" id="m-E">–</span>
+          <span class="k">If this is the peak of a hot object: T = b / λ</span><span class="v res" id="m-T">–</span>
+        </div>
+      </div>
+
+      <details id="d-sim">
+        <summary>What to notice</summary>
+        <p>A <b>hot object</b> (a bulb filament, the Sun, embers) gives a <b>continuous</b> spectrum: every wavelength, with a peak that moves to shorter wavelengths as it gets hotter (Wien's law, λ<sub>peak</sub> = 2.898 mm·K / T). Look at the bulb with UV and infrared shown: most of its power is invisible heat.</p>
+        <p>A <b>hot gas</b> (hydrogen, neon, sodium) gives only a few <b>bright lines</b>. Each element has its own set of lines, like a fingerprint. In <b>sunlight</b> the same lines appear <b>dark</b>: cooler gas in the Sun's atmosphere absorbs them.</p>
+        <p>Very different spectra can look the same color. Compare <b>Sodium</b> with the <b>Red + green</b> mix, or the white LED with sunlight: the eye only has three kinds of color sensors, so it can't tell them apart.</p>
+      </details>
+      <details id="d-cam" hidden>
+        <summary>How to make a spectroscope</summary>
+        <p><b>Simplest:</b> hold a piece of a CD or DVD (or a diffraction-grating film) right in front of the phone or laptop camera, tilted, and aim it at a lamp. Move it until a rainbow appears on the screen.</p>
+        <p><b>Better:</b> a small box or tube, black inside, with a narrow slit (two pieces of aluminium foil or tape almost touching) at one end and the grating at the other. Narrow slits give sharp lines.</p>
+        <p><b>Calibrate</b> with a fluorescent lamp or a CFL: its brightest lines are blue 435.8 nm and green 546.1 nm (mercury) and red 611.6 nm (europium). After that, look at a white LED, a bulb, a phone screen, a sodium street lamp or sunlight on a white sheet (never at the Sun directly).</p>
+        <p>Phone cameras adjust exposure and colors by themselves, so heights are only approximate. If a peak looks flat on top, the camera is saturated: dim the light or move away.</p>
+      </details>
+      <details>
+        <summary>About wavelength, frequency and energy</summary>
+        <p>Light is an electromagnetic wave. Its speed in vacuum is c = 299 792 458 m/s, so <b>f = c / λ</b>: visible light vibrates about 500 trillion times per second. Each photon carries an energy <b>E = h · f</b>; violet photons carry about twice the energy of red ones.</p>
+      </details>
+    </div>
+
+    <!-- ② Visible range -->
+    <div class="pane" data-pane="range">
+      <div class="big-read" id="r-read">550 nm</div>
+      <div class="group">
+        <label>Wavelength <span class="val" id="r-reg"></span></label>
+        <input id="r-slider" type="range" min="0" max="1000" step="1">
+        <div class="chips" id="r-chips"></div>
+      </div>
+      <div class="meas">
+        <span class="k">Frequency f = c / λ</span><span class="v" id="r-f">–</span>
+        <span class="k">Photon energy E = h · f</span><span class="v" id="r-E">–</span>
+        <span class="k">Can our eyes see it?</span><span class="v" id="r-vis">–</span>
+      </div>
+      <div class="group">
+        <div class="group-title">Sweep</div>
+        <div class="row">
+          <button class="btn ghost" id="r-sw-all">↗ Radio → gamma</button>
+          <button class="btn ghost" id="r-sw-vis">🌈 Across the visible</button>
+        </div>
+      </div>
+      <div class="info"><b>Compare with sound.</b> We hear from 20 Hz to 20 000 Hz: the highest frequency is 1000 times the lowest (about 10 octaves). We see from about 750 nm to 380 nm: the highest frequency is only about <b>twice</b> the lowest. All the colors fit in less than one "octave" of light.</div>
+      <div class="hint"><b>Try it: see the invisible.</b> Point a TV remote at your phone's camera and press a button. The camera shows a flashing light that your eyes can't see: the remote uses infrared at about 940 nm. (Some phones block infrared on the main camera; try the selfie camera.)</div>
+      <details>
+        <summary>What to notice</summary>
+        <p>Radio waves, microwaves, infrared, visible light, ultraviolet, X-rays and gamma rays are all <b>the same kind of wave</b>, traveling at the same speed c. Only the wavelength (and so the frequency and photon energy) changes.</p>
+        <p>The visible range is tiny. Our eyes are tuned to it because it is where the Sun gives the most light and where water (in the air and in our eyes) is transparent.</p>
+        <p>Photons with more energy than a few electronvolts (ultraviolet and beyond) can break molecules apart: that is why UV causes sunburn and X-rays need protection, while radio waves don't, however strong.</p>
+      </details>
+      <details>
+        <summary>Why can't the screen show this wavelength?</summary>
+        <p>A speaker can play any frequency, but a screen can't emit any wavelength: each pixel only has a red, a green and a blue light. The colors shown here are the closest mixtures the screen can make. Pure spectral colors (a laser, a sodium lamp) look more vivid in real life than on any screen.</p>
+      </details>
+    </div>
+
+    <!-- ③ Brightness -->
+    <div class="pane" data-pane="brightness">
+      <div class="info">Two lights can carry the same power and still not look equally bright: in daylight the eye is most sensitive to yellow-green light near 555 nm and much less to deep red or violet.</div>
+      <div class="group">
+        <div class="group-title">Curves on the graph</div>
+        <label class="check"><input type="checkbox" id="e-day" checked> Daylight vision (cones)</label>
+        <label class="check"><input type="checkbox" id="e-night" checked> Night vision (rods)</label>
+        <label class="check"><input type="checkbox" id="e-cones"> The three kinds of cones (S, M, L)</label>
+        <div class="chips" id="e-ax">
+          <span class="note" style="align-self:center">Axis:</span>
+          <button class="chip" data-ax="lin">Linear</button>
+          <button class="chip" data-ax="log">Logarithmic</button>
+        </div>
+      </div>
+      <div class="group">
+        <div class="group-title">Below the graph</div>
+        <div class="chips" id="e-view">
+          <button class="chip" data-ev="demo">Same power, different colors</button>
+          <button class="chip" data-ev="match">Experiment: match the brightness</button>
+        </div>
+      </div>
+      <div class="pane" id="e-demo-box">
+        <div class="note">Each square receives exactly the same light power, at a different wavelength. The brightness you see on the screen is what the eye would perceive.</div>
+        <div class="chips" id="e-light">
+          <button class="chip" data-light="day">☀️ In daylight</button>
+          <button class="chip" data-light="night">🌙 In the dark</button>
+        </div>
+      </div>
+      <div class="pane" id="e-match-box">
+        <div class="note"><b>A</b> is a fixed gray. <b>B</b> uses only one of your screen's three color lights. Change B until both look equally bright, then save. Do it for red, green and blue.</div>
+        <div class="chips" id="e-prim">
+          <button class="chip" data-prim="0">🔴 Red</button>
+          <button class="chip" data-prim="1">🟢 Green</button>
+          <button class="chip" data-prim="2">🔵 Blue</button>
+        </div>
+        <div class="group">
+          <label>Power of B <span class="val" id="e-k-val"></span></label>
+          <input id="e-k" type="range" min="-250" max="0" step="1">
+        </div>
+        <div class="chips" id="e-mode">
+          <button class="chip" data-em="side">Side by side</button>
+          <button class="chip" data-em="flick">Flicker</button>
+        </div>
+        <div class="row"><button class="btn orange" id="e-save">✔ Save match</button><button class="btn ghost" id="e-clear">🧹 Clear</button></div>
+        <div class="hint" id="e-flick-hint" hidden><b>Flicker mode:</b> A and B alternate 15 times a second. Adjust B until the flicker is weakest; that is a very precise brightness match. Don't use it if flashing lights bother you.</div>
+        <div class="note">On the right of the experiment you see how much each screen light contributes to brightness, compared with the standard used for screens (sRGB). Your screen and your eyes are not exactly standard, so expect differences.</div>
+      </div>
+      <details>
+        <summary>What to notice</summary>
+        <p>The daylight curve peaks at <b>555 nm</b>. A green laser looks far brighter than a red or blue laser of the same power, which is why green laser pointers are the most visible.</p>
+        <p>In the dark, the eye switches to the <b>rods</b>: the curve moves to <b>507 nm</b> and colors disappear (rods don't see color). Red flowers look almost black at dusk while leaves still look light. This is the <b>Purkinje effect</b>.</p>
+        <p>The three cone curves overlap a lot. Every color you see is the brain comparing how strongly these three are excited.</p>
+      </details>
+      <details>
+        <summary>About the experiment</summary>
+        <p>Your screen's green light contributes the most to brightness and its blue light the least. The standard for screens says white = 21% red + 72% green + 7% blue in brightness. These numbers come straight from the eye's sensitivity curve.</p>
+      </details>
+    </div>
+
+    <!-- ④ Speed of light -->
+    <div class="pane" data-pane="speed">
+      <div class="group">
+        <label>Material <span class="val"><select id="v-med"></select></span></label>
+      </div>
+      <div class="group">
+        <label>Color: wavelength in vacuum <span class="val" id="v-l-wrap"><input id="v-l" class="num-in" type="number" min="380" max="750" step="1"> nm</span></label>
+        <input id="v-l-slider" type="range" min="380" max="750" step="1">
+      </div>
+      <div class="row">
+        <button class="btn" id="v-pause">⏸ Pause</button>
+        <button class="btn orange" id="v-mystery">🎲 Mystery material</button>
+      </div>
+      <div class="note">Slow motion: the animation is slowed down about 10<sup>15</sup> times. Real light vibrates about 500 trillion times per second.</div>
+
+      <div class="group">
+        <div class="group-title">Measure in the material</div>
+        <div class="note">Pause, then drag on each graph to place cursors A and B. Put both position cursors inside the material. Spanning several cycles gives a more precise result. Drag the detector to move it.</div>
+        <div class="meas">
+          <span class="k">Cycles between A and B (position)</span><span class="v"><input id="v-nx" class="num-in small" type="number" min="1" max="50" step="1" value="1"></span>
+          <span class="k">Δx</span><span class="v" id="v-dx">–</span>
+          <span class="k">Wavelength λ</span><span class="v" id="v-lam">–</span>
+          <span class="k">Cycles between A and B (time)</span><span class="v"><input id="v-nt" class="num-in small" type="number" min="1" max="50" step="1" value="1"></span>
+          <span class="k">Δt</span><span class="v" id="v-dt">–</span>
+          <span class="k">Period T</span><span class="v" id="v-per">–</span>
+          <span class="k">Frequency f = 1/T</span><span class="v" id="v-fm">–</span>
+          <span class="k">Speed v = f · λ</span><span class="v res" id="v-v">–</span>
+          <span class="k">Refractive index n = c / v</span><span class="v res" id="v-n">–</span>
+        </div>
+        <div class="row">
+          <button class="btn green" id="v-save">＋ Save trial</button>
+          <button class="btn ghost" id="v-check">✔ Check</button>
+        </div>
+        <div class="hint" id="v-result" hidden></div>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Trials</div>
+        <div id="v-trials"><div class="empty">No trials yet.</div></div>
+      </div>
+
+      <details>
+        <summary>What to notice</summary>
+        <p>Light is a transverse wave: the electric field points across the direction of travel. Nothing material moves along; the field pattern travels.</p>
+        <p>When light enters the material it <b>slows down</b>. The frequency stays the same (the detector sees the same period everywhere), so the <b>wavelength gets shorter</b>: v = f · λ. The color is set by the frequency, so the light keeps its color.</p>
+        <p>The <b>refractive index</b> n = c / v says how many times slower light travels. Because light slows down, it bends when it enters at an angle (refraction). Change the color: in glass, violet light is a little slower than red light, which is why a prism splits white light into a rainbow (dispersion).</p>
+      </details>
+      <details>
+        <summary>About the simulation</summary>
+        <p>Real light also partly reflects at the surface and its amplitude changes a little; that is left out here. The refractive indices depend on the wavelength following Cauchy's formula, with values close to real ones: water 1.333, crown glass 1.517, diamond 2.418 for yellow light (589 nm). Air (1.0003) is so close to vacuum that the difference can't be measured on the graphs.</p>
+      </details>
+    </div>
+  </aside>
+</div>
+
+<button id="theme-toggle">🌙</button>
+
+<script>
+// ── Helpers ─────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const FONT = "'Segoe UI', system-ui, sans-serif";
+function sig(x, n = 3) {
+  if (!isFinite(x)) return '–';
+  if (x === 0) return '0';
+  const d = Math.max(0, n - 1 - Math.floor(Math.log10(Math.abs(x))));
+  return x.toLocaleString('en-US', { maximumFractionDigits: Math.min(d, 6), minimumFractionDigits: 0 });
+}
+function niceStep(raw) {
+  const p = 10 ** Math.floor(Math.log10(raw)), m = raw / p;
+  return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
+}
+function linTicks(a, b, n, fmt) {
+  const st = niceStep((b - a) / n), out = [];
+  for (let v = Math.ceil(a / st - 1e-9) * st; v <= b + st * 1e-6; v += st) out.push({ v, label: fmt ? fmt(v, st) : sig(v) });
+  return out;
+}
+const SUP = { '-': '⁻', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
+const pow10 = e => '10' + String(e).split('').map(c => SUP[c]).join('');
+function sci(x) { const e = Math.floor(Math.log10(x)); return e < 4 ? sig(x, 3) : sig(x / 10 ** e, 3) + ' × ' + pow10(e); }
+
+// Physics formatting
+const C_LIGHT = 299792458;
+const C_NMFS = 299.792458;          // nm per femtosecond
+function fmtLenM(m) {
+  const a = Math.abs(m);
+  if (a >= 1000) return sig(m / 1000, 3) + ' km';
+  if (a >= 1) return sig(m, 3) + ' m';
+  if (a >= 0.01) return sig(m * 100, 3) + ' cm';
+  if (a >= 1e-3) return sig(m * 1e3, 3) + ' mm';
+  if (a >= 1e-6) return sig(m * 1e6, 3) + ' µm';
+  if (a >= 1e-9) return sig(m * 1e9, 3) + ' nm';
+  return sig(m * 1e12, 3) + ' pm';
+}
+function fmtFreq(f) {
+  const U = [['ZHz', 1e21], ['EHz', 1e18], ['PHz', 1e15], ['THz', 1e12], ['GHz', 1e9], ['MHz', 1e6], ['kHz', 1e3], ['Hz', 1]];
+  for (const [u, v] of U) if (f >= v) return sig(f / v, 3) + ' ' + u;
+  return sig(f, 3) + ' Hz';
+}
+function fmtEV(e) {
+  if (e >= 1e6) return sig(e / 1e6, 3) + ' MeV';
+  if (e >= 1e3) return sig(e / 1e3, 3) + ' keV';
+  if (e >= 0.1) return sig(e, 3) + ' eV';
+  if (e >= 1e-4) return sig(e * 1e3, 3) + ' meV';
+  return sig(e * 1e6, 3) + ' µeV';
+}
+const fmtNm = l => sig(l, 4) + ' nm';
+function colorName(l) {
+  if (l < 380) return 'ultraviolet';
+  if (l < 450) return 'violet';
+  if (l < 485) return 'blue';
+  if (l < 500) return 'cyan';
+  if (l < 565) return 'green';
+  if (l < 590) return 'yellow';
+  if (l < 625) return 'orange';
+  if (l <= 750) return 'red';
+  return 'infrared';
+}
+
+// ── Theme colors for canvases ───────────────────────────────
+let C = {};
+function readColors() {
+  const s = getComputedStyle(document.body);
+  for (const k of ['text', 'muted', 'accent', 'surface', 'bg', 'green', 'red', 'blue', 'purple', 'orange', 'teal', 'grid', 'dim', 'border'])
+    C[k] = s.getPropertyValue('--' + k).trim();
+  XY.img = null;
+}
+function alpha(hex, a) {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+  return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+}
+const isDark = () => document.body.classList.contains('dark');
+
+// ── Canvas helpers ──────────────────────────────────────────
+function fit(cv) {
+  const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  const W = Math.max(1, Math.round(r.width * d)), H = Math.max(1, Math.round(r.height * d));
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const g = cv.getContext('2d');
+  g.setTransform(d, 0, 0, d, 0, 0);
+  g.clearRect(0, 0, r.width, r.height);
+  return { g, w: r.width, h: r.height };
+}
+function makePlot(w, h, m, xr, yr, ylog = false) {
+  const P = { x0: m.l, y0: m.t, x1: w - m.r, y1: h - m.b, xr, yr, ylog };
+  const ly = v => ylog ? Math.log10(Math.max(v, 1e-12)) : v;
+  const ya = ly(yr[0]), yb = ly(yr[1]);
+  P.X = v => P.x0 + (v - xr[0]) / (xr[1] - xr[0]) * (P.x1 - P.x0);
+  P.invX = px => xr[0] + (px - P.x0) / (P.x1 - P.x0) * (xr[1] - xr[0]);
+  P.Y = v => P.y1 - (ly(v) - ya) / (yb - ya) * (P.y1 - P.y0);
+  return P;
+}
+function drawFrame(g, P, xt, yt, xlab, ylab, h) {
+  g.lineWidth = 1; g.font = `11px ${FONT}`;
+  for (const t of xt) {
+    const x = Math.round(P.X(t.v)) + 0.5;
+    g.strokeStyle = C.grid;
+    g.beginPath(); g.moveTo(x, P.y0); g.lineTo(x, P.y1); g.stroke();
+    if (t.label != null) { g.fillStyle = C.muted; g.textAlign = 'center'; g.textBaseline = 'top'; g.fillText(t.label, x, P.y1 + 4); }
+  }
+  for (const t of yt) {
+    const y = Math.round(P.Y(t.v)) + 0.5;
+    g.strokeStyle = C.grid; g.beginPath(); g.moveTo(P.x0, y); g.lineTo(P.x1, y); g.stroke();
+    g.fillStyle = C.muted; g.textAlign = 'right'; g.textBaseline = 'middle'; g.fillText(t.label, P.x0 - 5, y);
+  }
+  g.strokeStyle = C.border; g.strokeRect(P.x0 + 0.5, P.y0 + 0.5, P.x1 - P.x0, P.y1 - P.y0);
+  g.fillStyle = C.muted; g.font = `600 11px ${FONT}`;
+  if (xlab) { g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(xlab, (P.x0 + P.x1) / 2, h - 3); }
+  if (ylab) {
+    g.save(); g.translate(P.x0 - 44, (P.y0 + P.y1) / 2); g.rotate(-Math.PI / 2);
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ylab, 0, 0); g.restore();
+  }
+}
+function centerMsg(g, w, h, msg, y) {
+  g.fillStyle = C.muted; g.font = `600 14px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(msg, w / 2, y == null ? h / 2 : y);
+}
+
+// ── Measuring cursors (vertical lines A and B on a graph) ───
+function attachCursors(cv, store, getPlot, onChange, only) {
+  let drag = null;
+  const px = e => e.clientX - cv.getBoundingClientRect().left;
+  const near = (P, x) => ({
+    da: store.a == null ? Infinity : Math.abs(P.X(store.a) - x),
+    db: store.b == null || only ? Infinity : Math.abs(P.X(store.b) - x),
+  });
+  cv.addEventListener('pointerdown', e => {
+    const P = getPlot(); if (!P) return;
+    const x = px(e); if (x < P.x0 - 8 || x > P.x1 + 8) return;
+    const { da, db } = near(P, x);
+    let pick;
+    if (only) pick = 'a';
+    else if (Math.min(da, db) < 12) pick = da <= db ? 'a' : 'b';
+    else if (store.a == null) pick = 'a';
+    else if (store.b == null) pick = 'b';
+    else pick = da <= db ? 'a' : 'b';
+    drag = pick; store[pick] = P.invX(clamp(x, P.x0, P.x1));
+    cv.setPointerCapture(e.pointerId); onChange();
+  });
+  cv.addEventListener('pointermove', e => {
+    const P = getPlot(); if (!P) return;
+    const x = px(e);
+    if (drag) { store[drag] = P.invX(clamp(x, P.x0, P.x1)); onChange(); return; }
+    const { da, db } = near(P, x);
+    cv.style.cursor = Math.min(da, db) < 12 ? 'ew-resize' : 'crosshair';
+  });
+  cv.addEventListener('pointerup', () => { drag = null; });
+}
+function drawCursors(g, P, store, fmtDelta) {
+  const pts = [['a', 'A'], ['b', 'B']].filter(([k]) => store[k] != null && store[k] >= P.xr[0] && store[k] <= P.xr[1]);
+  if (pts.length === 2 && fmtDelta) {
+    const xa = P.X(store.a), xb = P.X(store.b);
+    g.fillStyle = alpha(C.orange, 0.1);
+    g.fillRect(Math.min(xa, xb), P.y0, Math.abs(xb - xa), P.y1 - P.y0);
+    const y = P.y0 + 14;
+    g.strokeStyle = C.orange; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(xa, y); g.lineTo(xb, y); g.stroke();
+    const txt = 'Δ = ' + fmtDelta(Math.abs(store.b - store.a));
+    g.font = `700 12px ${FONT}`;
+    const tw = g.measureText(txt).width + 10, cx = clamp((xa + xb) / 2, P.x0 + tw / 2, P.x1 - tw / 2);
+    g.fillStyle = C.surface; g.fillRect(cx - tw / 2, y - 18, tw, 16);
+    g.fillStyle = C.orange; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, cx, y - 10);
+  }
+  for (const [k, lab] of pts) {
+    const x = Math.round(P.X(store[k])) + 0.5;
+    g.strokeStyle = C.orange; g.lineWidth = 1.5; g.setLineDash([5, 3]);
+    g.beginPath(); g.moveTo(x, P.y0); g.lineTo(x, P.y1); g.stroke(); g.setLineDash([]);
+    g.fillStyle = C.orange; g.beginPath(); g.arc(x, P.y1 - 9, 8, 0, 2 * Math.PI); g.fill();
+    g.fillStyle = '#fff'; g.font = `800 10px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(lab, x, P.y1 - 9);
+  }
+}
+const cursorDelta = s => (s.a != null && s.b != null) ? Math.abs(s.b - s.a) : null;
+
+// ═══════════════════════════════════════════════════════════
+// COLOR SCIENCE
+// ═══════════════════════════════════════════════════════════
+// CIE 1931 2° color matching functions, multi-lobe Gaussian fit (Wyman, Sloan & Shirley 2013)
+const g3 = (x, mu, s1, s2) => { const t = (x - mu) / (x < mu ? s1 : s2); return Math.exp(-0.5 * t * t); };
+function cmf(l) {
+  return [
+    1.056 * g3(l, 599.8, 37.9, 31.0) + 0.362 * g3(l, 442.0, 16.0, 26.7) - 0.065 * g3(l, 501.1, 20.4, 26.2),
+    0.821 * g3(l, 568.8, 46.9, 40.5) + 0.286 * g3(l, 530.9, 16.3, 31.1),
+    1.217 * g3(l, 437.0, 11.8, 36.0) + 0.681 * g3(l, 459.0, 26.0, 13.8),
+  ];
+}
+const Vday = l => cmf(l)[1];
+// CIE 1951 scotopic luminous efficiency, 380–780 nm every 10 nm
+const SCOT = [0.000589, 0.002209, 0.00929, 0.03484, 0.0966, 0.1998, 0.3281, 0.455, 0.567, 0.676, 0.793, 0.904, 0.982, 0.997, 0.935, 0.811, 0.650, 0.481, 0.3288, 0.2076, 0.1212, 0.0655, 0.03315, 0.01593, 0.00737, 0.003335, 0.001497, 0.000677, 0.000313, 0.000148, 0.0000715, 0.0000353, 0.0000178, 9.14e-6, 4.78e-6, 2.546e-6, 1.379e-6, 7.6e-7, 4.25e-7, 2.41e-7, 1.39e-7];
+function Vnight(l) {
+  if (l < 380 || l > 780) return 0;
+  const u = (l - 380) / 10, i = Math.min(39, Math.floor(u)), f = u - i;
+  return Math.exp(Math.log(SCOT[i]) * (1 - f) + Math.log(SCOT[i + 1]) * f);
+}
+// Cone sensitivities from XYZ (Hunt–Pointer–Estevez), each scaled to peak 1
+const LMS_RAW = l => { const [X, Y, Z] = cmf(l); return [0.38971 * X + 0.68898 * Y - 0.07868 * Z, -0.22981 * X + 1.18340 * Y + 0.04641 * Z, Z]; };
+const LMS_MAX = [0, 0, 0];
+for (let l = 380; l <= 780; l++) LMS_RAW(l).forEach((v, i) => LMS_MAX[i] = Math.max(LMS_MAX[i], v));
+const lms = l => LMS_RAW(l).map((v, i) => Math.max(0, v / LMS_MAX[i]));
+
+const xyz2lin = ([X, Y, Z]) => [3.2406 * X - 1.5372 * Y - 0.4986 * Z, -0.9689 * X + 1.8758 * Y + 0.0415 * Z, 0.0557 * X - 0.2040 * Y + 1.0570 * Z];
+const enc = c => c <= 0 ? 0 : c >= 1 ? 1 : c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+const toGamut = rgb => { const m = Math.min(...rgb); return m < 0 ? rgb.map(c => c - m) : rgb; };
+const css = (rgb, k = 1) => `rgb(${rgb.map(c => Math.round(255 * enc(c * k))).join(',')})`;
+function norm1(rgb) { const m = Math.max(...rgb); return m > 0 ? rgb.map(c => c / m) : [0, 0, 0]; }
+
+// Table of spectral colors, 300–1100 nm: HUE = full brightness, HUEF = fading at the ends like the eye
+const HUE = [], HUEF = [];
+for (let l = 300; l <= 1100; l++) {
+  const xyz = cmf(l), h = norm1(toGamut(xyz2lin(xyz)));
+  const vis = l >= 370 && l <= 790;
+  HUE.push(vis ? h : [0, 0, 0]);
+  HUEF.push(vis ? h.map(c => c * Math.pow(Math.max(0, xyz[1]), 0.25)) : [0, 0, 0]);
+}
+const hueAt = l => HUE[clamp(Math.round(l) - 300, 0, 800)];
+const hueFAt = l => HUEF[clamp(Math.round(l) - 300, 0, 800)];
+
+// ═══════════════════════════════════════════════════════════
+// SPECTRA
+// ═══════════════════════════════════════════════════════════
+const GL0 = 200, GL1 = 1200, GSTEP = 0.25, GN = Math.round((GL1 - GL0) / GSTEP) + 1;
+const gl = i => GL0 + i * GSTEP;
+const gi = l => clamp(Math.round((l - GL0) / GSTEP), 0, GN - 1);
+const CX = new Float64Array(GN), CY = new Float64Array(GN), CZ = new Float64Array(GN);
+for (let i = 0; i < GN; i++) { const c = cmf(gl(i)); CX[i] = c[0]; CY[i] = c[1]; CZ[i] = c[2]; }
+function addLine(s, l0, a, sg = 0.6) {
+  const i0 = gi(l0 - 5 * sg), i1 = gi(l0 + 5 * sg);
+  for (let i = i0; i <= i1; i++) { const t = (gl(i) - l0) / sg; s[i] += a * Math.exp(-0.5 * t * t); }
+}
+function addBand(s, l0, s1, s2, a) { for (let i = 0; i < GN; i++) s[i] += a * g3(gl(i), l0, s1, s2); }
+const C2 = 1.4388e7;     // second radiation constant, nm·K
+const planck = (l, T) => 1 / (l ** 5 * (Math.exp(C2 / (l * T)) - 1));
+const WIEN = 2.8978e6;   // nm·K
+
+const LAMPS = {
+  H:  { name: 'Hydrogen', lines: [[656.28, 1, 'Hα'], [486.13, 0.36, 'Hβ'], [434.05, 0.18, 'Hγ'], [410.17, 0.1, 'Hδ'], [397.01, 0.05, 'Hε']] },
+  He: { name: 'Helium', lines: [[388.86, 0.35], [447.15, 0.3], [471.31, 0.06], [492.19, 0.1], [501.57, 0.35], [587.56, 1], [667.82, 0.4], [706.52, 0.3], [728.13, 0.08]] },
+  Ne: { name: 'Neon', lines: [[540.06, 0.15], [585.25, 0.8], [588.19, 0.4], [594.48, 0.5], [597.55, 0.2], [603.0, 0.3], [607.43, 0.4], [609.62, 0.5], [614.31, 0.7], [616.36, 0.3], [621.73, 0.3], [626.65, 0.5], [630.48, 0.3], [633.44, 0.6], [638.3, 0.6], [640.22, 1], [650.65, 0.7], [653.29, 0.3], [659.9, 0.4], [667.83, 0.4], [671.7, 0.3], [692.95, 0.4], [703.24, 0.6], [717.39, 0.2], [724.52, 0.3]] },
+  Na: { name: 'Sodium', lines: [[588.995, 1, 'D₂'], [589.592, 0.5, 'D₁'], [568.82, 0.03], [498.28, 0.01], [615.42, 0.02], [818.33, 0.15], [819.48, 0.3]] },
+  Hg: { name: 'Mercury', lines: [[365.02, 0.5], [404.66, 0.35], [407.78, 0.06], [435.83, 1], [546.07, 0.9], [576.96, 0.2], [579.07, 0.22], [1013.98, 0.15]] },
+  fluor: { name: 'Fluorescent lamp', lines: [[404.66, 0.12, 'Hg'], [435.83, 0.2, 'Hg'], [487.7, 0.18, 'Tb³⁺', 1], [542.4, 1.3, 'Tb³⁺', 1.2], [546.07, 0.9, 'Hg'], [578.0, 0.08, 'Hg', 1], [587.6, 0.12, 'Tb³⁺', 1], [593.4, 0.15, 'Eu³⁺', 1], [611.6, 1, 'Eu³⁺', 1.3], [620.0, 0.12, 'Tb³⁺', 1], [631.0, 0.18, 'Eu³⁺', 1.2], [650.0, 0.06, 'Eu³⁺', 1.2], [707.0, 0.08, 'Eu³⁺', 1], [709.0, 0.08, 'Eu³⁺', 1]], bands: [[450, 20, 20, 0.08, 'Eu²⁺ phosphor']] },
+  led: { name: 'White LED', bands: [[450, 9, 11, 1, 'blue LED chip'], [560, 45, 65, 0.42, 'yellow phosphor']] },
+  screen: { name: 'Screen white', bands: [[455, 9, 11, 1, 'blue pixel'], [532, 15, 18, 0.78, 'green pixel'], [612, 8, 12, 0.96, 'red pixel']] },
+};
+const SUN_LINES = [[393.37, 0.85, 'K (Ca⁺)', 1.2], [396.85, 0.85, 'H (Ca⁺)', 1.2], [430.8, 0.5, 'G (Fe, Ca)'], [486.13, 0.6, 'F (H)'], [516.73, 0.35, 'b (Mg)'], [517.27, 0.5, 'b (Mg)'], [518.36, 0.5, 'b (Mg)'], [527.04, 0.4, 'E (Fe)'], [588.995, 0.7, 'D₂ (Na)'], [589.592, 0.6, 'D₁ (Na)'], [656.28, 0.65, 'C (H)'], [686.7, 0.5, 'B (O₂ in air)'], [759.4, 0.6, 'A (O₂ in air)']];
+
+const SRC_LIST = [
+  ['hot', '🔥 Hot object'], ['sun', '☀️ Sunlight'],
+  ['H', 'Hydrogen'], ['He', 'Helium'], ['Ne', 'Neon'], ['Na', 'Sodium'], ['Hg', 'Mercury'],
+  ['fluor', 'Fluorescent lamp'], ['led', 'White LED'], ['screen', 'Screen white'], ['mix', '🎛 Your mix'],
+];
+const srcName = id => id === 'hot' ? 'Hot object, ' + S1.T + ' K' : (SRC_LIST.find(s => s[0] === id) || ['', id])[1].replace(/^\S+ /, m => /[A-Za-z]/.test(m) ? m : '');
+const T_CHIPS = [['Embers', 1000], ['Candle', 1900], ['Light bulb', 2700], ['Halogen', 3200], ["Sun's surface", 5800], ['Blue star', 10000]];
+const MIX_PRESETS = [
+  { name: 'Red laser', p: [[650, 100]] },
+  { name: 'Red + green', p: [[630, 100], [532, 36]] },
+  { name: 'Red + green + blue', p: [[630, 100], [532, 45], [465, 70]] },
+  { name: 'Blue + yellow', p: [[470, 100], [578, 75]] },
+  { name: 'Violet + red', p: [[420, 100], [650, 60]] },
+];
+
+const S1 = {
+  src: 'sim', id: 'sun', T: 2700, cmp: 'none', rng: 'vis', ax: 'lin',
+  mix: MIX_PRESETS[1].p.map(([l, a]) => ({ l, a, on: true })),
+  cur: { a: null, b: null },
+};
+try {
+  const o = JSON.parse(localStorage.getItem('light_analyzer_s1') || '{}');
+  for (const k of ['id', 'T', 'cmp', 'rng', 'ax', 'mix']) if (o[k] !== undefined) S1[k] = o[k];
+} catch (e) {}
+const s1Save = () => { try { localStorage.setItem('light_analyzer_s1', JSON.stringify({ id: S1.id, T: S1.T, cmp: S1.cmp, rng: S1.rng, ax: S1.ax, mix: S1.mix })); } catch (e) {} };
+
+function buildSource(id) {
+  const s = new Float64Array(GN);
+  const out = { id, s, feats: [], T: null, dark: false };
+  if (id === 'hot' || id === 'sun') {
+    const T = id === 'hot' ? S1.T : 5778;
+    out.T = T;
+    for (let i = 0; i < GN; i++) s[i] = planck(gl(i), T);
+    if (id === 'sun') {
+      out.dark = true;
+      for (const [l0, d, lab, sg = 0.5] of SUN_LINES) {
+        const i0 = gi(l0 - 5 * sg), i1 = gi(l0 + 5 * sg);
+        for (let i = i0; i <= i1; i++) { const t = (gl(i) - l0) / sg; s[i] *= 1 - d * Math.exp(-0.5 * t * t); }
+        out.feats.push({ l: l0, a: d, label: lab });
+      }
+    }
+  } else if (LAMPS[id]) {
+    const L = LAMPS[id];
+    for (const [l0, a, lab, sg] of (L.lines || [])) { addLine(s, l0, a, sg || 0.6); out.feats.push({ l: l0, label: lab || L.name }); }
+    for (const [l0, s1, s2, a, lab] of (L.bands || [])) { addBand(s, l0, s1, s2, a); out.feats.push({ l: l0, label: lab, band: true }); }
+  } else if (id === 'mix') {
+    for (const p of S1.mix) if (p.on && p.a > 0) { addLine(s, p.l, p.a / 100, 0.6); out.feats.push({ l: p.l, label: 'laser-like line' }); }
+  }
+  let mx = 0; for (let i = 0; i < GN; i++) mx = Math.max(mx, s[i]);
+  if (mx > 0) for (let i = 0; i < GN; i++) s[i] /= mx;
+  for (const f of out.feats) if (!out.dark) {
+    let m = 0; for (let i = gi(f.l - 1), j = gi(f.l + 1); i <= j; i++) m = Math.max(m, s[i]);
+    f.a = m;
+  }
+  out.col = perceived(s);
+  if (out.T) {
+    let vis = 0; for (let i = gi(380); i <= gi(750); i++) vis += planck(gl(i), out.T) * GSTEP;
+    out.visFrac = vis / ((out.T / C2) ** 4 * Math.PI ** 4 / 15);
+  }
+  return out;
+}
+function perceived(s) {
+  let X = 0, Y = 0, Z = 0;
+  for (let i = gi(360); i <= gi(830); i++) { X += s[i] * CX[i]; Y += s[i] * CY[i]; Z += s[i] * CZ[i]; }
+  const sum = X + Y + Z;
+  if (!(sum > 1e-6)) return null;
+  return { x: X / sum, y: Y / sum, Y, rgb: norm1(toGamut(xyz2lin([X, Y, Z]))) };
+}
+// Mean of the spectrum over [la, lb]
+function avgSpec(s, la, lb) {
+  if (la > GL1 || lb < GL0) return 0;
+  const i0 = gi(la), i1 = gi(lb);
+  if (i1 <= i0) return s[i0];
+  let t = 0; for (let i = i0; i <= i1; i++) t += s[i];
+  return t / (i1 - i0 + 1);
+}
+function maxIn(s, la, lb) { let m = 0; for (let i = gi(la); i <= gi(lb); i++) m = Math.max(m, s[i]); return m; }
+
+let SRC = null, CMP = null;
+function s1Rebuild() {
+  SRC = buildSource(S1.id);
+  CMP = S1.cmp !== 'none' && S1.cmp !== S1.id ? buildSource(S1.cmp) : null;
+  renderPeaks(); s1Meas();
+}
+
+// ── Chromaticity diagram ────────────────────────────────────
+const XY = { img: null, key: '', locus: [] };
+for (let l = 380; l <= 700; l += 1) { const [X, Y, Z] = cmf(l), s = X + Y + Z; XY.locus.push([X / s, Y / s, l]); }
+function inLocus(x, y) {
+  const L = XY.locus; let inside = false;
+  for (let i = 0, j = L.length - 1; i < L.length; j = i++) {
+    const [xi, yi] = L[i], [xj, yj] = L[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function dominant(x, y) {
+  const xw = 0.3127, yw = 0.3290, a = Math.atan2(y - yw, x - xw);
+  if (Math.hypot(x - xw, y - yw) < 0.035) return { white: true };
+  let best = null, bd = Infinity;
+  for (const [lx, ly, l] of XY.locus) {
+    const d = Math.abs(Math.atan2(Math.sin(Math.atan2(ly - yw, lx - xw) - a), Math.cos(Math.atan2(ly - yw, lx - xw) - a)));
+    if (d < bd) { bd = d; best = [lx, ly, l]; }
+  }
+  if (bd > 0.05) return { purple: true };
+  const sat = Math.hypot(x - xw, y - yw) / Math.hypot(best[0] - xw, best[1] - yw);
+  return { l: best[2], sat };
+}
+function describeColor(col) {
+  if (!col) return 'invisible';
+  const d = dominant(col.x, col.y);
+  if (d.white) return col.x > 0.36 ? 'warm white' : col.x < 0.29 ? 'cool white' : 'white';
+  if (d.purple) return 'purple / magenta';
+  if (d.l >= 570 && d.l <= 600 && d.sat < 0.7) return 'warm white';
+  if (d.l < 500 && d.sat < 0.25) return 'cool white';
+  return (d.sat < 0.35 ? 'pale ' : '') + colorName(d.l);
+}
+function drawXY() {
+  const cv = $('cv-xy'); if (cv.offsetParent === null) return;
+  const { g, w, h } = fit(cv);
+  const P = makePlot(w, h, { l: 34, r: 8, t: 8, b: 26 }, [0, 0.8], [0, 0.9]);
+  const d = window.devicePixelRatio || 1, key = [w, h, d, isDark()].join('|');
+  if (XY.key !== key || !XY.img) {
+    const W = Math.round((P.x1 - P.x0) * d), H = Math.round((P.y1 - P.y0) * d);
+    const im = new ImageData(Math.max(1, W), Math.max(1, H));
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+      const x = 0.8 * i / W, y = 0.9 * (1 - j / H);
+      if (y < 0.005 || !inLocus(x, y)) continue;
+      const rgb = norm1(toGamut(xyz2lin([x / y, 1, (1 - x - y) / y])));
+      const k = (j * W + i) * 4;
+      im.data[k] = 255 * enc(rgb[0]); im.data[k + 1] = 255 * enc(rgb[1]); im.data[k + 2] = 255 * enc(rgb[2]); im.data[k + 3] = 235;
+    }
+    XY.img = im; XY.key = key;
+  }
+  drawFrame(g, P, linTicks(0, 0.8, 4, v => v.toFixed(1)), linTicks(0, 0.9, 4, v => v.toFixed(1)), 'x', 'y', h);
+  g.putImageData(XY.img, Math.round(P.x0 * d), Math.round(P.y0 * d));
+  // Locus outline and labels
+  g.strokeStyle = C.text; g.lineWidth = 1; g.beginPath();
+  XY.locus.forEach(([x, y], i) => i ? g.lineTo(P.X(x), P.Y(y)) : g.moveTo(P.X(x), P.Y(y)));
+  g.closePath(); g.stroke();
+  g.fillStyle = C.muted; g.font = `10px ${FONT}`;
+  for (const [x, y, l] of XY.locus) if ([460, 480, 500, 520, 540, 560, 580, 600, 620].includes(l)) {
+    const dx = x - 0.33, dy = y - 0.33, n = Math.hypot(dx, dy);
+    g.textAlign = dx < 0 ? 'right' : 'left'; g.textBaseline = 'middle';
+    g.fillText(l, P.X(x) + dx / n * 6, P.Y(y) - dy / n * 6);
+  }
+  // Screen gamut (sRGB)
+  g.strokeStyle = alpha(C.text, 0.7); g.setLineDash([4, 3]); g.beginPath();
+  [[0.64, 0.33], [0.30, 0.60], [0.15, 0.06]].forEach(([x, y], i) => i ? g.lineTo(P.X(x), P.Y(y)) : g.moveTo(P.X(x), P.Y(y)));
+  g.closePath(); g.stroke(); g.setLineDash([]);
+  g.fillStyle = C.muted; g.textAlign = 'left'; g.textBaseline = 'top'; g.font = `10px ${FONT}`;
+  g.textAlign = 'right'; g.fillText('dashed: what your screen can show', P.x1 - 4, P.y0 + 2);
+  const mark = (col, sq) => {
+    if (!col) return;
+    const x = P.X(col.x), y = P.Y(col.y);
+    g.fillStyle = css(col.rgb); g.strokeStyle = C.text; g.lineWidth = 2;
+    g.beginPath(); sq ? g.rect(x - 6, y - 6, 12, 12) : g.arc(x, y, 6.5, 0, 2 * Math.PI); g.fill(); g.stroke();
+  };
+  if (CMP) mark(CMP.col, true);
+  if (SRC) mark(SRC.col, false);
+}
+
+// ═══════════════════════════════════════════════════════════
+// ① SPECTRUM — panel
+// ═══════════════════════════════════════════════════════════
+function renderSrcChips() {
+  $('src-chips').innerHTML = SRC_LIST.map(([id, n]) => `<button class="chip${id === S1.id ? ' on' : ''}" data-id="${id}">${n}</button>`).join('');
+  $('src-chips').querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => {
+    S1.id = b.dataset.id; renderSrcChips(); s1Panel(); s1Rebuild(); s1Save();
+  }));
+  $('s-cmp').innerHTML = '<option value="none">– nothing –</option>' + SRC_LIST.filter(([id]) => id !== 'hot' && id !== 'mix').map(([id, n]) => `<option value="${id}">${n}</option>`).join('');
+  $('s-cmp').value = S1.cmp;
+}
+$('s-cmp').addEventListener('change', () => { S1.cmp = $('s-cmp').value; s1Rebuild(); s1Save(); });
+function s1Panel() {
+  $('hot-box').hidden = S1.id !== 'hot';
+  $('mix-box').hidden = S1.id !== 'mix';
+  $('s-T').value = S1.T; $('s-T-slider').value = S1.T;
+  $('T-chips').innerHTML = T_CHIPS.map(([n, T]) => `<button class="chip${T === S1.T ? ' on' : ''}" data-T="${T}">${n}</button>`).join('');
+  $('T-chips').querySelectorAll('[data-T]').forEach(b => b.addEventListener('click', () => setT(+b.dataset.T)));
+  document.querySelectorAll('[data-rng]').forEach(b => b.classList.toggle('on', b.dataset.rng === S1.rng));
+  document.querySelectorAll('#ax-chips [data-ax]').forEach(b => b.classList.toggle('on', b.dataset.ax === S1.ax));
+}
+function setT(T) {
+  S1.T = clamp(Math.round(T), 800, 12000);
+  $('s-T').value = S1.T; $('s-T-slider').value = S1.T;
+  $('T-chips').querySelectorAll('[data-T]').forEach(b => b.classList.toggle('on', +b.dataset.T === S1.T));
+  s1Rebuild(); s1Save();
+}
+$('s-T-slider').addEventListener('input', () => setT(+$('s-T-slider').value));
+$('s-T').addEventListener('change', () => { const T = parseFloat($('s-T').value); if (T > 0) setT(T); });
+document.querySelectorAll('[data-rng]').forEach(b => b.addEventListener('click', () => { S1.rng = b.dataset.rng; s1Panel(); s1Save(); }));
+document.querySelectorAll('#ax-chips [data-ax]').forEach(b => b.addEventListener('click', () => { S1.ax = b.dataset.ax; s1Panel(); s1Save(); }));
+
+function renderMixPresets() {
+  $('mix-presets').innerHTML = MIX_PRESETS.map((p, i) => `<button class="chip" data-mp="${i}">${p.name}</button>`).join('');
+  $('mix-presets').querySelectorAll('[data-mp]').forEach(b => b.addEventListener('click', () => {
+    S1.mix = MIX_PRESETS[+b.dataset.mp].p.map(([l, a]) => ({ l, a, on: true }));
+    renderMix(); s1Rebuild(); s1Save();
+  }));
+}
+function renderMix() {
+  const box = $('mix-rows');
+  box.innerHTML = S1.mix.map((p, i) => `
+    <div class="partial" data-i="${i}">
+      <input type="checkbox" ${p.on ? 'checked' : ''} title="On/off">
+      <input type="number" class="num-in" min="300" max="1100" step="any" value="${+p.l.toFixed(1)}" title="Wavelength (nm)">
+      <span class="dot" style="background:${css(hueAt(p.l))}"></span>
+      <input type="range" min="0" max="100" step="1" value="${p.a}" title="Strength">
+      <span class="db">${p.a}%</span>
+      <button class="x-btn" title="Remove">×</button>
+    </div>`).join('');
+  box.querySelectorAll('.partial').forEach(row => {
+    const i = +row.dataset.i, p = S1.mix[i];
+    const [chk, num, rng] = row.querySelectorAll('input');
+    chk.addEventListener('change', () => { p.on = chk.checked; s1Rebuild(); s1Save(); });
+    num.addEventListener('input', () => {
+      const l = parseFloat(num.value);
+      if (l >= 300 && l <= 1100) { p.l = l; row.querySelector('.dot').style.background = css(hueAt(l)); s1Rebuild(); s1Save(); }
+    });
+    rng.addEventListener('input', () => { p.a = +rng.value; row.querySelector('.db').textContent = p.a + '%'; s1Rebuild(); s1Save(); });
+    row.querySelector('.x-btn').addEventListener('click', () => {
+      if (S1.mix.length <= 1) return;
+      S1.mix.splice(i, 1); renderMix(); s1Rebuild(); s1Save();
+    });
+  });
+  $('add-line').disabled = S1.mix.length >= 8;
+}
+$('add-line').addEventListener('click', () => {
+  const last = S1.mix[S1.mix.length - 1];
+  S1.mix.push({ l: last ? clamp(last.l - 60, 400, 700) : 550, a: 50, on: true });
+  renderMix(); s1Rebuild(); s1Save();
+});
+
+const tagFor = (l, a) => l < 380 ? '<span class="tag invis">UV · invisible</span>'
+  : l > 750 ? '<span class="tag invis">IR · invisible</span>'
+  : a >= 0.3 ? '<span class="tag strong">strong</span>' : a >= 0.05 ? '<span class="tag notice">noticeable</span>' : '<span class="tag faint">faint</span>';
+function peakRow(l, a, label, tag) {
+  return `<tr><td><span class="dot" style="background:${css(hueAt(l))}"></span> ${sig(l, 4)}</td><td style="text-align:left;white-space:normal">${label || ''}</td>
+    <td><span class="bar" style="width:${Math.max(2, Math.round(a * 50))}px"></span></td><td>${tag}</td></tr>`;
+}
+function renderPeaks() {
+  if (S1.src !== 'sim') return renderCamPeaks();
+  const box = $('peaks'), note = $('peaks-note');
+  $('peaks-title').textContent = 'What is in this light';
+  if (!SRC) return;
+  let html = '';
+  if (SRC.T) {
+    const lp = WIEN / SRC.T;
+    html += `<div class="meas">
+      <span class="k">Kind of spectrum</span><span class="v">continuous</span>
+      <span class="k">Brightest wavelength</span><span class="v">${fmtNm(lp)} (${colorName(lp)})</span>
+      <span class="k">Temperature</span><span class="v">${sig(SRC.T, 4)} K</span>
+      <span class="k">Power that is visible light</span><span class="v res">${sig(SRC.visFrac * 100, 2)} %</span></div>`;
+    note.textContent = SRC.T < 4000 ? 'Most of the power of this hot object is infrared, felt as heat but invisible. Show UV and infrared to see it.' : '';
+  } else note.textContent = 'Strengths are compared with the strongest peak. Lines outside 380–750 nm are there, but our eyes can\'t see them.';
+  const feats = SRC.feats.slice().sort((a, b) => SRC.dark ? a.l - b.l : b.a - a.a);
+  if (feats.length) {
+    html += `<table style="margin-top:6px"><tr><th>λ (nm)</th><th style="text-align:left">${SRC.dark ? 'Dark line' : 'Origin'}</th><th></th><th></th></tr>`;
+    for (const f of feats.slice(0, 14)) html += SRC.dark ? peakRow(f.l, f.a, f.label, '<span class="tag dark">dark line</span>') : peakRow(f.l, f.a, f.label, f.band ? '<span class="tag notice">band</span>' : tagFor(f.l, f.a));
+    html += '</table>';
+    if (SRC.dark) note.textContent = 'Dark (absorption) lines: gases in the Sun\'s atmosphere, and the O₂ of our air, absorb exactly these wavelengths. Compare them with Hydrogen and Sodium.';
+  }
+  box.innerHTML = html || '<div class="empty">No light. Turn on a wavelength.</div>';
+  const col = SRC.col;
+  $('xy-note').textContent = col
+    ? `Looks ${describeColor(col)}.` + (CMP ? ` The comparison (square) looks ${describeColor(CMP.col)}.` : '') + ' Pure single wavelengths lie on the curved edge; white is near the middle.'
+    : 'This light is invisible: all of it is ultraviolet or infrared.';
+}
+
+// Measurement readout for cursor A
+function s1Meas() {
+  const a = S1.src === 'sim' ? S1.cur.a : (CAM.cal ? CAM.cur.a : null);
+  const ok = a != null && a > 0;
+  $('m-lam').textContent = ok ? fmtNm(a) : '–';
+  $('m-col').innerHTML = ok ? `<span class="dot" style="background:${css(hueAt(a))}"></span> ${colorName(a)}` : '–';
+  $('m-f').textContent = ok ? fmtFreq(C_LIGHT / (a * 1e-9)) : '–';
+  $('m-E').textContent = ok ? fmtEV(1239.84 / a) : '–';
+  $('m-T').textContent = ok ? sig(WIEN / a, 3) + ' K' : '–';
+  $('m-help').textContent = S1.src === 'sim' ? 'Click or drag on the spectrum to place cursor A.'
+    : CAM.cal ? 'Cursor A reads the wavelength on the calibrated graph.' : 'Calibrate first: then cursor A gives wavelengths.';
+}
+
+// ── Source switching (simulated / camera / photo) ───────────
+document.querySelectorAll('[data-src]').forEach(b => b.addEventListener('click', () => {
+  if (S1.src === b.dataset.src) return;
+  if (S1.src === 'cam') camStop();
+  S1.src = b.dataset.src;
+  s1SrcUI();
+}));
+function s1SrcUI() {
+  const sim = S1.src === 'sim';
+  document.querySelectorAll('[data-src]').forEach(b => b.classList.toggle('on', b.dataset.src === S1.src));
+  $('sim-box').hidden = !sim; $('cam-box').hidden = sim;
+  $('c-cam-row').hidden = S1.src !== 'cam'; $('c-photo-row').hidden = S1.src !== 'photo';
+  $('d-sim').hidden = !sim; $('d-cam').hidden = sim;
+  $('top-plot').style.flex = sim ? '0.55' : '1.1';
+  $('strip-cap').textContent = sim ? 'What you would see in a spectroscope' : S1.src === 'cam' ? 'Camera' : 'Photo';
+  $('spec-cap').textContent = sim ? 'Spectrum: how much power at each wavelength' : 'Brightness along the band';
+  camButtons(); renderPeaks(); s1Meas();
+}
+
+// ═══════════════════════════════════════════════════════════
+// ① SPECTRUM — drawing (simulated)
+// ═══════════════════════════════════════════════════════════
+const rangeOf = () => S1.rng === 'vis' ? [380, 750] : [250, 1100];
+let specP = null, stripP = null;
+function drawStrip() {
+  const { g, w, h } = fit($('cv-strip'));
+  const sw = Math.min(150, w * 0.22);
+  const P = makePlot(w, h, { l: 56, r: sw + 26, t: 26, b: 34 }, rangeOf(), [0, 1]);
+  stripP = P;
+  const ref = Math.max(1e-9, maxIn(SRC.s, 380, 750));
+  const two = !!CMP, mid = two ? (P.y0 + P.y1) / 2 : P.y1;
+  const paint = (S, ya, yb) => {
+    g.fillStyle = '#000'; g.fillRect(P.x0, ya, P.x1 - P.x0, yb - ya);
+    const r = Math.max(1e-9, maxIn(S.s, 380, 750));
+    for (let px = Math.floor(P.x0); px < P.x1; px++) {
+      const la = P.invX(px), lb = P.invX(px + 1), lc = (la + lb) / 2;
+      if (lc < 375 || lc > 785) continue;
+      const v = avgSpec(S.s, la, lb) / r;
+      if (v <= 0.002) continue;
+      g.fillStyle = css(hueFAt(lc), Math.min(1, v * 1.15));
+      g.fillRect(px, ya, 1.2, yb - ya);
+    }
+  };
+  paint(SRC, P.y0, mid);
+  if (two) { paint(CMP, mid + 2, P.y1); }
+  g.strokeStyle = C.border; g.strokeRect(P.x0 + 0.5, P.y0 + 0.5, P.x1 - P.x0, P.y1 - P.y0);
+  // Ticks
+  g.font = `11px ${FONT}`; g.fillStyle = C.muted; g.textAlign = 'center'; g.textBaseline = 'top';
+  for (const t of linTicks(P.xr[0], P.xr[1], Math.max(3, Math.floor((P.x1 - P.x0) / 70)))) { const x = P.X(t.v); g.fillRect(x, P.y1, 1, 4); g.fillText(t.label, x, P.y1 + 5); }
+  g.font = `600 11px ${FONT}`; g.textBaseline = 'bottom'; g.fillText('wavelength (nm)', (P.x0 + P.x1) / 2, h - 3);
+  if (S1.rng === 'wide') {
+    g.fillStyle = '#9aa'; g.font = `700 12px ${FONT}`; g.textBaseline = 'middle';
+    g.fillText('ULTRAVIOLET', (P.x0 + P.X(380)) / 2, P.y0 + 14); g.fillText('INFRARED', (P.X(750) + P.x1) / 2, P.y0 + 14);
+  }
+  g.font = `700 11px ${FONT}`; g.fillStyle = C.muted; g.textAlign = 'right'; g.textBaseline = 'middle';
+  if (two) { g.fillText(srcShort(SRC.id), P.x0 - 5, (P.y0 + mid) / 2); g.fillText(srcShort(CMP.id), P.x0 - 5, (mid + P.y1) / 2); }
+  // Swatches: the color the eye sees
+  const sx = w - sw - 12, sy = P.y0, sh = P.y1 - P.y0;
+  const sw1 = (col, y, hh, lab) => {
+    g.fillStyle = col ? css(col.rgb) : '#000'; g.fillRect(sx, y, sw, hh);
+    g.strokeStyle = C.border; g.strokeRect(sx + 0.5, y + 0.5, sw, hh);
+    g.fillStyle = col && (0.2126 * col.rgb[0] + 0.7152 * col.rgb[1] + 0.0722 * col.rgb[2]) > 0.35 ? '#111' : '#fff';
+    g.font = `700 11px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(lab, sx + sw / 2, y + hh / 2);
+  };
+  g.fillStyle = C.muted; g.font = `800 10px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'bottom';
+  g.fillText('THE EYE SEES', sx + sw / 2, sy - 3);
+  if (two) { sw1(SRC.col, sy, sh / 2 - 1, describeColor(SRC.col)); sw1(CMP.col, sy + sh / 2 + 1, sh / 2 - 1, describeColor(CMP.col)); }
+  else sw1(SRC.col, sy, sh, describeColor(SRC.col));
+  g.fillStyle = C.muted; g.font = `10px ${FONT}`; g.textBaseline = 'top';
+  g.fillText('brightness adjusted', sx + sw / 2, P.y1 + 5);
+}
+const srcShort = id => id === 'hot' ? S1.T + ' K' : id === 'mix' ? 'Your mix' : (LAMPS[id] ? LAMPS[id].name : id === 'sun' ? 'Sunlight' : id);
+
+function drawSpec() {
+  const { g, w, h } = fit($('cv-spec'));
+  const [la, lb] = rangeOf(), log = S1.ax === 'log';
+  const P = makePlot(w, h, { l: 56, r: 16, t: 26, b: 34 }, [la, lb], log ? [1e-4, 2] : [0, 1.08], log);
+  specP = P;
+  const yt = log ? [1, 0.1, 0.01, 0.001, 0.0001].map(v => ({ v, label: v >= 0.01 ? String(v) : '1/' + Math.round(1 / v) })) : linTicks(0, 1, 5, v => Math.round(v * 100) + '%');
+  // UV / IR shading
+  if (la < 380) { g.fillStyle = alpha(C.purple, 0.07); g.fillRect(P.x0, P.y0, P.X(380) - P.x0, P.y1 - P.y0); }
+  if (lb > 750) { g.fillStyle = alpha(C.red, 0.06); g.fillRect(P.X(750), P.y0, P.x1 - P.X(750), P.y1 - P.y0); }
+  drawFrame(g, P, linTicks(la, lb, Math.max(3, Math.floor((P.x1 - P.x0) / 70))), yt, 'wavelength λ (nm)', log ? 'relative power (log)' : 'relative power', h);
+  if (S1.rng === 'wide') {
+    g.fillStyle = C.muted; g.font = `700 11px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'top';
+    g.fillText('UV', (P.x0 + P.X(380)) / 2, P.y0 + 6); g.fillText('VISIBLE', (P.X(380) + P.X(750)) / 2, P.y0 + 6); g.fillText('INFRARED', (P.X(750) + P.x1) / 2, P.y0 + 6);
+  }
+  const curve = (S, fill, dash, colr) => {
+    const r = Math.max(1e-12, maxIn(S.s, la, lb));
+    const yb = P.y1;
+    const pts = [];
+    for (let px = Math.floor(P.x0); px <= P.x1; px++) {
+      const a = P.invX(px), b = P.invX(px + 1);
+      const v = Math.max(log ? 1e-5 : 0, avgSpec(S.s, a, b) / r);
+      pts.push([px, clamp(P.Y(v), P.y0, P.y1), (a + b) / 2]);
+    }
+    if (fill) for (const [px, y, l] of pts) {
+      if (y >= yb) continue;
+      g.fillStyle = l >= 375 && l <= 785 ? css(hueAt(l)) : alpha(C.muted, 0.35);
+      g.fillRect(px, y, 1.2, yb - y);
+    }
+    g.strokeStyle = colr; g.lineWidth = dash ? 1.6 : 1.4; g.setLineDash(dash ? [5, 3] : []);
+    g.beginPath(); pts.forEach(([px, y], i) => i ? g.lineTo(px, y) : g.moveTo(px, y)); g.stroke(); g.setLineDash([]);
+  };
+  curve(SRC, true, false, C.text);
+  if (CMP) curve(CMP, false, true, C.orange);
+  if (SRC.T && !SRC.dark) {
+    const lp = WIEN / SRC.T;
+    if (lp >= la && lp <= lb) {
+      g.fillStyle = C.text; g.font = `700 11px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'bottom';
+      g.fillText('▼ peak', P.X(lp), P.y0 + 18);
+    } else if (lp > lb) {
+      g.fillStyle = C.text; g.font = `700 11px ${FONT}`; g.textAlign = 'right'; g.textBaseline = 'top';
+      g.fillText(`peak at ${sig(lp, 3)} nm, off the graph →`, P.x1 - 6, P.y0 + 22);
+    }
+  }
+  // Legend
+  g.font = `700 11px ${FONT}`; g.textAlign = 'right'; g.textBaseline = 'top';
+  let ly = P.y0 + 6;
+  if (CMP) {
+    g.fillStyle = C.text; g.fillText('━ ' + srcShort(SRC.id), P.x1 - 6, ly + (S1.rng === 'wide' ? 16 : 0));
+    g.fillStyle = C.orange; g.fillText('┅ ' + srcShort(CMP.id), P.x1 - 6, ly + 15 + (S1.rng === 'wide' ? 16 : 0));
+  }
+  drawCursors(g, P, S1.cur, null);
+}
+
+// ═══════════════════════════════════════════════════════════
+// ① SPECTRUM — camera / photo spectroscope
+// ═══════════════════════════════════════════════════════════
+const CAL_LINES = [
+  [404.7, 'Violet 404.7 (Hg, fluorescent)'], [435.8, 'Blue 435.8 (Hg, fluorescent)'], [487.7, 'Cyan 487.7 (fluorescent)'],
+  [546.1, 'Green 546.1 (Hg, fluorescent)'], [611.6, 'Red 611.6 (fluorescent)'], [589.3, 'Yellow 589.3 (sodium lamp)'],
+  [656.3, 'Red 656.3 (hydrogen)'], [486.1, 'Cyan 486.1 (hydrogen)'], [640.2, 'Red 640.2 (neon)'],
+  [405, 'Violet laser 405'], [532, 'Green laser 532'], [650, 'Red laser 650'],
+];
+const REF_SETS = { none: null, fluor: 'fluor', Hg: 'Hg', H: 'H', He: 'He', Ne: 'Ne', Na: 'Na', sun: 'sun' };
+$('c-la').innerHTML = $('c-lb').innerHTML = CAL_LINES.map(([l, n]) => `<option value="${l}">${n}</option>`).join('');
+$('c-la').value = '435.8'; $('c-lb').value = '546.1';
+$('c-ref').innerHTML = '<option value="none">none</option><option value="fluor">Fluorescent lamp</option><option value="Hg">Mercury</option><option value="H">Hydrogen</option><option value="He">Helium</option><option value="Ne">Neon</option><option value="Na">Sodium</option><option value="sun">Sun (dark lines)</option>';
+
+const CAM = {
+  stream: null, video: null, devices: [], devIdx: 0, img: null, frozen: false, rot: false,
+  bandY: 0.5, bandH: 4, W: 0, data: null, cal: null, cur: { a: null, b: null }, ref: 'none', sat: false,
+};
+const OFF = document.createElement('canvas');
+const OFFG = OFF.getContext('2d', { willReadFrequently: true });
+try {
+  const o = JSON.parse(localStorage.getItem('light_analyzer_cam') || '{}');
+  for (const k of ['rot', 'bandY', 'bandH', 'ref', 'cal']) if (o[k] !== undefined) CAM[k] = o[k];
+} catch (e) {}
+const camSave = () => { try { localStorage.setItem('light_analyzer_cam', JSON.stringify({ rot: CAM.rot, bandY: CAM.bandY, bandH: CAM.bandH, ref: CAM.ref, cal: CAM.cal })); } catch (e) {} };
+
+async function camStart() {
+  $('c-err').hidden = true;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    $('c-err').textContent = 'This browser can\'t open the camera here. The page must be opened over https or from localhost.';
+    $('c-err').hidden = false; return;
+  }
+  try {
+    const dev = CAM.devices[CAM.devIdx];
+    const video = dev ? { deviceId: { exact: dev.deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+      : { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } };
+    const stream = await navigator.mediaDevices.getUserMedia({ video, audio: false });
+    const v = document.createElement('video');
+    v.muted = true; v.playsInline = true; v.srcObject = stream;
+    await v.play();
+    CAM.stream = stream; CAM.video = v; CAM.frozen = false;
+    // Try to stop the camera from changing colors by itself
+    const track = stream.getVideoTracks()[0];
+    let locked = false;
+    try {
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes('manual')) {
+        await track.applyConstraints({ advanced: [{ whiteBalanceMode: 'manual' }] }); locked = true;
+      }
+    } catch (e) {}
+    $('c-wb').textContent = locked ? 'Camera colors locked (white balance set to manual).'
+      : 'This camera adjusts its colors and exposure by itself: line positions are reliable, heights are approximate.';
+    try {
+      CAM.devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+      const id = track.getSettings ? track.getSettings().deviceId : null;
+      const k = CAM.devices.findIndex(d => d.deviceId === id); if (k >= 0) CAM.devIdx = k;
+    } catch (e) {}
+  } catch (e) {
+    $('c-err').textContent = 'The camera could not be opened (' + (e.name || 'error') + '). Allow camera access in the browser and try again.';
+    $('c-err').hidden = false;
+  }
+  camButtons();
+}
+function camStop() {
+  if (CAM.stream) CAM.stream.getTracks().forEach(t => t.stop());
+  CAM.stream = null; CAM.video = null; CAM.frozen = false;
+  camButtons();
+}
+function camButtons() {
+  const live = !!CAM.stream;
+  $('c-start').textContent = live ? '⏹ Stop camera' : '▶ Start camera';
+  $('c-switch').disabled = !live || CAM.devices.length < 2;
+  $('c-freeze').disabled = S1.src === 'cam' ? !live : true;
+  $('c-freeze').textContent = CAM.frozen ? '▶ Resume' : '❄ Freeze';
+  $('c-rot').checked = CAM.rot;
+  $('c-bh').value = CAM.bandH; $('c-bh-val').textContent = CAM.bandH + '% of the picture';
+  $('c-ref').value = CAM.ref;
+  $('c-cal-note').textContent = CAM.cal ? `Calibrated: ${sig(Math.abs(CAM.cal.m), 3)} nm per pixel.` : 'Not calibrated yet: the graph shows pixel positions.';
+}
+$('c-start').addEventListener('click', () => CAM.stream ? camStop() : camStart());
+$('c-switch').addEventListener('click', () => { CAM.devIdx = (CAM.devIdx + 1) % Math.max(1, CAM.devices.length); camStop(); camStart(); });
+$('c-freeze').addEventListener('click', () => { CAM.frozen = !CAM.frozen; camButtons(); });
+$('c-rot').addEventListener('change', () => { CAM.rot = $('c-rot').checked; CAM.cal = null; camResetCursors(); camButtons(); camSave(); });
+$('c-bh').addEventListener('input', () => { CAM.bandH = +$('c-bh').value; camButtons(); camSave(); });
+$('c-ref').addEventListener('change', () => { CAM.ref = $('c-ref').value; camSave(); });
+$('c-file').addEventListener('change', () => {
+  const f = $('c-file').files[0]; if (!f) return;
+  const url = URL.createObjectURL(f), im = new Image();
+  im.onload = () => { CAM.img = im; CAM.cal = CAM.cal && CAM.cal.src === 'photo' ? CAM.cal : null; camButtons(); };
+  im.src = url;
+});
+function camResetCursors() { CAM.cur.a = CAM.cur.b = null; s1Meas(); }
+
+// Draw the current frame into OFF (turned if needed) and read the band
+function camSample() {
+  const src = S1.src === 'cam' ? CAM.video : CAM.img;
+  if (!src) return false;
+  const sw = src.videoWidth || src.naturalWidth, sh = src.videoHeight || src.naturalHeight;
+  if (!sw || !sh) return false;
+  if (S1.src === 'cam' && CAM.frozen && CAM.data) return true;
+  const scale = Math.min(1, 1600 / Math.max(sw, sh));
+  const w0 = Math.round(sw * scale), h0 = Math.round(sh * scale);
+  const W = CAM.rot ? h0 : w0, H = CAM.rot ? w0 : h0;
+  if (OFF.width !== W || OFF.height !== H) { OFF.width = W; OFF.height = H; }
+  OFFG.save();
+  if (CAM.rot) { OFFG.translate(W, 0); OFFG.rotate(Math.PI / 2); }
+  OFFG.drawImage(src, 0, 0, w0, h0);
+  OFFG.restore();
+  const bh = Math.max(1, Math.round(H * CAM.bandH / 100));
+  const y0 = clamp(Math.round(CAM.bandY * H - bh / 2), 0, H - bh);
+  const d = OFFG.getImageData(0, y0, W, bh).data;
+  const r = new Float32Array(W), gg = new Float32Array(W), b = new Float32Array(W), t = new Float32Array(W);
+  let sat = 0;
+  for (let y = 0; y < bh; y++) for (let x = 0; x < W; x++) {
+    const k = (y * W + x) * 4;
+    r[x] += d[k]; gg[x] += d[k + 1]; b[x] += d[k + 2];
+    if (d[k] > 250 || d[k + 1] > 250 || d[k + 2] > 250) sat++;
+  }
+  for (let x = 0; x < W; x++) { r[x] /= bh; gg[x] /= bh; b[x] /= bh; t[x] = (r[x] + gg[x] + b[x]) / 3; }
+  if (W !== CAM.W) { if (CAM.W) { CAM.cal = null; camResetCursors(); camButtons(); } CAM.W = W; }
+  CAM.data = { r, g: gg, b, t, y0, bh, H };
+  CAM.sat = sat > bh * W * 0.002;
+  return true;
+}
+const pxToNm = p => CAM.cal.m * p + CAM.cal.c;
+const nmToPx = l => (l - CAM.cal.c) / CAM.cal.m;
+function camDomain() {
+  const W = CAM.W || 1;
+  if (!CAM.cal) return [0, W - 1];
+  const a = pxToNm(0), b = pxToNm(W - 1);
+  return [Math.min(a, b), Math.max(a, b)];
+}
+const domToPx = v => CAM.cal ? nmToPx(v) : v;
+function sampleArr(arr, p) {
+  if (p < 0 || p > arr.length - 1) return 0;
+  const i = Math.floor(p), f = p - i;
+  return i + 1 < arr.length ? arr[i] * (1 - f) + arr[i + 1] * f : arr[i];
+}
+function snapPeak(p) {
+  const t = CAM.data.t, R = Math.max(3, Math.round(CAM.W / 80));
+  let best = Math.round(p);
+  for (let i = Math.max(0, Math.round(p) - R); i <= Math.min(t.length - 1, Math.round(p) + R); i++) if (t[i] > t[best]) best = i;
+  return best;
+}
+$('c-cal').addEventListener('click', () => {
+  if (!CAM.data || CAM.cur.a == null || CAM.cur.b == null) { $('c-cal-note').textContent = 'Place both cursors A and B on bright lines first.'; return; }
+  const pa = snapPeak(domToPx(CAM.cur.a)), pb = snapPeak(domToPx(CAM.cur.b));
+  const la = +$('c-la').value, lb = +$('c-lb').value;
+  if (Math.abs(pb - pa) < 5 || la === lb) { $('c-cal-note').textContent = 'The two cursors must be on two different lines.'; return; }
+  const m = (lb - la) / (pb - pa);
+  CAM.cal = { m, c: la - m * pa, src: S1.src };
+  CAM.cur.a = la; CAM.cur.b = lb;
+  camButtons(); camSave(); s1Meas();
+});
+$('c-uncal').addEventListener('click', () => {
+  if (CAM.cal) { const a = CAM.cur.a, b = CAM.cur.b; CAM.cur.a = a != null ? nmToPx(a) : null; CAM.cur.b = b != null ? nmToPx(b) : null; }
+  CAM.cal = null; camButtons(); camSave(); s1Meas();
+});
+
+// Peaks of the camera spectrum
+let camPeaksT = 0;
+function camPeaks() {
+  const t = CAM.data.t, n = t.length, sm = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let s = 0, c = 0; for (let j = i - 2; j <= i + 2; j++) if (j >= 0 && j < n) { s += t[j]; c++; } sm[i] = s / c; }
+  let mx = 0, mn = Infinity; for (let i = 0; i < n; i++) { mx = Math.max(mx, sm[i]); mn = Math.min(mn, sm[i]); }
+  if (mx - mn < 8) return [];
+  const sep = Math.max(4, Math.round(n / 100)), out = [];
+  for (let i = 1; i < n - 1; i++) {
+    if (sm[i] < mn + 0.15 * (mx - mn)) continue;
+    let top = true;
+    for (let j = Math.max(0, i - sep); j <= Math.min(n - 1, i + sep); j++) if (sm[j] > sm[i] || (sm[j] === sm[i] && j < i)) { top = false; break; }
+    if (top) out.push({ p: i, a: (sm[i] - mn) / (mx - mn) });
+  }
+  return out.sort((a, b) => b.a - a.a).slice(0, 8);
+}
+function renderCamPeaks() {
+  $('peaks-title').textContent = 'Bright lines found';
+  if (!CAM.data) { $('peaks').innerHTML = `<div class="empty">${S1.src === 'cam' ? 'Start the camera.' : 'Open a photo of a spectrum.'}</div>`; $('peaks-note').textContent = ''; return; }
+  const pk = camPeaks();
+  if (!pk.length) { $('peaks').innerHTML = '<div class="empty">No clear peaks along the band.</div>'; }
+  else {
+    let html = `<table><tr><th>${CAM.cal ? 'λ (nm)' : 'pixel'}</th><th></th><th></th></tr>`;
+    for (const { p, a } of pk) {
+      const l = CAM.cal ? pxToNm(p) : null;
+      html += `<tr><td>${l ? `<span class="dot" style="background:${css(hueAt(l))}"></span> ${sig(l, 4)}` : p}</td><td><span class="bar" style="width:${Math.max(2, Math.round(a * 60))}px"></span></td><td>${l ? colorName(l) : ''}</td></tr>`;
+    }
+    $('peaks').innerHTML = html + '</table>';
+  }
+  $('peaks-note').textContent = CAM.sat ? '⚠ Some pixels are saturated (too bright): peak heights are cut off. Dim the light or move the spectroscope away.' : '';
+}
+
+let camP = null, imgBox = null;
+function drawCam(now) {
+  const sim = S1.src === 'sim';
+  if (sim) return;
+  const have = camSample();
+  // Top: picture with the sampling band
+  {
+    const { g, w, h } = fit($('cv-strip'));
+    imgBox = null;
+    if (!have) { centerMsg(g, w, h, S1.src === 'cam' ? '📷 Press Start camera, then aim the spectroscope at a lamp' : '🖼 Open a photo of a spectrum (a rainbow from a CD, a prism or a grating)'); }
+    else {
+      const W = OFF.width, H = OFF.height, s = Math.min((w - 20) / W, (h - 36) / H);
+      const bx = (w - W * s) / 2, by = 26 + (h - 30 - H * s) / 2;
+      imgBox = { bx, by, s, W, H };
+      g.drawImage(OFF, bx, by, W * s, H * s);
+      const D = CAM.data;
+      g.strokeStyle = '#fff'; g.lineWidth = 2; g.strokeRect(bx, by + D.y0 * s, W * s, Math.max(2, D.bh * s));
+      g.strokeStyle = '#000'; g.lineWidth = 1; g.strokeRect(bx - 1.5, by + D.y0 * s - 1.5, W * s + 3, Math.max(2, D.bh * s) + 3);
+      g.fillStyle = C.muted; g.font = `11px ${FONT}`; g.textAlign = 'right'; g.textBaseline = 'top';
+      g.fillText('↕ drag to move the band', w - 10, 6);
+      if (CAM.frozen) { g.fillStyle = C.blue; g.font = `800 12px ${FONT}`; g.textAlign = 'left'; g.fillText('❄ FROZEN', bx + 6, by + 6); }
+    }
+  }
+  // Bottom: brightness along the band
+  {
+    const { g, w, h } = fit($('cv-spec'));
+    camP = null;
+    if (!have) { centerMsg(g, w, h, 'The brightness along the white band will appear here.'); return; }
+    const D = CAM.data, [a, b] = camDomain();
+    const P = makePlot(w, h, { l: 56, r: 16, t: 26, b: 34 }, [a, b], [0, 270]);
+    camP = P;
+    drawFrame(g, P, linTicks(a, b, 10, v => sig(v, 4)), linTicks(0, 255, 5, v => Math.round(v / 2.55) + '%'),
+      CAM.cal ? 'wavelength λ (nm)' : 'position along the band (pixels)  ·  calibrate to get wavelengths', 'brightness', h);
+    // Reference lines
+    if (CAM.cal && CAM.ref !== 'none') {
+      const set = CAM.ref === 'sun' ? SUN_LINES : LAMPS[CAM.ref].lines;
+      g.font = `10px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'top';
+      for (const [l] of set) if (l >= a && l <= b) {
+        const x = P.X(l);
+        g.strokeStyle = css(hueAt(l)); g.lineWidth = 1.5; g.setLineDash([3, 3]);
+        g.beginPath(); g.moveTo(x, P.y0); g.lineTo(x, P.y1); g.stroke(); g.setLineDash([]);
+        g.fillStyle = C.muted; g.fillText(sig(l, 4), x, P.y0 + 2);
+      }
+    }
+    const pts = [];
+    for (let px = Math.floor(P.x0); px <= P.x1; px++) {
+      const v = P.invX(px), p = domToPx(v);
+      pts.push([px, v, sampleArr(D.r, p), sampleArr(D.g, p), sampleArr(D.b, p), sampleArr(D.t, p)]);
+    }
+    for (const [px, v, , , , t] of pts) {
+      g.fillStyle = CAM.cal ? (v >= 375 && v <= 785 ? css(hueAt(v)) : alpha(C.muted, 0.3)) : alpha(C.accent, 0.25);
+      const y = P.Y(t); g.fillRect(px, y, 1.2, P.y1 - y);
+    }
+    const line = (k, col, lw) => { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); pts.forEach((q, i) => i ? g.lineTo(q[0], P.Y(q[k])) : g.moveTo(q[0], P.Y(q[k]))); g.stroke(); };
+    line(2, alpha('#e11d48', 0.75), 1); line(3, alpha('#16a34a', 0.75), 1); line(4, alpha('#2563eb', 0.75), 1); line(5, C.text, 1.8);
+    g.font = `700 11px ${FONT}`; g.textAlign = 'right'; g.textBaseline = 'top';
+    let lx = P.x1 - 6;
+    for (const [t, c] of [['━ average', C.text], ['blue', '#2563eb'], ['green', '#16a34a'], ['red', '#e11d48']]) {
+      g.fillStyle = c; g.fillText(t, lx, P.y0 + 18); lx -= g.measureText(t).width + 10;
+    }
+    drawCursors(g, P, CAM.cur, CAM.cal ? d => sig(d, 3) + ' nm' : d => sig(d, 3) + ' px');
+    if (now - camPeaksT > 400) { camPeaksT = now; renderCamPeaks(); }
+  }
+}
+// Drag the band on the picture
+{
+  let drag = false;
+  const cv = $('cv-strip');
+  const setBand = e => {
+    if (!imgBox) return;
+    const r = cv.getBoundingClientRect(), y = e.clientY - r.top;
+    CAM.bandY = clamp((y - imgBox.by) / (imgBox.H * imgBox.s), 0, 1);
+  };
+  cv.addEventListener('pointerdown', e => { if (S1.src === 'sim' || !imgBox) return; drag = true; cv.setPointerCapture(e.pointerId); setBand(e); });
+  cv.addEventListener('pointermove', e => { if (drag) setBand(e); cv.style.cursor = S1.src !== 'sim' && imgBox ? 'ns-resize' : 'default'; });
+  cv.addEventListener('pointerup', () => { if (drag) { drag = false; camSave(); } });
+}
+attachCursors($('cv-spec'), new Proxy({}, {
+  get: (_, k) => (S1.src === 'sim' ? S1.cur : CAM.cur)[k],
+  set: (_, k, v) => { (S1.src === 'sim' ? S1.cur : CAM.cur)[k] = v; return true; },
+}), () => S1.src === 'sim' ? specP : camP, s1Meas);
+// Simulated mode uses only cursor A
+$('cv-spec').addEventListener('pointerdown', () => { if (S1.src === 'sim') S1.cur.b = null; }, true);
+
+function s1Draw(now) {
+  if (S1.src === 'sim') { if (!SRC) s1Rebuild(); drawStrip(); drawSpec(); drawXY(); }
+  else drawCam(now);
+}
+
+// ═══════════════════════════════════════════════════════════
+// ② VISIBLE RANGE (electromagnetic spectrum)
+// ═══════════════════════════════════════════════════════════
+const EM_LO = -13, EM_HI = 4;    // log10 of wavelength in m
+const EM_REG = [
+  { name: 'Gamma rays', a: 1e-13, b: 1e-11, col: '#7c3aed' },
+  { name: 'X-rays', a: 1e-11, b: 1e-8, col: '#2563eb' },
+  { name: 'Ultraviolet', a: 1e-8, b: 380e-9, col: '#a855f7' },
+  { name: 'Visible', a: 380e-9, b: 750e-9, col: null },
+  { name: 'Infrared', a: 750e-9, b: 1e-3, col: '#dc2626' },
+  { name: 'Microwaves', a: 1e-3, b: 0.3, col: '#ea580c' },
+  { name: 'Radio waves', a: 0.3, b: 1e4, col: '#ca8a04' },
+];
+const EM_EX = [
+  ['☢️', 'Gamma (cobalt-60)', 1.06e-12], ['🦴', 'Medical X-ray', 5e-11], ['🏖', 'UV-B (sunburn)', 300e-9], ['🔦', 'Black light', 365e-9],
+  ['🟣', 'Violet laser', 405e-9], ['🔵', 'Blue LED', 450e-9], ['🟢', 'Green laser', 532e-9], ['🟡', 'Sodium lamp', 589e-9], ['🔴', 'Red laser', 650e-9],
+  ['📺', 'TV remote', 940e-9], ['🌡', 'Your body heat', 9.5e-6], ['🍿', 'Microwave oven', 0.122], ['📻', 'FM radio', 3.0], ['📡', 'AM radio', 300],
+];
+const SIZES = [['an atomic nucleus', 1e-14], ['an atom', 1e-10], ['a small molecule', 1e-9], ['a virus', 1e-7], ['a bacterium', 2e-6], ['a red blood cell', 8e-6], ['the width of a hair', 7e-5], ['a grain of sand', 5e-4], ['an ant', 3e-3], ['a coin', 2.3e-2], ['a hand', 0.18], ['a person', 1.7], ['a house', 10], ['a football field', 100], ['a small town', 2000]];
+const R2 = { lam: 550e-9, sweep: null };
+try { const v = parseFloat(localStorage.getItem('light_analyzer_r2')); if (v > 0) R2.lam = v; } catch (e) {}
+const r2Save = () => { try { localStorage.setItem('light_analyzer_r2', String(R2.lam)); } catch (e) {} };
+const rToLam = s => 10 ** (EM_LO + (EM_HI - EM_LO) * s / 1000);
+const lamToR = l => 1000 * (Math.log10(l) - EM_LO) / (EM_HI - EM_LO);
+const regionOf = l => EM_REG.find(r => l >= r.a && l < r.b) || (l < 1e-13 ? EM_REG[0] : EM_REG[6]);
+$('r-chips').innerHTML = EM_EX.map(([i, n, l], k) => `<button class="chip" data-ex="${k}">${i} ${n}</button>`).join('');
+$('r-chips').querySelectorAll('[data-ex]').forEach(b => b.addEventListener('click', () => { R2.sweep = null; setLam(EM_EX[+b.dataset.ex][2]); }));
+$('r-slider').addEventListener('input', () => { R2.sweep = null; setLam(rToLam(+$('r-slider').value)); });
+function setLam(l) { R2.lam = clamp(l, 10 ** EM_LO, 10 ** EM_HI); r2Show(); r2Save(); }
+function r2Show() {
+  const l = R2.lam, nm = l * 1e9, reg = regionOf(l), vis = nm >= 380 && nm <= 750;
+  $('r-read').textContent = fmtLenM(l);
+  $('r-read').style.color = vis ? css(hueAt(nm)) : '';
+  $('r-reg').textContent = reg.name;
+  $('r-slider').value = lamToR(l);
+  $('r-f').textContent = fmtFreq(C_LIGHT / l);
+  $('r-E').textContent = fmtEV(1.23984e-6 / l);
+  $('r-vis').innerHTML = vis ? `<span class="dot" style="background:${css(hueAt(nm))}"></span> yes, ${colorName(nm)}` : 'no';
+  $('r-sw-all').textContent = R2.sweep && R2.sweep.kind === 'all' ? '⏹ Stop' : '↗ Radio → gamma';
+  $('r-sw-vis').textContent = R2.sweep && R2.sweep.kind === 'vis' ? '⏹ Stop' : '🌈 Across the visible';
+}
+function startSweep(kind) {
+  if (R2.sweep && R2.sweep.kind === kind) { R2.sweep = null; r2Show(); return; }
+  R2.sweep = kind === 'all' ? { kind, a: Math.log10(1e4), b: Math.log10(1e-13), dur: 20, t0: performance.now() }
+    : { kind, a: Math.log10(380e-9), b: Math.log10(750e-9), dur: 12, t0: performance.now() };
+  r2Show();
+}
+$('r-sw-all').addEventListener('click', () => startSweep('all'));
+$('r-sw-vis').addEventListener('click', () => startSweep('vis'));
+function r2Tick(now) {
+  const S = R2.sweep; if (!S) return;
+  const u = (now - S.t0) / 1000 / S.dur;
+  if (u >= 1) { R2.sweep = null; r2Show(); return; }
+  R2.lam = 10 ** (S.a + (S.b - S.a) * u); r2Show();
+}
+
+let emGeo = null;
+function drawEM() {
+  const { g, w, h } = fit($('cv-em'));
+  const L = 24, Rm = 24, x0 = L, x1 = w - Rm;
+  const X = l => x0 + (Math.log10(l) - EM_LO) / (EM_HI - EM_LO) * (x1 - x0);
+  const bandT = Math.max(104, h * 0.3), bandH = Math.max(36, h * 0.15);
+  const stripT = bandT + bandH + Math.max(60, h * 0.2), stripH = Math.max(30, h * 0.14);
+  const sx0 = x0 + 20, sx1 = x1 - 20, SX = nm => sx0 + (nm - 380) / (750 - 380) * (sx1 - sx0);
+  emGeo = { X, x0, x1, bandT, bandH, stripT, stripH, sx0, sx1 };
+  // Regions
+  g.font = `700 11px ${FONT}`; g.textBaseline = 'middle'; g.textAlign = 'center';
+  for (const r of EM_REG) {
+    const xa = X(r.a), xb = X(r.b);
+    if (r.col) { g.fillStyle = alpha(r.col, 0.22); g.fillRect(xa, bandT, xb - xa, bandH); }
+    else for (let x = Math.floor(xa); x < xb; x++) { g.fillStyle = css(hueAt(380 + (x - xa) / (xb - xa) * 370)); g.fillRect(x, bandT, 1.2, bandH); }
+    if (r.col) {
+      g.fillStyle = C.text;
+      const words = r.name.split(' '), cx = (xa + xb) / 2;
+      if (xb - xa > g.measureText(r.name).width + 6) g.fillText(r.name, cx, bandT + bandH / 2);
+      else words.forEach((wd, i) => g.fillText(wd, cx, bandT + bandH / 2 + (i - (words.length - 1) / 2) * 13));
+    }
+  }
+  g.strokeStyle = C.border; g.strokeRect(x0 + 0.5, bandT + 0.5, x1 - x0, bandH);
+  // Wavelength axis below the band
+  g.font = `11px ${FONT}`; g.textBaseline = 'top';
+  const WL = { '-12': '1 pm', '-9': '1 nm', '-6': '1 µm', '-3': '1 mm', '0': '1 m', '3': '1 km' };
+  for (let e = EM_LO; e <= EM_HI; e++) {
+    const x = X(10 ** e); g.fillStyle = C.muted; g.fillRect(x, bandT + bandH, 1, WL[e] ? 6 : 3);
+    if (WL[e]) g.fillText(WL[e], x, bandT + bandH + 7);
+  }
+  g.font = `600 11px ${FONT}`; g.textAlign = 'right'; g.fillText('wavelength →', x1, bandT + bandH + 20);
+  // Frequency axis above the band
+  g.font = `11px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'bottom';
+  const FL = { 6: '1 MHz', 9: '1 GHz', 12: '1 THz', 15: '1 PHz', 18: '1 EHz', 21: '1 ZHz' };
+  for (const e in FL) { const x = X(C_LIGHT / 10 ** e); g.fillStyle = C.muted; g.fillRect(x, bandT - 4, 1, 4); g.fillText(FL[e], x, bandT - 5); }
+  g.textAlign = 'left'; g.font = `600 11px ${FONT}`; g.fillText('← higher frequency', x0, bandT - 20);
+  // Example icons
+  g.font = `15px ${FONT}`; g.textBaseline = 'bottom'; g.textAlign = 'center';
+  EM_EX.forEach(([ic, , l], i) => {
+    const nm = l * 1e9; if (nm > 300 && nm < 700) return;
+    g.fillText(ic, X(l), bandT - 36 - (i % 2) * 18);
+  });
+  // Zoom on the visible
+  g.strokeStyle = C.dim; g.lineWidth = 1; g.setLineDash([3, 3]);
+  g.beginPath(); g.moveTo(X(380e-9), bandT + bandH); g.lineTo(sx0, stripT); g.moveTo(X(750e-9), bandT + bandH); g.lineTo(sx1, stripT); g.stroke(); g.setLineDash([]);
+  for (let x = Math.floor(sx0); x < sx1; x++) { g.fillStyle = css(hueFAt(380 + (x - sx0) / (sx1 - sx0) * 370), 1); g.fillRect(x, stripT, 1.2, stripH); }
+  g.strokeStyle = C.border; g.strokeRect(sx0 + 0.5, stripT + 0.5, sx1 - sx0, stripH);
+  g.font = `11px ${FONT}`; g.textBaseline = 'top'; g.fillStyle = C.muted;
+  for (let nm = 400; nm <= 750; nm += 50) { const x = SX(nm); g.fillRect(x, stripT + stripH, 1, 4); g.fillText(nm + ' nm', x, stripT + stripH + 5); }
+  g.font = `700 11px ${FONT}`; g.fillStyle = C.text;
+  for (const [n, a, b] of [['violet', 380, 450], ['blue', 450, 485], ['cyan', 485, 500], ['green', 500, 565], ['yellow', 565, 590], ['orange', 590, 625], ['red', 625, 750]])
+    if (SX(b) - SX(a) > 34) g.fillText(n, SX((a + b) / 2), stripT + stripH + 20);
+  g.fillStyle = C.muted; g.font = `600 11px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'bottom';
+  g.fillText('Visible light: zoomed in (about 380–750 nm)', (sx0 + sx1) / 2, stripT - 4);
+  for (const [ic, , l] of EM_EX) { const nm = l * 1e9; if (nm >= 380 && nm <= 750) { g.font = `13px ${FONT}`; g.fillText(ic, SX(nm), stripT - 18); } }
+  // Current wavelength marker
+  const l = R2.lam, nm = l * 1e9, x = X(l);
+  g.strokeStyle = C.orange; g.lineWidth = 2.5;
+  g.beginPath(); g.moveTo(x, bandT - 2); g.lineTo(x, bandT + bandH + 2); g.stroke();
+  g.fillStyle = C.orange; g.beginPath(); g.moveTo(x - 6, bandT - 10); g.lineTo(x + 6, bandT - 10); g.lineTo(x, bandT - 2); g.fill();
+  if (nm >= 380 && nm <= 750) {
+    const xs = SX(nm);
+    g.beginPath(); g.moveTo(xs, stripT - 2); g.lineTo(xs, stripT + stripH + 2); g.stroke();
+    g.beginPath(); g.moveTo(xs - 6, stripT + stripH + 10); g.lineTo(xs + 6, stripT + stripH + 10); g.lineTo(xs, stripT + stripH + 2); g.fill();
+  }
+  g.fillStyle = C.muted; g.font = `11px ${FONT}`; g.textAlign = 'right'; g.textBaseline = 'top';
+  g.fillText('click or drag on the bands', w - 10, 6);
+}
+{
+  let drag = false;
+  const cv = $('cv-em');
+  const pick = e => {
+    if (!emGeo) return;
+    const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, G = emGeo;
+    R2.sweep = null;
+    if (y >= G.stripT - 20 && x >= G.sx0 && x <= G.sx1) setLam((380 + (x - G.sx0) / (G.sx1 - G.sx0) * 370) * 1e-9);
+    else setLam(10 ** (EM_LO + clamp((x - G.x0) / (G.x1 - G.x0), 0, 1) * (EM_HI - EM_LO)));
+  };
+  cv.addEventListener('pointerdown', e => { drag = true; cv.setPointerCapture(e.pointerId); pick(e); });
+  cv.addEventListener('pointermove', e => { if (drag) pick(e); });
+  cv.addEventListener('pointerup', () => { drag = false; });
+}
+function compareSize(l) {
+  let best = SIZES[0], bd = Infinity;
+  for (const s of SIZES) { const d = Math.abs(Math.log10(l / s[1])); if (d < bd) { bd = d; best = s; } }
+  const r = l / best[1];
+  if (r > 0.6 && r < 1.7) return `about the size of ${best[0]}`;
+  return r > 1 ? `about ${sig(r, 2)} times ${best[0]}` : `about 1/${sig(1 / r, 2)} of ${best[0]}`;
+}
+function drawEMWave(now) {
+  const { g, w, h } = fit($('cv-emwave'));
+  const l = R2.lam, nm = l * 1e9, vis = nm >= 375 && nm <= 785;
+  const x0 = 40, x1 = w - 40, cy = h * 0.5, A = Math.min(h * 0.22, 60), cyc = 3.5, lpx = (x1 - x0) / cyc;
+  g.strokeStyle = C.grid; g.lineWidth = 1; g.beginPath(); g.moveTo(x0, cy); g.lineTo(x1, cy); g.stroke();
+  const ph = now / 1000 * 2 * Math.PI * 0.5;
+  g.strokeStyle = vis ? css(hueAt(nm)) : C.accent; g.lineWidth = 3; g.beginPath();
+  for (let x = x0; x <= x1; x++) { const y = cy - A * Math.sin(2 * Math.PI * (x - x0) / lpx - ph); x === x0 ? g.moveTo(x, y) : g.lineTo(x, y); }
+  g.stroke();
+  // One wavelength bracket
+  const by = cy + A + 18, bx = x0 + lpx * 0.25;
+  g.strokeStyle = C.orange; g.lineWidth = 1.5; g.beginPath();
+  g.moveTo(bx, by - 5); g.lineTo(bx, by + 5); g.moveTo(bx, by); g.lineTo(bx + lpx, by); g.moveTo(bx + lpx, by - 5); g.lineTo(bx + lpx, by + 5); g.stroke();
+  g.fillStyle = C.orange; g.font = `700 13px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'top';
+  g.fillText('λ = ' + fmtLenM(l), bx + lpx / 2, by + 6);
+  g.fillStyle = C.text; g.font = `700 13px ${FONT}`; g.textAlign = 'left'; g.textBaseline = 'top';
+  g.fillText(`One wavelength is ${compareSize(l)}.`, x0, 26);
+  g.fillStyle = C.muted; g.font = `12px ${FONT}`;
+  g.fillText(`The field at any point vibrates ${sci(C_LIGHT / l)} times per second (${fmtFreq(C_LIGHT / l)}).`, x0, 44);
+  if (!vis) { g.textAlign = 'right'; g.fillText('(invisible: drawn in blue just to show it)', x1, h - 18); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ③ BRIGHTNESS
+// ═══════════════════════════════════════════════════════════
+const Y_REF = 0.06;            // linear luminance of the gray reference A
+const SRGB_W = [0.2126, 0.7152, 0.0722];
+const E3 = { day: true, night: true, cones: false, ax: 'lin', view: 'demo', light: 'day', prim: 1, s: [-0.6, -1.1, -0.1], mode: 'side', matches: [null, null, null], hover: null };
+try {
+  const o = JSON.parse(localStorage.getItem('light_analyzer_e3') || '{}');
+  for (const k of ['day', 'night', 'cones', 'ax', 'view', 'light', 'prim', 's', 'matches']) if (o[k] !== undefined) E3[k] = o[k];
+} catch (e) {}
+const e3Save = () => { try { localStorage.setItem('light_analyzer_e3', JSON.stringify({ day: E3.day, night: E3.night, cones: E3.cones, ax: E3.ax, view: E3.view, light: E3.light, prim: E3.prim, s: E3.s, matches: E3.matches })); } catch (e) {} };
+function e3Show() {
+  $('e-day').checked = E3.day; $('e-night').checked = E3.night; $('e-cones').checked = E3.cones;
+  document.querySelectorAll('#e-ax [data-ax]').forEach(b => b.classList.toggle('on', b.dataset.ax === E3.ax));
+  document.querySelectorAll('[data-ev]').forEach(b => b.classList.toggle('on', b.dataset.ev === E3.view));
+  document.querySelectorAll('[data-light]').forEach(b => b.classList.toggle('on', b.dataset.light === E3.light));
+  document.querySelectorAll('[data-prim]').forEach(b => b.classList.toggle('on', +b.dataset.prim === E3.prim));
+  document.querySelectorAll('[data-em]').forEach(b => b.classList.toggle('on', b.dataset.em === E3.mode));
+  $('e-demo-box').hidden = E3.view !== 'demo'; $('e-match-box').hidden = E3.view !== 'match';
+  $('e-flick-hint').hidden = E3.mode !== 'flick';
+  $('e-k').value = Math.round(E3.s[E3.prim] * 100);
+  $('e-k-val').textContent = sig(10 ** E3.s[E3.prim] * 100, 2) + '%';
+  $('exp-cap').textContent = E3.view === 'demo' ? 'Five lights with the same power' : 'Experiment: brightness of your screen\'s colors';
+}
+['day', 'night', 'cones'].forEach(k => $('e-' + k).addEventListener('change', () => { E3[k] = $('e-' + k).checked; e3Save(); }));
+document.querySelectorAll('#e-ax [data-ax]').forEach(b => b.addEventListener('click', () => { E3.ax = b.dataset.ax; e3Show(); e3Save(); }));
+document.querySelectorAll('[data-ev]').forEach(b => b.addEventListener('click', () => { E3.view = b.dataset.ev; e3Show(); e3Save(); }));
+document.querySelectorAll('[data-light]').forEach(b => b.addEventListener('click', () => { E3.light = b.dataset.light; e3Show(); e3Save(); }));
+document.querySelectorAll('[data-prim]').forEach(b => b.addEventListener('click', () => { E3.prim = +b.dataset.prim; e3Show(); e3Save(); }));
+document.querySelectorAll('[data-em]').forEach(b => b.addEventListener('click', () => { E3.mode = b.dataset.em; e3Show(); }));
+$('e-k').addEventListener('input', () => { E3.s[E3.prim] = +$('e-k').value / 100; e3Show(); e3Save(); });
+$('e-save').addEventListener('click', () => { E3.matches[E3.prim] = Y_REF / 10 ** E3.s[E3.prim]; e3Save(); });
+$('e-clear').addEventListener('click', () => { E3.matches = [null, null, null]; e3Save(); });
+
+let eyeP = null;
+function drawEye() {
+  const { g, w, h } = fit($('cv-eye'));
+  const log = E3.ax === 'log';
+  const P = makePlot(w, h, { l: 56, r: 16, t: 26, b: 46 }, [380, 780], log ? [1e-4, 1.5] : [0, 1.08], log);
+  eyeP = P;
+  const yt = log ? [1, 0.1, 0.01, 0.001, 0.0001].map(v => ({ v, label: v >= 0.01 ? String(v) : '1/' + Math.round(1 / v) })) : linTicks(0, 1, 5, v => Math.round(v * 100) + '%');
+  drawFrame(g, P, linTicks(380, 780, 8), yt, '', log ? 'sensitivity (log)' : 'sensitivity', h);
+  // Colored strip under the graph
+  for (let x = Math.floor(P.x0); x < P.x1; x++) { g.fillStyle = css(hueFAt(P.invX(x))); g.fillRect(x, P.y1 + 18, 1.2, 8); }
+  g.fillStyle = C.muted; g.font = `600 11px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'bottom';
+  g.fillText('wavelength λ (nm)', (P.x0 + P.x1) / 2, h - 3);
+  const curve = (f, col, lw, dash) => {
+    g.strokeStyle = col; g.lineWidth = lw; g.setLineDash(dash || []); g.beginPath();
+    let st = false;
+    for (let x = Math.floor(P.x0); x <= P.x1; x++) {
+      const v = f(P.invX(x)); if (log && v < 1e-4) { st = false; continue; }
+      const y = clamp(P.Y(v), P.y0, P.y1); st ? g.lineTo(x, y) : g.moveTo(x, y); st = true;
+    }
+    g.stroke(); g.setLineDash([]);
+  };
+  if (E3.cones) {
+    curve(l => lms(l)[2], '#2563eb', 1.6, [5, 3]); curve(l => lms(l)[1], '#16a34a', 1.6, [5, 3]); curve(l => lms(l)[0], '#dc2626', 1.6, [5, 3]);
+  }
+  if (E3.night) curve(Vnight, C.blue, 2.6);
+  if (E3.day) curve(Vday, C.orange, 2.6);
+  // Peak labels
+  g.font = `700 11px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'bottom';
+  if (E3.day) { g.fillStyle = C.orange; g.fillText('☀️ daylight · 555 nm', P.X(555) + 40, P.Y(1) - 4); }
+  if (E3.night) { g.fillStyle = C.blue; g.fillText('🌙 night · 507 nm', P.X(507) - 40, P.Y(1) - 4 - (E3.day ? 14 : 0)); }
+  if (E3.cones) {
+    g.font = `700 11px ${FONT}`;
+    g.textBaseline = 'middle';
+    g.fillStyle = '#2563eb'; g.fillText('S cones', P.X(400), P.Y(0.55));
+    g.fillStyle = '#16a34a'; g.fillText('M', P.X(497), P.Y(0.55));
+    g.fillStyle = '#dc2626'; g.fillText('L cones', P.X(652), P.Y(0.55));
+  }
+  // Hover readout
+  if (E3.hover != null) {
+    const l = E3.hover, x = P.X(l);
+    g.strokeStyle = alpha(C.text, 0.4); g.lineWidth = 1; g.beginPath(); g.moveTo(x, P.y0); g.lineTo(x, P.y1); g.stroke();
+    const lines = [`${Math.round(l)} nm · ${colorName(l)}`];
+    if (E3.day) lines.push(`daylight: ${sig(Vday(l) * 100, 2)}%`);
+    if (E3.night) lines.push(`night: ${sig(Vnight(l) * 100, 2)}%`);
+    if (E3.cones) { const c = lms(l); lines.push(`cones L ${Math.round(c[0] * 100)} · M ${Math.round(c[1] * 100)} · S ${Math.round(c[2] * 100)}%`); }
+    g.font = `600 12px ${FONT}`;
+    const bw = Math.max(...lines.map(s => g.measureText(s).width)) + 14, bh = lines.length * 16 + 8;
+    const bx = x + 10 + bw > P.x1 ? x - 10 - bw : x + 10, by = P.y0 + 30;
+    g.fillStyle = alpha(C.surface === '#ffffff' ? '#ffffff' : '#161b22', 0.92); g.fillRect(bx, by, bw, bh);
+    g.strokeStyle = C.border; g.strokeRect(bx + 0.5, by + 0.5, bw, bh);
+    g.fillStyle = C.text; g.textAlign = 'left'; g.textBaseline = 'top';
+    lines.forEach((s, i) => g.fillText(s, bx + 7, by + 5 + i * 16));
+  }
+}
+$('cv-eye').addEventListener('pointermove', e => {
+  if (!eyeP) return;
+  const x = e.clientX - $('cv-eye').getBoundingClientRect().left;
+  E3.hover = x >= eyeP.x0 && x <= eyeP.x1 ? eyeP.invX(x) : null;
+});
+$('cv-eye').addEventListener('pointerleave', () => { E3.hover = null; });
+
+function drawExp(now) {
+  const { g, w, h } = fit($('cv-exp'));
+  if (E3.view === 'demo') {
+    const L = [450, 500, 555, 600, 650], night = E3.light === 'night';
+    const n = L.length, gap = 14, side = Math.min((w - 40 - gap * (n - 1)) / n, h - 90);
+    const tot = n * side + (n - 1) * gap, x0 = (w - tot) / 2, y0 = 34;
+    g.fillStyle = '#000'; g.fillRect(x0 - 12, y0 - 10, tot + 24, side + 20);
+    L.forEach((l, i) => {
+      const x = x0 + i * (side + gap);
+      const v = night ? Vnight(l) : Vday(l);
+      g.fillStyle = night ? css([1, 1, 1], v * 0.8) : css(hueAt(l), v);
+      g.fillRect(x, y0, side, side);
+      g.fillStyle = C.text; g.font = `700 12px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'top';
+      g.fillText(l + ' nm', x + side / 2, y0 + side + 14);
+      g.fillStyle = C.muted; g.font = `12px ${FONT}`;
+      g.fillText('looks ' + sig(v * 100, 2) + '% bright', x + side / 2, y0 + side + 30);
+    });
+    if (night) { g.fillStyle = C.muted; g.font = `12px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'top'; g.fillText('In the dark only the rods work: no colors, and the brightest square moves toward blue-green.', w / 2, h - 18); }
+    return;
+  }
+  // Matching experiment: patches on the left, results on the right
+  const split = w * 0.5, side = Math.min(split * 0.38, h - 70), y0 = (h - side) / 2 + 8;
+  const k = 10 ** E3.s[E3.prim], rgbB = [0, 0, 0]; rgbB[E3.prim] = k;
+  const gray = css([Y_REF, Y_REF, Y_REF]), colB = css(rgbB);
+  g.fillStyle = '#000'; g.fillRect(16, y0 - 14, split - 32, side + 28);
+  g.font = `800 13px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'bottom';
+  if (E3.mode === 'side') {
+    const xa = split / 2 - side - 4, xb = split / 2 + 4;
+    g.fillStyle = gray; g.fillRect(xa, y0, side, side);
+    g.fillStyle = colB; g.fillRect(xb, y0, side, side);
+    g.fillStyle = C.text; g.fillText('A', xa + side / 2, y0 - 16); g.fillText('B', xb + side / 2, y0 - 16);
+  } else {
+    const on = Math.floor(now / (1000 / 30)) % 2;
+    g.fillStyle = on ? colB : gray; g.fillRect(split / 2 - side / 2, y0, side, side);
+    g.fillStyle = C.text; g.fillText('A ⇄ B', split / 2, y0 - 16);
+  }
+  // Results bars
+  const P = makePlot(w, h, { l: split + 50, r: 16, t: 34, b: 34 }, [0, 3], [0, 0.85]);
+  drawFrame(g, P, [], linTicks(0, 0.8, 4, v => Math.round(v * 100) + '%'), '', 'share of brightness', h);
+  const NAMES = ['red', 'green', 'blue'], COLS = ['#dc2626', '#16a34a', '#2563eb'];
+  const bw = (P.x1 - P.x0) / 3 * 0.28;
+  for (let i = 0; i < 3; i++) {
+    const cx = P.X(i + 0.5);
+    g.fillStyle = alpha(C.muted, 0.45); g.fillRect(cx - bw - 2, P.Y(SRGB_W[i]), bw, P.y1 - P.Y(SRGB_W[i]));
+    const m = E3.matches[i];
+    if (m != null) { g.fillStyle = COLS[i]; const v = Math.min(0.85, m); g.fillRect(cx + 2, P.Y(v), bw, P.y1 - P.Y(v)); g.fillStyle = C.text; g.font = `700 11px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText(Math.round(m * 100) + '%', cx + 2 + bw / 2, P.Y(v) - 2); }
+    g.fillStyle = C.muted; g.font = `11px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'bottom';
+    g.fillText(Math.round(SRGB_W[i] * 100) + '%', cx - 2 - bw / 2, P.Y(SRGB_W[i]) - 2);
+    g.fillStyle = COLS[i]; g.font = `700 12px ${FONT}`; g.textBaseline = 'top'; g.fillText(NAMES[i], cx, P.y1 + 5);
+  }
+  g.font = `700 11px ${FONT}`; g.textAlign = 'right'; g.textBaseline = 'top';
+  g.fillStyle = C.muted; g.fillText('▮ standard (sRGB)', P.x1 - 6, P.y0 + 4);
+  g.fillStyle = C.text; g.fillText('▮ your matches', P.x1 - 6, P.y0 + 18);
+}
+
+// ═══════════════════════════════════════════════════════════
+// ④ SPEED OF LIGHT
+// ═══════════════════════════════════════════════════════════
+const MEDIA = {
+  air:     { name: 'Air', A: 1.000293, B: 0 },
+  water:   { name: 'Water', A: 1.3242, B: 3070 },
+  glass:   { name: 'Glass (crown)', A: 1.5046, B: 4200 },
+  flint:   { name: 'Glass (flint)', A: 1.5900, B: 11300 },
+  diamond: { name: 'Diamond', A: 2.3818, B: 12500 },
+  ice:     { name: 'Ice', A: 1.3015, B: 2600, hidden: true },
+  ethanol: { name: 'Ethanol', A: 1.3528, B: 3000, hidden: true },
+  acrylic: { name: 'Acrylic plastic', A: 1.4800, B: 3600, hidden: true },
+  sapphire:{ name: 'Sapphire', A: 1.7600, B: 4000, hidden: true },
+  zirconia:{ name: 'Cubic zirconia', A: 2.1200, B: 10000, hidden: true },
+};
+const nOf = (m, l) => MEDIA[m].A + MEDIA[m].B / (l * l);
+const V4 = { med: 'glass', lam0: 550, paused: false, t: 0, xDetFrac: 0.75, mystery: null, revealed: false, curX: { a: null, b: null }, curT: { a: null, b: null }, trials: [] };
+try { const o = JSON.parse(localStorage.getItem('light_analyzer_v4') || '{}'); for (const k of ['med', 'lam0', 'trials']) if (o[k] !== undefined) V4[k] = o[k]; } catch (e) {}
+const v4Save = () => { try { localStorage.setItem('light_analyzer_v4', JSON.stringify({ med: V4.med, lam0: V4.lam0, trials: V4.trials })); } catch (e) {} };
+$('v-med').innerHTML = Object.entries(MEDIA).filter(([, m]) => !m.hidden).map(([k, m]) => `<option value="${k}">${m.name}</option>`).join('');
+const v4Med = () => V4.mystery || V4.med;
+const LX = 3000, XB = 900, WT = 12, RATE = 1.0;    // nm, nm, fs, fs of light per second on screen
+function v4Field(x, t) {
+  const l0 = V4.lam0, k0 = 2 * Math.PI / l0, om = k0 * C_NMFS, n = nOf(v4Med(), l0);
+  const ph = x < XB ? k0 * x : k0 * XB + n * k0 * (x - XB);
+  return Math.cos(ph - om * t);
+}
+function v4Show() {
+  const myst = !!V4.mystery, show = !myst || V4.revealed;
+  $('v-med').value = V4.med; $('v-med').disabled = myst;
+  $('v-l').value = V4.lam0; $('v-l-slider').value = V4.lam0;
+  $('v-l').style.color = css(hueAt(V4.lam0));
+  $('v-pause').textContent = V4.paused ? '▶ Play' : '⏸ Pause';
+  $('v-mystery').textContent = myst ? (V4.revealed ? '↩ Back to normal' : '👁 Reveal the mystery') : '🎲 Mystery material';
+  $('tube-cap').textContent = 'Light going from vacuum into ' + (show ? MEDIA[v4Med()].name.toLowerCase() : 'a mystery material');
+  v4Meas(); v4Trials();
+}
+function v4Changed() { V4.curX.a = V4.curX.b = V4.curT.a = V4.curT.b = null; $('v-result').hidden = true; v4Show(); v4Save(); }
+$('v-med').addEventListener('change', () => { V4.med = $('v-med').value; v4Changed(); });
+$('v-l-slider').addEventListener('input', () => { V4.lam0 = +$('v-l-slider').value; v4Changed(); });
+$('v-l').addEventListener('change', () => { const l = parseFloat($('v-l').value); if (l >= 380 && l <= 750) { V4.lam0 = l; v4Changed(); } else v4Show(); });
+$('v-pause').addEventListener('click', () => { V4.paused = !V4.paused; v4Show(); });
+$('v-mystery').addEventListener('click', () => {
+  if (!V4.mystery) {
+    const keys = Object.keys(MEDIA).filter(k => k !== 'air');
+    V4.mystery = keys[Math.floor(Math.random() * keys.length)]; V4.revealed = false;
+  } else if (!V4.revealed) V4.revealed = true;
+  else { V4.mystery = null; V4.revealed = false; }
+  v4Changed();
+});
+['v-nx', 'v-nt'].forEach(id => $(id).addEventListener('input', v4Meas));
+function v4Values() {
+  const dx = cursorDelta(V4.curX), dt = cursorDelta(V4.curT);
+  const nx = Math.max(1, parseInt($('v-nx').value) || 1), nt = Math.max(1, parseInt($('v-nt').value) || 1);
+  const lam = dx ? dx / nx : null, per = dt ? dt / nt : null;
+  const v = lam && per ? lam / per * 1e6 : null;
+  return { dx, dt, lam, per, v };
+}
+function v4Meas() {
+  const { dx, dt, lam, per, v } = v4Values();
+  $('v-dx').textContent = dx ? sig(dx, 3) + ' nm' : '–';
+  $('v-lam').textContent = lam ? sig(lam, 3) + ' nm' : '–';
+  $('v-dt').textContent = dt ? sig(dt, 3) + ' fs' : '–';
+  $('v-per').textContent = per ? sig(per, 3) + ' fs' : '–';
+  $('v-fm').textContent = per ? fmtFreq(1e15 / per) : '–';
+  $('v-v').textContent = v ? sig(v / 1e8, 3) + ' × 10⁸ m/s' : '–';
+  $('v-n').textContent = v ? sig(C_LIGHT / v, 3) : '–';
+}
+function v4Region() {
+  const { a, b } = V4.curX;
+  if (a == null || b == null) return null;
+  if (a >= XB && b >= XB) return 'med';
+  if (a <= XB && b <= XB) return 'vac';
+  return 'mixed';
+}
+$('v-check').addEventListener('click', () => {
+  const { v } = v4Values(), reg = v4Region(), box = $('v-result');
+  box.hidden = false;
+  if (!v) { box.innerHTML = '<b>Not yet:</b> place cursors A and B on both graphs first.'; return; }
+  if (reg === 'mixed') { box.innerHTML = '<b>Careful:</b> one position cursor is in vacuum and the other in the material. Put both on the same side of the boundary.'; return; }
+  const n = reg === 'med' ? nOf(v4Med(), V4.lam0) : 1, vt = C_LIGHT / n, err = (v - vt) / vt * 100;
+  const where = reg === 'med' ? (V4.mystery && !V4.revealed ? 'the mystery material' : MEDIA[v4Med()].name.toLowerCase()) : 'vacuum';
+  box.innerHTML = `True speed in ${where}: <b>${sig(vt / 1e8, 4)} × 10⁸ m/s</b> (n = ${sig(n, 4)}). Your result is ${Math.abs(err) < 0.05 ? 'spot on' : (err > 0 ? sig(err, 2) + '% too high' : sig(-err, 2) + '% too low')}.` +
+    (Math.abs(err) > 5 ? ' Check the number of cycles between the cursors.' : '');
+});
+$('v-save').addEventListener('click', () => {
+  const { lam, per, v } = v4Values(); if (!v) return;
+  const myst = V4.mystery && !V4.revealed;
+  V4.trials.push({ med: myst ? 'Mystery' : (v4Region() === 'vac' ? 'Vacuum' : MEDIA[v4Med()].name), lam0: V4.lam0, lam, per, v });
+  v4Trials(); v4Save();
+});
+function v4Trials() {
+  const T = V4.trials;
+  if (!T.length) { $('v-trials').innerHTML = '<div class="empty">No trials yet.</div>'; return; }
+  $('v-trials').innerHTML = `<table><tr><th>Material</th><th>λ₀</th><th>λ</th><th>T</th><th>v (10⁸ m/s)</th><th>n</th><th></th></tr>` +
+    T.map((r, i) => `<tr><td>${r.med}</td><td>${r.lam0}</td><td>${sig(r.lam, 3)}</td><td>${sig(r.per, 3)}</td><td>${sig(r.v / 1e8, 3)}</td><td>${sig(C_LIGHT / r.v, 3)}</td><td><button class="x-btn" data-del="${i}">×</button></td></tr>`).join('') +
+    '</table><div class="note">λ₀ and λ in nm, T in fs.</div>';
+  $('v-trials').querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => { V4.trials.splice(+b.dataset.del, 1); v4Trials(); v4Save(); }));
+}
+
+let tubeP = null, pxP = null, ptP = null;
+const M4 = { l: 56, r: 16 };
+attachCursors($('cv-px'), V4.curX, () => pxP, v4Meas);
+attachCursors($('cv-pt'), V4.curT, () => ptP, v4Meas);
+{
+  let drag = false;
+  const cv = $('cv-tube');
+  const set = e => { if (!tubeP) return; const x = e.clientX - cv.getBoundingClientRect().left; V4.xDetFrac = clamp(tubeP.invX(x), 30, LX - 30) / LX; };
+  cv.addEventListener('pointerdown', e => { drag = true; cv.setPointerCapture(e.pointerId); set(e); });
+  cv.addEventListener('pointermove', e => { if (drag) set(e); cv.style.cursor = 'ew-resize'; });
+  cv.addEventListener('pointerup', () => { drag = false; });
+}
+function v4Draw(dt) {
+  if (!V4.paused) V4.t += dt * RATE;
+  const t = V4.t, xDet = V4.xDetFrac * LX, hue = css(hueAt(V4.lam0));
+  const myst = V4.mystery && !V4.revealed, mname = myst ? 'Mystery material' : MEDIA[v4Med()].name;
+  // Light entering the material
+  {
+    const { g, w, h } = fit($('cv-tube'));
+    const P = makePlot(w, h, { l: M4.l, r: M4.r, t: 24, b: 12 }, [0, LX], [-1.4, 1.4]);
+    tubeP = P;
+    g.fillStyle = isDark() ? '#05070a' : '#f8fafc'; g.fillRect(P.x0, P.y0, P.X(XB) - P.x0, P.y1 - P.y0);
+    g.fillStyle = alpha(C.teal, 0.16); g.fillRect(P.X(XB), P.y0, P.x1 - P.X(XB), P.y1 - P.y0);
+    g.strokeStyle = C.teal; g.lineWidth = 2; g.beginPath(); g.moveTo(P.X(XB), P.y0); g.lineTo(P.X(XB), P.y1); g.stroke();
+    g.font = `700 12px ${FONT}`; g.textBaseline = 'top'; g.textAlign = 'left';
+    g.fillStyle = C.muted; g.fillText('Vacuum', P.x0 + 6, P.y0 + 4);
+    g.fillStyle = C.teal; g.fillText(mname, P.X(XB) + 6, P.y0 + 4);
+    const cy = P.Y(0);
+    g.strokeStyle = alpha(C.muted, 0.4); g.lineWidth = 1; g.beginPath(); g.moveTo(P.x0, cy); g.lineTo(P.x1, cy); g.stroke();
+    // Field arrows (transverse)
+    g.strokeStyle = alpha(hue, 0.85); g.fillStyle = hue; g.lineWidth = 1.5;
+    for (let px = P.x0 + 4; px <= P.x1; px += 9) {
+      const E = v4Field(P.invX(px), t), y = P.Y(E);
+      if (Math.abs(y - cy) < 3) continue;
+      g.beginPath(); g.moveTo(px, cy); g.lineTo(px, y); g.stroke();
+      const s = Math.sign(y - cy);
+      g.beginPath(); g.moveTo(px - 3, y - s * 4); g.lineTo(px + 3, y - s * 4); g.lineTo(px, y); g.fill();
+    }
+    g.strokeStyle = hue; g.lineWidth = 2.5; g.beginPath();
+    for (let px = P.x0; px <= P.x1; px++) { const y = P.Y(v4Field(P.invX(px), t)); px === P.x0 ? g.moveTo(px, y) : g.lineTo(px, y); }
+    g.stroke();
+    // Detector
+    const dx = P.X(xDet);
+    g.strokeStyle = C.purple; g.lineWidth = 2; g.setLineDash([4, 3]);
+    g.beginPath(); g.moveTo(dx, P.y0 + 18); g.lineTo(dx, P.y1); g.stroke(); g.setLineDash([]);
+    g.font = `16px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'top'; g.fillText('📷', dx, P.y0 + 1);
+    g.fillStyle = C.muted; g.font = `11px ${FONT}`; g.textAlign = 'right'; g.textBaseline = 'bottom';
+    g.fillText('→ direction of travel   ·   ↔ drag the detector', P.x1 - 4, P.y1 - 2);
+  }
+  // Electric field vs position
+  {
+    const { g, w, h } = fit($('cv-px'));
+    const P = makePlot(w, h, { l: M4.l, r: M4.r, t: 26, b: 34 }, [0, LX], [-1.3, 1.3]);
+    pxP = P;
+    g.fillStyle = alpha(C.teal, 0.08); g.fillRect(P.X(XB), P.y0, P.x1 - P.X(XB), P.y1 - P.y0);
+    drawFrame(g, P, linTicks(0, LX, 10), [{ v: -1, label: '−1' }, { v: 0, label: '0' }, { v: 1, label: '+1' }], 'position x (nm)', 'electric field', h);
+    g.strokeStyle = C.teal; g.lineWidth = 1.5; g.beginPath(); g.moveTo(P.X(XB), P.y0); g.lineTo(P.X(XB), P.y1); g.stroke();
+    g.strokeStyle = C.accent; g.lineWidth = 2; g.beginPath();
+    for (let px = P.x0; px <= P.x1; px++) { const y = P.Y(v4Field(P.invX(px), t)); px === P.x0 ? g.moveTo(px, y) : g.lineTo(px, y); }
+    g.stroke();
+    const mx = P.X(xDet);
+    g.strokeStyle = C.purple; g.lineWidth = 1.5; g.setLineDash([4, 3]);
+    g.beginPath(); g.moveTo(mx, P.y0); g.lineTo(mx, P.y1); g.stroke(); g.setLineDash([]);
+    g.fillStyle = C.muted; g.font = `11px ${FONT}`; g.textAlign = 'left'; g.textBaseline = 'top';
+    g.fillText('vacuum', P.x0 + 6, P.y0 + 4); g.fillText(mname.toLowerCase(), P.X(XB) + 6, P.y0 + 4);
+    drawCursors(g, P, V4.curX, d => sig(d, 3) + ' nm');
+  }
+  // Electric field vs time at the detector
+  {
+    const { g, w, h } = fit($('cv-pt'));
+    const P = makePlot(w, h, { l: M4.l, r: M4.r, t: 26, b: 34 }, [0, WT], [-1.3, 1.3]);
+    ptP = P;
+    drawFrame(g, P, linTicks(0, WT, 12), [{ v: -1, label: '−1' }, { v: 0, label: '0' }, { v: 1, label: '+1' }], 'time (fs = 10⁻¹⁵ s)  ·  newest on the right', 'electric field', h);
+    g.strokeStyle = C.purple; g.lineWidth = 2; g.beginPath();
+    for (let px = P.x0; px <= P.x1; px++) { const y = P.Y(v4Field(xDet, t - WT + P.invX(px))); px === P.x0 ? g.moveTo(px, y) : g.lineTo(px, y); }
+    g.stroke();
+    drawCursors(g, P, V4.curT, d => sig(d, 3) + ' fs');
+    if (V4.paused) { g.fillStyle = C.blue; g.font = `800 12px ${FONT}`; g.textAlign = 'right'; g.textBaseline = 'top'; g.fillText('⏸ PAUSED', P.x1 - 6, P.y0 + 18); }
+  }
+}
+
+// ── State & modes ───────────────────────────────────────────
+const SUBS = {
+  spectrum: 'Most light is a mixture of wavelengths. See them in a simulated spectroscope, or build one with your camera.',
+  range: 'Visible light is a tiny slice of the electromagnetic spectrum: about 380 to 750 nm.',
+  brightness: 'The eye is not equally sensitive to all colors: equal power does not mean equal brightness.',
+  speed: 'Measure the wavelength and the frequency on the graphs, then find the speed of light in each material: v = f · λ.',
+};
+let mode = 'spectrum';
+try { const m = localStorage.getItem('light_analyzer_mode'); if (SUBS[m]) mode = m; } catch (e) {}
+function setMode(m) {
+  if (m !== mode && mode === 'spectrum') camStop();
+  if (m !== mode && mode === 'range') { R2.sweep = null; r2Show(); }
+  mode = m;
+  try { localStorage.setItem('light_analyzer_mode', m); } catch (e) {}
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  document.querySelectorAll('.view').forEach(v => v.hidden = v.dataset.view !== m);
+  document.querySelectorAll('.pane[data-pane]').forEach(v => v.hidden = v.dataset.pane !== m);
+  $('sub').textContent = SUBS[m];
+}
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+// ── Keyboard ────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input[type=number], input[type=text], select')) return;
+  if (e.code === 'Space') {
+    if (mode === 'spectrum' && S1.src === 'cam' && CAM.stream) { e.preventDefault(); CAM.frozen = !CAM.frozen; camButtons(); }
+    if (mode === 'speed') { e.preventDefault(); V4.paused = !V4.paused; v4Show(); }
+  }
+});
+
+// ── Main loop ───────────────────────────────────────────────
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  if (mode === 'spectrum') s1Draw(now);
+  else if (mode === 'range') { r2Tick(now); drawEM(); drawEMWave(now); }
+  else if (mode === 'brightness') { drawEye(); drawExp(now); }
+  else if (mode === 'speed') v4Draw(dt);
+  requestAnimationFrame(loop);
+}
+
+readColors();
+renderSrcChips(); renderMixPresets(); renderMix(); s1Panel(); s1Rebuild(); s1SrcUI();
+r2Show(); e3Show(); v4Show();
+setMode(mode);
+requestAnimationFrame(loop);
+</script>
+
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  let saved = null; try { saved = localStorage.getItem('theme'); } catch (e) {}
+  if (saved === 'dark') { document.body.classList.add('dark'); btn.textContent = '☀'; readColors(); }
+  btn.addEventListener('click', () => {
+    const isDark = document.body.classList.toggle('dark');
+    btn.textContent = isDark ? '☀' : '🌙';
+    try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    readColors();
+  });
+})();
+</script>
+</body>
+</html>
