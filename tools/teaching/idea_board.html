@@ -400,7 +400,7 @@
     <button data-act="link-file">🔗 Auto-save to a file…</button>
     <button data-act="open-link-file">📂 Open a file &amp; keep it updated…</button>
     <button data-act="unlink-file" hidden>⛓️‍💥 Stop auto-saving to file</button>
-    <div class="hint">Every change is written to a file on your computer (e.g. in Documents or a synced Drive/Dropbox folder).</div>
+    <div class="hint">Every change is written to a file on your computer (e.g. in Documents or a synced Drive/Dropbox folder). Use the same file on each computer: changes made on one are loaded on the others.</div>
     <hr />
   </div>
   <button data-act="save-json">💾 Download a copy (.json)</button>
@@ -1726,6 +1726,9 @@
   // ───────────────────────── auto-save to a file (Chrome / Edge) ─────────────────────────
   // The file handle is kept in IndexedDB so the link survives reloads; the
   // browser asks again for permission once per session (needs a click).
+  // The same file may be open on other computers (a synced Drive/Dropbox folder),
+  // so the file is read before it is written: changes made elsewhere are loaded,
+  // never overwritten.
   const FS_OK = 'showSaveFilePicker' in window;
   let fileHandle = null, fileState = 'off', fileSavedAt = null, fileDirty = false;
   let fileTimer = 0, fileWriting = null, lastWritten = null;
@@ -1746,7 +1749,20 @@
   const idbGet = k => idb('readonly', st => st.get(k)).catch(() => null);
   const idbSet = (k, v) => idb('readwrite', st => v == null ? st.delete(k) : st.put(v, k)).catch(() => {});
 
-  const boardJSON = () => JSON.stringify({ app: 'idea-board', version: 1, data }, null, 1);
+  const boardJSON = (d = data) => JSON.stringify({ app: 'idea-board', version: 1, data: d }, null, 1);
+
+  // What this browser last read from or wrote to the file: its modified time and a
+  // hash of its content. Another time means the file was changed somewhere else;
+  // another hash means this browser has changes the file doesn't have yet.
+  const SYNC_KEY = KEY + '.fileSync';
+  let synced = {};
+  try { synced = JSON.parse(localStorage.getItem(SYNC_KEY) || '{}') || {}; } catch {}
+  const hash = s => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; };
+  function markSynced(json, stamp) {
+    lastWritten = json;
+    synced = { stamp, hash: hash(json) };
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify(synced)); } catch {}
+  }
 
   function renderFileStatus() {
     const b = $('#file-status');
@@ -1758,10 +1774,10 @@
     if (fileState === 'ok') {
       const t = fileSavedAt ? fileSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
       b.innerHTML = `💾 Auto-saving to ${name}${t ? ` · saved ${t}` : ''}`;
-      b.title = 'Every change is also written to this file';
+      b.title = 'Every change is also written to this file; changes made to it on another computer are loaded when you come back to this tab';
     } else if (fileState === 'prompt') {
-      b.innerHTML = `⚠️ Click to keep auto-saving to ${name}`;
-      b.title = 'The browser needs your OK once per session';
+      b.innerHTML = `⚠️ Click to sync with ${name}`;
+      b.title = 'Loads changes made on other computers, then keeps saving to the file. The browser needs your OK once per session';
     } else {
       b.innerHTML = `⚠️ Could not write ${name} — click to retry`;
       b.title = 'Maybe the file was moved or deleted';
@@ -1782,10 +1798,15 @@
     if (fileWriting) { fileDirty = true; return; }
     fileWriting = (async () => {
       try {
+        await pullFile();
+        if (fileState !== 'ok') return;
+        const json = boardJSON();
+        if (json === lastWritten) return;
         const w = await fileHandle.createWritable();
         await w.write(json);
         await w.close();
-        lastWritten = json; fileSavedAt = new Date();
+        markSynced(json, (await fileHandle.getFile()).lastModified);
+        fileSavedAt = new Date();
       } catch (err) {
         fileState = 'error';
       }
@@ -1796,6 +1817,48 @@
     if (fileDirty) { fileDirty = false; writeFileNow(); }
   }
 
+  // Load the file if it was changed somewhere else since this browser last saw it.
+  // If this browser has changes of its own too, ask which version wins.
+  let pulling = null;
+  const pullFile = () => pulling || (pulling = doPull().finally(() => { pulling = null; }));
+  async function doPull() {
+    const f = await fileHandle.getFile();
+    if (synced.stamp === f.lastModified) return;
+    const text = await f.text();
+    if (!text.trim()) return;
+    let incoming;
+    try { const j = JSON.parse(text); incoming = normalize(j.data || j); }
+    catch { fileState = 'error'; return; }
+    const theirs = boardJSON(incoming), mine = boardJSON();
+    if (theirs === mine) { markSynced(mine, f.lastModified); return; }
+    if (synced.hash !== hash(mine) && !confirm(
+      `${f.name} was changed on another computer or browser, and this browser also has changes that are not in the file.\n\n` +
+      `OK — load the file's version (Undo brings this browser's version back)\n` +
+      `Cancel — keep this browser's version and overwrite the file`)) {
+      // Keep ours: accept the file's time so the next write replaces it.
+      synced = { stamp: f.lastModified, hash: synced.hash };
+      lastWritten = null;
+      return;
+    }
+    flushInlineEdit();
+    checkpoint();
+    data = incoming; sel.clear(); renderAll(); saveNow();
+    markSynced(theirs, f.lastModified);
+    toast(`Loaded the latest version of ${f.name}`);
+  }
+  async function checkFile() {
+    if (!fileHandle || fileState !== 'ok') return;
+    if (fileWriting) await fileWriting;
+    try { await pullFile(); } catch { fileState = 'error'; }
+    renderFileStatus();
+    scheduleFileWrite();
+  }
+  // Coming back to the tab (e.g. the next day, after working on another computer).
+  addEventListener('focus', checkFile);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkFile();
+  });
+
   async function ensurePermission(ask) {
     const opts = { mode: 'readwrite' };
     let p = await fileHandle.queryPermission(opts);
@@ -1803,7 +1866,7 @@
     return p === 'granted';
   }
   async function linkHandle(h) {
-    fileHandle = h; lastWritten = null;
+    fileHandle = h; lastWritten = null; synced = {};
     await idbSet('fileHandle', h);
     fileState = await ensurePermission(true) ? 'ok' : 'prompt';
     renderFileStatus();
@@ -1816,6 +1879,8 @@
         types: [{ description: 'Idea Board', accept: { 'application/json': ['.json'] } }]
       });
       await linkHandle(h);
+      // A new file: whatever it held is meant to be replaced by this board.
+      if (fileState === 'ok') synced = { stamp: (await h.getFile()).lastModified };
       await writeFileNow();
       if (fileState === 'ok') toast(`Auto-saving to ${h.name}`);
     } catch (err) { if (err.name !== 'AbortError') toast('Could not use that file'); }
@@ -1830,7 +1895,7 @@
       data = normalize(j.data || j);
       sel.clear(); renderAll(); fitAll(); saveNow();
       await linkHandle(h);
-      lastWritten = boardJSON();
+      if (fileState === 'ok') markSynced(boardJSON(), (await h.getFile()).lastModified);
       toast(`Opened ${h.name} — changes will be saved to it`);
     } catch (err) { if (err.name !== 'AbortError') toast('Could not read that file'); }
   }
@@ -1844,8 +1909,8 @@
     if (!fileHandle || fileState === 'ok') return;
     try {
       if (await ensurePermission(true)) {
-        fileState = 'ok'; lastWritten = null;
-        await writeFileNow();
+        fileState = 'ok';
+        await checkFile();
       }
     } catch { fileState = 'error'; }
     renderFileStatus();
@@ -1857,7 +1922,7 @@
     fileHandle = h;
     try { fileState = await ensurePermission(false) ? 'ok' : 'prompt'; } catch { fileState = 'error'; }
     renderFileStatus();
-    scheduleFileWrite();
+    checkFile();
   }
 
   // ───────────────────────── toolbar & keys ─────────────────────────
