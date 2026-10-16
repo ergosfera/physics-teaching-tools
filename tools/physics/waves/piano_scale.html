@@ -327,9 +327,12 @@ function keyToN(k) {
 }
 const held = new Set();
 document.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.ctrlKey || e.metaKey || e.altKey) return;
+  // Only typing fields keep the keys; menus, checkboxes and buttons must not swallow them
+  if ((e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') || e.ctrlKey || e.metaKey || e.altKey) return;
   const n = keyToN(e.key);
-  if (n < 0 || n >= N() || held.has(e.key)) return;
+  if (n < 0 || n >= N()) return;
+  e.preventDefault();               // stop a focused menu from jumping to another option
+  if (held.has(e.key)) return;
   held.add(e.key); press(n);
 });
 document.addEventListener('keyup', e => held.delete(e.key));
@@ -534,6 +537,8 @@ $('play-major').onclick = () => { const m = [0, 2, 4, 5, 7, 9, 11]; const s = []
 $('play-melody').onclick = () => playSeq([4,4,5,7,7,5,4,2,0,0,2,4,4,2,2, -1, 4,4,5,7,7,5,4,2,0,0,2,4,2,0,0], 0.34);
 $('play-octave').onclick = () => playSeq([0, 12, 0, 12], 0.55);
 window.addEventListener('resize', drawPlot);
+// Hand focus back to the page after a menu choice so the computer keyboard plays notes again
+document.querySelectorAll('#top-bar select').forEach(s => s.addEventListener('change', () => s.blur()));
 
 renderAll();
 </script>
