@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Potential Difference</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+:root {
+  --border:  #c8d4e0;
+  --text:    #1a2234;
+  --muted:   #607080;
+  --accent:  #1858a8;
+  --surface: #ffffff;
+  --bg:      #f0f4f8;
+  --green:   #16a34a;
+  --red:     #dc2626;
+  --blue:    #2563eb;
+  --purple:  #7c3aed;
+  --orange:  #ea580c;
+  --teal:    #0d9488;
+  --grid:    #e3e9f0;
+  --dim:     #b8c4d0;
+  --ground:  #a3b18a;
+}
+body.dark {
+  --border:  #30363d;
+  --text:    #e6edf3;
+  --muted:   #8b949e;
+  --accent:  #58a6ff;
+  --surface: #161b22;
+  --bg:      #0d1117;
+  --green:   #3fb950;
+  --red:     #f85149;
+  --blue:    #60a5fa;
+  --purple:  #a78bfa;
+  --orange:  #fb923c;
+  --teal:    #2dd4bf;
+  --grid:    #21262d;
+  --dim:     #3d444d;
+  --ground:  #4a5a3a;
+}
+#theme-toggle {
+  position: fixed; bottom: 10px; right: 10px; z-index: 50;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 12px; cursor: pointer;
+  font-size: 0.8rem; font-weight: 600; color: var(--muted); user-select: none;
+}
+#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text); background: var(--bg); font-size: 15px; }
+body { display: flex; flex-direction: column; }
+button, input, select { font: inherit; color: inherit; }
+
+/* ── Top bar ── */
+#top-bar {
+  flex-shrink: 0; min-height: 48px;
+  display: flex; align-items: center; flex-wrap: wrap; padding: 6px 14px; gap: 8px 14px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+}
+#top-bar h1 { font-size: 1.05rem; font-weight: 800; letter-spacing: .02em; white-space: nowrap; }
+#top-bar .sub { font-size: 0.8rem; color: var(--muted); flex: 1; min-width: 200px; }
+#tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab {
+  border: 1px solid var(--border); background: var(--bg); border-radius: 16px;
+  padding: 4px 12px; font-size: 0.82rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+}
+.tab:hover { border-color: var(--accent); color: var(--accent); }
+.tab.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── Layout ── */
+#main { flex: 1; display: flex; min-height: 0; }
+#stage { flex: 1; position: relative; min-width: 0; padding: 8px; }
+.plot { position: relative; width: 100%; height: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+.plot canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#panel {
+  width: 370px; flex-shrink: 0; overflow-y: auto; padding: 14px 14px 60px;
+  background: var(--surface); border-left: 2px solid var(--border);
+}
+@media (max-width: 860px) {
+  html, body { overflow: auto; height: auto; }
+  #main { flex-direction: column; }
+  #stage { height: 62vh; flex: none; }
+  #panel { width: 100%; border-left: none; border-top: 2px solid var(--border); }
+}
+.pane { display: flex; flex-direction: column; gap: 14px; }
+
+/* ── Panel controls ── */
+.group { display: flex; flex-direction: column; gap: 6px; }
+.group > label, .group-title {
+  font-size: 0.72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  display: flex; justify-content: space-between; align-items: baseline; gap: 6px;
+}
+.group > label .val { font-size: 0.95rem; letter-spacing: 0; text-transform: none; color: var(--text); font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip {
+  border: 1px solid var(--border); background: var(--bg); border-radius: 14px;
+  padding: 2px 9px; font-size: 0.78rem; font-weight: 700; cursor: pointer; color: var(--text);
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.row { display: flex; gap: 6px; }
+.btn {
+  flex: 1; border: 2px solid var(--accent); background: var(--accent); color: #fff;
+  border-radius: 10px; padding: 8px 10px; font-weight: 800; cursor: pointer; font-size: 0.88rem;
+}
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn:disabled { opacity: .45; cursor: default; }
+
+.intro { font-size: 0.9rem; line-height: 1.5; }
+.meas { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+.meas .k { color: var(--muted); }
+.meas .v { text-align: right; font-weight: 700; }
+.meas .v.res { color: var(--green); font-size: 1rem; }
+.meas .sep { grid-column: 1 / -1; border-top: 1px solid var(--grid); }
+.key-idea {
+  border-left: 4px solid var(--green); background: color-mix(in srgb, var(--green) 10%, transparent);
+  padding: 8px 12px; border-radius: 0 8px 8px 0; font-size: 0.88rem; line-height: 1.5;
+}
+.eq { font-family: 'Cambria Math', Cambria, Georgia, serif; font-size: 1.08rem; text-align: center; padding: 6px; background: var(--bg); border-radius: 8px; }
+table.mini { width: 100%; border-collapse: collapse; font-size: 0.84rem; font-variant-numeric: tabular-nums; }
+table.mini th, table.mini td { padding: 3px 6px; border-bottom: 1px solid var(--grid); text-align: right; }
+table.mini th { color: var(--muted); font-weight: 700; }
+table.mini td:first-child, table.mini th:first-child { text-align: left; }
+table.mini tr.cur td { background: color-mix(in srgb, var(--accent) 12%, transparent); font-weight: 700; }
+td.same { color: var(--green); font-weight: 800; }
+table.analogy td:first-child { text-align: left; color: var(--orange); font-weight: 700; }
+table.analogy td:last-child { text-align: left; color: var(--blue); font-weight: 700; }
+table.analogy td:nth-child(2) { text-align: center; color: var(--muted); font-weight: 400; font-size: .78rem; }
+details { border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; }
+details summary { cursor: pointer; font-weight: 800; font-size: 0.88rem; }
+details p { font-size: 0.86rem; line-height: 1.5; margin-top: 6px; }
+.pos { color: var(--red); } .neg { color: var(--blue); }
+sup, sub { font-size: .72em; }
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+  <h1>⚡ Potential Difference</h1>
+  <nav id="tabs">
+    <button class="tab on" data-t="1">① Height and gravity</button>
+    <button class="tab" data-t="2">② Voltage and charge</button>
+    <button class="tab" data-t="3">③ Let it fall</button>
+    <button class="tab" data-t="4">④ Hills around a charge</button>
+  </nav>
+  <span class="sub" id="sub"></span>
+</div>
+
+<div id="main">
+  <div id="stage"><div class="plot"><canvas id="cv"></canvas></div></div>
+
+  <aside id="panel">
+    <!-- ① Gravity -->
+    <div class="pane" id="p1">
+      <p class="intro">Lifting a ball from level A to level B stores energy in the ball–Earth system. How much depends on the <b>mass</b>. But the energy <b>per kilogram</b> depends only on the two levels.</p>
+      <div class="group"><label>Height of A <span class="val" id="g-hA-v"></span></label><input type="range" id="g-hA" min="0" max="10" step="0.5" value="2"></div>
+      <div class="group"><label>Height of B <span class="val" id="g-hB-v"></span></label><input type="range" id="g-hB" min="0" max="10" step="0.5" value="7"></div>
+      <div class="group"><label>Mass m <span class="val" id="g-m-v"></span></label><input type="range" id="g-m" min="0.5" max="5" step="0.5" value="1"></div>
+      <div class="row"><button class="btn" id="g-up">Move A → B</button><button class="btn ghost" id="g-down">Move B → A</button></div>
+      <div class="meas" id="g-meas"></div>
+      <div class="group"><div class="group-title">Same two levels, different masses</div><table class="mini" id="g-tbl"></table></div>
+      <div class="key-idea" id="g-key"></div>
+      <details open>
+        <summary>What to notice</summary>
+        <p>The dashed lines are <b>levels</b>: every point on one line has the same value of g·h. Moving sideways along a line costs no energy.</p>
+        <p>Change the mass: ΔU changes, but ΔU / m stays the same. The number g·Δh describes the <b>two levels</b>, not the ball. We could call it the <i>gravitational potential difference</i>, measured in J/kg.</p>
+        <p>Going up, you do positive work and the stored energy grows. Going down, gravity does the work and the stored energy shrinks.</p>
+      </details>
+    </div>
+
+    <!-- ② Electric -->
+    <div class="pane" id="p2" hidden>
+      <p class="intro">Two charged plates make a uniform field, just like gravity near the ground. Moving a charge from A to B changes the stored energy. The energy <b>per coulomb</b> is the <b>potential difference</b>, or voltage.</p>
+      <div class="group"><label>Voltage between plates <span class="val" id="e-V-v"></span></label><input type="range" id="e-V" min="0" max="500" step="10" value="300"></div>
+      <div class="group"><label>Plate separation d <span class="val" id="e-d-v"></span></label><input type="range" id="e-d" min="2" max="10" step="1" value="6"></div>
+      <div class="group"><label>Position of A (from − plate) <span class="val" id="e-yA-v"></span></label><input type="range" id="e-yA" min="0" max="100" step="5" value="20"></div>
+      <div class="group"><label>Position of B (from − plate) <span class="val" id="e-yB-v"></span></label><input type="range" id="e-yB" min="0" max="100" step="5" value="80"></div>
+      <div class="group"><label>Test charge q <span class="val" id="e-q-v"></span></label><input type="range" id="e-q" min="-5" max="5" step="1" value="2"></div>
+      <div class="row"><button class="btn" id="e-go">Move A → B</button><button class="btn ghost" id="e-back">Move B → A</button></div>
+      <div class="meas" id="e-meas"></div>
+      <div class="key-idea" id="e-key"></div>
+      <div class="group"><div class="group-title">The analogy</div>
+        <table class="mini analogy">
+          <tr><td>mass m</td><td>↔</td><td>charge q</td></tr>
+          <tr><td>field g (N/kg)</td><td>↔</td><td>field E (N/C)</td></tr>
+          <tr><td>U = m·g·h</td><td>↔</td><td>U = q·E·y</td></tr>
+          <tr><td>g·h (J/kg)</td><td>↔</td><td>V = E·y (J/C = volt)</td></tr>
+          <tr><td>ΔU = m·(gΔh)</td><td>↔</td><td>ΔU = q·ΔV</td></tr>
+        </table>
+      </div>
+      <details>
+        <summary>What to notice</summary>
+        <p>The dashed lines are <b>equipotentials</b>: the electric version of levels. Every point on one line has the same voltage, so moving a charge along it takes no work.</p>
+        <p>Make q negative. The energy change flips sign, but ΔV does not: ΔV belongs to the two places, not to the charge. Gravity has only one kind of mass, so it never shows this.</p>
+        <p>1 volt means 1 joule for every coulomb that crosses between the two places.</p>
+      </details>
+    </div>
+
+    <!-- ③ Release -->
+    <div class="pane" id="p3" hidden>
+      <p class="intro">Let go, and the stored energy becomes kinetic energy. A ball falls through a height; a charged particle "falls" through a voltage.</p>
+      <div class="group"><label>Drop height h <span class="val" id="r-h-v"></span></label><input type="range" id="r-h" min="1" max="50" step="1" value="20"></div>
+      <div class="group"><label>Voltage ΔV <span class="val" id="r-V-v"></span></label><input type="range" id="r-V" min="10" max="1000" step="10" value="100"></div>
+      <div class="group"><div class="group-title">Particle</div>
+        <div class="chips" id="r-part">
+          <button class="chip on" data-p="p">proton</button>
+          <button class="chip" data-p="e">electron</button>
+          <button class="chip" data-p="a">alpha (He²⁺)</button>
+        </div>
+      </div>
+      <div class="row"><button class="btn" id="r-go">▶ Release both</button><button class="btn ghost" id="r-reset">↺ Reset</button></div>
+      <div class="meas" id="r-meas"></div>
+      <div class="key-idea" id="r-key"></div>
+      <details>
+        <summary>What to notice</summary>
+        <p>For the ball, ½mv² = m·g·h, so the mass cancels: every ball dropped from the same height lands with the same speed.</p>
+        <p>For the particle, ½mv² = q·ΔV. Here q/m matters: an electron and a proton gain exactly the same energy through the same voltage, but the much lighter electron ends up far faster.</p>
+        <p>The electron is negative, so it "falls" from the − plate toward the + plate: from low potential to high potential. The plates are flipped for it so it still falls downward on screen.</p>
+        <p><b>Electronvolt:</b> the energy one elementary charge gains across 1 V. 1 eV = 1.602 × 10⁻¹⁹ J.</p>
+      </details>
+      <details>
+        <summary>About the animation</summary>
+        <p>Both motions are shown in the same 1.6 s so they can be compared. The real particle crosses the gap in nanoseconds. Gravity on the particle is ignored: the electric force is about 10¹² times larger.</p>
+      </details>
+    </div>
+
+    <!-- ④ Point charge -->
+    <div class="pane" id="p4" hidden>
+      <p class="intro">Around a single charge the levels are no longer flat. A positive charge makes a <b>hill</b> of potential; a negative charge makes a <b>valley</b>, like the gravity well of a planet. Drag <b>A</b> and <b>B</b>.</p>
+      <div class="group"><label>Source charge Q <span class="val" id="h-Q-v"></span></label><input type="range" id="h-Q" min="-10" max="10" step="1" value="5"></div>
+      <div class="group"><label>Test charge q <span class="val" id="h-q-v"></span></label><input type="range" id="h-q" min="-5" max="5" step="1" value="1"></div>
+      <div class="group"><div class="group-title">Path from A to B</div>
+        <div class="chips" id="h-path">
+          <button class="chip on" data-v="both">Show both paths</button>
+          <button class="chip" data-v="none">Hide paths</button>
+        </div>
+      </div>
+      <div class="meas" id="h-meas"></div>
+      <div class="group"><div class="group-title">Potential along a line through Q</div><canvas id="prof" style="width:100%;height:150px;display:block"></canvas></div>
+      <div class="key-idea" id="h-key"></div>
+      <details>
+        <summary>What to notice</summary>
+        <p>The circles are <b>equipotentials</b>, like the contour lines on a hiking map. Close circles mean a steep hill: a strong field.</p>
+        <p>The field E always points "downhill", from high V to low V, and crosses the equipotentials at right angles.</p>
+        <p>The work along the straight path and along the bent path is the same. Only the start and end levels matter, just as the energy to climb a mountain depends only on the change in altitude, not on the trail.</p>
+        <p>Far away, V → 0. That is our reference level, like choosing the ground as h = 0.</p>
+      </details>
+    </div>
+  </aside>
+</div>
+
+<button id="theme-toggle">🌙</button>
+
+<script>
+const $ = id => document.getElementById(id);
+const g = 9.8, k = 8.99e9, e = 1.602e-19;
+const cv = $('cv');
+let C = {}, W = 0, H = 0, ctx = cv.getContext('2d');
+
+function readColors() {
+  const s = getComputedStyle(document.body), v = n => s.getPropertyValue(n).trim();
+  C = { border: v('--border'), text: v('--text'), muted: v('--muted'), accent: v('--accent'), surface: v('--surface'), bg: v('--bg'),
+        green: v('--green'), red: v('--red'), blue: v('--blue'), purple: v('--purple'), orange: v('--orange'), teal: v('--teal'),
+        grid: v('--grid'), dim: v('--dim'), ground: v('--ground'), dark: document.body.classList.contains('dark') };
+  heatKey = '';
+}
+function fitCanvas(c) {
+  const dpr = window.devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight;
+  if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+  const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); return [x, w, h];
+}
+
+// ── Formatting ──────────────────────────────────────────────────
+const SUP = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+function sci(x, d = 2) {
+  if (x === 0) return '0';
+  const ex = Math.floor(Math.log10(Math.abs(x)));
+  if (ex >= -2 && ex < 4) return (+x.toFixed(Math.max(0, d - ex))).toString();
+  const m = x / Math.pow(10, ex);
+  return m.toFixed(d) + ' × 10' + String(ex).split('').map(c => SUP[c]).join('');
+}
+const sgn = x => (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x);
+function signed(str, x) { return (x > 0 ? '+' : x < 0 ? '−' : '') + str; }
+
+// ── Drawing helpers ─────────────────────────────────────────────
+function arrow(c, x1, y1, x2, y2, col, w = 2, head = 8) {
+  const a = Math.atan2(y2 - y1, x2 - x1);
+  c.strokeStyle = col; c.fillStyle = col; c.lineWidth = w;
+  c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2 - Math.cos(a) * head * 0.6, y2 - Math.sin(a) * head * 0.6); c.stroke();
+  c.beginPath(); c.moveTo(x2, y2);
+  c.lineTo(x2 - head * Math.cos(a - 0.4), y2 - head * Math.sin(a - 0.4));
+  c.lineTo(x2 - head * Math.cos(a + 0.4), y2 - head * Math.sin(a + 0.4)); c.closePath(); c.fill();
+}
+function label(c, t, x, y, col, font = '12px Segoe UI, sans-serif', align = 'left', base = 'middle') {
+  c.font = font; c.fillStyle = col; c.textAlign = align; c.textBaseline = base; c.fillText(t, x, y);
+}
+function charge(c, x, y, q, r = 13) {
+  const col = q > 0 ? C.red : q < 0 ? C.blue : C.muted;
+  c.beginPath(); c.arc(x, y, r, 0, 7); c.fillStyle = col; c.fill();
+  c.strokeStyle = C.surface; c.lineWidth = 2; c.stroke();
+  label(c, q > 0 ? '+' : q < 0 ? '−' : '0', x, y + 1, '#fff', `bold ${Math.round(r * 1.3)}px Segoe UI`, 'center');
+}
+const ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+
+// ── Tabs ────────────────────────────────────────────────────────
+const SUBS = {
+  1: 'Energy per kilogram depends only on the two levels.',
+  2: 'Voltage is energy per coulomb: ΔV = ΔU / q.',
+  3: 'Stored energy becomes kinetic energy: ½mv² = qΔV.',
+  4: 'Equipotentials are contour lines of a potential "landscape".'
+};
+let tab = 1;
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
+  tab = +b.dataset.t;
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
+  for (let i = 1; i <= 4; i++) $('p' + i).hidden = i !== tab;
+  $('sub').textContent = SUBS[tab];
+  update();
+}));
+$('sub').textContent = SUBS[1];
+
+// ════════════════════════════════════════════════════════════════
+// ① Gravity
+// ════════════════════════════════════════════════════════════════
+const G = { pos: 2, from: 2, to: 2, t0: 0, dur: 0, last: null };
+function gVals() { return { hA: +$('g-hA').value, hB: +$('g-hB').value, m: +$('g-m').value }; }
+function gMove(toB) {
+  const { hA, hB } = gVals();
+  G.from = G.pos; G.to = toB ? hB : hA; G.t0 = performance.now();
+  G.dur = 400 + 160 * Math.abs(G.to - G.from);
+  G.last = { start: toB ? 'A' : 'B', end: toB ? 'B' : 'A', h1: toB ? hA : hB, h2: toB ? hB : hA };
+}
+$('g-up').onclick = () => { G.pos = gVals().hA; gMove(true); };
+$('g-down').onclick = () => { G.pos = gVals().hB; gMove(false); };
+['g-hA', 'g-hB', 'g-m'].forEach(id => $(id).addEventListener('input', () => {
+  if (id === 'g-hA') { G.pos = G.from = G.to = +$('g-hA').value; G.last = null; }
+  if (id === 'g-hB') { G.last = null; }
+  update();
+}));
+
+function gPanel() {
+  const { hA, hB, m } = gVals(), dh = hB - hA, dU = m * g * dh, perKg = g * dh;
+  $('g-hA-v').textContent = hA.toFixed(1) + ' m';
+  $('g-hB-v').textContent = hB.toFixed(1) + ' m';
+  $('g-m-v').textContent = m.toFixed(1) + ' kg';
+  $('g-meas').innerHTML = `
+    <span class="k">Δh = h<sub>B</sub> − h<sub>A</sub></span><span class="v">${signed(Math.abs(dh).toFixed(1), dh)} m</span>
+    <span class="k">ΔU = m · g · Δh (A → B)</span><span class="v">${signed(Math.abs(dU).toFixed(1), dU)} J</span>
+    <span class="sep"></span>
+    <span class="k">ΔU / m = g · Δh</span><span class="v res">${signed(Math.abs(perKg).toFixed(1), perKg)} J/kg</span>`;
+  const masses = [0.5, 1, 2, 5]; if (!masses.includes(m)) masses.push(m); masses.sort((a, b) => a - b);
+  $('g-tbl').innerHTML = '<tr><th>m (kg)</th><th>ΔU (J)</th><th>ΔU / m (J/kg)</th></tr>' + masses.map(mm =>
+    `<tr class="${mm === m ? 'cur' : ''}"><td>${mm}</td><td>${(mm * g * dh).toFixed(1)}</td><td class="same">${perKg.toFixed(1)}</td></tr>`).join('');
+  $('g-key').innerHTML = dh === 0
+    ? 'A and B are on the same level: no energy change for any mass.'
+    : `Every kilogram moved from A to B ${dh > 0 ? 'gains' : 'loses'} <b>${Math.abs(perKg).toFixed(1)} J</b>. That number belongs to the two levels, whatever is moved.`;
+}
+
+function gDraw(now) {
+  const c = ctx, { hA, hB, m } = gVals();
+  if (G.dur) { const t = (now - G.t0) / G.dur; G.pos = G.from + (G.to - G.from) * ease(t); if (t >= 1) { G.pos = G.to; G.dur = 0; } }
+  const top = 30, bot = H - 50, hMax = 10;
+  const Y = h => bot - (h / hMax) * (bot - top);
+  // sky / ground
+  c.fillStyle = C.ground; c.fillRect(0, bot, W, H - bot);
+  // levels (equipotentials)
+  for (let h = 0; h <= hMax; h++) {
+    c.strokeStyle = C.purple; c.globalAlpha = h % 5 === 0 ? 0.55 : 0.28; c.setLineDash([6, 6]); c.lineWidth = 1;
+    c.beginPath(); c.moveTo(70, Y(h)); c.lineTo(W - 120, Y(h)); c.stroke();
+    c.setLineDash([]); c.globalAlpha = 1;
+    label(c, `${h} m`, 62, Y(h), C.muted, '11px Segoe UI', 'right');
+    label(c, `g·h = ${(g * h).toFixed(0)} J/kg`, W - 112, Y(h), C.purple, '11px Segoe UI');
+  }
+  // field arrows
+  const fx = 100;
+  for (let h = 9.5; h > 0.5; h -= 2) arrow(c, fx, Y(h), fx, Y(h - 1.2), C.dim, 2, 9);
+  label(c, 'g', fx + 10, Y(9.2), C.muted, 'bold 13px Segoe UI');
+  // shelves
+  const sx1 = W * 0.36, sx2 = W * 0.58;
+  [[hA, 'A', C.orange], [hB, 'B', C.accent]].forEach(([h, n, col]) => {
+    c.fillStyle = col; c.fillRect(sx1, Y(h), sx2 - sx1, 5);
+    label(c, n, sx1 - 12, Y(h) + 2, col, 'bold 16px Segoe UI', 'right');
+  });
+  // Δh dimension
+  if (hA !== hB) {
+    const dx = sx2 + 30;
+    arrow(c, dx, Y(hA), dx, Y(hB), C.text, 1.5, 7);
+    label(c, `Δh = ${(hB - hA).toFixed(1)} m`, dx + 8, (Y(hA) + Y(hB)) / 2, C.text, 'bold 12px Segoe UI');
+  }
+  // ball
+  const r = 9 + 6 * Math.cbrt(m);
+  const bx = (sx1 + sx2) / 2, by = Y(G.pos) - r;
+  c.beginPath(); c.arc(bx, by, r, 0, 7); c.fillStyle = C.orange; c.fill();
+  c.strokeStyle = C.surface; c.lineWidth = 2; c.stroke();
+  label(c, m + ' kg', bx, by + 1, '#fff', 'bold 11px Segoe UI', 'center');
+  const U = m * g * G.pos;
+  // move-in-progress readout
+  if (G.last) {
+    const dU = m * g * (G.last.h2 - G.last.h1);
+    label(c, `${G.last.start} → ${G.last.end}:  ΔU = ${signed(Math.abs(dU).toFixed(1), dU)} J`, sx1, top - 12, dU >= 0 ? C.green : C.red, 'bold 13px Segoe UI');
+  }
+  label(c, `U = m·g·h = ${U.toFixed(1)} J  (ground: h = 0)`, sx1, H - 22, C.text, '12px Segoe UI');
+}
+
+// ════════════════════════════════════════════════════════════════
+// ② Uniform electric field
+// ════════════════════════════════════════════════════════════════
+const E2 = { s: 0, from: 0, to: 0, t0: 0, dur: 0, last: null };
+function eVals() { return { V: +$('e-V').value, d: +$('e-d').value / 100, yA: +$('e-yA').value / 100, yB: +$('e-yB').value / 100, q: +$('e-q').value * 1e-9 }; }
+function eMove(toB) {
+  E2.from = toB ? 0 : 1; E2.to = toB ? 1 : 0; E2.s = E2.from; E2.t0 = performance.now(); E2.dur = 900;
+  E2.last = toB ? 'AB' : 'BA';
+}
+$('e-go').onclick = () => eMove(true);
+$('e-back').onclick = () => eMove(false);
+['e-V', 'e-d', 'e-yA', 'e-yB', 'e-q'].forEach(id => $(id).addEventListener('input', () => { if (id === 'e-yA' || id === 'e-yB') { E2.s = 0; E2.last = null; } update(); }));
+
+function ePanel() {
+  const { V, d, yA, yB, q } = eVals();
+  const E = d ? V / d : 0, VA = V * yA, VB = V * yB, dV = VB - VA, dU = q * dV;
+  $('e-V-v').textContent = V + ' V';
+  $('e-d-v').textContent = (d * 100).toFixed(0) + ' cm';
+  $('e-yA-v').textContent = (yA * d * 100).toFixed(1) + ' cm';
+  $('e-yB-v').textContent = (yB * d * 100).toFixed(1) + ' cm';
+  const qn = +$('e-q').value;
+  $('e-q-v').innerHTML = `<span class="${qn > 0 ? 'pos' : qn < 0 ? 'neg' : ''}">${qn > 0 ? '+' : qn < 0 ? '−' : ''}${Math.abs(qn)} nC</span>`;
+  $('e-meas').innerHTML = `
+    <span class="k">Field E = V / d</span><span class="v">${E.toFixed(0)} V/m = N/C</span>
+    <span class="k">V<sub>A</sub> = E · y<sub>A</sub></span><span class="v">${VA.toFixed(0)} V</span>
+    <span class="k">V<sub>B</sub> = E · y<sub>B</sub></span><span class="v">${VB.toFixed(0)} V</span>
+    <span class="sep"></span>
+    <span class="k">ΔU = q · ΔV (A → B)</span><span class="v">${dU === 0 ? '0' : signed(sci(Math.abs(dU) * 1e9), dU)} nJ</span>
+    <span class="k">ΔV = ΔU / q = V<sub>B</sub> − V<sub>A</sub></span><span class="v res">${signed(Math.abs(dV).toFixed(0), dV)} V</span>`;
+  let key;
+  if (qn === 0) key = 'With no charge there is no energy change, but ΔV is still there: it belongs to the places A and B.';
+  else if (dV === 0) key = 'A and B are on the same equipotential: no energy change for any charge.';
+  else key = `Every coulomb moved from A to B ${dV > 0 ? 'gains' : 'loses'} <b>${Math.abs(dV).toFixed(0)} J</b>: that is what “${Math.abs(dV).toFixed(0)} V” means. ` +
+    (qn < 0 ? `This charge is negative, so its energy goes the <b>opposite</b> way (${dU > 0 ? 'up' : 'down'}).` : `This positive charge ${dU > 0 ? 'gains' : 'loses'} energy, like a mass moving ${dU > 0 ? 'up' : 'down'}.`);
+  $('e-key').innerHTML = key;
+}
+
+function eDraw(now) {
+  const c = ctx, { V, d, yA, yB, q } = eVals(), qn = +$('e-q').value;
+  if (E2.dur) { const t = (now - E2.t0) / E2.dur; E2.s = E2.from + (E2.to - E2.from) * ease(t); if (t >= 1) { E2.s = E2.to; E2.dur = 0; } }
+  const L = 90, R = W - 130, maxGap = H - 120, gap = maxGap * (d / 0.10), top = (H - gap) / 2, bot = top + gap;
+  const Y = y => bot - y * gap;
+  // plates
+  c.fillStyle = C.red; c.fillRect(L - 10, top - 12, R - L + 20, 10);
+  c.fillStyle = C.blue; c.fillRect(L - 10, bot + 2, R - L + 20, 10);
+  label(c, `+  ${V} V`, L - 16, top - 7, C.red, 'bold 13px Segoe UI', 'right');
+  label(c, '−  0 V', L - 16, bot + 7, C.blue, 'bold 13px Segoe UI', 'right');
+  for (let x = L + 10; x < R; x += 34) { label(c, '+', x, top - 7, '#fff', 'bold 10px Segoe UI', 'center'); label(c, '−', x, bot + 7, '#fff', 'bold 10px Segoe UI', 'center'); }
+  // equipotentials
+  for (let i = 1; i < 10; i++) {
+    const y = Y(i / 10);
+    c.strokeStyle = C.purple; c.globalAlpha = 0.35; c.setLineDash([6, 6]); c.lineWidth = 1;
+    c.beginPath(); c.moveTo(L, y); c.lineTo(R, y); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+    label(c, `${(V * i / 10).toFixed(0)} V`, R + 8, y, C.purple, '11px Segoe UI');
+  }
+  // field arrows
+  if (V > 0) for (let x = L + 30; x < R; x += (R - L) / 7) arrow(c, x, top + 8, x, top + Math.min(60, gap * 0.35), C.dim, 2, 8);
+  label(c, 'E', L + 40, top + 22, C.muted, 'bold 13px Segoe UI');
+  // A, B
+  const xA = L + (R - L) * 0.3, xB = L + (R - L) * 0.7;
+  [[xA, yA, 'A', C.orange], [xB, yB, 'B', C.accent]].forEach(([x, y, n, col]) => {
+    c.beginPath(); c.arc(x, Y(y), 5, 0, 7); c.fillStyle = col; c.fill();
+    label(c, n, x - 10, Y(y) - 12, col, 'bold 16px Segoe UI', 'right');
+  });
+  // path + charge
+  c.strokeStyle = C.muted; c.setLineDash([3, 4]); c.lineWidth = 1.5; c.beginPath(); c.moveTo(xA, Y(yA)); c.lineTo(xB, Y(yB)); c.stroke(); c.setLineDash([]);
+  const s = E2.s, x = xA + (xB - xA) * s, y = Y(yA + (yB - yA) * s);
+  charge(c, x, y, qn, 13);
+  // force arrow on charge
+  if (qn && V) { const dir = qn > 0 ? 1 : -1; arrow(c, x + 20, y, x + 20, y + dir * 34, qn > 0 ? C.red : C.blue, 2.5, 8); label(c, 'F = qE', x + 28, y + dir * 20, C.muted, '11px Segoe UI'); }
+  if (E2.last) {
+    const dV = V * (E2.last === 'AB' ? yB - yA : yA - yB), dU = q * dV;
+    label(c, `${E2.last === 'AB' ? 'A → B' : 'B → A'}:  ΔV = ${signed(Math.abs(dV).toFixed(0), dV)} V,  ΔU = q·ΔV = ${dU === 0 ? '0' : signed(sci(Math.abs(dU) * 1e9), dU)} nJ`, L, 20, dU > 0 ? C.green : dU < 0 ? C.red : C.muted, 'bold 13px Segoe UI');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// ③ Release
+// ════════════════════════════════════════════════════════════════
+const PART = { p: { n: 'proton', q: e, m: 1.6726e-27 }, e: { n: 'electron', q: -e, m: 9.109e-31 }, a: { n: 'alpha', q: 2 * e, m: 6.644e-27 } };
+const R3 = { part: 'p', t0: 0, run: false, s: 0 };
+document.querySelectorAll('#r-part .chip').forEach(b => b.addEventListener('click', () => {
+  R3.part = b.dataset.p; document.querySelectorAll('#r-part .chip').forEach(x => x.classList.toggle('on', x === b)); R3.s = 0; R3.run = false; update();
+}));
+$('r-go').onclick = () => { R3.t0 = performance.now(); R3.run = true; };
+$('r-reset').onclick = () => { R3.run = false; R3.s = 0; };
+['r-h', 'r-V'].forEach(id => $(id).addEventListener('input', () => { R3.run = false; R3.s = 0; update(); }));
+
+function rPanel() {
+  const h = +$('r-h').value, V = +$('r-V').value, P = PART[R3.part];
+  $('r-h-v').textContent = h + ' m'; $('r-V-v').textContent = V + ' V';
+  const vb = Math.sqrt(2 * g * h), K = Math.abs(P.q) * V, vp = Math.sqrt(2 * K / P.m), eV = Math.abs(P.q / e) * V;
+  $('r-meas').innerHTML = `
+    <span class="k" style="color:var(--orange);font-weight:800">Ball</span><span></span>
+    <span class="k">Energy gained per kg = g·h</span><span class="v">${(g * h).toFixed(0)} J/kg</span>
+    <span class="k">Final speed v = √(2gh)</span><span class="v">${vb.toFixed(1)} m/s</span>
+    <span class="sep"></span>
+    <span class="k" style="color:${P.q > 0 ? 'var(--red)' : 'var(--blue)'};font-weight:800">${P.n[0].toUpperCase() + P.n.slice(1)}</span><span></span>
+    <span class="k">Charge q</span><span class="v">${P.q > 0 ? '+' : '−'}${Math.abs(P.q / e)} e</span>
+    <span class="k">Energy gained K = |q|·ΔV</span><span class="v">${sci(K)} J</span>
+    <span class="k">… in electronvolts</span><span class="v res">${eV} eV</span>
+    <span class="k">Final speed v = √(2|q|ΔV / m)</span><span class="v">${sci(vp)} m/s</span>`;
+  $('r-key').innerHTML = `The ball gets <b>g·h = ${(g * h).toFixed(0)} J</b> for each kilogram. The ${P.n} gets <b>ΔV = ${V} J</b> for each coulomb. ` +
+    `Potential difference is “energy gained per unit of what is falling”.`;
+}
+
+function rDraw(now) {
+  const c = ctx, h = +$('r-h').value, V = +$('r-V').value, P = PART[R3.part];
+  if (R3.run) { const t = (now - R3.t0) / 1600; R3.s = Math.min(1, t * t); if (t >= 1) R3.run = false; }
+  const s = R3.s;
+  const mid = W / 2, top = 50, bot = H - 120;
+  // divider
+  c.strokeStyle = C.grid; c.lineWidth = 1; c.beginPath(); c.moveTo(mid, 10); c.lineTo(mid, H - 10); c.stroke();
+  const title = (a, b, x, col) => {
+    if (mid > 270) label(c, a + ' ' + b, x, 20, col, 'bold 13px Segoe UI', 'center');
+    else { label(c, a, x, 14, col, 'bold 12px Segoe UI', 'center'); label(c, b, x, 30, col, 'bold 12px Segoe UI', 'center'); }
+  };
+  title('Gravity:', 'falling through a height', mid / 2, C.orange);
+  title('Electricity:', 'falling through a voltage', mid * 1.5, P.q > 0 ? C.red : C.blue);
+  // ── left: tower
+  const hpx = (bot - top) * (h / 50) ;
+  const y0 = bot - hpx;
+  c.fillStyle = C.ground; c.fillRect(20, bot, mid - 40, 10);
+  c.fillStyle = C.dim; c.fillRect(mid * 0.25, y0, 30, hpx);
+  arrow(c, mid * 0.25 - 14, bot, mid * 0.25 - 14, y0, C.muted, 1.2, 6); arrow(c, mid * 0.25 - 14, y0, mid * 0.25 - 14, bot, C.muted, 1.2, 6);
+  label(c, `h = ${h} m`, mid * 0.25 + 15, y0 - 10, C.text, 'bold 12px Segoe UI', 'center');
+  const bx = mid * 0.25 + 50, by = y0 + (bot - y0) * s - 11;
+  c.beginPath(); c.arc(bx, Math.min(by, bot - 11), 11, 0, 7); c.fillStyle = C.orange; c.fill();
+  // ── right: plates
+  const px = mid * 1.5, gtop = top + 34, gbot = bot - 14, pw = Math.min(120, mid * 0.36);
+  const upper = P.q > 0 ? C.red : C.blue, lower = P.q > 0 ? C.blue : C.red;
+  c.fillStyle = upper; c.fillRect(px - pw, gtop - 10, 2 * pw, 10);
+  c.fillStyle = lower; c.fillRect(px - pw, gbot, 2 * pw, 10);
+  label(c, P.q > 0 ? `+  ${V} V` : '−  0 V', px, gtop - 18, upper, 'bold 12px Segoe UI', 'center');
+  label(c, P.q > 0 ? '−  0 V' : `+  ${V} V`, px, gbot + 22, lower, 'bold 12px Segoe UI', 'center');
+  const dx = px - pw - 12;
+  arrow(c, dx, gbot, dx, gtop, C.muted, 1.2, 6); arrow(c, dx, gtop, dx, gbot, C.muted, 1.2, 6);
+  c.save(); c.translate(dx - 8, (gtop + gbot) / 2); c.rotate(-Math.PI / 2); label(c, `ΔV = ${V} V`, 0, 0, C.text, 'bold 12px Segoe UI', 'center'); c.restore();
+  for (let i = -2; i <= 2; i++) arrow(c, px + i * pw * 0.4, gtop + 10, px + i * pw * 0.4, gtop + 44, C.dim, 1.6, 7);
+  label(c, 'E', px - pw * 0.8 - 8, gtop + 24, C.muted, 'bold 12px Segoe UI', 'right');
+  const py = gtop + 12 + (gbot - gtop - 24) * s;
+  charge(c, px, py, P.q, R3.part === 'e' ? 8 : R3.part === 'a' ? 13 : 11);
+  // ── energy bars
+  const barY = H - 85, barH = 16;
+  const bars = (x0, w, frac, unitTxt) => {
+    c.fillStyle = C.bg; c.fillRect(x0, barY, w, barH * 2 + 6);
+    c.fillStyle = C.purple; c.fillRect(x0, barY, w * (1 - frac), barH);
+    c.fillStyle = C.green; c.fillRect(x0, barY + barH + 6, w * frac, barH);
+    label(c, 'U', x0 - 6, barY + barH / 2, C.purple, 'bold 12px Segoe UI', 'right');
+    label(c, 'K', x0 - 6, barY + barH * 1.5 + 6, C.green, 'bold 12px Segoe UI', 'right');
+    label(c, unitTxt, x0, barY + barH * 2 + 20, C.muted, '11px Segoe UI');
+  };
+  const bw = mid - 70;
+  bars(40, bw, s, `K gained: ${(g * h * s).toFixed(0)} J per kg`);
+  bars(mid + 40, bw, s, `K gained: ${(Math.abs(P.q / e) * V * s).toFixed(0)} eV`);
+}
+
+// ════════════════════════════════════════════════════════════════
+// ④ Point charge landscape
+// ════════════════════════════════════════════════════════════════
+const H4 = { A: { x: -9, y: 4 }, B: { x: 7, y: -3 }, drag: null, paths: true };
+let heatKey = '', heatCanvas = document.createElement('canvas');
+function hVals() { return { Q: +$('h-Q').value * 1e-9, q: +$('h-q').value * 1e-9 }; }
+function view() { const s = Math.min(W, H) / 32; return { s, cx: W / 2, cy: H / 2 }; }   // px per cm
+const toPx = (p, v) => ({ x: v.cx + p.x * v.s, y: v.cy - p.y * v.s });
+const toCm = (x, y, v) => ({ x: (x - v.cx) / v.s, y: -(y - v.cy) / v.s });
+function Vat(p, Q) { const r = Math.max(Math.hypot(p.x, p.y), 0.8) / 100; return k * Q / r; }
+document.querySelectorAll('#h-path .chip').forEach(b => b.addEventListener('click', () => {
+  H4.paths = b.dataset.v === 'both'; document.querySelectorAll('#h-path .chip').forEach(x => x.classList.toggle('on', x === b));
+}));
+['h-Q', 'h-q'].forEach(id => $(id).addEventListener('input', update));
+
+// bent path: go radially from A to radius rB, then along the circle to B
+function bentPath(A, B) {
+  const rA = Math.hypot(A.x, A.y), rB = Math.hypot(B.x, B.y), aA = Math.atan2(A.y, A.x);
+  let aB = Math.atan2(B.y, B.x), da = aB - aA; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
+  const pts = [];
+  for (let i = 0; i <= 60; i++) { const r = rA + (rB - rA) * i / 60; pts.push({ x: r * Math.cos(aA), y: r * Math.sin(aA) }); }
+  for (let i = 1; i <= 120; i++) { const a = aA + da * i / 120; pts.push({ x: rB * Math.cos(a), y: rB * Math.sin(a) }); }
+  return pts;
+}
+function straightPath(A, B) { const pts = []; for (let i = 0; i <= 200; i++) pts.push({ x: A.x + (B.x - A.x) * i / 200, y: A.y + (B.y - A.y) * i / 200 }); return pts; }
+// Work done BY the field on q along a path: W = Σ q E·dl
+function workAlong(pts, Q, q) {
+  let Wk = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const m = { x: (pts[i].x + pts[i - 1].x) / 2, y: (pts[i].y + pts[i - 1].y) / 2 };
+    const r = Math.max(Math.hypot(m.x, m.y), 0.8) / 100, Ex = k * Q / (r * r) * (m.x / 100) / r, Ey = k * Q / (r * r) * (m.y / 100) / r;
+    Wk += q * (Ex * (pts[i].x - pts[i - 1].x) / 100 + Ey * (pts[i].y - pts[i - 1].y) / 100);
+  }
+  return Wk;
+}
+
+function hPanel() {
+  const { Q, q } = hVals(), Qn = +$('h-Q').value, qn = +$('h-q').value;
+  $('h-Q-v').innerHTML = `<span class="${Qn > 0 ? 'pos' : Qn < 0 ? 'neg' : ''}">${Qn > 0 ? '+' : Qn < 0 ? '−' : ''}${Math.abs(Qn)} nC</span>`;
+  $('h-q-v').innerHTML = `<span class="${qn > 0 ? 'pos' : qn < 0 ? 'neg' : ''}">${qn > 0 ? '+' : qn < 0 ? '−' : ''}${Math.abs(qn)} nC</span>`;
+  const VA = Vat(H4.A, Q), VB = Vat(H4.B, Q), dV = VB - VA, dU = q * dV;
+  const W1 = workAlong(straightPath(H4.A, H4.B), Q, q), W2 = workAlong(bentPath(H4.A, H4.B), Q, q);
+  const nJ = x => (Math.abs(x) < 5e-13 ? '0' : signed(sci(Math.abs(x) * 1e9), x)) + ' nJ';
+  $('h-meas').innerHTML = `
+    <span class="k">r<sub>A</sub>, r<sub>B</sub></span><span class="v">${Math.hypot(H4.A.x, H4.A.y).toFixed(1)} cm, ${Math.hypot(H4.B.x, H4.B.y).toFixed(1)} cm</span>
+    <span class="k">V<sub>A</sub> = kQ / r<sub>A</sub></span><span class="v">${Math.round(VA)} V</span>
+    <span class="k">V<sub>B</sub> = kQ / r<sub>B</sub></span><span class="v">${Math.round(VB)} V</span>
+    <span class="k">ΔV = V<sub>B</sub> − V<sub>A</sub></span><span class="v res">${signed(Math.abs(Math.round(dV)), Math.round(dV))} V</span>
+    <span class="sep"></span>
+    <span class="k">ΔU = q·ΔV</span><span class="v">${nJ(dU)}</span>
+    <span class="k" style="color:var(--teal)">Field's work, straight path</span><span class="v">${nJ(W1)}</span>
+    <span class="k" style="color:var(--orange)">Field's work, bent path</span><span class="v">${nJ(W2)}</span>`;
+  $('h-key').innerHTML = qn === 0 ? 'Choose a nonzero test charge to see the energy change.'
+    : `Both paths give the same work, and it equals −ΔU. Only the potential at the <b>start</b> and the <b>end</b> matters.`;
+  drawProfile();
+}
+
+function drawProfile() {
+  const pc = $('prof'); const [c, w, h] = fitCanvas(pc); c.clearRect(0, 0, w, h);
+  const { Q } = hVals(), Vmax = k * 10e-9 / 0.02;
+  const X = x => w / 2 + x / 16 * (w / 2 - 6), Yv = V => h / 2 - Math.max(-1, Math.min(1, V / Vmax)) * (h / 2 - 8);
+  c.strokeStyle = C.grid; c.lineWidth = 1; c.beginPath(); c.moveTo(0, h / 2); c.lineTo(w, h / 2); c.moveTo(w / 2, 0); c.lineTo(w / 2, h); c.stroke();
+  label(c, 'V', w / 2 + 4, 8, C.muted, '10px Segoe UI'); label(c, 'distance from Q →', w - 4, h / 2 + 10, C.muted, '10px Segoe UI', 'right');
+  c.strokeStyle = Q >= 0 ? C.red : C.blue; c.lineWidth = 2; c.beginPath();
+  for (let i = 0; i <= 300; i++) { const x = -16 + 32 * i / 300; const y = Yv(Vat({ x, y: 0 }, Q)); i ? c.lineTo(X(x), y) : c.moveTo(X(x), y); }
+  c.stroke();
+  [[H4.A, 'A', C.orange, -1], [H4.B, 'B', C.accent, 1]].forEach(([p, n, col, side]) => {
+    const r = Math.hypot(p.x, p.y), x = X(side * r), y = Yv(Vat(p, Q));
+    c.beginPath(); c.arc(x, y, 5, 0, 7); c.fillStyle = col; c.fill(); label(c, n, x, y - 10, col, 'bold 12px Segoe UI', 'center');
+  });
+  label(c, 'A shown on the left, B on the right (same height as their real distance)', 4, h - 6, C.muted, '9.5px Segoe UI');
+}
+
+function hDraw() {
+  const c = ctx, { Q, q } = hVals(), v = view(), qn = +$('h-q').value, Qn = +$('h-Q').value;
+  // heat map (cached)
+  const key = [W, H, Q, C.dark].join('|');
+  if (key !== heatKey) {
+    heatKey = key; const step = 4, cw = Math.ceil(W / step), ch = Math.ceil(H / step);
+    heatCanvas.width = cw; heatCanvas.height = ch;
+    const hc = heatCanvas.getContext('2d'), img = hc.createImageData(cw, ch), Vref = k * 10e-9 / 0.04;
+    const base = C.dark ? [22, 27, 34] : [255, 255, 255], pos = C.dark ? [248, 81, 73] : [220, 38, 38], neg = C.dark ? [96, 165, 250] : [37, 99, 235];
+    for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) {
+      const p = toCm(i * step + step / 2, j * step + step / 2, v), V = Vat(p, Q);
+      const t = Math.min(1, Math.abs(V) / Vref) * 0.55, col = V >= 0 ? pos : neg, o = (j * cw + i) * 4;
+      for (let z = 0; z < 3; z++) img.data[o + z] = base[z] + (col[z] - base[z]) * t;
+      img.data[o + 3] = 255;
+    }
+    hc.putImageData(img, 0, 0);
+  }
+  c.imageSmoothingEnabled = true; c.drawImage(heatCanvas, 0, 0, W, H);
+  // equipotential circles
+  if (Qn) {
+    const levels = [100, 200, 300, 500, 1000, 2000, 5000];
+    levels.forEach(Vl => {
+      const r = k * Math.abs(Q) / Vl * 100; // cm
+      const rp = r * v.s; if (rp < 12 || rp > Math.hypot(W, H)) return;
+      c.strokeStyle = C.purple; c.globalAlpha = 0.6; c.setLineDash([5, 5]); c.lineWidth = 1;
+      c.beginPath(); c.arc(v.cx, v.cy, rp, 0, 7); c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
+      const lx = v.cx + rp * Math.cos(-0.6), ly = v.cy + rp * Math.sin(-0.6);
+      if (rp > 4.5 * v.s && lx < W - 30 && ly > 10) label(c, `${Qn > 0 ? '' : '−'}${Vl} V`, lx + 3, ly, C.purple, 'bold 11px Segoe UI');
+    });
+    // field arrows on a ring
+    for (let i = 0; i < 12; i++) {
+      const a = i * Math.PI / 6, r1 = 2.2 * v.s, r2 = 3.6 * v.s, dir = Qn > 0 ? 1 : -1;
+      const [ra, rb] = dir > 0 ? [r1, r2] : [r2, r1];
+      arrow(c, v.cx + ra * Math.cos(a), v.cy + ra * Math.sin(a), v.cx + rb * Math.cos(a), v.cy + rb * Math.sin(a), C.muted, 1.5, 7);
+    }
+  }
+  charge(c, v.cx, v.cy, Qn, 16);
+  label(c, 'Q', v.cx - 22, v.cy + 20, C.text, 'bold 13px Segoe UI', 'right');
+  // paths
+  if (H4.paths) {
+    const drawPts = (pts, col) => { c.strokeStyle = col; c.lineWidth = 2.5; c.setLineDash([7, 5]); c.beginPath(); pts.forEach((p, i) => { const P = toPx(p, v); i ? c.lineTo(P.x, P.y) : c.moveTo(P.x, P.y); }); c.stroke(); c.setLineDash([]); };
+    drawPts(straightPath(H4.A, H4.B), C.teal);
+    drawPts(bentPath(H4.A, H4.B), C.orange);
+  }
+  // A and B handles
+  [[H4.A, 'A', C.orange], [H4.B, 'B', C.accent]].forEach(([p, n, col]) => {
+    const P = toPx(p, v);
+    c.beginPath(); c.arc(P.x, P.y, 10, 0, 7); c.fillStyle = col; c.fill(); c.strokeStyle = C.surface; c.lineWidth = 2; c.stroke();
+    label(c, n, P.x, P.y + 1, '#fff', 'bold 12px Segoe UI', 'center');
+    label(c, `${Math.round(Vat(p, Q))} V`, P.x + 14, P.y - 12, C.text, 'bold 12px Segoe UI');
+  });
+  label(c, 'Drag A and B', 12, 18, C.muted, '12px Segoe UI');
+  // scale bar
+  label(c, '5 cm', 12 + 2.5 * v.s, H - 26, C.muted, '11px Segoe UI', 'center');
+  c.strokeStyle = C.muted; c.lineWidth = 2; c.beginPath(); c.moveTo(12, H - 16); c.lineTo(12 + 5 * v.s, H - 16); c.stroke();
+}
+cv.addEventListener('pointerdown', ev => {
+  if (tab !== 4) return;
+  const r = cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top, v = view();
+  for (const n of ['A', 'B']) { const P = toPx(H4[n], v); if (Math.hypot(P.x - x, P.y - y) < 18) { H4.drag = n; cv.setPointerCapture(ev.pointerId); return; } }
+});
+cv.addEventListener('pointermove', ev => {
+  const r = cv.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top, v = view();
+  if (tab === 4 && !H4.drag) {
+    let over = false; for (const n of ['A', 'B']) { const P = toPx(H4[n], v); if (Math.hypot(P.x - x, P.y - y) < 18) over = true; }
+    cv.style.cursor = over ? 'grab' : 'default';
+  }
+  if (!H4.drag) return;
+  let p = toCm(x, y, v);
+  const rr = Math.hypot(p.x, p.y); if (rr < 1.5) { p = { x: p.x / rr * 1.5 || 1.5, y: p.y / rr * 1.5 || 0 }; }
+  p.x = Math.max(-W / 2 / v.s + 0.5, Math.min(W / 2 / v.s - 0.5, p.x));
+  p.y = Math.max(-H / 2 / v.s + 0.5, Math.min(H / 2 / v.s - 0.5, p.y));
+  H4[H4.drag] = p; hPanel();
+});
+['pointerup', 'pointercancel'].forEach(t => cv.addEventListener(t, () => { H4.drag = null; }));
+
+// ── Loop ────────────────────────────────────────────────────────
+function update() { [gPanel, ePanel, rPanel, hPanel][tab - 1](); }
+function frame(now) {
+  [ctx, W, H] = fitCanvas(cv);
+  ctx.clearRect(0, 0, W, H);
+  [gDraw, eDraw, rDraw, hDraw][tab - 1](now);
+  requestAnimationFrame(frame);
+}
+window.addEventListener('resize', () => { if (tab === 4) drawProfile(); });
+readColors();
+update();
+requestAnimationFrame(frame);
+</script>
+
+<script>
+(function(){
+  const btn = document.getElementById('theme-toggle');
+  let saved = null; try { saved = localStorage.getItem('theme'); } catch (e) {}
+  if (saved === 'dark') { document.body.classList.add('dark'); btn.textContent = '☀'; }
+  btn.addEventListener('click', () => {
+    const isDark = document.body.classList.toggle('dark');
+    btn.textContent = isDark ? '☀' : '🌙';
+    try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    readColors(); update();
+  });
+  readColors();
+})();
+</script>
+</body>
+</html>
