@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Lectura diaria</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #1c2128; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950; --amber: #d29922; --red: #f85149; --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa; --surface: #ffffff; --surface2: #f0f3f6; --border: #d0d7de;
+    --text: #1f2328; --muted: #656d76; --accent: #0969da; --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37; --amber: #9a6700; --red: #cf222e;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.5; min-height: 100vh; }
+  header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  header h1 { font-size: 1.25rem; font-weight: 600; }
+  header h1 span { color: var(--accent); }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; display: grid; gap: 20px; }
+  .steps { display: flex; gap: 8px; list-style: none; }
+  .steps li { flex: 1; text-align: center; padding: 10px 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: .95rem; }
+  .steps li.now { border-color: var(--accent); background: var(--accent-soft); color: var(--text); font-weight: 600; }
+  .steps li.done { color: var(--green); border-color: var(--green); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; display: grid; gap: 14px; }
+  .card h2 { font-size: 1.1rem; color: var(--muted); font-weight: 600; }
+  .reading { font-size: 1.45rem; line-height: 1.7; }
+  .reading-title { font-size: 1.5rem; font-weight: 700; }
+  .q { display: grid; gap: 8px; }
+  .q label { font-size: 1.15rem; font-weight: 600; }
+  .q .n { color: var(--accent); margin-right: 6px; }
+  textarea { width: 100%; min-height: 76px; resize: vertical; font: inherit; font-size: 1.1rem; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .btn { font: inherit; font-size: 1.1rem; font-weight: 600; padding: 14px 22px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); cursor: pointer; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .pill-btn { font: inherit; font-size: .85rem; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); cursor: pointer; }
+  .muted { color: var(--muted); }
+  .msg { font-size: 1.1rem; }
+  .score { font-size: 2.6rem; font-weight: 700; }
+  .result { border-left: 4px solid var(--border); padding: 8px 0 8px 14px; display: grid; gap: 6px; }
+  .result[data-s="2"] { border-color: var(--green); }
+  .result[data-s="1"] { border-color: var(--amber); }
+  .result[data-s="0"] { border-color: var(--red); }
+  .result .mine { color: var(--muted); }
+  .dots { letter-spacing: 3px; }
+  .note { padding: 12px 14px; border-radius: 10px; background: var(--accent-soft); }
+</style>
+</head>
+<body>
+<header>
+  <h1>📖 <span id="t-title">Lectura diaria</span></h1>
+  <button class="pill-btn" id="theme-toggle">☀</button>
+</header>
+
+<main>
+  <ol class="steps" id="steps">
+    <li data-step="1" id="t-step1">1 · Leer</li>
+    <li data-step="2" id="t-step2">2 · Responder</li>
+    <li data-step="3" id="t-step3">3 · Resultado</li>
+  </ol>
+
+  <section class="card" id="status"><p class="msg" id="status-msg">…</p></section>
+
+  <section class="card" id="read" hidden>
+    <h2 id="t-read-head">Lee el texto con calma. Puedes leerlo dos veces.</h2>
+    <p class="reading-title" id="title"></p>
+    <p class="reading" id="text"></p>
+    <div><button class="btn primary" id="ready">Ya leí. Estoy listo.</button></div>
+  </section>
+
+  <section class="card" id="answer" hidden>
+    <h2 id="t-answer-head">Responde con tus palabras. Puedes mirar el texto otra vez.</h2>
+    <div id="questions" style="display:grid;gap:18px"></div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <button class="btn primary" id="send">Enviar respuestas</button>
+      <span class="msg muted" id="send-msg"></span>
+    </div>
+  </section>
+
+  <section class="card" id="done" hidden>
+    <h2 id="t-done-head">Tu resultado de hoy</h2>
+    <p class="score" id="score"></p>
+    <p class="msg" id="encouragement"></p>
+    <p class="note" id="levelup" hidden></p>
+    <div id="results" style="display:grid;gap:14px"></div>
+    <p class="muted" id="t-tomorrow">Mañana habrá un texto nuevo.</p>
+  </section>
+</main>
+
+<script>
+const T = {
+  Spanish: {
+    title: 'Lectura diaria', step1: '1 · Leer', step2: '2 · Responder', step3: '3 · Resultado',
+    readHead: 'Lee el texto con calma. Puedes leerlo dos veces.', ready: 'Ya leí. Estoy listo.',
+    answerHead: 'Responde con tus palabras. Puedes mirar el texto otra vez.', send: 'Enviar respuestas',
+    fillAll: 'Falta responder una pregunta.', checking: 'Estoy revisando tus respuestas. Esto tarda menos de un minuto.',
+    doneHead: 'Tu resultado de hoy', tomorrow: 'Mañana habrá un texto nuevo.', yours: 'Tu respuesta:',
+    levelUp: '¡Subiste de nivel! Mañana los textos serán un poco más largos.',
+    levelDown: 'Mañana practicaremos con textos un poco más cortos.',
+    loading: 'Preparando el texto de hoy…', story: 'Historia', math: 'Problema de matemáticas',
+  },
+  English: {
+    title: 'Daily reading', step1: '1 · Read', step2: '2 · Answer', step3: '3 · Result',
+    readHead: 'Read the text calmly. You can read it twice.', ready: "I've read it. I'm ready.",
+    answerHead: 'Answer in your own words. You can look at the text again.', send: 'Send answers',
+    fillAll: 'One question still needs an answer.', checking: 'I am checking your answers. This takes less than a minute.',
+    doneHead: "Today's result", tomorrow: 'There will be a new text tomorrow.', yours: 'Your answer:',
+    levelUp: 'You moved up a level! Tomorrow the texts will be a little longer.',
+    levelDown: 'Tomorrow we will practise with slightly shorter texts.',
+    loading: "Getting today's text ready…", story: 'Story', math: 'Math problem',
+  },
+};
+let L = T.Spanish;
+const $ = (id) => document.getElementById(id);
+
+// Connection: the parent's setup page gives a link ending in #u=…&k=…; it is remembered here.
+const CKEY = 'reading_conn';
+let CONN = {};
+try { CONN = JSON.parse(localStorage.getItem(CKEY) || '{}'); } catch (e) {}
+if (location.hash.length > 1) {
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get('u') && h.get('k')) {
+    CONN = { api: h.get('u'), key: h.get('k') };
+    try { localStorage.setItem(CKEY, JSON.stringify(CONN)); } catch (e) {}
+    history.replaceState(null, '', location.pathname);
+  }
+}
+
+async function call(params, body) {
+  const u = new URL(CONN.api);
+  let res;
+  if (body) res = await fetch(u, { method: 'POST', body: JSON.stringify({ key: CONN.key, ...body }) });
+  else { u.searchParams.set('key', CONN.key); Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v)); res = await fetch(u); }
+  const j = await res.json();
+  if (!j.ok) throw new Error(j.error);
+  return j.data;
+}
+
+function setStep(n) {
+  document.querySelectorAll('#steps li').forEach((li) => {
+    const s = Number(li.dataset.step);
+    li.className = s === n ? 'now' : s < n ? 'done' : '';
+  });
+}
+
+function applyLang(lang) {
+  L = T[lang] || T.Spanish;
+  document.documentElement.lang = lang === 'English' ? 'en' : 'es';
+  document.title = L.title;
+  const map = { 't-title': 'title', 't-step1': 'step1', 't-step2': 'step2', 't-step3': 'step3', 't-read-head': 'readHead',
+    ready: 'ready', 't-answer-head': 'answerHead', send: 'send', 't-done-head': 'doneHead', 't-tomorrow': 'tomorrow' };
+  Object.entries(map).forEach(([id, k]) => { $(id).textContent = L[k]; });
+}
+
+let DAY = null;
+const draftKey = () => 'reading_draft_' + DAY.date;
+
+function show(id) { ['status', 'read', 'answer', 'done'].forEach((s) => { $(s).hidden = s !== id && !(id === 'answer' && s === 'read'); }); }
+
+function renderQuestions() {
+  let draft = [];
+  try { draft = JSON.parse(localStorage.getItem(draftKey()) || '[]'); } catch (e) {}
+  $('questions').innerHTML = '';
+  DAY.solo.questions.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'q';
+    div.innerHTML = `<label for="a${i}"><span class="n">${i + 1}.</span></label><textarea id="a${i}"></textarea>`;
+    div.querySelector('label').append(q);
+    const ta = div.querySelector('textarea');
+    ta.value = draft[i] || '';
+    ta.addEventListener('input', saveDraft);
+    $('questions').append(div);
+  });
+}
+function answers() { return DAY.solo.questions.map((_, i) => $('a' + i).value.trim()); }
+function saveDraft() { try { localStorage.setItem(draftKey(), JSON.stringify(answers())); } catch (e) {} }
+
+function renderResult(r) {
+  setStep(3);
+  show('done');
+  $('score').textContent = `${r.score} / 10`;
+  $('encouragement').textContent = r.encouragement;
+  $('levelup').hidden = !r.levelChange;
+  $('levelup').textContent = r.levelChange > 0 ? L.levelUp : L.levelDown;
+  $('results').innerHTML = '';
+  r.results.forEach((x, i) => {
+    const div = document.createElement('div');
+    div.className = 'result';
+    div.dataset.s = x.score;
+    const q = document.createElement('b'); q.textContent = `${i + 1}. ${DAY.solo.questions[i]}`;
+    const mine = document.createElement('span'); mine.className = 'mine'; mine.textContent = `${L.yours} ${x.answer || '—'}`;
+    const fb = document.createElement('span'); fb.innerHTML = `<span class="dots">${'●'.repeat(x.score)}${'○'.repeat(2 - x.score)}</span> `;
+    fb.append(x.feedback);
+    div.append(q, mine, fb);
+    $('results').append(div);
+  });
+}
+
+async function load() {
+  if (!CONN.api || !CONN.key) { $('status-msg').textContent = 'Abre esta página con el enlace que te dio tu papá. · Open this page with the link from your dad.'; return; }
+  setStep(1);
+  $('status-msg').textContent = L.loading;
+  try {
+    DAY = await call({ action: 'today', role: 'student' });
+  } catch (e) { $('status-msg').textContent = '⚠ ' + e.message; return; }
+  applyLang(DAY.lang);
+  $('title').textContent = `${DAY.solo.kind === 'math' ? L.math : L.story}: ${DAY.solo.title}`;
+  $('text').textContent = DAY.solo.text;
+  if (DAY.result) { renderResult(DAY.result); return; }
+  renderQuestions();
+  show('read');
+}
+
+$('ready').addEventListener('click', () => {
+  setStep(2);
+  show('answer');
+  $('ready').hidden = true;
+  $('a0').focus();
+});
+
+$('send').addEventListener('click', async () => {
+  const a = answers();
+  if (a.some((x) => !x)) { $('send-msg').textContent = L.fillAll; return; }
+  $('send').disabled = true;
+  $('send-msg').textContent = L.checking;
+  try {
+    const r = await call(null, { action: 'submit', answers: a });
+    try { localStorage.removeItem(draftKey()); } catch (e) {}
+    renderResult(r);
+  } catch (e) {
+    $('send-msg').textContent = '⚠ ' + e.message;
+    $('send').disabled = false;
+  }
+});
+
+function setTheme(light) {
+  document.body.classList.toggle('light', light);
+  $('theme-toggle').textContent = light ? '☾' : '☀';
+  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+$('theme-toggle').addEventListener('click', () => setTheme(!document.body.classList.contains('light')));
+let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+setTheme(savedTheme === 'light');
+
+load();
+</script>
+</body>
+</html>

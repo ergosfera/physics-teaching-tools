@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Reading Practice · Parent</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #1c2128; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950; --amber: #d29922; --red: #f85149; --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa; --surface: #ffffff; --surface2: #f0f3f6; --border: #d0d7de;
+    --text: #1f2328; --muted: #656d76; --accent: #0969da; --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37; --amber: #9a6700; --red: #cf222e;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.45; min-height: 100vh; }
+  header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  header h1 { font-size: 1.25rem; font-weight: 600; }
+  header h1 span { color: var(--accent); }
+  nav { display: flex; gap: 6px; padding: 12px 24px 0; max-width: 980px; margin: 0 auto; }
+  .tab-btn { font: inherit; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); cursor: pointer; }
+  .tab-btn.active { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+  main { max-width: 980px; margin: 0 auto; padding: 18px 24px 60px; display: grid; gap: 18px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; display: grid; gap: 12px; }
+  .card h2 { font-size: 1.05rem; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .badge { font-size: .8rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+  .muted { color: var(--muted); }
+  .big { font-size: 1.6rem; line-height: 1.6; }
+  ul.prompts { padding-left: 20px; display: grid; gap: 6px; font-size: 1.05rem; }
+  textarea, input[type=text], input[type=password] { width: 100%; font: inherit; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); }
+  textarea { min-height: 90px; resize: vertical; }
+  .btns { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .btn { font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); cursor: pointer; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .pill-btn { font: inherit; font-size: .85rem; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); cursor: pointer; }
+  .form-row { display: grid; gap: 4px; }
+  .form-row label { font-size: .9rem; color: var(--muted); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .stat { background: var(--surface2); border-radius: 10px; padding: 12px 14px; }
+  .stat b { display: block; font-size: 1.6rem; }
+  .skill { display: grid; grid-template-columns: 130px 1fr 52px; gap: 10px; align-items: center; font-size: .92rem; }
+  .meter { height: 10px; border-radius: 999px; background: var(--surface2); overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  tr.row { cursor: pointer; }
+  tr.row:hover td { background: var(--surface2); }
+  .s2 { color: var(--green); } .s1 { color: var(--amber); } .s0 { color: var(--red); }
+  .detail td { background: var(--surface2); }
+  .detail .qa { display: grid; gap: 4px; padding: 8px 0; border-bottom: 1px dashed var(--border); }
+  pre.code { max-height: 280px; overflow: auto; font-size: .8rem; background: var(--surface2); padding: 12px; border-radius: 8px; white-space: pre; }
+  ol.setup { padding-left: 20px; display: grid; gap: 6px; }
+  code { background: var(--surface2); padding: 1px 5px; border-radius: 4px; }
+  @media print {
+    header, nav, #tab-dash, #tab-setup, .no-print { display: none !important; }
+    body { background: #fff; color: #000; }
+    .card { border: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>📖 <span>Reading Practice</span> · Parent</h1>
+  <button class="pill-btn" id="theme-toggle">☀ Light</button>
+</header>
+<nav>
+  <button class="tab-btn active" data-tab="today">Today</button>
+  <button class="tab-btn" data-tab="dash">Dashboard</button>
+  <button class="tab-btn" data-tab="setup">Setup</button>
+</nav>
+
+<main>
+  <div id="tab-today" style="display:grid;gap:18px">
+    <p class="muted" id="today-msg">Loading today's practice…</p>
+    <section class="card" id="discussion" hidden>
+      <h2><span id="d-kind"></span> <span class="badge" id="d-level"></span> <span class="badge" id="d-lang"></span></h2>
+      <p class="big" id="d-text"></p>
+      <h2 class="muted" style="font-size:.95rem">Questions to guide the conversation</h2>
+      <ul class="prompts" id="d-prompts"></ul>
+      <div class="btns no-print"><button class="btn" id="print">🖨 Print the text</button></div>
+    </section>
+    <section class="card no-print" id="notes" hidden>
+      <h2>How did the conversation go?</h2>
+      <textarea id="note" placeholder="For example: he found the main idea after the second reading."></textarea>
+      <div class="btns"><button class="btn primary" id="save-note">Save note</button><span class="muted" id="note-msg"></span></div>
+      <p id="solo-status" class="muted"></p>
+    </section>
+  </div>
+
+  <div id="tab-dash" hidden style="display:grid;gap:18px">
+    <p class="muted" id="dash-msg">Loading…</p>
+    <section class="card" id="dash-top" hidden>
+      <h2>Progress</h2>
+      <div class="stats" id="stats"></div>
+    </section>
+    <section class="card" id="dash-skills" hidden>
+      <h2>By question type <span class="muted" style="font-weight:400;font-size:.85rem">average of the last 20 sessions, out of 2</span></h2>
+      <div id="skills" style="display:grid;gap:8px"></div>
+    </section>
+    <section class="card" id="dash-sessions" hidden>
+      <h2>Sessions <span class="muted" style="font-weight:400;font-size:.85rem">click a row to see his answers</span></h2>
+      <table><thead><tr><th>Date</th><th>Level</th><th>Language</th><th>Text</th><th>Score</th></tr></thead><tbody id="rows"></tbody></table>
+    </section>
+  </div>
+
+  <div id="tab-setup" hidden style="display:grid;gap:18px">
+    <section class="card">
+      <h2>Google Sheet connection <span class="muted" id="conn-status" style="font-weight:400"></span></h2>
+      <div class="form-row"><label for="api">Web app URL</label><input type="text" id="api" placeholder="https://script.google.com/macros/s/…/exec"></div>
+      <div class="form-row"><label for="key">Family key</label><input type="password" id="key"></div>
+      <div class="btns"><button class="btn primary" id="save">Save and test</button><span class="muted" id="save-msg"></span></div>
+    </section>
+    <section class="card">
+      <h2>Link for Jose's computer</h2>
+      <p class="muted">Open this link once on his computer. The page remembers the connection, so after that he can use a bookmark.</p>
+      <input type="text" id="student-link" readonly>
+      <div class="btns"><button class="btn" id="copy-link">Copy link</button><span class="muted" id="link-msg"></span></div>
+    </section>
+    <section class="card">
+      <h2>Create the backend (one time, about 10 minutes)</h2>
+      <ol class="setup">
+        <li>Create a new Google Sheet, for example <i>Reading practice</i>.</li>
+        <li>Open <b>Extensions → Apps Script</b>, delete what's there and paste the code below.</li>
+        <li>Change <code>FAMILY_KEY</code> to a secret word of your own.</li>
+        <li>Click the gear icon (<b>Project Settings</b>) → <b>Script properties</b> → add <code>ANTHROPIC_API_KEY</code> with your Anthropic API key. Keeping it there instead of in the code means it never appears in the sheet or on these pages.</li>
+        <li><b>Deploy → New deployment</b>, type <b>Web app</b>, <i>Execute as</i>: <b>Me</b>, <i>Who has access</i>: <b>Anyone</b>. Authorize when Google asks.</li>
+        <li>Paste the <b>Web app URL</b> and your key above, then <b>Save and test</b>.</li>
+        <li>Optional: in Apps Script, <b>Triggers → Add trigger</b> for <code>prepareToday</code>, time-driven, day timer, 5–6 am. The day's texts are then ready before anyone opens the pages.</li>
+      </ol>
+      <p class="muted">Each day costs two Claude requests: one writes both texts, one grades his answers.</p>
+      <div class="btns"><button class="btn" id="copy-code">Copy Apps Script code</button><span class="muted" id="copy-msg"></span></div>
+      <pre class="code" id="gs-code">Loading…</pre>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const CKEY = 'reading_conn';
+let CONN = {};
+try { CONN = JSON.parse(localStorage.getItem(CKEY) || '{}'); } catch (e) {}
+
+async function call(params, body) {
+  const u = new URL(CONN.api);
+  let res;
+  if (body) res = await fetch(u, { method: 'POST', body: JSON.stringify({ key: CONN.key, ...body }) });
+  else { u.searchParams.set('key', CONN.key); Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v)); res = await fetch(u); }
+  const j = await res.json();
+  if (!j.ok) throw new Error(j.error);
+  return j.data;
+}
+
+const SKILL_NAMES = { main_idea: 'Main idea', detail: 'Details', key_detail: 'Key vs. extra', sequence: 'Sequence', inference: 'Inference',
+  vocabulary: 'Vocabulary', summary: 'Summary', purpose: "Author's purpose", math: 'Solving' };
+
+// ---------- Tabs ----------
+let dashLoaded = false;
+document.querySelectorAll('.tab-btn').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('.tab-btn').forEach((x) => x.classList.toggle('active', x === b));
+  ['today', 'dash', 'setup'].forEach((t) => { $('tab-' + t).hidden = t !== b.dataset.tab; });
+  if (b.dataset.tab === 'dash' && !dashLoaded) loadDash();
+}));
+
+// ---------- Today ----------
+async function loadToday() {
+  if (!CONN.api) { $('today-msg').textContent = 'Not connected yet. Open the Setup tab.'; return; }
+  try {
+    const d = await call({ action: 'today' });
+    $('today-msg').hidden = true;
+    $('discussion').hidden = $('notes').hidden = false;
+    $('d-kind').textContent = `${d.discussionKind === 'math' ? 'Math problem' : 'Story'}: ${d.discussion.title}`;
+    $('d-level').textContent = 'Level ' + d.level;
+    $('d-lang').textContent = d.lang;
+    $('d-text').textContent = d.discussion.text;
+    $('d-prompts').innerHTML = '';
+    d.discussion.prompts.forEach((p) => { const li = document.createElement('li'); li.textContent = p; $('d-prompts').append(li); });
+    $('note').value = d.note;
+    $('solo-status').textContent = d.submitted ? '✓ Jose has done his solo practice today. See the Dashboard.' : 'Jose has not sent his solo practice yet.';
+  } catch (e) { $('today-msg').textContent = '⚠ ' + e.message; }
+}
+$('print').addEventListener('click', () => window.print());
+$('save-note').addEventListener('click', async () => {
+  $('note-msg').textContent = 'Saving…';
+  try { await call(null, { action: 'note', text: $('note').value }); $('note-msg').textContent = 'Saved.'; }
+  catch (e) { $('note-msg').textContent = '⚠ ' + e.message; }
+});
+
+// ---------- Dashboard ----------
+async function loadDash() {
+  if (!CONN.api) { $('dash-msg').textContent = 'Not connected yet. Open the Setup tab.'; return; }
+  try {
+    const d = await call({ action: 'dashboard' });
+    dashLoaded = true;
+    $('dash-msg').hidden = true;
+    renderDash(d);
+  } catch (e) { $('dash-msg').textContent = '⚠ ' + e.message; }
+}
+
+function renderDash(d) {
+  const S = d.sessions;
+  const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN);
+  const atLevel = S.filter((s) => s.level === d.level && s.date >= d.levelSince).map((s) => s.score);
+  const last5 = avg(atLevel.slice(-5));
+  const stat = (label, value, sub) => `<div class="stat"><span class="muted">${label}</span><b>${value}</b><span class="muted">${sub}</span></div>`;
+  $('stats').innerHTML =
+    stat('Current level', d.level + ' / 5', d.level < 5 ? 'up after 5 sessions averaging 8+' : 'top level') +
+    stat('Sessions at this level', atLevel.length, atLevel.length ? 'average ' + avg(atLevel).toFixed(1) : '—') +
+    stat('Last 5 at this level', isNaN(last5) ? '—' : last5.toFixed(1), atLevel.length >= 5 ? (last5 >= 8 ? 'ready to move up' : 'needs 8.0') : `${Math.max(0, 5 - atLevel.length)} more to count`) +
+    stat('All sessions', S.length, S.length ? 'average ' + avg(S.map((s) => s.score)).toFixed(1) : '—');
+  $('dash-top').hidden = false;
+
+  const bySkill = {};
+  S.slice(-20).forEach((s) => s.questions.forEach((q) => { if (q.score !== undefined) (bySkill[q.skill] = bySkill[q.skill] || []).push(q.score); }));
+  $('skills').innerHTML = '';
+  Object.keys(SKILL_NAMES).filter((k) => bySkill[k]).forEach((k) => {
+    const a = avg(bySkill[k]);
+    const row = document.createElement('div');
+    row.className = 'skill';
+    row.innerHTML = `<span>${SKILL_NAMES[k]}</span><span class="meter"><i style="width:${(a / 2) * 100}%"></i></span><span>${a.toFixed(1)}</span>`;
+    $('skills').append(row);
+  });
+  $('dash-skills').hidden = !Object.keys(bySkill).length;
+
+  $('rows').innerHTML = '';
+  [...S].reverse().forEach((s) => {
+    const tr = document.createElement('tr');
+    tr.className = 'row';
+    [s.date, s.level, s.lang, `${s.kind === 'math' ? '🔢' : '📘'} ${s.title}`, s.score + ' / 10'].forEach((v) => { const td = document.createElement('td'); td.textContent = v; tr.append(td); });
+    const detail = document.createElement('tr');
+    detail.className = 'detail';
+    detail.hidden = true;
+    const td = document.createElement('td');
+    td.colSpan = 5;
+    const note = (d.notes.find((n) => n.date === s.date) || {}).text;
+    const parts = [['p', s.text, 'muted'], ['p', s.summary], ['p', '💡 ' + s.tip]];
+    if (note) parts.push(['p', '📝 Your note: ' + note, 'muted']);
+    parts.forEach(([tag, text, cls]) => { const el = document.createElement(tag); el.textContent = text; if (cls) el.className = cls; el.style.margin = '6px 0'; td.append(el); });
+    s.questions.forEach((q, i) => {
+      const div = document.createElement('div');
+      div.className = 'qa';
+      const add = (text, cls) => { const el = document.createElement('span'); el.textContent = text; if (cls) el.className = cls; div.append(el); };
+      add(`${i + 1}. [${SKILL_NAMES[q.skill] || q.skill}] ${q.question}`);
+      add(`Jose: ${q.answer || '—'}`, 's' + q.score);
+      add(`Expected: ${q.expected}`, 'muted');
+      add(`${q.score}/2 · ${q.note}`);
+      td.append(div);
+    });
+    detail.append(td);
+    tr.addEventListener('click', () => { detail.hidden = !detail.hidden; });
+    $('rows').append(tr, detail);
+  });
+  $('dash-sessions').hidden = !S.length;
+  if (!S.length) { $('dash-msg').hidden = false; $('dash-msg').textContent = 'No sessions yet.'; }
+}
+
+// ---------- Setup ----------
+const studentLink = () => {
+  if (!CONN.api) return '';
+  const u = new URL('student.html', location.href);
+  return u.href + '#' + new URLSearchParams({ u: CONN.api, k: CONN.key });
+};
+$('api').value = CONN.api || '';
+$('key').value = CONN.key || '';
+$('student-link').value = studentLink();
+$('save').addEventListener('click', async () => {
+  CONN = { api: $('api').value.trim(), key: $('key').value.trim() };
+  try { localStorage.setItem(CKEY, JSON.stringify(CONN)); } catch (e) {}
+  $('student-link').value = studentLink();
+  $('save-msg').textContent = 'Testing… (the first time, Claude writes today\'s texts; this can take up to a minute)';
+  try { await call({ action: 'today' }); $('save-msg').textContent = '✓ Connected.'; dashLoaded = false; loadToday(); }
+  catch (e) { $('save-msg').textContent = '⚠ ' + e.message; }
+});
+$('copy-link').addEventListener('click', () => navigator.clipboard.writeText($('student-link').value).then(() => { $('link-msg').textContent = 'Copied.'; }));
+fetch('apps-script.gs').then((r) => (r.ok ? r.text() : Promise.reject())).then((t) => { $('gs-code').textContent = t; })
+  .catch(() => { $('gs-code').textContent = 'Open apps-script.gs from this folder and copy its contents.'; });
+$('copy-code').addEventListener('click', () => navigator.clipboard.writeText($('gs-code').textContent).then(() => { $('copy-msg').textContent = 'Copied.'; }));
+
+// ---------- Theme ----------
+function setTheme(light) {
+  document.body.classList.toggle('light', light);
+  $('theme-toggle').textContent = light ? '☾ Dark' : '☀ Light';
+  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+$('theme-toggle').addEventListener('click', () => setTheme(!document.body.classList.contains('light')));
+let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+setTheme(savedTheme === 'light');
+
+loadToday();
+</script>
+</body>
+</html>
