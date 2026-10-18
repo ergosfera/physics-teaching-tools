@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sticky Notes — Desktop App</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗒️</text></svg>">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2128;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --warn-bg: #2b2111;
+      --warn-border: #9e6a03;
+      --warn-text: #e3b341;
+      --radius: 12px;
+    }
+
+    body.light {
+      --bg: #f6f8fa;
+      --surface: #ffffff;
+      --surface2: #f0f3f6;
+      --border: #d0d7de;
+      --text: #1f2328;
+      --muted: #656d76;
+      --accent: #0969da;
+      --green: #1a7f37;
+      --warn-bg: #fff8c5;
+      --warn-border: #d4a72c;
+      --warn-text: #7d4e00;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    .wrap { max-width: 860px; margin: 0 auto; padding: 24px 40px 48px; }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      margin-bottom: 22px;
+    }
+    .back { color: var(--accent); text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+    .back:hover { text-decoration: underline; }
+
+    #theme-toggle {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 6px 14px; cursor: pointer;
+      font: inherit; font-size: 0.78rem; font-weight: 600; color: var(--muted);
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    h1 { font-size: clamp(1.4rem, 3vw, 1.9rem); font-weight: 800; letter-spacing: -0.4px; }
+    .subtitle { color: var(--muted); margin-top: 4px; font-size: 0.92rem; }
+    .subtitle a { color: var(--accent); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .chip {
+      font-size: 0.72rem; font-weight: 700; color: var(--muted);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 2px 10px;
+    }
+
+    .notice {
+      margin-top: 22px;
+      background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--text);
+      border-radius: var(--radius); padding: 14px 16px; font-size: 0.9rem;
+    }
+    .notice strong { color: var(--warn-text); }
+    .notice a { color: var(--accent); font-weight: 600; }
+
+    .preview {
+      margin-top: 22px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px; text-align: center;
+    }
+    .preview img { max-width: 100%; height: auto; }
+    .preview p { color: var(--muted); font-size: 0.8rem; margin-top: 8px; }
+
+    section { margin-top: 30px; }
+    h2 {
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 10px;
+    }
+    .step {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--accent); color: var(--bg); font-size: 0.72rem; margin-right: 6px;
+      letter-spacing: 0;
+    }
+    .panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 18px; font-size: 0.9rem;
+    }
+    .panel h3 { font-size: 0.92rem; margin: 14px 0 4px; }
+    .panel h3:first-child { margin-top: 0; }
+    .panel ul { padding-left: 20px; }
+    .panel li + li { margin-top: 3px; }
+    .panel p + p { margin-top: 8px; }
+    kbd {
+      font-family: inherit; font-size: 0.8em; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 4px; padding: 0 5px;
+    }
+
+    .license {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px 18px; max-height: 260px; overflow-y: auto;
+      font-family: Consolas, 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap;
+    }
+    .license:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .hint { color: var(--muted); font-size: 0.8rem; margin-top: 6px; }
+    .hint.done { color: var(--green); }
+
+    .accept {
+      display: flex; gap: 10px; align-items: flex-start;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; font-size: 0.9rem; cursor: pointer;
+    }
+    .accept input { margin-top: 4px; width: 16px; height: 16px; flex: none; accent-color: var(--accent); }
+    .accept.disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .downloads { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+    .dl {
+      display: flex; flex-direction: column; gap: 4px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; text-decoration: none; color: inherit;
+      transition: border-color .2s, transform .15s;
+    }
+    .dl .t { font-weight: 700; color: var(--accent); }
+    .dl .d { font-size: 0.8rem; color: var(--muted); }
+    .dl[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+    .dl[aria-disabled="true"] .t { color: var(--muted); }
+    .dl:not([aria-disabled="true"]):hover { border-color: var(--accent); transform: translateY(-2px); }
+
+    .source { margin-top: 14px; font-size: 0.82rem; color: var(--muted); }
+    .source a { color: var(--accent); }
+
+    @media (max-width: 600px) { .wrap { padding: 18px 16px 40px; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <a class="back" href="../../index.html#teaching">← Teaching tools</a>
+    <button id="theme-toggle" type="button"><span id="theme-icon">☀</span><span id="theme-label">Light</span></button>
+  </div>
+
+  <h1>🗒️ Sticky Notes</h1>
+  <p class="subtitle">Sticky notes on your desktop that sync between your computers through Google Drive: write a note at work on the Mac, and it's there when you open the Windows PC at home.</p>
+  <div class="chips">
+    <span class="chip">💻 Desktop app</span>
+    <span class="chip">Windows 10 / 11</span>
+    <span class="chip">macOS 11 or later</span>
+    <span class="chip">Syncs with Google Drive for desktop</span>
+    <span class="chip">Free · MIT License</span>
+  </div>
+
+  <div class="notice">
+    <strong>This is a download, not a web page.</strong>
+    Unlike the other tools on this site, Sticky Notes is a program that you download and run on your own computer.
+    Before downloading, please read the <a href="#about">About</a> and the <a href="#license">License</a> below.
+    The download buttons unlock once you have scrolled through the license and accepted it.
+  </div>
+
+  <div class="preview">
+    <img src="sticky_notes_preview.png" width="880" height="330"
+         alt="Three sticky notes in yellow, green and pink: a Monday to-do list, ideas for the energy unit, and a short shopping reminder.">
+    <p>Notes in three of the six colors. Each note has <strong>+</strong> for a new note and <strong>⋯</strong> for its color, keep on top and delete.</p>
+  </div>
+
+  <section id="about">
+    <h2><span class="step">1</span>About</h2>
+    <div class="panel">
+      <h3>What it does</h3>
+      <ul>
+        <li>Small colored notes that stay on your desktop. They save as you type.</li>
+        <li>The notes sync through your Google Drive folder, so the same notes appear on your Mac and your Windows computer. A change on one shows up on the other as soon as Google Drive has copied it, usually within a minute.</li>
+        <li><strong>+</strong> makes a new note (also <kbd>Ctrl</kbd>+<kbd>N</kbd> / <kbd>⌘N</kbd>). <strong>⋯</strong> changes the color, keeps the note on top of other windows, or deletes it.</li>
+        <li>Drag the top bar to move a note, and an edge or the bottom-right corner to resize it. Each computer remembers where its notes sit on screen.</li>
+        <li>If the same note is edited on both computers before Drive syncs, you get both versions as separate notes, so nothing is lost.</li>
+        <li>Deleted notes move to a <strong>Trash</strong> folder inside the notes folder, so you can get them back.</li>
+        <li>Notes are plain text (no bold, pictures or checkboxes), so they look the same on both systems.</li>
+      </ul>
+
+      <h3>Setting it up</h3>
+      <ul>
+        <li>Install <a href="https://www.google.com/drive/download/" target="_blank" rel="noopener">Google Drive for desktop</a> on each computer and sign in with the <strong>same Google account</strong> on both.</li>
+        <li>Open Sticky Notes. It finds your Google Drive and keeps the notes in <strong>My Drive/StickyNotes</strong>. If you have more than one Google account, it asks which one to use: choose the same one on every computer.</li>
+        <li>On Windows the app lives in the notification area (the <strong>^</strong> next to the clock); on the Mac it's in the Dock.
+            Turn on <strong>Start with Windows</strong> (tray icon menu) or <strong>Open at Login</strong> (Sticky Notes menu, macOS 13 or later) so your notes are there when the computer starts.</li>
+      </ul>
+
+      <h3>Privacy</h3>
+      <p>Sticky Notes <strong>collects no personal data and never connects to the internet</strong>.
+         Each note is a small text file in the folder you choose, normally your Google Drive folder. Google Drive for desktop, not this app,
+         copies that folder between your computers, under your Google account's terms.
+         The app also saves its own settings (the notes folder and where each note sits on screen) on your computer.</p>
+
+      <h3>Installing</h3>
+      <ul>
+        <li><strong>Windows:</strong> double-click <code>StickyNotes.exe</code>. No installation is needed.
+            The app isn't signed with a paid certificate, so the first time Windows may show “Windows protected your PC”. Click <strong>More info</strong>, then <strong>Run anyway</strong>.</li>
+        <li><strong>macOS:</strong> open <code>StickyNotes.dmg</code> and drag <strong>Sticky Notes</strong> into <strong>Applications</strong>.
+            The app isn't signed with a paid Apple Developer ID, so the first time macOS may block it. Open <strong>System Settings → Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>.
+            macOS may also ask to let it access files in Google Drive: click <strong>Allow</strong>.</li>
+      </ul>
+
+      <h3>Disclaimer</h3>
+      <p>This software is free and is provided <strong>“as is”, without warranty of any kind</strong>.
+         Keep your own copy of anything important: syncing depends on Google Drive, and a note could be lost or overwritten.
+         The author is not liable for any claim, damages or other liability arising from its use.
+         Choose <strong>About Sticky Notes</strong> from the tray icon menu (Windows) or the Sticky Notes menu (Mac) to see this information again.</p>
+    </div>
+  </section>
+
+  <section id="license">
+    <h2><span class="step">2</span>License</h2>
+    <div class="license" id="license-text" tabindex="0">MIT License
+
+Copyright (c) 2026 Mauricio Mendivelso
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</div>
+    <p class="hint" id="license-hint">Scroll to the end of the license to continue.</p>
+  </section>
+
+  <section id="download">
+    <h2><span class="step">3</span>Accept and download</h2>
+    <label class="accept disabled" id="accept-label">
+      <input type="checkbox" id="accept" disabled>
+      <span>I have read the About and the License. I understand that Sticky Notes is a program I download and run on my own computer,
+            and I accept that it is provided “as is”, without warranty of any kind.</span>
+    </label>
+
+    <div class="downloads">
+      <a class="dl" id="dl-win" aria-disabled="true" role="link"
+         data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/sticky-notes/StickyNotes.exe">
+        <span class="t">⬇ Download for Windows</span>
+        <span class="d">StickyNotes.exe · about 50 KB · Windows 10 or 11</span>
+      </a>
+      <a class="dl" id="dl-mac" aria-disabled="true" role="link"
+         data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/sticky-notes/StickyNotes.dmg">
+        <span class="t">⬇ Download for macOS</span>
+        <span class="d">StickyNotes.dmg · about 0.5 MB · macOS 11 or later (Apple Silicon and Intel)</span>
+      </a>
+    </div>
+    <p class="source">The source code is public:
+      <a href="https://github.com/ergosfera/physics-teaching-tools/tree/main/desktop-apps" target="_blank" rel="noopener">desktop-apps on GitHub</a>.</p>
+  </section>
+
+</div>
+
+<script>
+  function applyTheme(light) {
+    document.body.classList.toggle('light', light);
+    document.getElementById('theme-icon').textContent = light ? '☽' : '☀';
+    document.getElementById('theme-label').textContent = light ? 'Dark' : 'Light';
+    try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+  }
+  let savedTheme = null;
+  try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+  applyTheme(savedTheme === 'light');
+  document.getElementById('theme-toggle').addEventListener('click', () =>
+    applyTheme(!document.body.classList.contains('light')));
+
+  // Download gate: scroll through the license, then accept, then the buttons unlock.
+  const box = document.getElementById('license-text');
+  const hint = document.getElementById('license-hint');
+  const accept = document.getElementById('accept');
+  const acceptLabel = document.getElementById('accept-label');
+  const links = [document.getElementById('dl-win'), document.getElementById('dl-mac')];
+
+  function licenseRead() {
+    if (box.scrollTop + box.clientHeight < box.scrollHeight - 4) return;
+    accept.disabled = false;
+    acceptLabel.classList.remove('disabled');
+    hint.textContent = '✓ License read. Tick the box below to unlock the downloads.';
+    hint.classList.add('done');
+    box.removeEventListener('scroll', licenseRead);
+  }
+  box.addEventListener('scroll', licenseRead);
+  window.addEventListener('load', licenseRead);   // license may fit without scrolling
+
+  accept.addEventListener('change', () => {
+    for (const a of links) {
+      if (accept.checked) {
+        a.href = a.dataset.href;
+        a.removeAttribute('aria-disabled');
+      } else {
+        a.removeAttribute('href');
+        a.setAttribute('aria-disabled', 'true');
+      }
+    }
+  });
+</script>
+</body>
+</html>
