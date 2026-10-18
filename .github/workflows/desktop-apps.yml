@@ -2,6 +2,7 @@
 #   "countdown-timer":    CountdownTimer.dmg (Mac) and CountdownTimer.exe (Windows)
 #   "physics-calculator": PhysicsCalculator.dmg (Mac) and PhysicsCalculator.exe (Windows)
 #   "field-timer":        Field.dmg (Mac) and Field.exe (Windows)
+#   "sticky-notes":       StickyNotes.dmg (Mac) and StickyNotes.exe (Windows)
 # Pull requests only build the apps, so a broken build shows up before it reaches main.
 name: Desktop apps
 
@@ -78,6 +79,26 @@ jobs:
           name: field-windows
           path: desktop-apps/field-timer/windows/Field.exe
 
+  notes-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash ./desktop-apps/sticky-notes-mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notes-mac
+          path: desktop-apps/sticky-notes-mac/build/StickyNotes.dmg
+
+  notes-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop-apps/sticky-notes/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notes-windows
+          path: desktop-apps/sticky-notes/StickyNotes.exe
+
   release-timer:
     if: github.event_name != 'pull_request'
     needs: [timer-mac, timer-windows]
@@ -146,3 +167,26 @@ jobs:
               --notes "Field dot timer desktop app. Mac: download Field.dmg. Windows: download Field.exe."
           gh release upload field-timer dist/* -R "$REPO" --clobber
           gh release edit field-timer -R "$REPO" --draft=false
+
+  release-notes:
+    if: github.event_name != 'pull_request'
+    needs: [notes-mac, notes-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: notes-*
+          path: dist
+          merge-multiple: true
+      - name: Publish to the sticky-notes release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release view sticky-notes -R "$REPO" > /dev/null 2>&1 || \
+            gh release create sticky-notes -R "$REPO" --latest=false --title "Sticky Notes" \
+              --notes "Sticky notes that sync between Mac and Windows through Google Drive. Mac: download StickyNotes.dmg. Windows: download StickyNotes.exe."
+          gh release upload sticky-notes dist/* -R "$REPO" --clobber
+          gh release edit sticky-notes -R "$REPO" --draft=false

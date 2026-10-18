@@ -9,3 +9,6 @@ desktop-apps/physics-calculator/mac/build/
 desktop-apps/field-timer/windows/Field.exe
 desktop-apps/field-timer/windows/app.ico
 desktop-apps/field-timer/mac/build/
+desktop-apps/sticky-notes/StickyNotes.exe
+desktop-apps/sticky-notes/app.ico
+desktop-apps/sticky-notes-mac/build/

@@ -5,13 +5,15 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 - **Countdown Timer**: a compact countdown whose bar and numbers turn from green to yellow to red.
 - **Physics Calculator**: the calculator from the Ergosfera *Notebook & Physics Calculator* web tool, where numbers carry units.
 - **Field**: the Ergosfera *Field* dot timer, a field of dots that go dark as time runs out, with no numbers.
+- **Sticky Notes**: sticky notes on your desktop that sync between your Mac and Windows computers through Google Drive.
 
 ## Download and install
 
 Download the file for your system from the app's release page:
 [Countdown Timer](https://github.com/ergosfera/physics-teaching-tools/releases/tag/countdown-timer) ·
 [Physics Calculator](https://github.com/ergosfera/physics-teaching-tools/releases/tag/physics-calculator) ·
-[Field](https://github.com/ergosfera/physics-teaching-tools/releases/tag/field-timer).
+[Field](https://github.com/ergosfera/physics-teaching-tools/releases/tag/field-timer) ·
+[Sticky Notes](https://github.com/ergosfera/physics-teaching-tools/releases/tag/sticky-notes).
 
 **Windows (10 or 11):** double-click the `.exe`. No installation is needed.
 The apps aren't signed with a paid certificate, so the first time Windows may show
@@ -67,14 +69,55 @@ It gives the same results as the web version: both desktop versions are checked 
 | Always on top | Pin button in the top bar | — |
 | Sound, About | Right-click the window | — |
 
+## Sticky Notes
+
+Notes you write on one computer appear on the other: write at work on the Mac, and they're
+there when you open the Windows PC at home.
+
+**Setup (once on each computer):**
+
+1. Install [Google Drive for desktop](https://www.google.com/drive/download/) and sign in
+   with the **same Google account** on both computers.
+2. Open Sticky Notes. It finds your Google Drive and keeps the notes in **My Drive/StickyNotes**.
+   If you have more than one Google account, it asks which one to use: pick the same one everywhere.
+3. On Windows the app lives in the notification area (the ^ next to the clock); on the Mac it's in the Dock.
+   Turn on **Start with Windows** (tray menu) or **Open at Login** (Sticky Notes menu, macOS 13+)
+   so your notes are there when you start the computer.
+
+| Action | How |
+|---|---|
+| New note | **+** on a note, Ctrl+N / ⌘N, or click the tray icon (Windows) / Dock icon (Mac) |
+| Color, keep on top, delete | **⋯** on the note's top bar (or right-click the bar) |
+| Move / resize | Drag the top bar / drag an edge or the bottom-right corner |
+| Bring all notes forward | Tray icon → Show all notes (Windows) · click the Dock icon (Mac) |
+| Change where notes sync | Tray menu → Change sync folder (Windows) · Sticky Notes menu → Change Sync Folder (Mac) |
+
+How it works:
+
+- Each note is a small text file in My Drive/StickyNotes. You can open it in any text editor,
+  or in Google Drive on your phone. A plain `.txt` file you drop into that folder becomes a note.
+- Notes save as you type. Each app checks the folder every few seconds, so a change made on the
+  other computer shows up as soon as Google Drive has copied it (usually within a minute).
+- Where each note sits on screen is remembered separately on each computer.
+- If the same note is edited on both computers before Drive syncs, you get both versions as
+  separate notes, so nothing is lost. Delete the one you don't need.
+- Deleted notes move to **My Drive/StickyNotes/Trash**. To get one back, move its file back into
+  StickyNotes; to free space, empty that folder yourself.
+- Notes are plain text (no bold, pictures or checkboxes), so they look the same on both systems.
+- The first time, macOS may ask to let Sticky Notes access files in Google Drive. Click **Allow**.
+
 ## Privacy
 
 These apps **collect no personal data and never connect to the internet**.
 They only save their own settings on your computer (for example the last time set, display
 options, always-on-top and the window position).
 
-- Windows: `%APPDATA%\CountdownTimer\`, `%APPDATA%\PhysicsCalculator\` and `%APPDATA%\FieldTimer\`
-- macOS: each app's standard preferences (`net.ergosfera.countdowntimer`, `net.ergosfera.physicscalculator`, `net.ergosfera.fieldtimer`)
+Sticky Notes saves your notes as files in the folder you choose (normally your Google Drive folder).
+The app itself doesn't connect to Google; Google Drive for desktop syncs that folder, under your
+Google account's terms.
+
+- Windows: `%APPDATA%\CountdownTimer\`, `%APPDATA%\PhysicsCalculator\`, `%APPDATA%\FieldTimer\` and `%APPDATA%\StickyNotes\`
+- macOS: each app's standard preferences (`net.ergosfera.countdowntimer`, `net.ergosfera.physicscalculator`, `net.ergosfera.fieldtimer`, `net.ergosfera.stickynotes`)
 
 ## Disclaimer
 
@@ -86,10 +129,10 @@ liability arising from its use. See [LICENSE](LICENSE) for the full terms.
 ## Building from source
 
 - **Windows:** run `powershell -ExecutionPolicy Bypass -File <app>\build.ps1`
-  (`countdown-timer\build.ps1`, `physics-calculator\windows\build.ps1` or `field-timer\windows\build.ps1`).
+  (`countdown-timer\build.ps1`, `physics-calculator\windows\build.ps1`, `field-timer\windows\build.ps1` or `sticky-notes\build.ps1`).
   It uses the C# compiler included with Windows, so nothing needs to be installed.
 - **macOS:** install the Xcode Command Line Tools (`xcode-select --install`), then run
-  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh` or `field-timer/mac/build.sh`. Each creates the app and a `.dmg` in its `build/` folder.
+  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh`, `field-timer/mac/build.sh` or `sticky-notes-mac/build.sh`. Each creates the app and a `.dmg` in its `build/` folder.
 
 ## License
 
