@@ -224,6 +224,7 @@ canvas.chart { display: block; width: 100%; height: 100%; }
 #play-btn.playing { background: #f59e0b; border-color: #f59e0b; }
 #play-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .ro-sound { font-size: 0.8rem; font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; margin-top: 4px; line-height: 1.45; }
+.ro-undef { color: #e11d48; font-weight: 800; letter-spacing: .04em; }
 .ro-sound.pos { color: #0ea5e9; } .ro-sound.neg { color: #ea580c; } .ro-sound.off { color: var(--muted); }
 .axis-hint { font-size: 0.68rem; color: var(--muted); margin-left: auto; white-space: nowrap; }
 /* Big x / y readout in the top-right corner while hovering */
@@ -1093,6 +1094,22 @@ function isHoleAt(x) {
   return holes.some(d => !d.edge && Math.abs(d.x - x) <= tol);
 }
 
+// The trace snaps onto a hole/jump when it comes within a few pixels of
+// it, so the point where f is undefined can actually be visited.
+const visibleDisc = () => discCache.f ? discCache.f.list : [];
+function discAt(x) { return visibleDisc().find(d => d.x === x) || null; }
+function snapToDisc(x, slopPx) {
+  const T = fxTransform;
+  if (!T) return x;
+  const perPx = (T.xR.max - T.xR.min) / T.pw;
+  let best = null;
+  for (const d of visibleDisc()) {
+    const dist = Math.abs(d.x - x) / perPx;
+    if (dist <= slopPx && (!best || dist < best.dist)) best = { x: d.x, dist };
+  }
+  return best ? best.x : x;
+}
+
 // ── Key points: zeros, y-intercept, local max/min, inflection points ─
 const KP_META = {
   zero: { name: 'Zeros (cuts the x-axis)', short: 'zero',       color: '#06d6a0', shape: 'circle' },
@@ -1765,6 +1782,8 @@ function pill(ctx, txt, x, y, color, align = 'left') {
 }
 function drawTrace(ctx, xR, yR, toX, toY, pad, pw, ph) {
   if (!hasFunction) return;
+  const on = discAt(cursorX);
+  if (on && isNaN(f(cursorX))) return drawTraceOnDisc(ctx, on, xR, yR, toX, toY, pad, pw, ph);
   const x = cursorX, y = f(x);
   const px = toX(x), py = toY(y);
   if (px < pad.l || px > pad.l + pw) return;
@@ -1835,17 +1854,44 @@ function drawTrace(ctx, xR, yR, toX, toY, pad, pw, ph) {
   ctx.restore();
 }
 
+// Trace standing exactly on a hole or jump: ring the open circle(s), drop
+// the projection to the x-axis and label the point UNDEFINED.
+function drawTraceOnDisc(ctx, d, xR, yR, toX, toY, pad, pw, ph) {
+  const UNDEF = '#e11d48';
+  const px = toX(d.x), ys = d.kind === 'jump' ? [d.yL, d.yR] : [d.y];
+  const axisY = (yR.min <= 0 && yR.max >= 0) ? toY(0) : pad.t + ph;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
+  ctx.strokeStyle = UNDEF; ctx.lineWidth = 1.6; ctx.setLineDash([6, 4]);
+  const yTop = Math.min(...ys.map(toY));
+  ctx.beginPath(); ctx.moveTo(px, Math.max(pad.t, yTop)); ctx.lineTo(px, axisY); ctx.stroke();
+  ctx.setLineDash([]); ctx.lineWidth = 2.5;
+  for (const y of ys) { ctx.beginPath(); ctx.arc(toX(d.x), toY(y), 11, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.restore();
+
+  ctx.save();
+  ctx.font = 'bold 12px Courier New';
+  const xTxt = fmtNice(d.x), xw = ctx.measureText(xTxt).width + 12;
+  pill(ctx, xTxt, Math.max(pad.l, Math.min(pad.l + pw - xw, px - xw / 2)), Math.min(axisY + 13, pad.t + ph + 13), UNDEF);
+  const txt = `f(${xTxt}) = UNDEFINED`, tw = ctx.measureText(txt).width + 12;
+  const ty0 = d.kind === 'jump' ? (toY(d.yL) + toY(d.yR)) / 2 : yTop - 24;   // jump: middle of the gap
+  const ty = Math.max(pad.t + 14, Math.min(pad.t + ph - 14, ty0));
+  pill(ctx, txt, px + 16 + tw > pad.l + pw ? px - 16 - tw : px + 16, ty, UNDEF);
+  ctx.restore();
+}
+
 function updateCursorReadout() {
   const el = document.getElementById('cursor-readout');
   if (cursorX === null || dragState || !hasFunction) { el.style.display = 'none'; return; }
   const x = cursorX, y = f(x);
-  const yTxt = isNaN(y) ? 'undefined' : !isFinite(y) ? (y > 0 ? '+∞' : '−∞') : traceFmt(y);
-  let html = `<div class="ro-row"><span class="ro-k">x</span> = ${traceFmt(x)}</div>`
+  const on = discAt(x);   // the trace is sitting exactly on a hole or jump
+  const yTxt = isNaN(y) ? '<span class="ro-undef">UNDEFINED</span>' : !isFinite(y) ? (y > 0 ? '+∞' : '−∞') : traceFmt(y);
+  let html = `<div class="ro-row"><span class="ro-k">x</span> = ${on ? fmtNice(x) : traceFmt(x)}</div>`
            + `<div class="ro-row"><span class="ro-k">y</span> = ${yTxt}</div>`;
-  // Hovering right next to a hole or jump: say what happens at that point
-  const T = fxTransform, near = T && (discCache.f ? discCache.f.list : [])
-    .find(d => Math.abs(d.x - x) * T.pw / (T.xR.max - T.xR.min) < 6);
-  if (near) {
+  // Hovering on (or right next to) a hole or jump: say what happens there
+  const T = fxTransform, near = on || (T && visibleDisc()
+    .find(d => Math.abs(d.x - x) * T.pw / (T.xR.max - T.xR.min) < 6));
+  if (near && !(playing && on)) {   // (while playing, mathInfo says it below)
     const c = fmtNice(near.x);
     html += `<div class="ro-sound off">${near.kind === 'jump'
       ? `jump at x = ${c}: f → ${fmtNice(near.yL)} from the left, ${fmtNice(near.yR)} from the right`
@@ -1872,6 +1918,8 @@ function drawCharts() { drawFxChart(); updateCursorReadout(); }
 //    Off-screen (e.g. near a vertical asymptote): the tone wobbles.
 //    Undefined: silence.
 let playing = false, playP = 0, playLast = 0, playDur = 10, soundOn = true;
+let playHoldUntil = 0, playHeld = null;   // the sweep pauses briefly on each hole / jump
+const PLAY_HOLD_MS = 900;
 let audio = null;
 
 function ensureAudio() {
@@ -1910,6 +1958,9 @@ function isOffScreen(y) {
 // sign of f, monotonicity (sign of f′) and concavity (sign of f″).
 function mathInfo(x) {
   const y = f(x);
+  const d = discAt(x);
+  if (d && d.kind === 'jump') return { cls: 'off', text: `f is UNDEFINED here: it jumps from ${fmtNice(d.yL)} to ${fmtNice(d.yR)}` };
+  if (d) return { cls: 'off', text: `f is UNDEFINED here (a hole), although f(x) → ${fmtNice(d.y)}` };
   if (isNaN(y)) return { cls: 'off', text: 'f is undefined at this x (outside the domain)' };
   if (!isFinite(y)) return { cls: 'off', text: `f(x) → ${y > 0 ? '+∞' : '−∞'} (vertical asymptote)` };
   const eps = 1e-10;
@@ -1952,8 +2003,22 @@ function sweepTo(p) {
 function playStep(ts) {
   if (!playing) return;
   // Cap the step so a backgrounded tab doesn't make the sweep jump ahead
-  playP += Math.min(0.1, Math.max(0, (ts - playLast) / 1000)) / playDur;
+  const dt = Math.min(0.1, Math.max(0, (ts - playLast) / 1000));
   playLast = ts;
+  if (ts < playHoldUntil) { requestAnimationFrame(playStep); return; }
+  const { xR } = fxTransform, at = p => xR.min + p * (xR.max - xR.min);
+  const pNext = playP + dt / playDur;
+  // Crossing a hole or jump: stop on it exactly (silence + UNDEFINED), then go on
+  const d = visibleDisc().find(d => d !== playHeld && d.x >= at(playP) && d.x <= at(pNext));
+  if (d) {
+    playHeld = d;
+    playP = (d.x - xR.min) / (xR.max - xR.min);
+    playHoldUntil = ts + PLAY_HOLD_MS;
+    cursorX = d.x; drawCharts(); updateSound();
+    requestAnimationFrame(playStep);
+    return;
+  }
+  playP = pNext;
   if (playP >= 1) {           // reached the right edge: stop, keep the trace there
     playP = 1; playing = false;
     sweepTo(1); setPlayUI();
@@ -1967,7 +2032,7 @@ function startPlay() {
   const a = ensureAudio();
   if (a && a.ctx.state === 'suspended') a.ctx.resume();
   if (playP >= 1) playP = 0;
-  playing = true;
+  playing = true; playHeld = null; playHoldUntil = 0;
   playLast = performance.now();
   setPlayUI();
   sweepTo(playP);
@@ -2144,7 +2209,7 @@ fxCv.addEventListener('mousemove', e => {
     return;
   }
   if (playing) return;   // the sweep owns the trace while playing
-  cursorX = fxTransform.fromX(px);
+  cursorX = snapToDisc(fxTransform.fromX(px), 5);
   drawCharts();
 });
 fxCv.addEventListener('mouseleave', () => {
@@ -2245,7 +2310,7 @@ function canvasXY(clientX, clientY) {
 function traceAt(px) {
   if (!fxTransform || playing) return;
   const { pad, pw } = fxTransform;
-  cursorX = fxTransform.fromX(Math.max(pad.l, Math.min(pad.l + pw, px)));
+  cursorX = snapToDisc(fxTransform.fromX(Math.max(pad.l, Math.min(pad.l + pw, px))), 10);
   drawCharts();
 }
 function pinchMid() {
