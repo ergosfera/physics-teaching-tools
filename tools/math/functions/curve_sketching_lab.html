@@ -164,6 +164,7 @@ body.resizing, body.resizing * { user-select: none !important; }
 .kp-head span:first-of-type { flex: 1; }
 .kp-n { background: var(--c); color: #fff; border-radius: 10px; padding: 0 7px; font-size: 0.7rem; }
 .kp-row { font-family: 'Courier New', monospace; font-size: 0.92rem; font-weight: 700; color: var(--text); padding: 3px 6px; border-radius: 6px; cursor: default; }
+.kp-sub { display: block; font-family: inherit; font-size: 0.72rem; font-weight: 500; color: var(--muted); }
 .kp-row:hover { background: color-mix(in srgb, var(--c) 22%, transparent); }
 .asym-hidden { font-size: 0.78rem; font-weight: 700; color: #ff006e; text-align: center; padding: 6px; border: 1px dashed #ff006e; border-radius: 8px; }
 .asym-hidden a { color: #ff006e; }
@@ -338,7 +339,7 @@ canvas.chart { touch-action: none; }
     </label>
 
     <label class="chk-row">
-      <input type="checkbox" id="kp-toggle" autocomplete="off"> show key points (zeros, max/min, inflection)
+      <input type="checkbox" id="kp-toggle" autocomplete="off"> show key points (zeros, max/min, inflection, holes)
     </label>
 
     <label class="chk-row">
@@ -735,7 +736,13 @@ function analyzeConcavity() {
   for (let i = 0; i <= SAMPLES; i++) {
     const x = xMin + (xMax - xMin) * i / SAMPLES;
     const fv = f(x);
-    if (!isFinite(fv)) { undefinedCount++; continue; }
+    if (!isFinite(fv)) {
+      // A single undefined point (hole, jump or asymptote that a sample hit
+      // exactly) doesn't make f "undefined on part of the interval"
+      const st = (xMax - xMin) / SAMPLES / 2;
+      if (!isFinite(f(x - st)) || !isFinite(f(x + st))) undefinedCount++;
+      continue;
+    }
     fLo = Math.min(fLo, fv); fHi = Math.max(fHi, fv);
     const v = fDouble(x);
     if (!isFinite(v)) continue;
@@ -770,7 +777,12 @@ function renderBadge() {
   const el = document.getElementById('concavity-badge');
   const r = analyzeConcavity();
   el.className = 'badge-box ' + (r.type === 'undef' ? 'flat' : r.type);
-  const note = r.partial ? '<br><span style="font-weight:400;font-size:0.78rem">(f is undefined on part of this interval)</span>' : '';
+  const small = t => '<br><span style="font-weight:400;font-size:0.78rem">' + t + '</span>';
+  const hx = holes.filter(d => d.kind === 'hole' && !d.edge).map(d => fmtNice(d.x));
+  const jx = holes.filter(d => d.kind === 'jump').map(d => fmtNice(d.x));
+  const note = (r.partial ? small('(f is undefined on part of this interval)') : '')
+    + (hx.length ? small(`(hole at x = ${hx.slice(0, 3).join(', ')}${hx.length > 3 ? ', …' : ''}: f is undefined at that single point)`) : '')
+    + (jx.length ? small(`(jump at x = ${jx.slice(0, 3).join(', ')}${jx.length > 3 ? ', …' : ''})`) : '');
   const list = xs => xs.slice(0, 3).map(fmt).join(', ') + (xs.length > 3 ? ', …' : '');
   if (r.type === 'undef') {
     el.textContent = '— f is not defined on this interval —';
@@ -968,6 +980,119 @@ function renderAsymptotePanel() {
   });
 }
 
+// ── Holes and jumps: points where f is undefined but the curve doesn't
+//    blow up. Sampling alone almost never lands on such a point, so the
+//    candidates come from the formula: zeros of every denominator (and of
+//    the inside of tan, sec, csc, cot, ln, log and negative powers), plus
+//    the edges of the domain. At each candidate where f is undefined the
+//    one-sided limits decide what it is:
+//      both sides agree      → hole  ○ at (c, L)          e.g. (x²−1)/(x−1), sin(x)/x
+//      both finite, differ   → jump  ○ at (c, L⁻), (c, L⁺) e.g. |x|/x
+//      only one side defined → open endpoint ○            e.g. x·ln x at 0
+//    Infinite or oscillating limits are left to the asymptote finder.
+function singularParts(n, out = []) {
+  const at = node => x => evalNode(node, x);
+  if (n.t === 'div') out.push(at(n.b));
+  if (n.t === 'pow' && !hasX(n.b) && evalNode(n.b, 0) < 0) out.push(at(n.a));
+  if (n.t === 'fn') {
+    const u = at(n.a);
+    if (n.name === 'tan' || n.name === 'sec') out.push(x => Math.cos(u(x)));
+    if (n.name === 'cot' || n.name === 'csc') out.push(x => Math.sin(u(x)));
+    if (n.name === 'ln' || n.name === 'log') out.push(u);
+  }
+  if (n.a) singularParts(n.a, out);
+  if (n.b) singularParts(n.b, out);
+  return out;
+}
+
+// Zeros of g on [a, b]: sign changes (bisected) and touch points like (x−1)².
+function rootsOf(g, a, b, S = 1500) {
+  const span = b - a, xs = [], gs = [], out = [];
+  for (let i = 0; i <= S; i++) { const x = a + span * i / S; xs.push(x); gs.push(g(x)); }
+  for (let i = 0; i <= S; i++) {
+    if (gs[i] === 0) { out.push(xs[i]); continue; }
+    if (i > 0 && isFinite(gs[i-1]) && isFinite(gs[i]) && Math.sign(gs[i-1]) * Math.sign(gs[i]) < 0) {
+      let lo = xs[i-1], hi = xs[i];
+      const sLo = Math.sign(gs[i-1]);
+      for (let k = 0; k < 70; k++) { const m = (lo + hi) / 2; if (Math.sign(g(m)) === sLo) lo = m; else hi = m; }
+      out.push((lo + hi) / 2);
+    }
+    if (i > 0 && i < S && isFinite(gs[i]) && Math.abs(gs[i]) <= Math.abs(gs[i-1]) && Math.abs(gs[i]) <= Math.abs(gs[i+1])) {
+      const h = x => { const v = Math.abs(g(x)); return isFinite(v) ? v : Infinity; };
+      let lo = xs[i-1], hi = xs[i+1];
+      for (let k = 0; k < 100; k++) { const m1 = lo + (hi-lo)/3, m2 = hi - (hi-lo)/3; if (h(m1) < h(m2)) hi = m2; else lo = m1; }
+      out.push((lo + hi) / 2);
+    }
+  }
+  return out;
+}
+
+function findDiscontinuities(ast, a, b) {
+  const fn = x => evalNode(ast, x), span = b - a;
+  const parts = singularParts(ast);
+  const cands = [];   // { c, g } — g is the part that vanishes there (if any)
+  for (const g of parts) for (const c of rootsOf(g, a, b)) cands.push({ c, g });
+  // Edges of the domain (and any sample that happens to land on a hole)
+  const S = 1500;
+  let prevX = a, prevOk = isFinite(fn(a));
+  for (let i = 1; i <= S; i++) {
+    const x = a + span * i / S, ok = isFinite(fn(x));
+    if (ok !== prevOk) cands.push({ c: ok ? domainEdge(fn, x, prevX) : domainEdge(fn, prevX, x) });
+    prevX = x; prevOk = ok;
+  }
+
+  // One-sided limit, with a linear extrapolation step (2·f(c+h) − f(c+2h))
+  // so the estimate is accurate even though we can't sit on c itself.
+  // Returns NaN if f is undefined on that side, null if it diverges/oscillates.
+  // Slowly converging limits (x·ln x at 0) fall back to raw values very
+  // close to c, accepted only if they settle down steadily.
+  const fin = [];
+  for (let i = 0; i <= 200; i++) { const v = fn(a + span * i / 200); if (isFinite(v)) fin.push(Math.abs(v)); }
+  const scale = 1 + (fin.length ? fin.sort((p, q) => p - q)[fin.length >> 1] : 0);
+  const limit = (c, s) => {
+    const est = h => 2 * fn(c + s * h) - fn(c + 2 * s * h);
+    const v1 = est(span * 1e-5), v2 = est(span * 1e-3);
+    if (isNaN(fn(c + s * span * 1e-5)) && isNaN(fn(c + s * span * 1e-3))) return NaN;
+    if (isFinite(v1) && isFinite(v2) && Math.abs(v1 - v2) <= 1e-3 * (1 + Math.abs(v1))) return v1;
+    const [r1, r2, r3] = [1e-6, 1e-8, 1e-10].map(e => fn(c + s * span * e));
+    const d1 = Math.abs(r2 - r1), d2 = Math.abs(r3 - r2);
+    if ([r1, r2, r3].every(isFinite) && d2 < d1 && d2 < 1e-5 * scale) return r3;
+    return null;
+  };
+  const nice = v => { v = snapNice(v, 1e-6 * (1 + Math.abs(v))); return Math.abs(v) < 1e-6 * scale ? 0 : v; };
+
+  const out = [];
+  for (const { c: raw, g } of cands) {
+    const c = Math.abs(raw) < span * 1e-9 ? 0 : snapNice(raw, span * 1e-7);
+    if (c < a - 1e-12 || c > b + 1e-12) continue;
+    if (out.some(d => Math.abs(d.x - c) < span * 1e-6)) continue;
+    const undef = !isFinite(fn(c)) || (g && (Math.abs(g(raw)) < 1e-9 || Math.abs(g(c)) < 1e-9));
+    if (!undef) continue;
+    const L = limit(c, -1), R = limit(c, 1);
+    if (L === null || R === null || (isNaN(L) && isNaN(R))) continue;
+    if (isNaN(L) || isNaN(R)) out.push({ kind: 'hole', x: c, y: nice(isNaN(L) ? R : L), edge: true });
+    else if (Math.abs(L - R) < 1e-4 * (1 + Math.abs(L) + Math.abs(R))) out.push({ kind: 'hole', x: c, y: nice((L + R) / 2) });
+    else out.push({ kind: 'jump', x: c, yL: nice(L), yR: nice(R) });
+  }
+  return out.sort((p, q) => p.x - q.x);
+}
+
+let holes = [];   // discontinuities of f on [xMin, xMax] (panel, table, badge)
+let discCache = {};
+function visibleDiscontinuities(which, ast, xR) {
+  const key = xR.min + ',' + xR.max + ',' + document.getElementById('eq-echo').textContent;
+  const hit = discCache[which];
+  if (hit && hit.key === key) return hit.list;
+  const list = findDiscontinuities(ast, xR.min, xR.max);
+  discCache[which] = { key, list };
+  return list;
+}
+// Is x (a sample that came out undefined) just an isolated hole of f?
+function isHoleAt(x) {
+  const tol = (xMax - xMin) * 1e-9;
+  return holes.some(d => !d.edge && Math.abs(d.x - x) <= tol);
+}
+
 // ── Key points: zeros, y-intercept, local max/min, inflection points ─
 const KP_META = {
   zero: { name: 'Zeros (cuts the x-axis)', short: 'zero',       color: '#06d6a0', shape: 'circle' },
@@ -975,6 +1100,8 @@ const KP_META = {
   max:  { name: 'Local maxima',            short: 'max',        color: '#ff006e', shape: 'up' },
   min:  { name: 'Local minima',            short: 'min',        color: '#fb5607', shape: 'down' },
   infl: { name: 'Inflection points',       short: 'inflection', color: '#8338ec', shape: 'diamond' },
+  hole: { name: 'Holes (f undefined there)', short: 'hole',     color: '#e11d48', shape: 'ring' },
+  jump: { name: 'Jumps',                   short: 'jump',       color: '#f59e0b', shape: 'ring' },
 };
 let keyPoints = [];       // [{ key, kind, x, y }]
 let hotKeyPt = null;
@@ -997,8 +1124,9 @@ function findKeyPoints() {
     if (x < a - 1e-12 || x > b + 1e-12) return;
     if (out.some(p => p.kind === kind && Math.abs(p.x - x) < span * 1e-5)) return;
     let y = f(x);
+    if (!isFinite(y)) return;   // e.g. a hole sitting on the x-axis is not a zero
+    if (holes.some(h => Math.abs(h.x - x) < span * 1e-6)) return;
     if (kind === 'zero') y = 0;
-    if (!isFinite(y)) return;
     if (Math.abs(y) < 1e-12) y = 0;
     out.push({ kind, x, y: snapNice(y, 1e-9 * fRange), key: 'k:' + kind + ':' + x.toFixed(9) });
   };
@@ -1055,6 +1183,11 @@ function findKeyPoints() {
   const conc = analyzeConcavity();
   if (conc.events) conc.events.filter(e => e.kind === 'inflection').forEach(e => add('infl', e.x));
 
+  // Holes and jumps (found symbolically, see findDiscontinuities)
+  for (const d of holes)
+    out.push(d.kind === 'hole' ? { kind: 'hole', x: d.x, y: d.y, edge: d.edge, key: 'k:hole:' + d.x.toFixed(9) }
+                               : { kind: 'jump', x: d.x, y: d.yR, yL: d.yL, key: 'k:jump:' + d.x.toFixed(9) });
+
   const order = Object.keys(KP_META);
   out.sort((p, q) => order.indexOf(p.kind) - order.indexOf(q.kind) || p.x - q.x);
   return out;
@@ -1069,15 +1202,21 @@ function shapeSvg(shape, color, size = 14) {
     down:    `<polygon points="1,2 ${size-1},2 ${h},${size-1}"/>`,
     diamond: `<polygon points="${h},1 ${size-1},${h} ${h},${size-1} 1,${h}"/>`,
   }[shape];
+  if (shape === 'ring') return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${h}" cy="${h}" r="${h-2.5}" fill="#fff" stroke="${color}" stroke-width="2.5"/></svg>`;
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="${color}" stroke="#fff" stroke-width="1.5">${body}</svg>`;
 }
 
+function kpRowText(p) {
+  if (p.kind === 'jump') return `x = ${fmtNice(p.x)}: ${fmtNice(p.yL)} → ${fmtNice(p.y)}`;
+  if (p.kind === 'hole') return `(${fmtNice(p.x)}, ${fmtNice(p.y)})<span class="kp-sub">f(${fmtNice(p.x)}) undefined · ${p.edge ? 'one-sided limit' : 'limit'} = ${fmtNice(p.y)}</span>`;
+  return `(${fmtNice(p.x)}, ${fmtNice(p.y)})`;
+}
 function renderKeyPointsPanel() {
   keyPoints = findKeyPoints();
   document.getElementById('kp-count').textContent = keyPoints.length;
   const el = document.getElementById('kp-list');
   if (!keyPoints.length) {
-    el.innerHTML = '<div class="asym-empty">No zeros, extrema or inflection points<br>on [' + fmt(xMin) + ', ' + fmt(xMax) + '].</div>';
+    el.innerHTML = '<div class="asym-empty">No zeros, extrema, inflection points or holes<br>on [' + fmt(xMin) + ', ' + fmt(xMax) + '].</div>';
     return;
   }
   let html = '';
@@ -1086,7 +1225,7 @@ function renderKeyPointsPanel() {
     if (!pts.length) continue;
     const m = KP_META[kind];
     html += `<div class="kp-group" style="--c:${m.color}"><div class="kp-head">${shapeSvg(m.shape, m.color)}<span>${m.name}</span><span class="kp-n">${pts.length}</span></div>`;
-    html += pts.map(p => `<div class="kp-row" data-key="${p.key}">(${fmtNice(p.x)}, ${fmtNice(p.y)})</div>`).join('');
+    html += pts.map(p => `<div class="kp-row" data-key="${p.key}">${kpRowText(p)}</div>`).join('');
     html += '</div>';
   }
   el.innerHTML = html + '<div class="asym-note">Points found for x in [' + fmt(xMin) + ', ' + fmt(xMax) + ']. Hover a row to highlight it; drag labels on the graph to move them.</div>';
@@ -1101,24 +1240,29 @@ function renderKeyPointsPanel() {
 // undefined somewhere in it: its secant would jump across the asymptote.
 function intervalBreaks(x1, x2) {
   if (asymList.some(a => a.kind === 'v' && a.c > x1 && a.c < x2)) return true;
-  for (let k = 1; k < 24; k++) if (!isFinite(f(x1 + (x2 - x1) * k / 24))) return true;
+  if (holes.some(d => d.kind === 'jump' && d.x > x1 && d.x < x2)) return true;
+  for (let k = 1; k < 24; k++) {
+    const x = x1 + (x2 - x1) * k / 24;
+    if (!isFinite(f(x)) && !isHoleAt(x)) return true;
+  }
   return false;
 }
 
 function recompute() {
   if (!hasFunction) {
-    points = []; diffs = []; asymList = []; keyPoints = [];
+    points = []; diffs = []; asymList = []; keyPoints = []; holes = [];
     const badge = document.getElementById('concavity-badge');
     badge.className = 'badge-box flat';
     badge.textContent = 'Type a function f(x) above and press Plot';
     document.getElementById('asym-count').textContent = 0;
     document.getElementById('asym-list').innerHTML = '<div class="asym-empty">Plot a function to see its asymptotes.</div>';
     document.getElementById('kp-count').textContent = 0;
-    document.getElementById('kp-list').innerHTML = '<div class="asym-empty">Plot a function to see its zeros, extrema and inflection points.</div>';
+    document.getElementById('kp-list').innerHTML = '<div class="asym-empty">Plot a function to see its zeros, extrema, inflection points and holes.</div>';
     document.getElementById('diff-body').innerHTML = '<tr><td colspan="5" class="cell-empty">Plot a function to fill the table.</td></tr>';
     drawCharts();
     return;
   }
+  holes = findDiscontinuities(fAst, xMin, xMax);
   renderAsymptotePanel();   // builds asymList, used below
   points = []; diffs = [];
   const dx = (xMax - xMin) / N;
@@ -1331,7 +1475,8 @@ function domainEdge(fn, good, bad) {
   return good;
 }
 
-function strokeCurve(ctx, fn, xR, toX, toY, ph) {
+function strokeCurve(ctx, fn, xR, toX, toY, ph, disc = []) {
+  const jumps = disc.filter(d => d.kind === 'jump');
   const S = 800, LIM = ph * 50;
   const clampY = py => Math.max(-LIM, Math.min(LIM + ph, py));
   ctx.beginPath();
@@ -1354,11 +1499,26 @@ function strokeCurve(ctx, fn, xR, toX, toY, ph) {
       const between = isFinite(pym) && (pym - prev.py) * (py - pym) >= 0;
       if (!between) prev = null;
     }
+    // A jump between the last sample and this one: finish at the left
+    // limit and restart from the right one, instead of joining them up.
+    const j = prev && jumps.find(d => d.x > prev.x && d.x <= x);
+    if (j) { ctx.lineTo(toX(j.x), clampY(toY(j.yL))); ctx.moveTo(toX(j.x), clampY(toY(j.yR))); }
     const px = toX(x);
     if (!prev) ctx.moveTo(px, clampY(py)); else ctx.lineTo(px, clampY(py));
     prev = { x, py };
   }
   ctx.stroke();
+}
+
+// Open circles ○ where the curve has a hole, or at both ends of a jump.
+function drawOpenPoints(ctx, disc, toX, toY, color, r = 5.5) {
+  ctx.save(); ctx.setLineDash([]);
+  ctx.fillStyle = cssVar('--surface'); ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+  for (const d of disc)
+    for (const y of d.kind === 'jump' ? [d.yL, d.yR] : [d.y]) {
+      ctx.beginPath(); ctx.arc(toX(d.x), toY(y), r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+  ctx.restore();
 }
 
 const TANGENT_LEN = 150;  // on-screen length (px) of the cursor tangent segment
@@ -1393,6 +1553,16 @@ function drawKeyPoints(ctx, xR, yR, toX, toY, pad, pw, ph) {
     const px = toX(p.x), py = toY(p.y);
     if (px < pad.l - 2 || px > pad.l + pw + 2 || py < pad.t - 2 || py > pad.t + ph + 2) continue;
     const m = KP_META[p.kind], hot = p.key === hotKeyPt, r = hot ? 10 : 7;
+    if (m.shape === 'ring') {   // the open circle itself is drawn with the curve
+      if (hot) { ctx.save(); ctx.strokeStyle = m.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, py, 12, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+      const txt = p.kind === 'jump' ? `jump at x = ${fmtNice(p.x)}` : `hole (${fmtNice(p.x)}, ${fmtNice(p.y)})`;
+      ctx.font = 'bold 12px Courier New';
+      const w = ctx.measureText(txt).width + 10;
+      const left = px + 12 + w > pad.l + pw;
+      const ly = py - 14 < pad.t + 14 ? py + 26 : py - 14;
+      drawLabel(ctx, txt, left ? px - 12 : px + 12, ly, left ? 'right' : 'left', m.color, p.key, { x: px, y: py });
+      continue;
+    }
     ctx.save();
     ctx.fillStyle = m.color; ctx.strokeStyle = cssVar('--surface'); ctx.lineWidth = 2;
     ctx.beginPath();
@@ -1493,13 +1663,17 @@ function drawFxChart() {
   const sliced = showIntervals;
   ctx.strokeStyle = cssVar(sliced ? '--curve-dark' : '--accent'); ctx.lineWidth = sliced ? 4.5 : 2.5;
   ctx.lineJoin = 'round';
-  strokeCurve(ctx, f, xR, toX, toY, ph);
+  const fDisc = hasFunction ? visibleDiscontinuities('f', fAst, xR) : [];
+  strokeCurve(ctx, f, xR, toX, toY, ph, fDisc);
+  drawOpenPoints(ctx, fDisc, toX, toY, ctx.strokeStyle, sliced ? 6.5 : 5.5);
 
   if (showDeriv) {
+    const dDisc = visibleDiscontinuities('d', dAst, xR);
     ctx.strokeStyle = cssVar('--green'); ctx.lineWidth = 2;
     ctx.setLineDash([6,4]);
-    strokeCurve(ctx, fPrime, xR, toX, toY, ph);
+    strokeCurve(ctx, fPrime, xR, toX, toY, ph, dDisc);
     ctx.setLineDash([]);
+    drawOpenPoints(ctx, dDisc, toX, toY, cssVar('--green'), 4.5);
   }
 
   if (showIntervals) {
@@ -1668,6 +1842,15 @@ function updateCursorReadout() {
   const yTxt = isNaN(y) ? 'undefined' : !isFinite(y) ? (y > 0 ? '+∞' : '−∞') : traceFmt(y);
   let html = `<div class="ro-row"><span class="ro-k">x</span> = ${traceFmt(x)}</div>`
            + `<div class="ro-row"><span class="ro-k">y</span> = ${yTxt}</div>`;
+  // Hovering right next to a hole or jump: say what happens at that point
+  const T = fxTransform, near = T && (discCache.f ? discCache.f.list : [])
+    .find(d => Math.abs(d.x - x) * T.pw / (T.xR.max - T.xR.min) < 6);
+  if (near) {
+    const c = fmtNice(near.x);
+    html += `<div class="ro-sound off">${near.kind === 'jump'
+      ? `jump at x = ${c}: f → ${fmtNice(near.yL)} from the left, ${fmtNice(near.yR)} from the right`
+      : `○ hole at x = ${c}: f(${c}) is undefined,<br>but f(x) → ${fmtNice(near.y)} as x → ${c}${near.edge ? ' (one side)' : ''}`}</div>`;
+  }
   if (showTangent) {
     const m = fPrime(x);
     html += `<div class="ro-row ro-m"><span class="ro-k">f′(x)</span> = ${isFinite(m) ? traceFmt(m) : '—'}</div>`;
