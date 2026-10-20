@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Net Force at Rest Lab</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚖️</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950;
+    --green-soft: rgba(63,185,80,.12);
+    --amber: #d29922;
+    --amber-soft: rgba(210,153,34,.14);
+    --red: #f85149;
+    --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #0969da;
+    --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37;
+    --green-soft: rgba(26,127,55,.09);
+    --amber: #9a6700;
+    --amber-soft: rgba(154,103,0,.10);
+    --red: #cf222e;
+  }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.5; min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.3px; }
+  header h1 span { color: var(--accent); }
+  .progress { flex: 1; min-width: 140px; display: flex; gap: 4px; }
+  .progress i { flex: 1; height: 6px; border-radius: 3px; background: var(--surface2); border: 1px solid var(--border); }
+  .progress i.done { background: var(--green); border-color: var(--green); }
+  .progress i.current { background: var(--accent); border-color: var(--accent); }
+  .save-state { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .pill-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 20px; padding: 5px 12px; font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer;
+  }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  .intro { color: var(--muted); font-size: .92rem; margin-bottom: 20px; }
+  .intro b { color: var(--text); }
+
+  /* ── STEPS ── */
+  .step {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .step-head {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-head .num {
+    width: 30px; height: 30px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; font-weight: 800; font-size: .9rem;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .step.done .num { background: var(--green); border-color: var(--green); color: #fff; }
+  .step.active .num { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step-head h2 { font-size: 1.02rem; font-weight: 700; flex: 1; }
+  .step-head .status { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .step.done .status { color: var(--green); }
+  .step-body { padding: 18px; display: grid; gap: 16px; }
+  .step-lock { display: none; padding: 14px 18px; color: var(--muted); font-size: .88rem; }
+  .step.locked .step-body { display: none; }
+  .step.locked .step-lock { display: block; }
+  .step.locked .step-head { border-bottom: none; opacity: .6; }
+
+  p.lead { font-size: .93rem; }
+  ul.tips, ol.tips { font-size: .86rem; color: var(--muted); padding-left: 20px; display: grid; gap: 3px; }
+  ul.tips b, ol.tips b { color: var(--text); }
+  h3.sub { font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+
+  /* ── FORM ── */
+  label.f { display: grid; gap: 5px; font-size: .82rem; font-weight: 600; color: var(--muted); align-content: end; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; font: inherit; font-size: .95rem; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  input[readonly] { background: var(--surface2); color: var(--muted); }
+  .q { display: grid; gap: 6px; }
+  .q .qt { font-size: .93rem; font-weight: 600; }
+  .q .qt em { font-style: normal; color: var(--accent); }
+  .wc { font-size: .72rem; color: var(--muted); text-align: right; }
+  .wc.ok { color: var(--green); }
+
+  .choices { display: grid; gap: 6px; }
+  .choices label {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: .92rem;
+  }
+  .choices label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px; }
+  .checks label { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; cursor: pointer; }
+  .checks input { margin-top: 4px; }
+
+  .btn {
+    font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;
+    border-radius: 8px; padding: 9px 16px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); text-decoration: none; display: inline-block;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .row-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .note {
+    border-radius: 8px; padding: 10px 14px; font-size: .88rem;
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+  }
+  .note.warn { background: var(--amber-soft); border-left-color: var(--amber); }
+  .note.good { background: var(--green-soft); border-left-color: var(--green); }
+  .discuss {
+    border: 1px dashed var(--accent); border-radius: 10px; padding: 14px; display: grid; gap: 8px;
+    background: var(--accent-soft);
+  }
+  .discuss .tag { font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  .box { border: 1px solid var(--border); border-radius: 10px; padding: 14px; display: grid; gap: 12px; background: var(--bg); }
+
+  /* ── DATA, PLOTS, SCREENSHOT ── */
+  .table-wrap { overflow-x: auto; }
+  table.data { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  table.data th { text-align: left; font-size: .74rem; color: var(--muted); font-weight: 700; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.data td { padding: 5px 8px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.data td input { min-width: 90px; padding: 6px 8px; }
+  table.data td.ok { color: var(--green); font-weight: 700; }
+  table.data td.bad { color: var(--amber); font-weight: 700; }
+  .scroll-table { max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+  .plot { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+  .plot text { fill: var(--muted); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .plot .axis { stroke: var(--muted); stroke-width: 1; }
+  .plot .grid { stroke: var(--border); stroke-width: 1; }
+  .plot .pt { fill: var(--accent); stroke: var(--bg); stroke-width: 1; }
+  .plot .lbl { fill: var(--text); font-weight: 600; }
+  .caption { font-size: .82rem; color: var(--muted); }
+  .drop {
+    border: 2px dashed var(--border); border-radius: 10px; padding: 18px; text-align: center; color: var(--muted);
+    font-size: .88rem; display: grid; gap: 10px; justify-items: center;
+  }
+  .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+  .drop img { max-width: 100%; max-height: 360px; border-radius: 6px; border: 1px solid var(--border); }
+  .eq { font-family: Consolas, 'Courier New', monospace; font-size: .95rem; }
+
+  .summary { display: grid; gap: 4px; font-size: .9rem; }
+  .summary div::before { content: '○ '; color: var(--muted); }
+  .summary div.ok::before { content: '✓ '; color: var(--green); font-weight: 800; }
+
+  /* ── LAB GUIDE ── */
+  dialog.guide {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+    width: min(820px, 94vw); max-height: 90vh; margin: auto; padding: 0;
+  }
+  dialog.guide::backdrop { background: rgba(0,0,0,.55); }
+  .guide-head { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .guide-head h2 { font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .guide-body { padding: 18px; display: grid; gap: 18px; font-size: .92rem; }
+  .guide-body h3 { font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .guide-body h4 { font-size: .9rem; font-weight: 800; margin: 12px 0 6px; }
+  .guide-body ol, .guide-body ul { padding-left: 22px; display: grid; gap: 6px; }
+  .guide-body li b { color: var(--text); }
+  .guide-cols { display: grid; grid-template-columns: 1fr 250px; gap: 18px; align-items: start; }
+  .guide-materials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .guide-cols, .guide-materials { grid-template-columns: 1fr; } }
+  .guide-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .guide-box .bt { font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  .guide-fig { width: 100%; height: auto; display: block; }
+  .guide-fig text { fill: var(--text); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .guide-foot { padding: 0 18px 18px; display: flex; justify-content: flex-end; }
+  .guide-link { background: none; border: none; color: var(--accent); font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer; padding: 0; text-align: left; justify-self: start; }
+  .guide-link:hover { text-decoration: underline; }
+  kbd { font-family: Consolas, 'Courier New', monospace; font-size: .82rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
+
+  /* ── HOW-TO LISTS (instructions where they are used) ── */
+  ol.howto { padding-left: 22px; display: grid; gap: 6px; font-size: .9rem; }
+  ol.howto li::marker { color: var(--accent); font-weight: 800; }
+  ol.howto b { color: var(--text); }
+
+  footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
+  footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+
+  /* ── CHECKS NEXT TO THE CALCULATIONS ── */
+  .chk { font-weight: 800; margin-left: 6px; }
+  .chk.ok { color: var(--green); }
+  .chk.bad { color: var(--amber); }
+  .formula { font-family: Consolas, 'Courier New', monospace; font-size: .9rem; color: var(--muted); }
+  .formula b { color: var(--text); }
+  .force-head { font-weight: 800; font-size: .92rem; display: flex; align-items: center; gap: 8px; }
+  .force-head i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .vec text { font-size: 13px; font-weight: 700; font-family: 'Segoe UI', system-ui, sans-serif; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="pill-btn" href="../../../index.html#lab-reports" style="text-decoration:none">← Lab Reports</a>
+  <h1>⚖️ <span>Net Force at Rest</span> Lab</h1>
+  <div class="progress" id="progress"></div>
+  <span class="save-state" id="save-state">Saved on this computer</span>
+  <button class="pill-btn" data-guide>📋 Lab guide</button>
+  <button class="pill-btn" id="theme-toggle">☀ Light</button>
+</header>
+
+<main>
+  <p class="intro">Work <b>with your partner</b> through the steps in order. Each step unlocks the next one. Your work is saved on this computer as you type, so a reload won't lose it. When you finish, send the report to your teacher.</p>
+
+  <!-- 1 TEAM -->
+  <section class="step" data-step="1">
+    <div class="step-head"><span class="num">1</span><h2>Your team</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="grid2">
+        <label class="f"><span>Class / session code</span><input type="text" data-bind="session" id="session-input" placeholder="e.g. 10A"></label>
+        <label class="f"><span>Group number</span><input type="text" inputmode="numeric" data-bind="group" placeholder="e.g. 4"></label>
+      </div>
+      <div class="grid2">
+        <label class="f"><span>Student 1</span><input type="text" data-bind="students.0" placeholder="Full name"></label>
+        <label class="f"><span>Student 2</span><input type="text" data-bind="students.1" placeholder="Full name"></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 PREDICT -->
+  <section class="step" data-step="2">
+    <div class="step-head"><span class="num">2</span><h2>Predict before you measure</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">A ring is held by two spring scales, one horizontal and one inclined, and a mass hangs from it. The ring stays <b>at rest</b>. Before touching anything, <b>discuss with your partner</b>:</p>
+      <div class="q">
+        <div class="qt">The <em>net force</em> on the ring (all the forces added together) is…</div>
+        <div class="choices" data-radio="prediction.net">
+          <label><input type="radio" name="pred-net" value="zero"> zero</label>
+          <label><input type="radio" name="pred-net" value="down"> pointing down, because of the weight of the mass</label>
+          <label><input type="radio" name="pred-net" value="up"> pointing up, because the inclined scale pulls up</label>
+          <label><input type="radio" name="pred-net" value="toward2"> pointing toward the inclined scale</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">Which spring scale will show the <em>larger</em> reading?</div>
+        <div class="choices" data-radio="prediction.larger">
+          <label><input type="radio" name="pred-larger" value="one"> the horizontal scale</label>
+          <label><input type="radio" name="pred-larger" value="two"> the inclined scale</label>
+          <label><input type="radio" name="pred-larger" value="same"> both the same</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">Why do you think so? Write the reason you both agree on.</div>
+        <textarea data-bind="prediction.why" data-min="6"></textarea>
+        <div class="wc" data-wc="prediction.why"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 SET UP -->
+  <section class="step" data-step="3">
+    <div class="step-head"><span class="num">3</span><h2>Set up and read the forces</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <h3 class="sub">a · Set up (see the picture in the 📋 Lab guide)</h3>
+      <ol class="howto">
+        <li>Place the two universal supports on the table, about <b>60 to 80 cm apart</b>.</li>
+        <li><b>Zero both spring scales:</b> hold each one in the position it will have (one horizontal, one inclined) and adjust it until it reads <b>0 N</b> with nothing hanging from it.</li>
+        <li>Attach <b>scale 1</b> to the left support and hook it to the ring. Scale 1 must be <b>completely horizontal</b>: move its clamp up or down until it is level.</li>
+        <li>Attach <b>scale 2</b> higher on the right support and hook it to the ring, so it is <b>inclined</b>.</li>
+        <li>Hang the <b>mass</b> from the ring with a short piece of thread.</li>
+        <li>Let everything settle. The ring must be <b>at rest</b> and touch only the two scales and the thread. The scales must not touch the supports or the table. Check again that scale 1 is still horizontal.</li>
+      </ol>
+      <h3 class="sub">b · Read the forces</h3>
+      <ol class="howto">
+        <li>Write the <b>mass</b> in grams: it is printed on the mass, or measure it with the balance.</li>
+        <li>Read both scales <b>with your eyes at the level of the pointer</b>, without touching anything.</li>
+      </ol>
+      <div class="grid4">
+        <label class="f"><span>Mass m (g)</span><input type="text" inputmode="decimal" data-bind="setup.m" placeholder="e.g. 200"></label>
+        <label class="f"><span>Scale 1, horizontal: F₁ (N)</span><input type="text" inputmode="decimal" data-bind="setup.F1" placeholder="e.g. 1.6"></label>
+        <label class="f"><span>Scale 2, inclined: F₂ (N)</span><input type="text" inputmode="decimal" data-bind="setup.F2" placeholder="e.g. 2.5"></label>
+      </div>
+      <div id="setup-warn"></div>
+      <div class="note warn"><b>Don't take anything apart yet.</b> You'll photograph this setup in the next step.</div>
+    </div>
+  </section>
+
+  <!-- 4 PHOTO AND ANGLES -->
+  <section class="step" data-step="4">
+    <div class="step-head"><span class="num">4</span><h2>Photograph the setup and measure the angles</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <h3 class="sub">a · Take the photo</h3>
+      <ol class="howto">
+        <li>Place the camera about <b>1 m in front</b> of the setup, at the <b>height of the ring</b>, facing it <b>straight on</b>. The ring, the thread and both scales must be in the picture.</li>
+        <li>Don't touch the setup. Take two or three photos and keep the <b>sharpest</b> one.</li>
+        <li>Copy the photo to this computer.</li>
+      </ol>
+      <h3 class="sub">b · Measure the angles in the Image Measurement Tool</h3>
+      <div class="row-btns"><a class="btn primary" href="../../physics/lab-tools/image_measure.html" target="_blank" rel="noopener">📐 Open the Image Measurement Tool</a><span class="caption">It opens in a new tab, so this report stays open here.</span></div>
+      <div class="note">The thread with the mass hangs <b>exactly vertical</b>: gravity pulls it straight down. That's why you measure every angle <b>from the thread</b>. It works even if the camera is a little tilted. You don't need to calibrate: angles don't need a scale.</div>
+      <ol class="howto">
+        <li>Click <b>📂 Import image</b> and choose your photo. Use <b>Zoom +</b> or <b>⊞ Fit</b> so the ring looks big.</li>
+        <li>Click <b>∠ Angle</b>, then click 3 points: a point on the <b>thread</b> below the ring, the <b>center of the ring</b> (the vertex), and a point on the line of <b>scale 1</b>. This is <b>β₁</b>.</li>
+        <li>Click <b>∠ Angle</b> again: <b>thread</b> → <b>center of the ring</b> → a point on the line of <b>scale 2</b>. This is <b>β₂</b>.</li>
+        <li>Click <b>∠ Angle</b> once more: <b>scale 1</b> → <b>center of the ring</b> → <b>scale 2</b>. This is <b>β₁₂</b>.</li>
+        <li>The angles appear in the <b>Measurements</b> list on the right. Click a name to rename it (β1, β2, β12).</li>
+      </ol>
+      <div class="grid4">
+        <label class="f"><span>β₁: thread to scale 1 (°)</span><input type="text" inputmode="decimal" data-bind="angles.b1" placeholder="e.g. 90.5"></label>
+        <label class="f"><span>β₂: thread to scale 2 (°)</span><input type="text" inputmode="decimal" data-bind="angles.b2" placeholder="e.g. 128.3"></label>
+        <label class="f"><span>β₁₂: scale 1 to scale 2 (°)</span><input type="text" inputmode="decimal" data-bind="angles.b12" placeholder="e.g. 141.0"></label>
+      </div>
+      <div id="angle-msg"></div>
+      <h3 class="sub">c · A screenshot of your measurements</h3>
+      <div class="box">
+        <p class="caption">Make sure your photo with the <b>three angles drawn on it</b> and the <b>Measurements list</b> are both visible. Take the screenshot with <kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> (Windows) or <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>4</kbd> (Mac), then press <kbd>Ctrl</kbd>+<kbd>V</kbd> on this page, drop the image file here, or choose it.</p>
+        <div class="drop" id="shot-drop">
+          <div id="shot-empty">📷 Paste (<kbd>Ctrl</kbd>+<kbd>V</kbd>) or drop your screenshot here</div>
+          <img id="shot-img" alt="Angle measurements screenshot" hidden>
+          <div class="row-btns"><label class="btn" for="shot-file">Choose an image file</label><input type="file" id="shot-file" accept="image/*" hidden><button class="btn" id="shot-remove" hidden>Remove</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 THE FORCES -->
+  <section class="step" data-step="5">
+    <div class="step-head"><span class="num">5</span><h2>The three forces on the ring</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">Three things pull on the ring: <b>scale 1</b>, <b>scale 2</b>, and the <b>thread</b>, which pulls down with the weight of the mass. To add the forces, you need each one's <b>size</b> and <b>direction</b>.</p>
+      <h3 class="sub">a · The weight of the mass</h3>
+      <p class="lead">Use <span class="eq">W = m · g</span> with the mass in <b>kilograms</b> and <span class="eq">g = 9.8 m/s²</span>. <span class="formula" data-f="W"></span></p>
+      <label class="f" style="max-width:260px"><span>Weight W (N) <b class="chk" data-chk="forces.W"></b></span><input type="text" inputmode="decimal" data-bind="forces.W"></label>
+      <h3 class="sub">b · The angle of each scale from the horizontal</h3>
+      <p class="lead">The thread is vertical, so a horizontal line makes <b>90°</b> with it. The angle of each scale above the horizontal is <span class="eq">θ = β − 90°</span>.</p>
+      <div class="grid2">
+        <div style="display:grid;gap:5px"><span class="formula" data-f="t1"></span>
+          <label class="f"><span>θ₁ (°) <b class="chk" data-chk="forces.t1"></b></span><input type="text" inputmode="decimal" data-bind="forces.t1"></label></div>
+        <div style="display:grid;gap:5px"><span class="formula" data-f="t2"></span>
+          <label class="f"><span>θ₂ (°) <b class="chk" data-chk="forces.t2"></b></span><input type="text" inputmode="decimal" data-bind="forces.t2"></label></div>
+      </div>
+      <p class="caption">θ₁ should be close to 0° because scale 1 is horizontal. It comes out negative if scale 1 points a little <b>below</b> the horizontal: keep the minus sign.</p>
+      <h3 class="sub">c · Your free-body diagram</h3>
+      <svg class="plot vec" id="fbd" viewBox="0 0 640 380" hidden></svg>
+      <p class="caption" id="fbd-caption">The diagram appears when you have the forces, the weight and both angles.</p>
+      <div class="q">
+        <div class="qt">Look at the diagram. Describe each force on the ring: <em>who</em> pulls, in <em>which direction</em>, and <em>how strongly</em>.</div>
+        <textarea data-bind="answers.forces" data-min="12"></textarea>
+        <div class="wc" data-wc="answers.forces"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 COMPONENTS -->
+  <section class="step" data-step="6">
+    <div class="step-head"><span class="num">6</span><h2>Decompose each force into x and y</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="guide-cols" style="grid-template-columns:1fr 220px">
+        <div style="display:grid;gap:10px">
+          <p class="lead">An inclined force has a <b>horizontal part</b> (x) and a <b>vertical part</b> (y). With the angle θ measured <b>from the horizontal</b>:</p>
+          <p class="eq">Fx = F · cos θ &nbsp;&nbsp; Fy = F · sin θ</p>
+          <ul class="tips">
+            <li>Choose the axes: <b>x positive to the right</b>, <b>y positive upward</b>.</li>
+            <li>A force that points <b>left</b> has a <b>negative</b> x part. A force that points <b>down</b> has a <b>negative</b> y part.</li>
+            <li>Set your calculator to <b>degrees</b> (DEG), not radians.</li>
+          </ul>
+        </div>
+        <svg class="guide-fig" viewBox="0 0 220 170" aria-label="A force F at angle theta above the horizontal, with its horizontal part F cos theta and its vertical part F sin theta">
+          <line x1="30" y1="140" x2="190" y2="140" stroke="var(--border)" stroke-width="1.4"/>
+          <line x1="30" y1="140" x2="30" y2="20" stroke="var(--border)" stroke-width="1.4"/>
+          <line x1="30" y1="140" x2="165" y2="140" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4"/>
+          <line x1="165" y1="140" x2="165" y2="45" stroke="var(--accent)" stroke-width="2" stroke-dasharray="5 4"/>
+          <line x1="30" y1="140" x2="160" y2="49" stroke="var(--green)" stroke-width="3"/>
+          <polygon points="165,45 150,49 158,61" fill="var(--green)"/>
+          <path d="M 70 140 A 40 40 0 0 0 63 117" fill="none" stroke="var(--text)" stroke-width="1.4"/>
+          <text x="74" y="132">θ</text>
+          <text x="86" y="82" style="fill:var(--green)" font-weight="700">F</text>
+          <text x="70" y="158">Fx = F·cos θ</text>
+          <text x="170" y="96" transform="rotate(90 170 96)" text-anchor="middle">Fy = F·sin θ</text>
+        </svg>
+      </div>
+      <div class="box">
+        <div class="force-head"><i style="background:var(--accent)"></i>a · Scale 1: pulls to the left</div>
+        <div class="formula" data-f="f1x"></div>
+        <div class="formula" data-f="f1y"></div>
+        <div class="grid2">
+          <label class="f"><span>F₁x (N) <b class="chk" data-chk="comp.f1x"></b></span><input type="text" inputmode="decimal" data-bind="comp.f1x"></label>
+          <label class="f"><span>F₁y (N) <b class="chk" data-chk="comp.f1y"></b></span><input type="text" inputmode="decimal" data-bind="comp.f1y"></label>
+        </div>
+      </div>
+      <div class="box">
+        <div class="force-head"><i style="background:var(--green)"></i>b · Scale 2: pulls to the right and up</div>
+        <div class="formula" data-f="f2x"></div>
+        <div class="formula" data-f="f2y"></div>
+        <div class="grid2">
+          <label class="f"><span>F₂x (N) <b class="chk" data-chk="comp.f2x"></b></span><input type="text" inputmode="decimal" data-bind="comp.f2x"></label>
+          <label class="f"><span>F₂y (N) <b class="chk" data-chk="comp.f2y"></b></span><input type="text" inputmode="decimal" data-bind="comp.f2y"></label>
+        </div>
+      </div>
+      <div class="box">
+        <div class="force-head"><i style="background:var(--amber)"></i>c · The weight: pulls straight down</div>
+        <p class="caption">The weight has no horizontal part, and its vertical part points down.</p>
+        <div class="formula" data-f="wy"></div>
+        <div class="grid2">
+          <label class="f"><span>Wx (N) <b class="chk" data-chk="comp.wx"></b></span><input type="text" inputmode="decimal" data-bind="comp.wx"></label>
+          <label class="f"><span>Wy (N) <b class="chk" data-chk="comp.wy"></b></span><input type="text" inputmode="decimal" data-bind="comp.wy"></label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 NET FORCE -->
+  <section class="step" data-step="7">
+    <div class="step-head"><span class="num">7</span><h2>Find the net force</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <h3 class="sub">a · Add the parts on each axis</h3>
+      <p class="lead">Forces on the same axis just add, with their signs.</p>
+      <div class="formula" data-f="sx"></div>
+      <div class="formula" data-f="sy"></div>
+      <div class="grid2">
+        <label class="f"><span>ΣFx (N) <b class="chk" data-chk="net.x"></b></span><input type="text" inputmode="decimal" data-bind="net.x"></label>
+        <label class="f"><span>ΣFy (N) <b class="chk" data-chk="net.y"></b></span><input type="text" inputmode="decimal" data-bind="net.y"></label>
+      </div>
+      <h3 class="sub">b · The size of the net force</h3>
+      <p class="lead">ΣFx and ΣFy are perpendicular, so use Pythagoras: <span class="eq">|F net| = √(ΣFx² + ΣFy²)</span>. <span class="formula" data-f="mag"></span></p>
+      <label class="f" style="max-width:260px"><span>|F net| (N) <b class="chk" data-chk="net.mag"></b></span><input type="text" inputmode="decimal" data-bind="net.mag"></label>
+      <h3 class="sub">c · The forces tip to tail</h3>
+      <svg class="plot vec" id="tail" viewBox="0 0 640 380" hidden></svg>
+      <p class="caption">Each arrow starts where the previous one ends. If the net force is zero, the last arrow ends exactly where the first one started.</p>
+      <div id="net-note" class="note" hidden></div>
+      <div class="discuss" id="discuss-zero" hidden>
+        <span class="tag">💬 Stop and discuss</span>
+        <div class="qt" style="font-weight:600">The ring is at rest. Is your net force zero? If it isn't exactly zero, is it small compared with the forces on the ring? What could make it different from zero?</div>
+        <textarea data-bind="answers.zero" data-min="12"></textarea>
+        <div class="wc" data-wc="answers.zero"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Compare the <em>vertical part of scale 2</em> (F₂y) with the <em>weight</em>. What does this tell you about the job scale 2 does?</div>
+        <textarea data-bind="answers.vertical" data-min="8"></textarea>
+        <div class="wc" data-wc="answers.vertical"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Compare the <em>horizontal parts</em> F₁x and F₂x. Why does scale 2 read more than its horizontal part alone?</div>
+        <textarea data-bind="answers.horizontal" data-min="8"></textarea>
+        <div class="wc" data-wc="answers.horizontal"></div>
+      </div>
+      <div class="q">
+        <div class="qt">In step 2 you predicted that the net force would be <em id="q-pred">…</em>. Were you right? Use your numbers as evidence.</div>
+        <textarea data-bind="answers.predcheck" data-min="8"></textarea>
+        <div class="wc" data-wc="answers.predcheck"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 CONCLUDE -->
+  <section class="step" data-step="8">
+    <div class="step-head"><span class="num">8</span><h2>Conclude</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="q">
+        <div class="qt">Which sources of error affected your results most? Discuss and choose.</div>
+        <div class="checks" id="err-checks"></div>
+        <textarea data-bind="conclusion.errtext" placeholder="Other sources of error, or how you could reduce them (optional)" style="min-height:60px"></textarea>
+      </div>
+      <div class="q">
+        <div class="qt">Conclusion: what is the net force on the ring, and what does it tell you about the forces on an object at rest? Use your numbers.</div>
+        <textarea data-bind="conclusion.text" data-min="25" style="min-height:120px"></textarea>
+        <div class="wc" data-wc="conclusion.text"></div>
+      </div>
+      <div class="q">
+        <div class="qt">How did you share the work? (Who set up, who read the scales, who took the photo, who measured the angles, who calculated, who wrote…)</div>
+        <textarea data-bind="conclusion.roles" data-min="5" style="min-height:60px"></textarea>
+        <div class="wc" data-wc="conclusion.roles"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 SUBMIT -->
+  <section class="step" data-step="9">
+    <div class="step-head"><span class="num">9</span><h2>Send your report</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="summary" id="summary"></div>
+      <div class="row-btns">
+        <button class="btn primary" id="send">📤 Send to teacher</button>
+        <button class="btn" id="download">⬇ Download backup file</button>
+      </div>
+      <div id="send-status"></div>
+    </div>
+  </section>
+</main>
+
+<dialog class="guide" id="guide">
+  <div class="guide-head"><h2>📋 Lab guide: Net Force at Rest</h2><button class="pill-btn" data-guide-close>Close</button></div>
+  <div class="guide-body">
+    <p class="note">Read this together before you start. It tells you what you'll do in this lab; the detailed instructions are inside each step of the report. You can open it again at any moment with the <b>📋 Lab guide</b> button at the top.</p>
+
+    <section>
+      <h3>Goal</h3>
+      <p>Hold a ring <b>at rest</b> with two spring scales and a hanging mass, measure the three forces on it and their angles, <b>decompose</b> each force into horizontal and vertical parts, and find the <b>net force</b> on the ring.</p>
+    </section>
+
+    <section class="guide-cols">
+      <div>
+        <h3>What you'll do</h3>
+        <ol>
+          <li><b>Predict</b> (step 2): decide what the net force on a ring at rest will be.</li>
+          <li><b>Set up and read</b> (step 3): build the setup in the picture and read both spring scales.</li>
+          <li><b>Photograph and measure</b> (step 4): take a photo, measure the angles in the Image Measurement Tool, and bring the angles and a screenshot to this report.</li>
+          <li><b>Find the forces and their parts</b> (steps 5 and 6): the weight, the angles from the horizontal, and the x and y parts of each force.</li>
+          <li><b>Add them up</b> (step 7): find the net force and discuss whether it is zero.</li>
+          <li><b>Conclude and send</b> (steps 8 and 9).</li>
+        </ol>
+      </div>
+      <svg class="guide-fig" viewBox="0 0 250 230" aria-label="Two universal supports. Scale 1 runs horizontally from the left support to a ring, scale 2 runs at an angle from high on the right support to the ring, and a mass hangs from the ring on a thread">
+        <rect x="14" y="206" width="40" height="7" fill="var(--surface2)" stroke="var(--text)"/><rect x="31" y="20" width="6" height="186" fill="var(--surface2)" stroke="var(--text)"/>
+        <rect x="196" y="206" width="40" height="7" fill="var(--surface2)" stroke="var(--text)"/><rect x="213" y="20" width="6" height="186" fill="var(--surface2)" stroke="var(--text)"/>
+        <line x1="20" y1="214" x2="240" y2="214" stroke="var(--text)" stroke-width="1.5"/>
+        <line x1="37" y1="110" x2="58" y2="110" stroke="var(--text)" stroke-width="1.4"/>
+        <rect x="58" y="104" width="62" height="12" rx="2" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+        <line x1="120" y1="110" x2="132" y2="110" stroke="var(--text)" stroke-width="1.4"/>
+        <text x="62" y="98" style="fill:var(--accent)" font-weight="700">scale 1</text>
+        <line x1="213" y1="44" x2="200" y2="53" stroke="var(--text)" stroke-width="1.4"/>
+        <g transform="translate(150 87) rotate(-33)"><rect x="0" y="-6" width="60" height="12" rx="2" fill="rgba(63,185,80,.14)" stroke="var(--green)" stroke-width="2"/></g>
+        <line x1="150" y1="87" x2="146" y2="102" stroke="var(--text)" stroke-width="1.4"/>
+        <text x="165" y="104" style="fill:var(--green)" font-weight="700">scale 2</text>
+        <circle cx="140" cy="110" r="9" fill="none" stroke="var(--text)" stroke-width="2.4"/>
+        <line x1="140" y1="119" x2="140" y2="150" stroke="var(--text)" stroke-width="1.4"/>
+        <rect x="131" y="150" width="18" height="22" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="2"/>
+        <text x="153" y="166" style="fill:var(--amber)" font-weight="700">mass</text>
+        <text x="108" y="136">ring</text>
+        <path d="M 140 132 A 22 22 0 0 1 118 110" fill="none" stroke="var(--muted)" stroke-dasharray="3 2"/><text x="112" y="152" font-size="10" style="fill:var(--muted)">β₁</text>
+        <path d="M 140 128 A 18 18 0 0 0 155 100" fill="none" stroke="var(--muted)" stroke-dasharray="3 2"/><text x="160" y="126" font-size="10" style="fill:var(--muted)">β₂</text>
+      </svg>
+    </section>
+
+    <section>
+      <h3>Materials</h3>
+      <div class="guide-materials">
+        <div class="guide-box"><div class="bt">Each group</div>
+          <ul>
+            <li>Two spring scales (newton meters)</li>
+            <li>A mass, for example 100 g or 200 g</li>
+            <li>Two universal supports with clamps</li>
+            <li>A small metal ring and a short piece of thread</li>
+            <li>A camera or phone, and a computer with this page and the Image Measurement Tool</li>
+          </ul>
+        </div>
+        <div class="guide-box"><div class="bt">Tips</div>
+          <ul>
+            <li>A plain wall or a sheet of paper behind the ring makes the thread and the scales easy to see in the photo.</li>
+            <li>Take the photo straight in front of the ring, not from the side.</li>
+            <li>Read each scale with your eyes at the level of its pointer.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="note warn"><b>Take care:</b> the supports can tip over when the scales pull on them. Keep their bases flat on the table, and don't stretch a scale past its maximum reading.</div>
+  </div>
+  <div class="guide-foot"><button class="btn primary" data-guide-close>Got it, let's start</button></div>
+</dialog>
+
+<footer>
+  Net Force at Rest Lab · Ergosfera Teaching Tools · <button id="reset">Start over (erase this report)</button>
+</footer>
+
+<script>
+// ── Config from the link the teacher shares ─────────────────
+const LAB_ID = 'net-force-rest';
+const params = new URLSearchParams(location.search);
+const API = params.get('api') || '';
+const LINK_SESSION = params.get('session') || '';
+const STORE = 'lab_' + LAB_ID + '_' + (LINK_SESSION || 'default');
+
+const G_ACC = 9.8;   // m/s², the value the students use
+const ERRORS = [
+  ['zero', 'Spring scales not zeroed before measuring'],
+  ['reading', 'Reading the spring scales (small divisions, eye not level)'],
+  ['clicks', 'Clicking the angle points in the photo'],
+  ['camera', 'Camera not straight in front of the setup (perspective)'],
+  ['level', 'Scale 1 not completely horizontal'],
+  ['touching', 'Ring, thread or scales touching something'],
+  ['scaleweight', 'The weight of the spring scales themselves'],
+];
+const PRED_TEXT = { zero: 'zero', down: 'pointing down', up: 'pointing up', toward2: 'pointing toward the inclined scale' };
+
+// ── State ───────────────────────────────────────────────────
+function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+function blank() {
+  return {
+    schema: 1, lab: LAB_ID, id: rid(), session: LINK_SESSION, group: '', students: ['', ''],
+    prediction: { net: '', larger: '', why: '' },
+    setup: { m: '', F1: '', F2: '' },
+    angles: { b1: '', b2: '', b12: '' },
+    screenshot: '',
+    forces: { W: '', t1: '', t2: '' },
+    comp: { f1x: '', f1y: '', f2x: '', f2y: '', wx: '', wy: '' },
+    net: { x: '', y: '', mag: '' },
+    answers: { forces: '', zero: '', vertical: '', horizontal: '', predcheck: '' },
+    conclusion: { errors: [], errtext: '', text: '', roles: '' },
+    startedAt: new Date().toISOString(), unlocked: 1, sent: null,
+  };
+}
+let S = blank();
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+  if (saved && saved.lab === LAB_ID) S = Object.assign(blank(), saved);
+} catch (e) {}
+if (LINK_SESSION) S.session = LINK_SESSION;
+
+let saveTimer;
+function save() {
+  let ok = true;
+  try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { ok = false; }
+  const el = document.getElementById('save-state');
+  el.textContent = 'Saving…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { el.textContent = ok ? 'Saved on this computer ✓' : '⚠ Could not save on this computer'; }, 400);
+}
+
+function getPath(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), S); }
+function setPath(path, v) {
+  const keys = path.split('.'); let o = S;
+  keys.slice(0, -1).forEach(k => { o = o[k]; });
+  o[keys[keys.length - 1]] = v;
+}
+
+// ── Helpers ─────────────────────────────────────────────────
+const num = s => { const v = parseFloat(String(s ?? '').trim().replace(',', '.')); return isFinite(v) ? v : NaN; };
+const words = s => String(s || '').trim().split(/\s+/).filter(Boolean).length;
+function fmt(v, sig = 3) {
+  if (!isFinite(v)) return '—';
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e5 || a < 1e-3) return v.toExponential(sig - 1);
+  return String(parseFloat(v.toPrecision(sig)));
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rad = d => d * Math.PI / 180;
+const V = path => num(getPath(path));
+const shown = v => isFinite(v) ? `<b>${fmt(v, 4)}</b>` : '<b>?</b>';
+const paren = v => isFinite(v) && v < 0 ? `(${shown(v)})` : shown(v);
+
+// ── Calculations: what each value should be, from the group's own earlier numbers ──
+// A later step uses the group's own value when they wrote one, so a single slip isn't flagged again in every step after it.
+const use = k => { const v = V(k); return isFinite(v) ? v : EXPECT[k](); };
+const EXPECT = {
+  'forces.W': () => V('setup.m') / 1000 * G_ACC,
+  'forces.t1': () => V('angles.b1') - 90,
+  'forces.t2': () => V('angles.b2') - 90,
+  'comp.f1x': () => -V('setup.F1') * Math.cos(rad(use('forces.t1'))),
+  'comp.f1y': () => V('setup.F1') * Math.sin(rad(use('forces.t1'))),
+  'comp.f2x': () => V('setup.F2') * Math.cos(rad(use('forces.t2'))),
+  'comp.f2y': () => V('setup.F2') * Math.sin(rad(use('forces.t2'))),
+  'comp.wx': () => 0,
+  'comp.wy': () => -use('forces.W'),
+  'net.x': () => use('comp.f1x') + use('comp.f2x') + use('comp.wx'),
+  'net.y': () => use('comp.f1y') + use('comp.f2y') + use('comp.wy'),
+  'net.mag': () => Math.hypot(use('net.x'), use('net.y')),
+};
+const ABS_TOL = { 'forces.t1': 0.6, 'forces.t2': 0.6 };   // degrees; everything else 0.02 N
+function verdict(k) {
+  const v = V(k), e = EXPECT[k]();
+  if (!isFinite(v) || !isFinite(e)) return '';
+  const tol = Math.max(0.03 * Math.abs(e), ABS_TOL[k] ?? 0.02);
+  if (Math.abs(v - e) <= tol) return 'ok';
+  if (Math.abs(v + e) <= tol && Math.abs(e) > tol) return 'sign';
+  return 'bad';
+}
+const filled = keys => keys.every(k => isFinite(V(k)));
+
+// ── Steps: completion rules ─────────────────────────────────
+const DONE = {
+  1: () => S.group.trim() && S.students[0].trim() && S.students[1].trim() && S.session.trim(),
+  2: () => S.prediction.net && S.prediction.larger && words(S.prediction.why) >= 6,
+  3: () => V('setup.m') > 0 && V('setup.F1') > 0 && V('setup.F2') > 0,
+  4: () => filled(['angles.b1', 'angles.b2', 'angles.b12']) && !!S.screenshot,
+  5: () => filled(['forces.W', 'forces.t1', 'forces.t2']) && words(S.answers.forces) >= 12,
+  6: () => filled(['comp.f1x', 'comp.f1y', 'comp.f2x', 'comp.f2y', 'comp.wx', 'comp.wy']),
+  7: () => filled(['net.x', 'net.y', 'net.mag']) && words(S.answers.zero) >= 12 && words(S.answers.vertical) >= 8 && words(S.answers.horizontal) >= 8 && words(S.answers.predcheck) >= 8,
+  8: () => words(S.conclusion.text) >= 25 && words(S.conclusion.roles) >= 5,
+  9: () => !!S.sent,
+};
+const NSTEPS = 9;
+
+function refresh() {
+  // unlock progressively; once unlocked, a step stays open
+  let firstOpen = 1;
+  while (firstOpen < NSTEPS && DONE[firstOpen]()) firstOpen++;
+  S.unlocked = Math.max(S.unlocked || 1, firstOpen);
+
+  const prog = document.getElementById('progress');
+  prog.innerHTML = '';
+  document.querySelectorAll('.step').forEach(sec => {
+    const i = +sec.dataset.step;
+    const done = !!DONE[i]();
+    const locked = i > S.unlocked;
+    sec.classList.toggle('done', done);
+    sec.classList.toggle('locked', locked);
+    sec.classList.toggle('active', !done && !locked);
+    sec.querySelector('.status').textContent = done ? '✓ Done' : locked ? '🔒' : 'In progress';
+    sec.querySelector('.step-lock').textContent = '🔒 Finish step ' + (i - 1) + ' to unlock this one.';
+    const dot = document.createElement('i');
+    if (done) dot.className = 'done'; else if (!locked) dot.className = 'current';
+    prog.appendChild(dot);
+  });
+
+  document.querySelectorAll('[data-wc]').forEach(el => {
+    const path = el.dataset.wc;
+    const min = +document.querySelector(`[data-bind="${path}"]`).dataset.min;
+    const w = words(getPath(path));
+    el.textContent = w + (w === 1 ? ' word' : ' words') + ' · at least ' + min;
+    el.classList.toggle('ok', w >= min);
+  });
+
+  refreshSetup();
+  refreshAngles();
+  refreshShot();
+  refreshChecks();
+  refreshFormulas();
+  refreshDiagrams();
+  refreshSummary();
+}
+
+// ── Generic bindings ────────────────────────────────────────
+function bindInputs(root) {
+  root.querySelectorAll('[data-bind]').forEach(el => {
+    const path = el.dataset.bind;
+    el.value = getPath(path) ?? '';
+    el.addEventListener('input', () => { setPath(path, el.value); save(); refresh(); });
+  });
+}
+bindInputs(document);
+if (LINK_SESSION) document.getElementById('session-input').readOnly = true;
+
+document.querySelectorAll('[data-radio]').forEach(box => {
+  const path = box.dataset.radio;
+  box.querySelectorAll('input').forEach(r => {
+    r.checked = r.value === getPath(path);
+    r.addEventListener('change', () => { setPath(path, r.value); save(); refresh(); });
+  });
+});
+
+const errBox = document.getElementById('err-checks');
+ERRORS.forEach(([id, text]) => {
+  const lab = document.createElement('label');
+  lab.innerHTML = `<input type="checkbox" value="${id}"> <span>${esc(text)}</span>`;
+  const cb = lab.querySelector('input');
+  cb.checked = S.conclusion.errors.includes(id);
+  cb.addEventListener('change', () => {
+    S.conclusion.errors = ERRORS.map(e => e[0]).filter(k => errBox.querySelector(`input[value=${k}]`).checked);
+    save(); refresh();
+  });
+  errBox.appendChild(lab);
+});
+
+// ── Step 3: readings ────────────────────────────────────────
+function refreshSetup() {
+  const w = [], m = V('setup.m'), F1 = V('setup.F1'), F2 = V('setup.F2');
+  if (isFinite(m) && (m < 10 || m > 5000)) w.push('Write the mass in <b>grams</b> (for example 200 for a 200 g mass).');
+  if ([F1, F2].some(F => isFinite(F) && (F <= 0 || F > 50))) w.push('That reading looks unusual. Spring scales in this lab read a few newtons (N).');
+  document.getElementById('setup-warn').innerHTML = w.map(t => `<div class="note warn">${t}</div>`).join('');
+}
+
+// ── Step 4: angles ──────────────────────────────────────────
+function refreshAngles() {
+  const b = ['angles.b1', 'angles.b2', 'angles.b12'].map(V), out = document.getElementById('angle-msg');
+  const notes = [];
+  if (b.some(x => isFinite(x) && (x <= 0 || x >= 180))) notes.push('<div class="note warn">Each angle must be between 0° and 180°. Check that you clicked the vertex (the center of the ring) second.</div>');
+  else if (b.every(isFinite)) {
+    const sum = b[0] + b[1] + b[2];
+    notes.push(Math.abs(sum - 360) <= 4
+      ? `<div class="note good">✓ β₁ + β₂ + β₁₂ = ${fmt(sum, 4)}°. The three angles around the ring add up to a full turn (360°), so your measurements agree.</div>`
+      : `<div class="note warn">β₁ + β₂ + β₁₂ = ${fmt(sum, 4)}°, but the three angles around the ring should add up to about 360°. Check that each angle uses the right two lines and that the vertex is the center of the ring.</div>`);
+  }
+  out.innerHTML = notes.join('');
+}
+
+// ── Step 4: screenshot ──────────────────────────────────────
+// Images are reduced (max 1200 px wide, JPEG) so the report stays small enough to send.
+function setScreenshot(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    let w = Math.min(1200, img.width), h = Math.round(img.height * w / img.width), q = 0.8, data;
+    const canvas = document.createElement('canvas');
+    do {
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      data = canvas.toDataURL('image/jpeg', q);
+      if (q > 0.5) q -= 0.1; else { w = Math.round(w * 0.8); h = Math.round(h * 0.8); }
+    } while (data.length > 300000 && w > 400);
+    URL.revokeObjectURL(url);
+    S.screenshot = data; save(); refresh();
+  };
+  img.src = url;
+}
+const drop = document.getElementById('shot-drop');
+document.getElementById('shot-file').addEventListener('change', e => { setScreenshot(e.target.files[0]); e.target.value = ''; });
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); setScreenshot(e.dataTransfer.files[0]); });
+document.addEventListener('paste', e => {
+  if (S.unlocked < 4) return;
+  const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+  if (item) { e.preventDefault(); setScreenshot(item.getAsFile()); }
+});
+document.getElementById('shot-remove').addEventListener('click', () => {
+  if (!confirm('Remove the screenshot?')) return;
+  S.screenshot = ''; save(); refresh();
+});
+function refreshShot() {
+  const img = document.getElementById('shot-img');
+  img.hidden = !S.screenshot;
+  if (S.screenshot && img.src !== S.screenshot) img.src = S.screenshot;
+  document.getElementById('shot-empty').hidden = !!S.screenshot;
+  document.getElementById('shot-remove').hidden = !S.screenshot;
+}
+
+// ── Steps 5 to 7: checks and formulas with the group's numbers ──
+function refreshChecks() {
+  document.querySelectorAll('[data-chk]').forEach(el => {
+    const v = verdict(el.dataset.chk);
+    el.textContent = v === 'ok' ? '✓' : v === 'sign' ? '⚠ check the sign' : v === 'bad' ? '⚠ check' : '';
+    el.className = 'chk ' + (v === 'ok' ? 'ok' : v ? 'bad' : '');
+  });
+}
+function refreshFormulas() {
+  const m = V('setup.m'), F1 = V('setup.F1'), F2 = V('setup.F2'), t1 = use('forces.t1'), t2 = use('forces.t2'), W = use('forces.W');
+  const F = {
+    W: `With your mass: W = ${shown(m / 1000)} kg × 9.8 m/s²`,
+    t1: `θ₁ = β₁ − 90° = ${shown(V('angles.b1'))}° − 90°`,
+    t2: `θ₂ = β₂ − 90° = ${shown(V('angles.b2'))}° − 90°`,
+    f1x: `F₁x = − F₁ · cos θ₁ = − ${shown(F1)} N × cos(${shown(t1)}°)`,
+    f1y: `F₁y = F₁ · sin θ₁ = ${shown(F1)} N × sin(${shown(t1)}°)`,
+    f2x: `F₂x = F₂ · cos θ₂ = ${shown(F2)} N × cos(${shown(t2)}°)`,
+    f2y: `F₂y = F₂ · sin θ₂ = ${shown(F2)} N × sin(${shown(t2)}°)`,
+    wy: `Wy = − W = − ${shown(W)} N`,
+    sx: `ΣFx = F₁x + F₂x + Wx = ${paren(use('comp.f1x'))} + ${paren(use('comp.f2x'))} + ${paren(use('comp.wx'))}`,
+    sy: `ΣFy = F₁y + F₂y + Wy = ${paren(use('comp.f1y'))} + ${paren(use('comp.f2y'))} + ${paren(use('comp.wy'))}`,
+    mag: `With your numbers: √(${paren(use('net.x'))}² + ${paren(use('net.y'))}²)`,
+  };
+  document.querySelectorAll('[data-f]').forEach(el => { el.innerHTML = F[el.dataset.f]; });
+  document.getElementById('q-pred').textContent = PRED_TEXT[S.prediction.net] || '…';
+}
+
+// ── Vector diagrams (newtons, y up, same scale on both axes) ──
+function arrow(x1, y1, x2, y2, color, w = 3.5) {
+  const L = Math.hypot(x2 - x1, y2 - y1);
+  if (L < 2) return '';
+  const ux = (x2 - x1) / L, uy = (y2 - y1) / L, h = Math.min(14, L * 0.45), bx = x2 - ux * h, by = y2 - uy * h;
+  return `<line x1="${x1}" y1="${y1}" x2="${bx}" y2="${by}" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>` +
+    `<polygon points="${x2},${y2} ${bx - uy * h * .5},${by + ux * h * .5} ${bx + uy * h * .5},${by - ux * h * .5}" fill="${color}"/>`;
+}
+// vecs: [{ x0, y0, x, y, color, text, at: 'tip' | 'mid', dash }]
+function drawVectors(svg, vecs, { W = 640, H = 380, ring = false } = {}) {
+  const pad = 60, ends = vecs.flatMap(v => [[v.x0, v.y0], [v.x0 + v.x, v.y0 + v.y]]).concat([[0, 0]]);
+  const xa = Math.min(...ends.map(p => p[0])), xb = Math.max(...ends.map(p => p[0]));
+  const ya = Math.min(...ends.map(p => p[1])), yb = Math.max(...ends.map(p => p[1]));
+  const k = Math.min((W - 2 * pad) / ((xb - xa) || 1), (H - 2 * pad) / ((yb - ya) || 1));
+  const X = x => W / 2 + k * (x - (xa + xb) / 2), Y = y => H / 2 - k * (y - (ya + yb) / 2);
+  let s = `<line class="grid" x1="${X(0)}" x2="${X(0)}" y1="10" y2="${H - 10}" stroke-dasharray="4 4"/><line class="grid" x1="10" x2="${W - 10}" y1="${Y(0)}" y2="${Y(0)}" stroke-dasharray="4 4"/>`;
+  s += `<text x="${W - 14}" y="${Y(0) - 6}" text-anchor="end" style="font-weight:400">+x</text><text x="${X(0) + 6}" y="22" style="font-weight:400">+y</text>`;
+  vecs.forEach(v => {
+    const x1 = X(v.x0), y1 = Y(v.y0), x2 = X(v.x0 + v.x), y2 = Y(v.y0 + v.y);
+    s += v.dash ? `<g stroke-dasharray="6 4">${arrow(x1, y1, x2, y2, v.color, 2.5)}</g>` : arrow(x1, y1, x2, y2, v.color);
+    const L = Math.hypot(x2 - x1, y2 - y1) || 1, nx = -(y2 - y1) / L, ny = (x2 - x1) / L;
+    const [tx, ty] = v.at === 'mid' ? [(x1 + x2) / 2 + nx * 16, (y1 + y2) / 2 + ny * 16] : [x2 + (x2 - x1) / L * 14, y2 + (y2 - y1) / L * 14 + 4];
+    s += `<text x="${tx}" y="${ty}" text-anchor="${Math.abs(tx - x1) < 6 ? 'middle' : tx < x1 ? 'end' : 'start'}" style="fill:${v.color}">${v.text}</text>`;
+  });
+  if (ring) s += `<circle cx="${X(0)}" cy="${Y(0)}" r="9" fill="var(--bg)" stroke="var(--text)" stroke-width="2.5"/>`;
+  svg.innerHTML = s;
+}
+function refreshDiagrams() {
+  const F1 = V('setup.F1'), F2 = V('setup.F2'), t1 = V('forces.t1'), t2 = V('forces.t2'), W = V('forces.W');
+  const fbd = document.getElementById('fbd'), okF = [F1, F2, t1, t2, W].every(isFinite);
+  fbd.toggleAttribute("hidden", !okF);   // SVG elements have no .hidden property
+  document.getElementById('fbd-caption').textContent = okF
+    ? 'Each arrow starts at the ring and shows the direction of the force; its length is proportional to the size of the force.'
+    : 'The diagram appears when you have the forces, the weight and both angles.';
+  if (okF) drawVectors(fbd, [
+    { x0: 0, y0: 0, x: -F1 * Math.cos(rad(t1)), y: F1 * Math.sin(rad(t1)), color: 'var(--accent)', text: `F₁ = ${fmt(F1)} N` },
+    { x0: 0, y0: 0, x: F2 * Math.cos(rad(t2)), y: F2 * Math.sin(rad(t2)), color: 'var(--green)', text: `F₂ = ${fmt(F2)} N` },
+    { x0: 0, y0: 0, x: 0, y: -W, color: 'var(--amber)', text: `W = ${fmt(W)} N` },
+  ], { ring: true });
+
+  const keys = ['comp.f1x', 'comp.f1y', 'comp.f2x', 'comp.f2y', 'comp.wx', 'comp.wy'];
+  const tail = document.getElementById('tail'), okC = filled(keys);
+  tail.toggleAttribute("hidden", !okC);
+  if (okC) {
+    const [f1x, f1y, f2x, f2y, wx, wy] = keys.map(V), nx = f1x + f2x + wx, ny = f1y + f2y + wy;
+    const vecs = [
+      { x0: 0, y0: 0, x: wx, y: wy, color: 'var(--amber)', text: 'W', at: 'mid' },
+      { x0: wx, y0: wy, x: f1x, y: f1y, color: 'var(--accent)', text: 'F₁', at: 'mid' },
+      { x0: wx + f1x, y0: wy + f1y, x: f2x, y: f2y, color: 'var(--green)', text: 'F₂', at: 'mid' },
+    ];
+    if (Math.hypot(nx, ny) > 0.005) vecs.push({ x0: 0, y0: 0, x: nx, y: ny, color: 'var(--red)', text: 'F net', at: 'mid', dash: true });
+    drawVectors(tail, vecs);
+  }
+  const mag = V('net.mag'), Wn = use('forces.W'), note = document.getElementById('net-note');
+  note.hidden = !(isFinite(mag) && Wn > 0);
+  if (!note.hidden) note.innerHTML = `Your net force is <b>${fmt(mag)} N</b>. That is <b>${fmt(mag / Wn * 100, 2)}%</b> of the weight of the mass (${fmt(Wn)} N). The forces on the ring are ${fmt(V('setup.F1'))} N, ${fmt(V('setup.F2'))} N and ${fmt(Wn)} N.`;
+  document.getElementById('discuss-zero').hidden = note.hidden;
+}
+
+// ── Step 9: submit ──────────────────────────────────────────
+function payload() {
+  const { unlocked, sent, guideSeen, ...data } = S;
+  return { ...data, submittedAt: new Date().toISOString(), client: 'net_force_rest_lab/1' };
+}
+function refreshSummary() {
+  const names = ['Team', 'Prediction', 'Setup and forces', 'Photo, angles and screenshot', 'The three forces', 'Components', 'Net force', 'Conclusion'];
+  document.getElementById('summary').innerHTML = names.map((n, i) => `<div class="${DONE[i + 1]() ? 'ok' : ''}">${n}</div>`).join('');
+  document.getElementById('send').disabled = !API;
+  const st = document.getElementById('send-status');
+  if (!API && !st.dataset.msg) st.innerHTML = '<div class="note warn">This link has no connection to your teacher. Use <b>Download backup file</b> and hand the file in, or ask your teacher for the class link.</div>';
+  else if (S.sent && !st.dataset.msg) st.innerHTML = `<div class="note good">Sent at ${new Date(S.sent).toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`;
+}
+function setStatus(html) { const st = document.getElementById('send-status'); st.dataset.msg = '1'; st.innerHTML = html; }
+
+document.getElementById('send').addEventListener('click', async () => {
+  const missing = [1, 2, 3, 4, 5, 6, 7, 8].filter(i => !DONE[i]());
+  if (missing.length && !confirm('Steps ' + missing.join(', ') + ' are not complete. Send anyway?')) return;
+  const btn = document.getElementById('send');
+  btn.disabled = true; setStatus('<div class="note">Sending…</div>');
+  const body = JSON.stringify(payload());
+  let ok = false, unconfirmed = false, error = '';
+  try {
+    const r = await fetch(API, { method: 'POST', body });
+    const j = await r.json();
+    if (!j.ok) { error = j.error || 'server error'; throw new Error(error); }
+    ok = true;
+  } catch (e) {
+    if (!error) {
+      try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; unconfirmed = true; } catch (e2) {}
+    }
+  }
+  btn.disabled = false;
+  if (ok) {
+    S.sent = new Date().toISOString(); save();
+    setStatus(`<div class="note good">✓ Sent${unconfirmed ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+  } else if (error) {
+    setStatus(`<div class="note warn">Your teacher's sheet could not save this report (${esc(error)}). Use <b>Download backup file</b> and give the file to your teacher.</div>`);
+  } else {
+    setStatus('<div class="note warn">Could not send: check the internet connection and try again. If it keeps failing, use <b>Download backup file</b> and give the file to your teacher.</div>');
+  }
+  refresh();
+});
+
+document.getElementById('download').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(payload(), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  const tag = [S.session, 'group' + (S.group || 'X')].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
+  a.href = URL.createObjectURL(blob);
+  a.download = `net-force-rest_${tag}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+  if (!confirm('Erase this whole report from this computer? This cannot be undone.')) return;
+  try { localStorage.removeItem(STORE); } catch (e) {}
+  location.reload();
+});
+
+// ── Theme (shared with the tools index) ─────────────────────
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  document.getElementById('theme-toggle').textContent = light ? '☽ Dark' : '☀ Light';
+  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+applyTheme(savedTheme === 'light');
+document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
+
+// ── Lab guide: opens by itself the first time, and from the header anytime ──
+const guide = document.getElementById('guide');
+function openGuide() { if (!guide.open) guide.showModal(); }
+document.querySelectorAll('[data-guide]').forEach(b => b.addEventListener('click', openGuide));
+document.querySelectorAll('[data-guide-close]').forEach(b => b.addEventListener('click', () => guide.close()));
+guide.addEventListener('click', e => { if (e.target === guide) guide.close(); });
+guide.addEventListener('close', () => { if (!S.guideSeen) { S.guideSeen = true; save(); } });
+if (!S.guideSeen) openGuide();
+
+refresh();
+</script>
+</body>
+</html>

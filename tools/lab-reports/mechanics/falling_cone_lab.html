@@ -926,7 +926,7 @@ function refreshIntervals() {
   });
   const filled = ps.length && intervalsFilled();
   const svg = document.getElementById('v-plot');
-  svg.hidden = !filled;
+  svg.toggleAttribute("hidden", !filled);   // SVG elements have no .hidden property
   document.getElementById('discuss-change').hidden = !filled;
   if (filled) {
     const a = slopeCm();

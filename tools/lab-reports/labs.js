@@ -18,6 +18,12 @@ const LAB_TOPICS = [
         student: 'mechanics/falling_cone_lab.html',
         teacher: 'mechanics/falling_cone_teacher.html',
       },
+      {
+        id: 'net-force-rest', icon: '⚖️', title: 'Net Force at Rest',
+        desc: 'Hold a ring at rest with two spring scales and a hanging mass. Measure the forces and their angles in a photo, decompose each force, and find the net force on the ring.',
+        student: 'mechanics/net_force_rest_lab.html',
+        teacher: 'mechanics/net_force_rest_teacher.html',
+      },
     ],
   },
   {

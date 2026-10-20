@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Net Force at Rest Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="../lab-teacher.css">
+</head>
+<body>
+<script src="../lab-teacher.js"></script>
+<script>
+// Net Force at Rest: the parts specific to this lab. Everything else comes from ../lab-teacher.js.
+const G_ACC = 9.8;   // m/s², the value the students use
+const rad = d => d * Math.PI / 180;
+const NET_TEXT = { zero: 'Zero', down: 'Pointing down', up: 'Pointing up', toward2: 'Toward the inclined scale' };
+const LARGER_TEXT = { one: 'Horizontal scale', two: 'Inclined scale', same: 'Both the same' };
+const predSummary = s => s.prediction?.net || s.prediction?.larger
+  ? `Net force: ${NET_TEXT[s.prediction.net] || '—'} · Larger reading: ${LARGER_TEXT[s.prediction.larger] || '—'}.` : '';
+
+// ── The group's calculations, checked exactly as the student page checks them ──
+// Each value is compared with what it should be from the group's own earlier numbers.
+const CALC = [
+  ['forces.W', 'W'], ['forces.t1', 'θ₁'], ['forces.t2', 'θ₂'],
+  ['comp.f1x', 'F₁x'], ['comp.f1y', 'F₁y'], ['comp.f2x', 'F₂x'], ['comp.f2y', 'F₂y'], ['comp.wx', 'Wx'], ['comp.wy', 'Wy'],
+  ['net.x', 'ΣFx'], ['net.y', 'ΣFy'], ['net.mag', '|F net|'],
+];
+function calcCheck(s) {
+  const V = path => num(path.split('.').reduce((o, k) => (o == null ? o : o[k]), s));
+  const use = k => { const v = V(k); return isFinite(v) ? v : E[k](); };
+  const E = {
+    'forces.W': () => V('setup.m') / 1000 * G_ACC,
+    'forces.t1': () => V('angles.b1') - 90,
+    'forces.t2': () => V('angles.b2') - 90,
+    'comp.f1x': () => -V('setup.F1') * Math.cos(rad(use('forces.t1'))),
+    'comp.f1y': () => V('setup.F1') * Math.sin(rad(use('forces.t1'))),
+    'comp.f2x': () => V('setup.F2') * Math.cos(rad(use('forces.t2'))),
+    'comp.f2y': () => V('setup.F2') * Math.sin(rad(use('forces.t2'))),
+    'comp.wx': () => 0,
+    'comp.wy': () => -use('forces.W'),
+    'net.x': () => use('comp.f1x') + use('comp.f2x') + use('comp.wx'),
+    'net.y': () => use('comp.f1y') + use('comp.f2y') + use('comp.wy'),
+    'net.mag': () => Math.hypot(use('net.x'), use('net.y')),
+  };
+  return CALC.map(([k, name]) => {
+    const v = V(k), e = E[k](), tol = Math.max(0.03 * Math.abs(e), k.startsWith('forces.t') ? 0.6 : 0.02);
+    const verdict = !isFinite(v) || !isFinite(e) ? '' : Math.abs(v - e) <= tol ? 'ok' : Math.abs(v + e) <= tol && Math.abs(e) > tol ? 'sign' : 'bad';
+    return { k, name, v, e, verdict };
+  });
+}
+
+// ── Plots ───────────────────────────────────────────────────
+function arrow(x1, y1, x2, y2, color, w = 2.5, h0 = 10) {
+  const L = Math.hypot(x2 - x1, y2 - y1);
+  if (L < 2) return '';
+  const ux = (x2 - x1) / L, uy = (y2 - y1) / L, h = Math.min(h0, L * 0.45), bx = x2 - ux * h, by = y2 - uy * h;
+  return `<line x1="${x1}" y1="${y1}" x2="${bx}" y2="${by}" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>` +
+    `<polygon points="${x2},${y2} ${bx - uy * h * .5},${by + ux * h * .5} ${bx + uy * h * .5},${by - ux * h * .5}" fill="${color}"/>`;
+}
+// The three forces tip to tail (weight, then scale 1, then scale 2), one path per group, same scale on both axes.
+// Where a path ends is that group's net force.
+function plotTail(svg, groups, W = 720, H = 480) {
+  const gs = groups.filter(G => G.ok);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  if (!gs.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No measurements yet</text>`; return; }
+  const paths = gs.map(G => {
+    const a = [0, 0], b = [a[0] + G.w.x, a[1] + G.w.y], c = [b[0] + G.f1.x, b[1] + G.f1.y], d = [c[0] + G.f2.x, c[1] + G.f2.y];
+    return { G, p: [a, b, c, d] };
+  });
+  const all = paths.flatMap(q => q.p);
+  const xa = Math.min(...all.map(p => p[0])), xb = Math.max(...all.map(p => p[0])), ya = Math.min(...all.map(p => p[1])), yb = Math.max(...all.map(p => p[1]));
+  const pad = 40, k = Math.min((W - 2 * pad) / ((xb - xa) || 1), (H - 2 * pad) / ((yb - ya) || 1));
+  const X = x => W / 2 + k * (x - (xa + xb) / 2), Y = y => H / 2 - k * (y - (ya + yb) / 2);
+  let s = `<line class="grid" x1="${X(0)}" x2="${X(0)}" y1="8" y2="${H - 8}" stroke-dasharray="4 4"/><line class="grid" x1="8" x2="${W - 8}" y1="${Y(0)}" y2="${Y(0)}" stroke-dasharray="4 4"/>`;
+  const step = niceStep(Math.max(xb - xa, yb - ya) || 1, 6);
+  s += `<line class="axis" x1="${W - pad - step * k}" x2="${W - pad}" y1="${H - 16}" y2="${H - 16}" stroke-width="2"/><text x="${W - pad - step * k / 2}" y="${H - 22}" text-anchor="middle">${fmt(step)} N</text>`;
+  paths.forEach(({ G, p }) => {
+    for (let i = 0; i < 3; i++) s += `<g opacity=".85">${arrow(X(p[i][0]), Y(p[i][1]), X(p[i + 1][0]), Y(p[i + 1][1]), G.color)}</g>`;
+    s += `<circle cx="${X(p[3][0])}" cy="${Y(p[3][1])}" r="5" fill="${G.color}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(label(G))}: net force ${fmt(G.net.mag)} N (ΣFx = ${fmt(G.net.x)} N, ΣFy = ${fmt(G.net.y)} N)</title></circle>`;
+  });
+  s += `<circle cx="${X(0)}" cy="${Y(0)}" r="8" fill="none" stroke="var(--text)" stroke-width="2.5"/>`;
+  s += `<text x="${X(0) + 12}" y="${Y(0) - 10}" style="fill:var(--text);font-weight:700">ring</text>`;
+  svg.innerHTML = s;
+}
+// Each group's net force (ΣFx, ΣFy) as a point; the center is a net force of exactly zero
+function plotNet(svg, groups, W = 560, H = 480) {
+  const M = { l: 62, r: 20, t: 18, b: 50 };
+  const gs = groups.filter(G => G.ok);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  if (!gs.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No measurements yet</text>`; return; }
+  const R0 = Math.max(0.05, ...gs.flatMap(G => [Math.abs(G.net.x), Math.abs(G.net.y)])) * 1.15;
+  const step = niceStep(2 * R0, 6), R = Math.ceil(R0 / step) * step;
+  const side = Math.min(W - M.l - M.r, H - M.t - M.b), ox = M.l + (W - M.l - M.r - side) / 2;
+  const X = v => ox + (v + R) / (2 * R) * side, Y = v => M.t + (R - v) / (2 * R) * side;
+  let s = '';
+  for (let i = 0; i <= Math.round(2 * R / step); i++) {
+    const v = +(-R + i * step).toPrecision(12);   // no 6.9e-18 instead of 0
+    s +=`<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${Y(R)}" y2="${Y(-R)}"/><text x="${X(v)}" y="${Y(-R) + 18}" text-anchor="middle">${fmt(v)}</text>`;
+    s += `<line class="grid" x1="${X(-R)}" x2="${X(R)}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${X(-R) - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  }
+  s += `<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="${Y(R)}" y2="${Y(-R)}"/><line class="axis" x1="${X(-R)}" x2="${X(R)}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  s += `<text class="lbl" x="${X(0)}" y="${H - 8}" text-anchor="middle">ΣFx (N)</text>`;
+  s += `<text class="lbl" transform="translate(16 ${Y(0)}) rotate(-90)" text-anchor="middle">ΣFy (N)</text>`;
+  gs.forEach(G => {
+    s += `<circle cx="${X(G.net.x)}" cy="${Y(G.net.y)}" r="6.5" fill="${G.color}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(label(G))}: ΣFx = ${fmt(G.net.x)} N, ΣFy = ${fmt(G.net.y)} N, |F net| = ${fmt(G.net.mag)} N</title></circle>`;
+    s += `<text x="${X(G.net.x) + 9}" y="${Y(G.net.y) - 7}">G${esc(G.s.group || '?')}</text>`;
+  });
+  svg.innerHTML = s;
+}
+
+const anglesLine = G => `β₁ = ${fmt(G.b1, 4)}° · β₂ = ${fmt(G.b2, 4)}° · β₁₂ = ${fmt(G.b12, 4)}°${[G.b1, G.b2, G.b12].every(isFinite) ? ` · sum ${fmt(G.b1 + G.b2 + G.b12, 4)}°` : ''}`;
+const shotCard = (G, i) => `<div class="shot"><div class="who" data-i="${i}" style="cursor:pointer" title="Open full report"><span class="dot" style="background:${G.color}"></span>${esc(label(G))}${CFG.names ? ' · ' + esc(who(G)) : ''}</div>
+  ${G.s.screenshot ? `<img class="zoomable" src="${G.s.screenshot}" alt="${esc(label(G))}: ${esc(anglesLine(G))}">` : '<div class="empty">No screenshot</div>'}
+  <div class="muted" style="font-size:.74rem">${esc(anglesLine(G))}</div></div>`;
+
+function netTiles() {
+  const gs = GROUPS.filter(G => G.ok), mags = gs.map(G => G.net.mag), pcts = gs.map(G => G.pct).filter(isFinite);
+  const clean = GROUPS.filter(G => G.calc.every(c => c.verdict !== 'bad' && c.verdict !== 'sign') && G.calc.some(c => c.verdict));
+  return `
+    <div class="tile"><div class="k">Median net force</div><div class="v">${mags.length ? fmt(median(mags)) : '—'} <small>N</small></div><div class="s">${mags.length ? `from the measurements · range ${fmt(Math.min(...mags))}–${fmt(Math.max(...mags))} N` : ''}</div></div>
+    <div class="tile"><div class="k">Net force vs weight</div><div class="v">${pcts.length ? fmt(median(pcts), 2) : '—'}<small>%</small></div><div class="s">median of |F net| / W</div></div>
+    <div class="tile"><div class="k">Calculations without errors</div><div class="v">${clean.length}<small>/${GROUPS.length}</small></div><div class="s">weight, angles, components and sums</div></div>`;
+}
+
+LabTeacher({
+  id: 'net-force-rest',
+  title: 'Net Force at Rest',
+  icon: '⚖️',
+  studentPage: 'net_force_rest_lab.html',
+  tagline: 'Two spring scales and a hanging mass · forces decomposed into x and y · what is the net force on a ring at rest?',
+  backendVersion: 2,
+
+  errors: {
+    zero: 'Scales not zeroed', reading: 'Reading the spring scales', clicks: 'Clicking the angle points',
+    camera: 'Camera not straight in front (perspective)', level: 'Scale 1 not completely horizontal',
+    touching: 'Something touching the ring, thread or scales', scaleweight: 'Weight of the spring scales',
+  },
+  questions: [
+    { id: 'prediction', title: 'Prediction: what is the net force on the ring? Which scale reads more?', get: s => s.prediction?.why, chart: 'pred' },
+    { id: 'forces', title: 'Describe each force: who pulls, in which direction, how strongly', get: s => s.answers?.forces },
+    { id: 'zero', title: 'Is the net force zero? If not, is it small? What could make it different from zero?', get: s => s.answers?.zero },
+    { id: 'vertical', title: 'F₂y compared with the weight: what job does scale 2 do?', get: s => s.answers?.vertical },
+    { id: 'horizontal', title: 'F₁x compared with F₂x: why does scale 2 read more than its horizontal part?', get: s => s.answers?.horizontal },
+    { id: 'predcheck', title: 'Was your prediction right?', get: s => s.answers?.predcheck },
+    { id: 'errors', title: 'Sources of error', get: s => s.conclusion?.errtext, chart: 'errors' },
+    { id: 'conclusion', title: 'Conclusion', get: s => s.conclusion?.text },
+    { id: 'roles', title: 'How did the group share the work?', get: s => s.conclusion?.roles },
+  ],
+  questionChart(q) {
+    const part = (key, texts, title) => {
+      const counts = {}; GROUPS.forEach(G => { const c = G.s.prediction?.[key]; if (c) counts[c] = (counts[c] || 0) + 1; });
+      return `<div class="muted" style="font-weight:700;margin:4px 0 8px">${title}</div><div class="bars">${Object.keys(texts).map(c => bar(texts[c], counts[c] || 0)).join('')}</div>`;
+    };
+    return part('net', NET_TEXT, 'The net force on the ring is…') + '<div style="height:14px"></div>' + part('larger', LARGER_TEXT, 'The larger reading is on…');
+  },
+  answerPrefix: (q, s) => q.id === 'prediction' ? predSummary(s) : '',
+
+  // Forces recomputed from the raw measurements (mass, readings, angles from the photo)
+  analyze(s) {
+    const m = num(s.setup?.m), F1 = num(s.setup?.F1), F2 = num(s.setup?.F2);
+    const b1 = num(s.angles?.b1), b2 = num(s.angles?.b2), b12 = num(s.angles?.b12);
+    const W = m / 1000 * G_ACC, t1 = b1 - 90, t2 = b2 - 90;
+    const f1 = { x: -F1 * Math.cos(rad(t1)), y: F1 * Math.sin(rad(t1)) }, f2 = { x: F2 * Math.cos(rad(t2)), y: F2 * Math.sin(rad(t2)) }, w = { x: 0, y: -W };
+    const net = { x: f1.x + f2.x + w.x, y: f1.y + f2.y + w.y };
+    net.mag = Math.hypot(net.x, net.y);
+    return { m, F1, F2, b1, b2, b12, W, t1, t2, f1, f2, w, net, pct: net.mag / W * 100,
+      ok: [m, F1, F2, b1, b2].every(isFinite) && m > 0, theirNet: num(s.net?.mag), calc: calcCheck(s) };
+  },
+  checks(G) {
+    const out = [], s = G.s;
+    if (!G.ok) out.push(['Missing measurements', 'red']);
+    if (!s.screenshot) out.push(['No screenshot', 'red']);
+    if ([G.b1, G.b2, G.b12].every(isFinite) && Math.abs(G.b1 + G.b2 + G.b12 - 360) > 5) out.push(['Angles don’t add up to 360°', '']);
+    if (isFinite(G.t1) && Math.abs(G.t1) > 5) out.push(['Scale 1 not horizontal (' + fmt(G.t1, 2) + '°)', '']);
+    const by = keys => G.calc.filter(c => keys.includes(c.k));
+    const flag = (title, list) => {
+      const sign = list.filter(c => c.verdict === 'sign'), bad = list.filter(c => c.verdict === 'bad');
+      if (sign.length) out.push(['Sign of ' + sign.map(c => c.name).join(', ') + '?', '']);
+      if (bad.length) out.push([title + ' (' + bad.map(c => c.name).join(', ') + ')?', '']);
+    };
+    flag('Weight m·g', by(['forces.W']));
+    flag('θ = β − 90°', by(['forces.t1', 'forces.t2']));
+    flag('Components', by(['comp.f1x', 'comp.f1y', 'comp.f2x', 'comp.f2y', 'comp.wx', 'comp.wy']));
+    flag('Sums', by(['net.x', 'net.y', 'net.mag']));
+    if (G.ok && G.pct > 25) out.push(['Large net force: ' + fmt(G.pct, 2) + '% of W', '']);
+    return out;
+  },
+
+  summaryHtml: `
+    <div class="two">
+      <div class="card">
+        <h3>All groups: the three forces tip to tail</h3>
+        <svg class="plot" id="tail-plot" viewBox="0 0 720 480"></svg>
+        <div class="legend" id="legend"></div>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">Starting at the ring, each group's weight (down), then scale 1, then scale 2, from their measurements. Where a path ends (●) is that group's net force: a path that comes back to the ring means a net force of zero.</div>
+      </div>
+      <div class="card">
+        <h3>Net force of each group</h3>
+        <svg class="plot" id="net-plot" viewBox="0 0 560 480"></svg>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">Each point is one group's net force (ΣFx, ΣFy), computed from their measurements. The center is a net force of exactly zero.</div>
+      </div>
+    </div>`,
+  renderSummary(on) {
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Reports</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'}</div></div>
+      ${netTiles()}`;
+    plotTail(document.getElementById('tail-plot'), on);
+    plotNet(document.getElementById('net-plot'), on);
+  },
+
+  resultsHead: '<th>m (g)</th><th>W (N)</th><th>F₁ (N)</th><th>θ₁</th><th>F₂ (N)</th><th>θ₂</th><th>ΣFx (N)</th><th>ΣFy (N)</th><th>|F net| (N)</th><th>|F net| / W</th>',
+  resultsRow: G => G.ok ? `
+    <td>${fmt(G.m)}</td><td>${fmt(G.W)}</td><td>${fmt(G.F1)}</td><td>${fmt(G.t1, 2)}°</td><td>${fmt(G.F2)}</td><td>${fmt(G.t2, 3)}°</td>
+    <td>${fmt(G.net.x, 2)}</td><td>${fmt(G.net.y, 2)}</td><td><b>${fmt(G.net.mag, 2)}</b></td><td>${fmt(G.pct, 2)}%</td>` : '<td colspan="10" class="muted">Measurements missing</td>',
+
+  sections: [{
+    id: 'shots', title: 'Photos and angles',
+    render(el) { el.innerHTML = `<div class="shots">${GROUPS.map(shotCard).join('')}</div><p class="muted" style="font-size:.78rem;margin-top:8px">Click a screenshot to see it full size.</p>`; },
+  }],
+
+  slides(on) {
+    const shots = GROUPS.map(shotCard), perSlide = 6, slides = [
+      { html: `<h2>The forces on each ring, tip to tail</h2>
+        <div class="plot-wrap"><svg class="plot" id="show-tail"></svg></div>
+        <div class="legend">${on.map(G => `<span class="chip"><i style="background:${G.color}"></i>${esc(label(G))}</span>`).join('')}</div>`,
+        draw: () => plotTail(document.getElementById('show-tail'), on) },
+      { html: `<h2>What is the net force on a ring at rest?</h2>
+        <div class="tiles">${netTiles()}</div>
+        <div class="plot-wrap"><svg class="plot" id="show-net"></svg></div>
+        <div class="sub">Each point is one group's net force (ΣFx, ΣFy). The center is exactly zero.</div>`,
+        draw: () => plotNet(document.getElementById('show-net'), on) },
+    ];
+    for (let p = 0; p < shots.length; p += perSlide) {
+      const pages = Math.ceil(shots.length / perSlide);
+      slides.push({ html: `<h2>Photos and angles${pages > 1 ? `<span class="page">${p / perSlide + 1}/${pages}</span>` : ''}</h2><div class="shots">${shots.slice(p, p + perSlide).join('')}</div><div class="sub" style="margin-top:auto">Click a screenshot to see it full size.</div>` });
+    }
+    return slides;
+  },
+
+  detail(G) {
+    const s = G.s, c = s.conclusion || {};
+    const mark = v => v === 'ok' ? '<span style="color:var(--green);font-weight:800">✓</span>' : v === 'sign' ? '<span class="flag">sign</span>' : v ? '<span class="flag">check</span>' : '';
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">Forces measured</div><div class="v" style="font-size:1.2rem">${fmt(G.F1)} · ${fmt(G.F2)} <small>N</small></div><div class="s">scale 1 · scale 2 · mass ${fmt(G.m)} g, W = ${fmt(G.W)} N</div></div>
+        <div class="tile"><div class="k">Net force</div><div class="v">${G.ok ? fmt(G.net.mag, 2) : '—'} <small>N</small></div><div class="s">from the measurements · they found ${fmt(G.theirNet, 2)} N</div></div>
+        <div class="tile"><div class="k">Net force vs weight</div><div class="v">${G.ok ? fmt(G.pct, 2) : '—'}<small>%</small></div><div class="s">θ₁ = ${fmt(G.t1, 2)}° · θ₂ = ${fmt(G.t2, 3)}°</div></div>
+        ${sentTile(G)}
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="two">
+        <div class="card"><h3>Photo and angles</h3>${s.screenshot ? `<img class="zoomable" src="${s.screenshot}" alt="${esc(label(G))}: ${esc(anglesLine(G))}">` : '<div class="empty">No screenshot</div>'}
+          <p class="muted" style="font-size:.8rem;margin-top:8px">${esc(anglesLine(G))}</p></div>
+        <div class="card"><h3>Their forces tip to tail (from the measurements)</h3><svg class="plot" id="detail-plot"></svg></div>
+      </div>
+      <div class="card"><h3>Their calculations</h3>
+        <div class="table-wrap"><table class="t"><thead><tr><th>Quantity</th><th>They wrote</th><th>With their own numbers</th><th></th></tr></thead><tbody>
+        ${G.calc.map(r => `<tr><td>${r.name}</td><td>${esc(String(r.k.split('.').reduce((o, k) => (o == null ? o : o[k]), s) ?? '') || '—')}</td><td>${fmt(r.e)}</td><td>${mark(r.verdict)}</td></tr>`).join('')}
+        </tbody></table></div>
+      </div>
+      <div class="answers">
+        ${detailAnswer('Prediction: ' + (predSummary(s) || '—'), s.prediction?.why)}
+        ${detailAnswer('The forces on the ring', s.answers?.forces)}
+        ${detailAnswer('Is the net force zero?', s.answers?.zero)}
+        ${detailAnswer('F₂y vs the weight', s.answers?.vertical)}
+        ${detailAnswer('F₁x vs F₂x', s.answers?.horizontal)}
+        ${detailAnswer('Was the prediction right?', s.answers?.predcheck)}
+        ${detailAnswer(errorsTitle(c), c.errtext)}
+        ${detailAnswer('Conclusion', c.text)}
+        ${detailAnswer('How they shared the work', c.roles)}
+      </div>`;
+  },
+  drawDetail: G => plotTail(document.getElementById('detail-plot'), [G], 560, 420),
+
+  computed: G => ({
+    weight_N: G.W, theta1_deg: G.t1, theta2_deg: G.t2, F1: G.f1, F2: G.f2, net_x_N: G.net.x, net_y_N: G.net.y, net_N: G.net.mag,
+    net_percent_of_weight: G.pct, net_they_found_N: G.theirNet,
+    calculations: Object.fromEntries(G.calc.map(c => [c.k, { expected: c.e, check: c.verdict || null }])),
+  }),
+  csv: {
+    head: ['session', 'group', 'students', 'mass_g', 'W_N', 'F1_N', 'beta1_deg', 'F2_N', 'beta2_deg', 'beta12_deg', 'theta1_deg', 'theta2_deg',
+      'sumFx_N', 'sumFy_N', 'Fnet_N', 'Fnet_pct_of_W', 'Fnet_they_found_N', 'screenshot'],
+    rows: G => [[G.s.session, G.s.group, who(G), G.m, G.W, G.F1, G.b1, G.F2, G.b2, G.b12, G.t1, G.t2,
+      G.net.x, G.net.y, G.net.mag, G.pct, G.theirNet, G.s.screenshot ? 'yes' : 'no']],
+  },
+
+  demo() {
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz',
+      'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva', 'Camila Torres', 'Daniel Ramírez', 'Sara Medina', 'Felipe Ríos'];
+    const texts = {
+      why: ['The ring doesn\'t move, so the three forces must cancel: the inclined scale holds the weight up and its horizontal part is balanced by the horizontal scale.',
+        'The weight pulls it down.'],
+      forces: ['Scale 1 pulls the ring to the left with about 1.6 N, scale 2 pulls it up and to the right with about 2.6 N, and the thread pulls it straight down with the weight of the mass, about 2 N.',
+        'The scales pull and the mass pulls down.'],
+      zero: ['It is not exactly zero but it is only about 0.05 N, less than 3% of the weight, so it is zero within our errors. The scales have small divisions and our angle clicks could be off by a degree.',
+        'No it is 0.3 N so it is not zero.'],
+      vertical: ['F₂y is almost equal to the weight. Scale 2 is the only force that pulls up, so its vertical part holds up the whole mass.',
+        'They are close.'],
+      horizontal: ['F₁x and F₂x have the same size and opposite signs. Scale 2 also has to hold the weight, so its total reading is larger than its horizontal part.',
+        'Because it is inclined.'],
+      predcheck: ['Yes, we predicted zero and our net force is 0.05 N, very small compared with forces of 2 N.',
+        'No, we thought it would point down.'],
+      conclusion: ['The net force on the ring is about 0.05 N, less than 3% of the 1.96 N weight, so it is zero within our errors. The horizontal parts cancel (−1.62 N and +1.60 N) and the vertical part of scale 2 balances the weight: an object at rest has a net force of zero.',
+        'The net force is almost zero because the ring is not moving.'],
+      roles: ['Ana set up and read the scales, Juan took the photo and measured the angles; we calculated together.', 'We did it together.'],
+    };
+    const shot = (G, color) => {
+      const c = document.createElement('canvas'); c.width = 640; c.height = 360;
+      const x = c.getContext('2d');
+      x.fillStyle = '#d9d4c7'; x.fillRect(0, 0, 640, 360);
+      x.fillStyle = '#555'; x.fillRect(40, 30, 8, 300); x.fillRect(400, 30, 8, 300); x.fillRect(20, 325, 50, 10); x.fillRect(380, 325, 50, 10);
+      const rx = 230, ry = 190, a2 = rad(G.t2);
+      x.strokeStyle = '#333'; x.lineWidth = 3;
+      x.beginPath(); x.moveTo(48, ry - Math.tan(rad(G.t1)) * 180); x.lineTo(rx, ry); x.stroke();
+      x.beginPath(); x.moveTo(rx, ry); x.lineTo(rx + 170 * Math.cos(a2), ry - 170 * Math.sin(a2)); x.stroke();
+      x.lineWidth = 1.5; x.beginPath(); x.moveTo(rx, ry); x.lineTo(rx, 260); x.stroke();
+      x.fillStyle = '#8a6d3b'; x.fillRect(rx - 14, 260, 28, 34);
+      x.strokeStyle = '#999'; x.lineWidth = 4; x.beginPath(); x.arc(rx, ry, 9, 0, 7); x.stroke();
+      x.strokeStyle = '#fb923c'; x.lineWidth = 2;
+      x.beginPath(); x.arc(rx, ry, 34, Math.PI / 2, Math.PI); x.stroke();
+      x.beginPath(); x.arc(rx, ry, 46, -a2, Math.PI / 2); x.stroke();
+      x.fillStyle = '#fb923c'; x.font = 'bold 13px sans-serif';
+      x.fillText(G.b1.toFixed(1) + '°', rx - 78, ry + 36); x.fillText(G.b2.toFixed(1) + '°', rx + 40, ry + 44);
+      x.fillStyle = '#1e293b'; x.fillRect(450, 0, 190, 360);
+      x.fillStyle = '#e2e8f0'; x.font = 'bold 12px sans-serif'; x.fillText('Measurements & Shapes', 460, 22);
+      x.font = '12px sans-serif';
+      [['β1', G.b1], ['β2', G.b2], ['β12', G.b12]].forEach(([n, v], i) => { x.fillStyle = color; x.fillRect(460, 40 + i * 24, 8, 8); x.fillStyle = '#e2e8f0'; x.fillText(`${i + 1}  ${n}   ${v.toFixed(2)} °`, 474, 48 + i * 24); });
+      return c.toDataURL('image/jpeg', 0.7);
+    };
+    const reports = [];
+    for (let gi = 1; gi <= 8; gi++) {
+      const m = [100, 200, 150, 200, 100, 150, 200, 150][gi - 1], W = m / 1000 * G_ACC;
+      const t1 = rnd(-2.5, 2.5), t2 = rnd(28, 52);
+      // equilibrium: F1 cos t1 = F2 cos t2 and F2 sin t2 + F1 sin t1 = W
+      const F2 = W / (Math.sin(rad(t2)) + Math.cos(rad(t2)) * Math.tan(rad(t1))), F1 = F2 * Math.cos(rad(t2)) / Math.cos(rad(t1));
+      const r = v => +(v + rnd(-0.05, 0.05)).toFixed(2);
+      const read = { m, F1: r(F1), F2: r(F2), b1: +(90 + t1 + rnd(-0.8, 0.8)).toFixed(1), b2: +(90 + t2 + rnd(-0.8, 0.8)).toFixed(1) };
+      read.b12 = +(360 - read.b1 - read.b2 + rnd(-1.2, 1.2)).toFixed(1);
+      // their calculations, with a few typical slips
+      const Wt = gi === 3 ? m * G_ACC / 100 : m / 1000 * G_ACC;   // group 3 converts grams wrongly
+      const th1 = read.b1 - 90, th2 = read.b2 - 90;
+      const f1x = -read.F1 * Math.cos(rad(th1)) * (gi === 5 ? -1 : 1);   // group 5 forgets that scale 1 pulls left
+      const f1y = read.F1 * Math.sin(rad(th1));
+      const f2x = read.F2 * (gi === 7 ? Math.sin(rad(th2)) : Math.cos(rad(th2)));   // group 7 swaps sin and cos
+      const f2y = read.F2 * (gi === 7 ? Math.cos(rad(th2)) : Math.sin(rad(th2)));
+      const sx = f1x + f2x, sy = f1y + f2y - Wt;
+      const good = ![4, 7].includes(gi);
+      const pick = k => good ? texts[k][0] : texts[k][1];
+      const f2 = v => v.toFixed(2);
+      reports.push({
+        schema: 1, lab: 'net-force-rest', id: 'demo' + gi, session: 'DEMO', group: String(gi), students: [names[gi * 2 - 2], names[gi * 2 - 1]],
+        prediction: { net: ['zero', 'zero', 'down', 'down', 'zero', 'toward2', 'down', 'zero'][gi - 1], larger: ['two', 'two', 'one', 'same', 'two', 'two', 'same', 'two'][gi - 1], why: pick('why') },
+        setup: { m: String(m), F1: String(read.F1), F2: String(read.F2) },
+        angles: { b1: String(read.b1), b2: String(read.b2), b12: String(read.b12) },
+        screenshot: gi === 6 ? '' : shot({ ...read, t1: th1, t2: th2 }, COLORS[(gi - 1) % COLORS.length]),
+        forces: { W: f2(Wt), t1: th1.toFixed(1), t2: th2.toFixed(1) },
+        comp: { f1x: f2(f1x), f1y: f2(f1y), f2x: f2(f2x), f2y: f2(f2y), wx: '0', wy: f2(-Wt) },
+        net: { x: f2(sx), y: f2(sy), mag: f2(Math.hypot(sx, sy)) },
+        answers: { forces: pick('forces'), zero: pick('zero'), vertical: pick('vertical'), horizontal: pick('horizontal'), predcheck: pick('predcheck') },
+        conclusion: { errors: ['zero', 'reading', 'clicks', 'camera', 'level'].filter(() => Math.random() < 0.5),
+          errtext: gi === 1 ? 'Scale 1 moved a little when we took the photo, so we took it again.' : '', text: pick('conclusion'), roles: pick('roles') },
+        startedAt: new Date().toISOString(), submittedAt: new Date(Date.now() - (9 - gi) * 60000).toISOString(),
+      });
+    }
+    return reports;
+  },
+});
+</script>
+</body>
+</html>
