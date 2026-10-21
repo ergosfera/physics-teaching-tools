@@ -263,6 +263,7 @@
   <button class="tab-btn" data-tab="physics">⚛️ Physics <span class="tab-count">25</span></button>
   <button class="tab-btn" data-tab="math">📐 Math <span class="tab-count">2</span></button>
   <button class="tab-btn" data-tab="lab-reports">📝 Lab Reports <span class="tab-count">1</span></button>
+  <button class="tab-btn" data-tab="math-activities">🧮 Math Activities <span class="tab-count">1</span></button>
 </nav>
 
 <main>
@@ -599,6 +600,10 @@
   <!-- Experiments by topic, built from tools/lab-reports/labs.js (shared with the teacher page) -->
   <div class="tab-panel" id="tab-lab-reports"></div>
 
+  <!-- ══════════════ MATH ACTIVITIES ══════════════ -->
+  <!-- Activities by topic, built from MATH_TOPICS in tools/lab-reports/labs.js (shared with math_teacher.html) -->
+  <div class="tab-panel" id="tab-math-activities"></div>
+
 </main>
 
 <footer>
@@ -607,15 +612,16 @@
     Coded with <a href="https://www.anthropic.com/claude-code" target="_blank">Anthropic Claude Code</a> &nbsp;·&nbsp;
     <a href="https://github.com/ergosfera/physics-teaching-tools" target="_blank">View source on GitHub</a>
   </p>
-  <p class="footer-note">All web tools run locally in your browser, and desktop apps run on your own computer. No data is sent to any server, except lab reports, which go to your teacher's Google Sheet.</p>
+  <p class="footer-note">All web tools run locally in your browser, and desktop apps run on your own computer. No data is sent to any server, except lab reports and math activities, which go to your teacher's Google Sheet.</p>
 </footer>
 
 <script src="tools/lab-reports/labs.js"></script>
 <script>
-  (function renderLabReports() {
+  // Lab Reports and Math Activities tabs: one section per topic, one card per page
+  [['lab-reports', LAB_TOPICS], ['math-activities', MATH_TOPICS]].forEach(function renderTopics([tab, topics]) {
     const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     let total = 0;
-    document.getElementById('tab-lab-reports').innerHTML = LAB_TOPICS.map(t => {
+    document.getElementById('tab-' + tab).innerHTML = topics.map(t => {
       total += t.labs.length;
       return `
     <div class="section">
@@ -629,8 +635,8 @@
       </div>
     </div>`;
     }).join('');
-    document.querySelector('.tab-btn[data-tab="lab-reports"] .tab-count').textContent = total;
-  })();
+    document.querySelector(`.tab-btn[data-tab="${tab}"] .tab-count`).textContent = total;
+  });
 
   function applyTheme(light) {
     document.body.classList.toggle('light', light);

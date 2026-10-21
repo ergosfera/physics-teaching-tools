@@ -7,6 +7,7 @@
 //
 // The lab object:
 //   id, title, icon, studentPage, tagline        identity; studentPage is relative to the teacher page
+//   board?: 'math'                               listed on math_teacher.html instead of teacher.html
 //   questions: [{ id, title, get: s => text, chart?: 'errors' | 'pred' | … }]
 //   errors: { key: 'label' }                     error-source checkboxes (chart for chart: 'errors')
 //   analyze(s) → object                          derived values for one report, merged into the group G
@@ -92,11 +93,13 @@ const $ = id => document.getElementById(id);
 
 // ── Page skeleton ───────────────────────────────────────────
 function buildPage() {
+  const board = LAB.board === 'math' ? { href: '../math_teacher.html', back: 'All math activities', name: 'Math Activities' }
+    : { href: '../teacher.html', back: 'All labs', name: 'Lab Reports' };
   document.body.innerHTML = `
 <div class="top">
 <header>
-  <a class="pill-btn" href="../teacher.html" style="text-decoration:none">← All labs</a>
-  <h1>📊 <span>${esc(LAB.title)}</span> · Lab Reports</h1>
+  <a class="pill-btn" href="${board.href}" style="text-decoration:none">← ${board.back}</a>
+  <h1>📊 <span>${esc(LAB.title)}</span> · ${board.name}</h1>
   <div class="ctl">Session <input type="text" id="session" placeholder="all"></div>
   <button class="pill-btn" id="refresh">⟳ Refresh</button>
   <button class="pill-btn" id="auto">Live: off</button>

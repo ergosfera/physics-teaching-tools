@@ -1,5 +1,7 @@
-// Lab reports by topic. Shared by the Lab Reports tab of the site's index (students) and
-// teacher.html (unlisted): add an experiment here and it appears on both.
+// Lab reports and math activities by topic. Both use the same student and teacher pages engine.
+//   LAB_TOPICS:  the Lab Reports tab of the site's index (students) and teacher.html (unlisted)
+//   MATH_TOPICS: the Math Activities tab of the site's index and math_teacher.html (unlisted)
+// Add an experiment or activity here and it appears on both pages.
 //   student: the page pairs fill in during the lab
 //   teacher: the consolidated class results for the same experiment
 const LAB_TOPICS = [
@@ -43,6 +45,9 @@ const LAB_TOPICS = [
       },
     ],
   },
+];
+
+const MATH_TOPICS = [
   {
     name: 'PreCalculus', icon: '📐',
     labs: [
