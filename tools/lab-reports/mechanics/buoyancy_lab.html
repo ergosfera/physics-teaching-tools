@@ -240,20 +240,27 @@
 </header>
 
 <main>
-  <p class="intro">Work <b>with your partner</b> through the steps in order. Each step unlocks the next one. Your work is saved on this computer as you type, so a reload won't lose it. When you finish, send the report to your teacher.</p>
+  <p class="intro"><span data-team>Work <b>with your partner</b> through the steps in order.</span><span data-solo hidden>Measure with your group, but <b>write this report on your own</b>, in your own words. Go through the steps in order.</span> Each step unlocks the next one. Your work is saved on this computer as you type, so a reload won't lose it. When you finish, send the report to your teacher.</p>
 
   <!-- 1 TEAM -->
   <section class="step" data-step="1">
     <div class="step-head"><span class="num">1</span><h2>Your team</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
+      <div class="q">
+        <div class="qt">Who writes this report? Do what your teacher told you.</div>
+        <div class="choices">
+          <label><input type="radio" name="mode" value="group"> Our group: one report for the whole group</label>
+          <label><input type="radio" name="mode" value="individual"> Just me: my own report, in my own words</label>
+        </div>
+      </div>
       <div class="grid2">
         <label class="f">Class / session code<input type="text" data-bind="session" id="session-input" placeholder="e.g. 10A"></label>
         <label class="f">Group number<input type="text" inputmode="numeric" data-bind="group" placeholder="e.g. 4"></label>
       </div>
       <div class="grid2">
-        <label class="f">Student 1<input type="text" data-bind="students.0" placeholder="Full name"></label>
-        <label class="f">Student 2<input type="text" data-bind="students.1" placeholder="Full name"></label>
+        <label class="f"><span data-team>Student 1</span><span data-solo hidden>Your name</span><input type="text" data-bind="students.0" placeholder="Full name"></label>
+        <label class="f" data-team>Student 2<input type="text" data-bind="students.1" placeholder="Full name"></label>
       </div>
       <div class="grid2">
         <label class="f">Your liquid (the one your teacher assigned to your group)<input type="text" data-bind="liquid.name" placeholder="e.g. salt water"></label>
@@ -455,7 +462,7 @@
         <div class="wc" data-wc="conclusion.text"></div>
       </div>
       <div class="q">
-        <div class="qt">How did you share the work? (Who moved the cylinder, who read the balance, who recorded, who wrote…)</div>
+        <div class="qt"><span data-team>How did you share the work?</span><span data-solo hidden>How did your group share the work, and what did you do yourself?</span> (Who moved the cylinder, who read the balance, who recorded, who wrote…)</div>
         <textarea data-bind="conclusion.roles" data-min="5" style="min-height:60px"></textarea>
         <div class="wc" data-wc="conclusion.roles"></div>
       </div>
@@ -566,6 +573,7 @@ const params = new URLSearchParams(location.search);
 const API = params.get('api') || '';
 const G = parseFloat(params.get('g')) || 9.8;
 const LINK_SESSION = params.get('session') || '';
+const LINK_MODE = ['group', 'individual'].includes(params.get('mode')) ? params.get('mode') : '';
 const STORE = 'lab_' + LAB_ID + '_' + (LINK_SESSION || 'default');
 
 const MIN_POINTS = 5;
@@ -584,7 +592,7 @@ const PRED_DEPTH = { same: 'stay about the same', less: 'grow, but less than dou
 function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 function blank() {
   return {
-    schema: 2, lab: LAB_ID, id: rid(), session: LINK_SESSION, group: '', students: ['', ''], cyl: '',
+    schema: 2, lab: LAB_ID, id: rid(), session: LINK_SESSION, mode: LINK_MODE, group: '', students: ['', ''], cyl: '',
     g: G, d: '', res: '0.1',
     liquid: { name: '', V: '', m: '' },
     prediction: { into: '', depth: '', dens: '', why: '' },
@@ -602,6 +610,7 @@ try {
   if (saved && saved.lab === LAB_ID && saved.schema === 2) S = Object.assign(blank(), saved);
 } catch (e) {}
 if (LINK_SESSION) S.session = LINK_SESSION;
+if (LINK_MODE) S.mode = LINK_MODE;
 S.g = G;
 
 let saveTimer;
@@ -665,7 +674,7 @@ const ratio = fit => fit && rho() > 0 ? fit.k / (rho() * 1000) : NaN;
 
 // ── Steps: completion rules ─────────────────────────────────
 const DONE = {
-  1: () => S.group.trim() && S.students[0].trim() && S.students[1].trim() && S.session.trim() && S.liquid.name.trim(),
+  1: () => S.mode && S.group.trim() && S.students[0].trim() && (S.mode === 'individual' || S.students[1].trim()) && S.session.trim() && S.liquid.name.trim(),
   2: () => S.prediction.into && S.prediction.depth && S.prediction.dens && words(S.prediction.why) >= 10,
   3: () => area() > 0 && rho() > 0,
   4: () => points().length >= MIN_POINTS && words(S.discuss.linear) >= 8,
@@ -721,6 +730,19 @@ document.querySelectorAll('[data-bind]').forEach(el => {
   el.addEventListener('input', () => { setPath(path, el.value); save(); refresh(); });
 });
 if (LINK_SESSION) document.getElementById('session-input').readOnly = true;
+
+// Report mode: one report per group, or one per student. The class link can fix it (&mode=…).
+function applyMode() {
+  const solo = S.mode === 'individual';
+  document.querySelectorAll('[data-solo]').forEach(el => { el.hidden = !solo; });
+  document.querySelectorAll('[data-team]').forEach(el => { el.hidden = solo; });
+}
+document.querySelectorAll('input[name=mode]').forEach(r => {
+  r.checked = r.value === S.mode;
+  r.disabled = !!LINK_MODE;
+  r.addEventListener('change', () => { S.mode = r.value; applyMode(); save(); refresh(); });
+});
+applyMode();
 
 [['pred-in', 'into'], ['pred-depth', 'depth'], ['pred-dens', 'dens']].forEach(([name, key]) => {
   document.querySelectorAll(`input[name=${name}]`).forEach(r => {
@@ -957,7 +979,7 @@ document.getElementById('send').addEventListener('click', async () => {
 document.getElementById('download').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(payload(), null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
-  const tag = [S.session, 'group' + (S.group || 'X')].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
+  const tag = [S.session, 'group' + (S.group || 'X'), S.mode === 'individual' ? S.students[0] : ''].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
   a.href = URL.createObjectURL(blob);
   a.download = `buoyancy_${tag}.json`;
   a.click();

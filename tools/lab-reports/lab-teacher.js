@@ -65,8 +65,11 @@ let IN_SHEET = null;                 // keys seen in the sheet on the last succe
 let GROUPS = [];
 const ON_STATE = {};
 
-const label = G => 'Group ' + (G.s.group || '?') + (CFG.session ? '' : ` (${G.s.session || '—'})`);
-const who = G => (G.s.students || []).filter(Boolean).join(' & ');
+// An individual report (mode 'individual') belongs to one student of a group: several can share a group number.
+const solo = s => s.mode === 'individual';
+const initials = name => String(name || '').trim().split(/\s+/).map(w => w[0] || '').join('').toUpperCase() || '?';
+const label = G => 'Group ' + (G.s.group || '?') + (solo(G.s) ? ' · ' + initials(G.s.students?.[0]) : '') + (CFG.session ? '' : ` (${G.s.session || '—'})`);
+const who = G => (solo(G.s) ? [G.s.students?.[0]] : G.s.students || []).filter(Boolean).join(' & ');
 const flagsHtml = G => G.checks.map(([t, c]) => `<span class="flag ${c}">${esc(t)}</span>`).join('');
 const rawKey = s => (s.id || '') + '|' + (s.submittedAt || '');
 function bar(name, n) {
@@ -115,11 +118,17 @@ function buildPage() {
     <div class="card setup">
       <h3>2 · Student link for a session</h3>
       <div class="form-row"><label for="link-session">Session code</label><input type="text" id="link-session" placeholder="e.g. 10A or 10A-oct08"></div>
+      <div class="form-row"><label for="link-mode">Reports</label>
+        <select id="link-mode">
+          <option value="">Students choose in step 1</option>
+          <option value="group">One report per group</option>
+          <option value="individual">One report per student</option>
+        </select></div>
       <div class="link-box">
         <div style="display:grid;gap:8px">
           <input type="text" id="student-link" readonly class="mono">
           <div class="btns"><button class="btn" id="copy-link">Copy link</button><a class="btn" id="open-link" target="_blank" rel="noopener">Open student page</a></div>
-          <p class="muted" style="font-size:.8rem">Share it in your class chat or by email. Each pair opens it on one computer. Without the class link, students can still download their report as a file and hand it in.</p>
+          <p class="muted" style="font-size:.8rem">Share it in your class chat or by email. Each group (or each student, for individual reports) opens it on one computer. Without the class link, students can still download their report as a file and hand it in.</p>
         </div>
       </div>
     </div>
@@ -184,14 +193,14 @@ function buildGroups() {
   const latest = new Map(), versions = new Map();
   [...RAW.values()].forEach(s => {
     if (sess && norm(s.session) !== sess) return;
-    const key = norm(s.session) + '|' + norm(s.group);
+    const key = norm(s.session) + '|' + norm(s.group) + (solo(s) ? '|' + norm(s.students?.[0]) : '');
     versions.set(key, (versions.get(key) || 0) + 1);
     const cur = latest.get(key);
     if (!cur || String(s.submittedAt) > String(cur.submittedAt)) latest.set(key, s);
   });
   GROUPS = [...latest.entries()].map(([key, s]) =>
     Object.assign({ key, s, versions: versions.get(key), on: ON_STATE[key] ?? true }, LAB.analyze(s))
-  ).sort((a, b) => (num(a.s.group) - num(b.s.group)) || norm(a.s.group).localeCompare(norm(b.s.group)));
+  ).sort((a, b) => (num(a.s.group) - num(b.s.group)) || norm(a.s.group).localeCompare(norm(b.s.group)) || norm(a.s.students?.[0]).localeCompare(norm(b.s.students?.[0])));
   GROUPS.forEach((G, i) => { G.color = COLORS[i % COLORS.length]; });
   if (LAB.finish) LAB.finish(GROUPS);
   GROUPS.forEach(G => { G.checks = LAB.checks(G); });
@@ -367,6 +376,7 @@ function renderLink() {
   const u = new URL(LAB.studentPage, location.href);
   const sess = $('link-session').value.trim();
   if (sess) u.searchParams.set('session', sess);
+  if ($('link-mode').value) u.searchParams.set('mode', $('link-mode').value);
   if (CONN.api) u.searchParams.set('api', CONN.api);
   const link = u.toString();
   $('student-link').value = link;
@@ -541,6 +551,8 @@ function LabTeacher(lab) {
     : 'Not connected to a Google Sheet yet. Set it up once, for all labs, on the <a href="../teacher.html" style="color:var(--accent)">Lab Reports teacher page</a>. Until then you can import report files.';
   $('link-session').value = CFG.session;
   $('link-session').addEventListener('input', renderLink);
+  $('link-mode').value = CFG.mode || '';
+  $('link-mode').addEventListener('change', () => { CFG.mode = $('link-mode').value; saveCfg(); renderLink(); });
   $('copy-link').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText($('student-link').value); } catch (e) { $('student-link').select(); }
   });

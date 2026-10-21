@@ -237,20 +237,27 @@
 </header>
 
 <main>
-  <p class="intro">Work <b>with your partner</b> through the steps in order. Each step unlocks the next one. Your work is saved on this computer as you type, so a reload won't lose it. When you finish, send the report to your teacher.</p>
+  <p class="intro"><span data-team>Work <b>with your partner</b> through the steps in order.</span><span data-solo hidden>Measure with your group, but <b>write this report on your own</b>, in your own words. Go through the steps in order.</span> Each step unlocks the next one. Your work is saved on this computer as you type, so a reload won't lose it. When you finish, send the report to your teacher.</p>
 
   <!-- 1 TEAM -->
   <section class="step" data-step="1">
     <div class="step-head"><span class="num">1</span><h2>Your team</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
+      <div class="q">
+        <div class="qt">Who writes this report? Do what your teacher told you.</div>
+        <div class="choices">
+          <label><input type="radio" name="mode" value="group"> Our group: one report for the whole group</label>
+          <label><input type="radio" name="mode" value="individual"> Just me: my own report, in my own words</label>
+        </div>
+      </div>
       <div class="grid2">
         <label class="f"><span>Class / session code</span><input type="text" data-bind="session" id="session-input" placeholder="e.g. 10A"></label>
         <label class="f"><span>Group number</span><input type="text" inputmode="numeric" data-bind="group" placeholder="e.g. 4"></label>
       </div>
       <div class="grid2">
-        <label class="f"><span>Student 1</span><input type="text" data-bind="students.0" placeholder="Full name"></label>
-        <label class="f"><span>Student 2</span><input type="text" data-bind="students.1" placeholder="Full name"></label>
+        <label class="f"><span data-team>Student 1</span><span data-solo hidden>Your name</span><input type="text" data-bind="students.0" placeholder="Full name"></label>
+        <label class="f" data-team><span>Student 2</span><input type="text" data-bind="students.1" placeholder="Full name"></label>
       </div>
     </div>
   </section>
@@ -502,7 +509,7 @@
         <div class="wc" data-wc="conclusion.text"></div>
       </div>
       <div class="q">
-        <div class="qt">How did you share the work? (Who set up, who read the scales, who took the photo, who measured the angles, who calculated, who wrote…)</div>
+        <div class="qt"><span data-team>How did you share the work?</span><span data-solo hidden>How did your group share the work, and what did you do yourself?</span> (Who set up, who read the scales, who took the photo, who measured the angles, who calculated, who wrote…)</div>
         <textarea data-bind="conclusion.roles" data-min="5" style="min-height:60px"></textarea>
         <div class="wc" data-wc="conclusion.roles"></div>
       </div>
@@ -606,6 +613,7 @@ const LAB_ID = 'net-force-rest';
 const params = new URLSearchParams(location.search);
 const API = params.get('api') || '';
 const LINK_SESSION = params.get('session') || '';
+const LINK_MODE = ['group', 'individual'].includes(params.get('mode')) ? params.get('mode') : '';
 const STORE = 'lab_' + LAB_ID + '_' + (LINK_SESSION || 'default');
 
 const G_ACC = 9.8;   // m/s², the value the students use
@@ -624,7 +632,7 @@ const PRED_TEXT = { zero: 'zero', down: 'pointing down', up: 'pointing up', towa
 function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
 function blank() {
   return {
-    schema: 1, lab: LAB_ID, id: rid(), session: LINK_SESSION, group: '', students: ['', ''],
+    schema: 1, lab: LAB_ID, id: rid(), session: LINK_SESSION, mode: LINK_MODE, group: '', students: ['', ''],
     prediction: { net: '', larger: '', why: '' },
     setup: { m: '', F1: '', F2: '' },
     angles: { b1: '', b2: '', b12: '' },
@@ -643,6 +651,7 @@ try {
   if (saved && saved.lab === LAB_ID) S = Object.assign(blank(), saved);
 } catch (e) {}
 if (LINK_SESSION) S.session = LINK_SESSION;
+if (LINK_MODE) S.mode = LINK_MODE;
 
 let saveTimer;
 function save() {
@@ -707,7 +716,7 @@ const filled = keys => keys.every(k => isFinite(V(k)));
 
 // ── Steps: completion rules ─────────────────────────────────
 const DONE = {
-  1: () => S.group.trim() && S.students[0].trim() && S.students[1].trim() && S.session.trim(),
+  1: () => S.mode && S.group.trim() && S.students[0].trim() && (S.mode === 'individual' || S.students[1].trim()) && S.session.trim(),
   2: () => S.prediction.net && S.prediction.larger && words(S.prediction.why) >= 6,
   3: () => V('setup.m') > 0 && V('setup.F1') > 0 && V('setup.F2') > 0,
   4: () => filled(['angles.b1', 'angles.b2', 'angles.b12']) && !!S.screenshot,
@@ -768,6 +777,19 @@ function bindInputs(root) {
 }
 bindInputs(document);
 if (LINK_SESSION) document.getElementById('session-input').readOnly = true;
+
+// Report mode: one report per group, or one per student. The class link can fix it (&mode=…).
+function applyMode() {
+  const solo = S.mode === 'individual';
+  document.querySelectorAll('[data-solo]').forEach(el => { el.hidden = !solo; });
+  document.querySelectorAll('[data-team]').forEach(el => { el.hidden = solo; });
+}
+document.querySelectorAll('input[name=mode]').forEach(r => {
+  r.checked = r.value === S.mode;
+  r.disabled = !!LINK_MODE;
+  r.addEventListener('change', () => { S.mode = r.value; applyMode(); save(); refresh(); });
+});
+applyMode();
 
 document.querySelectorAll('[data-radio]').forEach(box => {
   const path = box.dataset.radio;
@@ -989,7 +1011,7 @@ document.getElementById('send').addEventListener('click', async () => {
 document.getElementById('download').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(payload(), null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
-  const tag = [S.session, 'group' + (S.group || 'X')].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
+  const tag = [S.session, 'group' + (S.group || 'X'), S.mode === 'individual' ? S.students[0] : ''].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
   a.href = URL.createObjectURL(blob);
   a.download = `net-force-rest_${tag}.json`;
   a.click();
