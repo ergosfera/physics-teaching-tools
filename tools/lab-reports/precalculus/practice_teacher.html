@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Practice Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="../lab-teacher.css">
+<style>
+  .qblock { display: grid; gap: 6px; }
+  .qblock .qh { font-size: .86rem; font-weight: 700; }
+  .qblock .qh small { color: var(--muted); font-weight: 600; }
+  .slide .qblock .qh { font-size: clamp(.9rem, 1.3vw, 1.3rem); }
+  .ok-mark { color: var(--green); font-weight: 800; }
+</style>
+</head>
+<body>
+<script src="../lab-teacher.js"></script>
+<script src="rational_questions.js"></script>
+<script src="practice_sets.js"></script>
+<script>
+// Unit 1 practice (one page for every set: ?set=1.7 … 1.11). Everything else comes from ../lab-teacher.js.
+// Students get instant feedback, so the charts show each student's FIRST answer.
+const SET_KEY = PRACTICE_SETS[new URLSearchParams(location.search).get('set')] ? new URLSearchParams(location.search).get('set') : '1.7';
+const SET = PRACTICE_SETS[SET_KEY];
+const QS = SET.questions;
+
+// How a first answer is shown and grouped: the option for multiple choice, the numbers otherwise
+function answerKey(q, v) {
+  if (v == null || v === '') return null;
+  if (q.type === 'mc') return v;
+  const xs = rqNumbers(v);
+  if (!xs.length) return String(v).trim();
+  return (q.type === 'list' ? [...xs].sort((a, b) => a - b) : xs.slice(0, 1)).map(x => String(+x.toPrecision(6))).join(', ');
+}
+const rightKey = q => q.type === 'mc' ? q.answer : answerKey(q, q.type === 'list' ? q.answer.join(', ') : String(q.answer));
+const answerLabel = (q, key) => q.type === 'mc' ? q.options[key] || key : key;
+
+// Bars of first answers for one question; the right answer is marked
+function firstAnswerBars(q) {
+  const counts = new Map();
+  GROUPS.forEach(G => { const k = answerKey(q, G.qs[q.id].first); if (k != null) counts.set(k, (counts.get(k) || 0) + 1); });
+  const right = rightKey(q);
+  let keys = q.type === 'mc' ? Object.keys(q.options) : [...counts.keys()].sort((a, b) => counts.get(b) - counts.get(a)).slice(0, 6);
+  if (q.type !== 'mc' && !keys.includes(right)) keys = [right, ...keys.slice(0, 5)];
+  const n = GROUPS.filter(G => G.qs[q.id].first != null).length, ok = GROUPS.filter(G => G.qs[q.id].firstOk).length;
+  return `<div class="qblock"><div class="qh">${ok}/${n} right on the first try <small>· right answer: ${esc(rqAnswerText(q))}</small></div>
+    <div class="bars">${keys.map(k => bar((k === right ? '✓ ' : '') + answerLabel(q, k), counts.get(k) || 0)).join('')}</div></div>`;
+}
+// Right on the first try, one bar per question (most missed first)
+function accuracyBars() {
+  return `<div class="bars">${QS.map(q => ({ q, n: GROUPS.filter(G => G.qs[q.id].firstOk).length }))
+    .sort((a, b) => a.n - b.n).map(({ q, n }) => bar(`Q${q.id.slice(1)} · ${q.short}`, n)).join('')}</div>`;
+}
+
+LabTeacher({
+  id: SET.id,
+  title: `${SET.code} ${SET.title}`,
+  icon: SET.icon,
+  studentPage: 'practice_lab.html?set=' + SET_KEY,
+  board: 'math',
+  tagline: `AP Precalculus ${SET.code} practice · 10 questions · first answers and explanations`,
+
+  errors: {},
+  questions: [
+    ...QS.map((q, i) => ({ id: q.id, title: q.short, chart: q.id })),
+    { id: 'why', title: SET.why.prompt, get: s => s.why },
+    { id: 'hard', title: 'Which question was the hardest, and why?', get: s => s.hard },
+  ],
+  questionChart: q => firstAnswerBars(QS.find(x => x.id === q.chart)),
+
+  analyze(s) {
+    const qs = {};
+    QS.forEach(q => {
+      const st = (s.ans || {})[q.id] || {};
+      qs[q.id] = { first: st.first ?? null, firstOk: st.first != null && rqCorrect(q, st.first), tries: st.tries || 0, rev: !!st.rev, ok: !!st.ok };
+    });
+    return {
+      qs,
+      firstRight: QS.filter(q => qs[q.id].firstOk).length,
+      answered: QS.filter(q => qs[q.id].first != null).length,
+      revealed: QS.filter(q => qs[q.id].rev).length,
+      tries: QS.reduce((a, q) => a + qs[q.id].tries, 0),
+    };
+  },
+  checks(G) {
+    const out = [];
+    if (G.answered < QS.length) out.push([`${QS.length - G.answered} not answered`, 'red']);
+    if (G.revealed) out.push([`Saw ${G.revealed} answer${G.revealed === 1 ? '' : 's'}`, G.revealed >= 3 ? 'red' : '']);
+    return out;
+  },
+
+  summaryHtml: `
+    <div class="card">
+      <h3>Right on the first try, by question (most missed first)</h3>
+      <div id="acc"></div>
+    </div>`,
+  renderSummary(on) {
+    const scores = GROUPS.filter(G => G.answered).map(G => G.firstRight);
+    const missed = QS.map(q => ({ q, n: GROUPS.filter(G => G.qs[q.id].firstOk).length })).sort((a, b) => a.n - b.n)[0];
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Reports</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'}</div></div>
+      <div class="tile"><div class="k">Median first-try score</div><div class="v">${scores.length ? fmt(median(scores)) : '—'}<small>/${QS.length}</small></div><div class="s">questions right on the first try</div></div>
+      <div class="tile"><div class="k">Most missed</div><div class="v" style="font-size:1rem">${GROUPS.length ? `Q${missed.q.id.slice(1)} · ${esc(missed.q.short)}` : '—'}</div><div class="s">${GROUPS.length ? `${missed.n}/${GROUPS.length} right on the first try` : ''}</div></div>
+      <div class="tile"><div class="k">Answers seen</div><div class="v">${GROUPS.reduce((a, G) => a + G.revealed, 0)}</div><div class="s">after 2 wrong tries, whole class</div></div>`;
+    document.getElementById('acc').innerHTML = accuracyBars();
+  },
+
+  resultsHead: '<th>Right on 1st try</th><th>Tries</th><th>Answers seen</th>' + QS.map(q => `<th title="${esc(q.short)}">Q${q.id.slice(1)}</th>`).join(''),
+  resultsRow(G) {
+    return `<td><b>${G.firstRight}</b><span class="muted">/${QS.length}</span></td><td>${G.tries}</td><td>${G.revealed || '<span class="muted">0</span>'}</td>` +
+      QS.map(q => { const st = G.qs[q.id]; return `<td>${st.firstOk ? '<span class="ok-mark">✓</span>' : st.first == null ? '<span class="muted">—</span>' : st.rev ? '👁' : '✗'}</td>`; }).join('');
+  },
+
+  slides: () => [{ html: `<h2>Right on the first try, by question</h2><div class="card">${accuracyBars()}</div>` }],
+
+  detail(G) {
+    const row = q => {
+      const st = G.qs[q.id];
+      const first = st.first == null ? '<span class="muted">—</span>' : esc(answerLabel(q, answerKey(q, st.first)));
+      return `<tr><td>Q${q.id.slice(1)}</td><td>${esc(q.short)}</td><td>${first}</td><td>${st.firstOk ? '<span class="ok-mark">✓</span>' : st.first != null ? '✗' : ''}</td>
+        <td>${st.tries || ''}</td><td>${st.rev ? 'saw answer' : st.ok ? '<span class="ok-mark">✓</span>' : ''}</td></tr>`;
+    };
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">Right on the first try</div><div class="v">${G.firstRight}<small>/${QS.length}</small></div><div class="s">${G.tries} tries in all</div></div>
+        <div class="tile"><div class="k">Answers seen</div><div class="v">${G.revealed}</div><div class="s">after 2 wrong tries</div></div>
+        ${sentTile(G)}
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="card"><h3>Answers (first try)</h3><div class="table-wrap"><table class="t">
+        <thead><tr><th></th><th>Question</th><th>First answer</th><th>1st</th><th>Tries</th><th>Final</th></tr></thead>
+        <tbody>${QS.map(row).join('')}</tbody></table></div></div>
+      <div class="answers">
+        ${detailAnswer('Explanation', G.s.why)}
+        ${detailAnswer('Hardest question', G.s.hard)}
+      </div>`;
+  },
+
+  computed: G => ({ first_try_right: G.firstRight, answers_seen: G.revealed, tries: G.tries }),
+  csv: {
+    head: ['session', 'group', 'students', 'mode', 'first_try_right', 'tries', 'answers_seen', ...QS.map(q => q.id + '_first'), ...QS.map(q => q.id + '_first_ok')],
+    rows: G => [[G.s.session, G.s.group, who(G), G.s.mode, G.firstRight, G.tries, G.revealed, ...QS.map(q => G.qs[q.id].first ?? ''), ...QS.map(q => G.qs[q.id].firstOk)]],
+  },
+
+  demo() {
+    const pickOne = a => a[Math.floor(Math.random() * a.length)];
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz', 'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva'];
+    // A wrong first answer: another option, or a nearby number
+    const wrongOf = q => q.type === 'mc' ? pickOne(Object.keys(q.options).filter(k => k !== q.answer))
+      : q.type === 'list' ? pickOne([q.answer.slice(0, 1).join(', '), q.answer.map(v => -v).join(', '), [...q.answer, 0].join(', ')])
+      : String(pickOne([-q.answer, q.answer + 1, 0, q.answer * 2]));
+    const reports = [];
+    for (let i = 0; i < 12; i++) {
+      const strong = i % 4 !== 3, ans = {};
+      QS.forEach((q, qi) => {
+        const wrong = Math.random() < (strong ? .2 : .45) + (qi % 3 === 2 ? .15 : 0);
+        const right = q.type === 'mc' ? q.answer : rqAnswerText(q);
+        const tries = wrong ? 2 + Math.floor(Math.random() * 2) : 1, rev = wrong && tries >= 3 && Math.random() < .5;
+        ans[q.id] = { v: right, first: wrong ? wrongOf(q) : right, tries, ok: !rev, rev };
+      });
+      reports.push({
+        schema: 1, lab: SET.id, set: SET.code, id: 'demo' + i, session: 'DEMO', mode: 'individual', group: '', students: [names[i], ''], ans,
+        why: strong ? 'First I compare what happens to the numerator and the denominator, then I check the signs of each factor near the point, and I test a value to confirm my answer.' : 'You look at the numbers.',
+        hard: pickOne(['Question 3, because I mixed up the signs.', 'The one with the graph, I was not sure how to read it.', 'The last one, I had to factor first.']),
+        startedAt: new Date().toISOString(), submittedAt: new Date(Date.now() - (12 - i) * 60000).toISOString(),
+      });
+    }
+    return reports;
+  },
+});
+</script>
+</body>
+</html>

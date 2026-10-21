@@ -8,7 +8,7 @@
 // The lab object:
 //   id, title, icon, studentPage, tagline        identity; studentPage is relative to the teacher page
 //   board?: 'math'                               listed on math_teacher.html instead of teacher.html
-//   questions: [{ id, title, get: s => text, chart?: 'errors' | 'pred' | … }]
+//   questions: [{ id, title, get: s => text, chart?: 'errors' | 'pred' | … }]   (no get: chart only)
 //   errors: { key: 'label' }                     error-source checkboxes (chart for chart: 'errors')
 //   analyze(s) → object                          derived values for one report, merged into the group G
 //   finish?(GROUPS)                              cross-group values (e.g. class medians), after analyze
@@ -259,6 +259,7 @@ function questionChart(q) {
 }
 // One group's answer to a question ('' when an optional answer is empty)
 function answerCard(q, G, i) {
+  if (!q.get) return '';   // a chart-only question
   const text = String(q.get(G.s) || '').trim();
   const prefix = LAB.answerPrefix ? LAB.answerPrefix(q, G.s) : '';
   const pre = prefix ? `<b>${esc(prefix)}</b> ` : '';

@@ -241,8 +241,9 @@ function rqValue(q, value) {
   const xs = rqNumbers(value);
   return q.type === 'num' ? xs[0] : xs;
 }
-// How the right answer is written
+// How the right answer is written (answerText overrides, e.g. '−2/3')
 function rqAnswerText(q) {
+  if (q.answerText) return q.answerText;
   if (q.type === 'mc') return q.options[q.answer];
   if (q.type === 'list') return q.answer.join(', ');
   return q.answer === 0.5 ? '1/2' : String(q.answer);

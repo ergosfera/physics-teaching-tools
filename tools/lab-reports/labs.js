@@ -59,4 +59,20 @@ const MATH_TOPICS = [
       },
     ],
   },
+  {
+    // One practice page for every set: ?set= picks the 10 questions from precalculus/practice_sets.js
+    name: 'PreCalculus · Unit 1 practice', icon: '✏️',
+    labs: [
+      ['1.7', '↔️', 'End Behavior', 'Limits at ±∞, horizontal and slant asymptotes, and how the degrees decide the end behavior.'],
+      ['1.8', '🎯', 'Zeros', 'Zeros of rational functions, canceled factors, sign of r(x), and touching or crossing the x-axis.'],
+      ['1.9', '📏', 'Vertical Asymptotes', 'Where they are, and whether r(x) goes to +∞ or −∞ on each side.'],
+      ['1.10', '⭕', 'Holes', 'Common factors, the coordinates of a hole, and a hole versus an asymptote.'],
+      ['1.11', '🔁', 'Equivalent Representations', 'Factoring, polynomial long division, slant asymptotes and the binomial theorem.'],
+    ].map(([set, icon, title, desc]) => ({
+      id: 'pc-' + set.replace('.', '-'), icon, title: `${set} ${title}`,
+      desc: `10 questions with instant feedback. ${desc}`,
+      student: 'precalculus/practice_lab.html?set=' + set,
+      teacher: 'precalculus/practice_teacher.html?set=' + set,
+    })),
+  },
 ];
