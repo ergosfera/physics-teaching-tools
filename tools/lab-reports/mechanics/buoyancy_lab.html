@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Buoyant Force Lab</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚢</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950;
+    --green-soft: rgba(63,185,80,.12);
+    --amber: #d29922;
+    --amber-soft: rgba(210,153,34,.14);
+    --red: #f85149;
+    --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #0969da;
+    --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37;
+    --green-soft: rgba(26,127,55,.09);
+    --amber: #9a6700;
+    --amber-soft: rgba(154,103,0,.10);
+    --red: #cf222e;
+  }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.5; min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.3px; }
+  header h1 span { color: var(--accent); }
+  .progress { flex: 1; min-width: 140px; display: flex; gap: 4px; }
+  .progress i { flex: 1; height: 6px; border-radius: 3px; background: var(--surface2); border: 1px solid var(--border); }
+  .progress i.done { background: var(--green); border-color: var(--green); }
+  .progress i.current { background: var(--accent); border-color: var(--accent); }
+  .save-state { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .pill-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 20px; padding: 5px 12px; font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer;
+  }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  .intro { color: var(--muted); font-size: .92rem; margin-bottom: 20px; }
+  .intro b { color: var(--text); }
+
+  /* ── STEPS ── */
+  .step {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .step-head {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-head .num {
+    width: 30px; height: 30px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; font-weight: 800; font-size: .9rem;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .step.done .num { background: var(--green); border-color: var(--green); color: #fff; }
+  .step.active .num { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step-head h2 { font-size: 1.02rem; font-weight: 700; flex: 1; }
+  .step-head .status { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .step.done .status { color: var(--green); }
+  .step-body { padding: 18px; display: grid; gap: 16px; }
+  .step-lock { display: none; padding: 14px 18px; color: var(--muted); font-size: .88rem; }
+  .step.locked .step-body { display: none; }
+  .step.locked .step-lock { display: block; }
+  .step.locked .step-head { border-bottom: none; opacity: .6; }
+
+  p.lead { font-size: .93rem; }
+  ul.tips { font-size: .86rem; color: var(--muted); padding-left: 20px; display: grid; gap: 3px; }
+  ul.tips b { color: var(--text); }
+
+  /* ── FORM ── */
+  label.f { display: grid; gap: 5px; font-size: .82rem; font-weight: 600; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; font: inherit; font-size: .95rem; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  input[readonly] { background: var(--surface2); color: var(--muted); }
+  .q { display: grid; gap: 6px; }
+  .q .qt { font-size: .93rem; font-weight: 600; }
+  .q .qt em { font-style: normal; color: var(--accent); }
+  .wc { font-size: .72rem; color: var(--muted); text-align: right; }
+  .wc.ok { color: var(--green); }
+
+  .choices { display: grid; gap: 6px; }
+  .choices label {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: .92rem;
+  }
+  .choices label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px; }
+  .checks label { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; cursor: pointer; }
+  .checks input { margin-top: 4px; }
+
+  .btn {
+    font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;
+    border-radius: 8px; padding: 9px 16px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text);
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .row-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .note {
+    border-radius: 8px; padding: 10px 14px; font-size: .88rem;
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+  }
+  .note.warn { background: var(--amber-soft); border-left-color: var(--amber); }
+  .note.good { background: var(--green-soft); border-left-color: var(--green); }
+  .discuss {
+    border: 1px dashed var(--accent); border-radius: 10px; padding: 14px; display: grid; gap: 8px;
+    background: var(--accent-soft);
+  }
+  .discuss .tag { font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table.data { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  table.data th {
+    text-align: left; font-size: .74rem; color: var(--muted); font-weight: 700;
+    padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  table.data td { padding: 4px 6px; border-bottom: 1px solid var(--border); }
+  table.data td.calc { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; white-space: nowrap; }
+  table.data td.idx { color: var(--muted); width: 28px; text-align: center; }
+  table.data input { padding: 6px 8px; min-width: 70px; }
+  table.data tr.bad td.calc { color: var(--red); }
+  .del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: 2px 6px; }
+  .del:hover { color: var(--red); }
+
+  /* ── PLOT ── */
+  .plot { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+  .plot text { fill: var(--muted); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .plot .axis { stroke: var(--muted); stroke-width: 1; }
+  .plot .grid { stroke: var(--border); stroke-width: 1; }
+  .plot .pt { fill: var(--accent); stroke: var(--bg); stroke-width: 1.5; }
+  .plot .fit { stroke: var(--green); stroke-width: 2.2; stroke-dasharray: 7 4; }
+  .plot .lbl { fill: var(--text); font-weight: 600; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+  .stat .k { font-size: .72rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .stat .v { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat .v small { font-size: .8rem; color: var(--muted); font-weight: 600; }
+  .eq { font-family: Consolas, 'Courier New', monospace; font-size: .95rem; }
+
+  .inline-k { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 700; }
+  .inline-k input { width: 110px; }
+
+  .summary { display: grid; gap: 4px; font-size: .9rem; }
+  .summary div::before { content: '○ '; color: var(--muted); }
+  .summary div.ok::before { content: '✓ '; color: var(--green); font-weight: 800; }
+
+  .diagram { max-width: 260px; margin: 0 auto; display: block; }
+  .diagram text { fill: var(--text); font-size: 13px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .setup-grid { display: grid; grid-template-columns: 1fr 220px; gap: 16px; align-items: start; }
+  @media (max-width: 620px) { .setup-grid { grid-template-columns: 1fr; } }
+
+  /* ── LAB GUIDE ── */
+  dialog.guide {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+    width: min(780px, 94vw); max-height: 90vh; margin: auto; padding: 0;
+  }
+  dialog.guide::backdrop { background: rgba(0,0,0,.55); }
+  .guide-head { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .guide-head h2 { font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .guide-body { padding: 18px; display: grid; gap: 18px; font-size: .92rem; }
+  .guide-body h3 { font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .guide-body ol, .guide-body ul { padding-left: 22px; display: grid; gap: 6px; }
+  .guide-body li b { color: var(--text); }
+  .guide-cols { display: grid; grid-template-columns: 1fr 230px; gap: 18px; align-items: start; }
+  .guide-cols.wide-fig { grid-template-columns: 1fr 280px; }
+  .guide-materials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .guide-cols, .guide-cols.wide-fig, .guide-materials { grid-template-columns: 1fr; } }
+  .guide-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .guide-box .bt { font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  .guide-fig { width: 100%; height: auto; display: block; }
+  .guide-fig text { fill: var(--text); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .guide-foot { padding: 0 18px 18px; display: flex; justify-content: flex-end; }
+  .guide-link { background: none; border: none; color: var(--accent); font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer; padding: 0; text-align: left; justify-self: start; }
+  .guide-link:hover { text-decoration: underline; }
+
+
+  /* ── HOW-TO LISTS (instructions where they are used) ── */
+  ol.howto { padding-left: 22px; display: grid; gap: 6px; font-size: .9rem; }
+  ol.howto li::marker { color: var(--accent); font-weight: 800; }
+  ol.howto b { color: var(--text); }
+
+  footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
+  footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+
+  /* ── LIQUIDS ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .liq-block { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: grid; gap: 10px; }
+  .liq-block h3 { font-size: .95rem; display: flex; align-items: center; gap: 8px; }
+  .liq-block h3 i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .plot .fitc { stroke-width: 2.2; stroke-dasharray: 7 4; }
+  .plot .err { stroke-width: 1.6; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="pill-btn" href="../../../index.html#lab-reports" style="text-decoration:none">← Lab Reports</a>
+  <h1>🚢 <span>Buoyant Force</span> Lab</h1>
+  <div class="progress" id="progress"></div>
+  <span class="save-state" id="save-state">Saved on this computer</span>
+  <button class="pill-btn" data-guide>📋 Lab guide</button>
+  <button class="pill-btn" id="theme-toggle">☀ Light</button>
+</header>
+
+<main>
+  <p class="intro">Work <b>with your partner</b> through the steps in order. Each step unlocks the next one. Your work is saved on this computer as you type, so a reload won't lose it. When you finish, send the report to your teacher.</p>
+
+  <!-- 1 TEAM -->
+  <section class="step" data-step="1">
+    <div class="step-head"><span class="num">1</span><h2>Your team</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="grid2">
+        <label class="f">Class / session code<input type="text" data-bind="session" id="session-input" placeholder="e.g. 10A"></label>
+        <label class="f">Group number<input type="text" inputmode="numeric" data-bind="group" placeholder="e.g. 4"></label>
+      </div>
+      <div class="grid2">
+        <label class="f">Student 1<input type="text" data-bind="students.0" placeholder="Full name"></label>
+        <label class="f">Student 2<input type="text" data-bind="students.1" placeholder="Full name"></label>
+      </div>
+      <label class="f">Cylinder label (the letter or number your teacher gave your cylinder, if any)<input type="text" data-bind="cyl" placeholder="e.g. A"></label>
+    </div>
+  </section>
+
+  <!-- 2 PREDICT -->
+  <section class="step" data-step="2">
+    <div class="step-head"><span class="num">2</span><h2>Predict before you measure</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">A beaker of liquid sits on a balance. You will lower a solid cylinder into the liquid, <b>without letting it touch the bottom or the walls</b>, and watch the balance. Before touching anything, <b>discuss with your partner</b>:</p>
+      <div class="q">
+        <div class="qt">When the cylinder goes into the liquid, the balance reading will…</div>
+        <div class="choices">
+          <label><input type="radio" name="pred-in" value="same"> stay the same: the cylinder doesn't touch the beaker</label>
+          <label><input type="radio" name="pred-in" value="up"> go up</label>
+          <label><input type="radio" name="pred-in" value="down"> go down</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">If you push the cylinder <em>twice as deep</em>, the change in the balance reading will…</div>
+        <div class="choices">
+          <label><input type="radio" name="pred-depth" value="same"> stay about the same</label>
+          <label><input type="radio" name="pred-depth" value="less"> grow, but less than double</label>
+          <label><input type="radio" name="pred-depth" value="double"> double</label>
+          <label><input type="radio" name="pred-depth" value="more"> more than double</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">At the same depth, in a liquid <em>denser</em> than water (like salt water), the change in the reading will be…</div>
+        <div class="choices">
+          <label><input type="radio" name="pred-dens" value="smaller"> smaller than in water</label>
+          <label><input type="radio" name="pred-dens" value="same"> the same as in water</label>
+          <label><input type="radio" name="pred-dens" value="bigger"> bigger than in water</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">Why do you think so? Write the reasons you both agree on.</div>
+        <textarea data-bind="prediction.why" data-min="10"></textarea>
+        <div class="wc" data-wc="prediction.why"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 SETUP -->
+  <section class="step" data-step="3">
+    <div class="step-head"><span class="num">3</span><h2>Measure the cylinder and the liquids</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="setup-grid">
+        <div style="display:grid;gap:14px">
+          <ol class="howto">
+            <li>Decide who moves the cylinder, who reads the balance, and who types.</li>
+            <li>Measure the <b>diameter d</b> of the cylinder with the caliper (or ruler) in two or three places and write the average.</li>
+            <li>Check the <b>depth marks</b> on the cylinder: the 0 mark must be at the bottom face. If it has no marks, draw one every centimeter with a ruler and a permanent marker.</li>
+          </ol>
+          <div class="grid2">
+            <label class="f">Diameter d (cm)<input type="text" inputmode="decimal" data-bind="d" placeholder="e.g. 2.50"></label>
+            <label class="f">Smallest division of your balance
+              <select data-bind="res">
+                <option value="0.1">0.1 g</option>
+                <option value="0.01">0.01 g</option>
+                <option value="1">1 g</option>
+              </select>
+            </label>
+          </div>
+          <div class="note" id="area-note">Type the diameter to get the cross-section area A = π·d²/4.</div>
+        </div>
+        <svg class="diagram" id="setup-fig" viewBox="0 0 240 300" aria-label="Cylinder held by a clamp, partly submerged in a beaker of liquid that sits on a balance"></svg>
+      </div>
+      <h3 style="font-size:.95rem">Density of each liquid</h3>
+      <ol class="howto">
+        <li>You need <b>water and at least two other liquids</b> (for example salt water, vegetable oil, alcohol). Ask your teacher which ones you have.</li>
+        <li>Put an empty measuring cylinder on the balance and press <b>TARE</b> (zero).</li>
+        <li>Pour in about 50 mL of the liquid. Read the volume V at the bottom of the meniscus and the mass m on the balance.</li>
+        <li>Empty, rinse and dry the measuring cylinder, and repeat for every liquid.</li>
+      </ol>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>#</th><th>Liquid</th><th>Volume V (mL)</th><th>Mass m (g)</th><th>Density ρ = m/V (g/cm³)</th><th></th></tr></thead>
+          <tbody id="liq-body"></tbody>
+        </table>
+      </div>
+      <div class="row-btns"><button class="btn" id="add-liquid">+ Add liquid</button></div>
+      <div id="liq-warn"></div>
+    </div>
+  </section>
+
+  <!-- 4 WATER -->
+  <section class="step" data-step="4">
+    <div class="step-head"><span class="num">4</span><h2>Measure in water: change the volume</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <ol class="howto">
+        <li>Fill a beaker about two thirds with water and put it on the balance. Press <b>TARE</b>: from now on the balance shows only the change.</li>
+        <li>Fix the cylinder in the clamp, <b>vertical</b>, right above the center of the beaker. It must never touch the bottom or the walls.</li>
+        <li>Lower the clamp until the water reaches the first mark. Wait until the reading is steady, then type the <b>depth h</b> and the <b>balance reading</b>.</li>
+        <li>Go deeper one mark at a time. Aim for <b>6 to 8 measurements</b>. Read h where the water surface meets the marks: the water rises when the cylinder goes in, and reading at the surface takes that into account.</li>
+      </ol>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>#</th><th>Depth h (cm)</th><th>Balance reading (g)</th><th>Volume under water V = A·h (cm³)</th><th>Buoyant force F<sub>b</sub> (N)</th><th></th></tr></thead>
+          <tbody id="tb-0"></tbody>
+        </table>
+      </div>
+      <div class="row-btns">
+        <button class="btn" data-addrow="0">+ Add measurement</button>
+        <span class="save-state" data-npoints="0"></span>
+      </div>
+      <div class="note">Why is the balance reading a force? The liquid pushes the cylinder up with the buoyant force F<sub>b</sub>, so the cylinder pushes the liquid down just as hard (Newton's third law), and the balance feels it. A reading of R grams means F<sub>b</sub> = (R / 1000)·g.</div>
+      <svg class="plot" id="plot-water" viewBox="0 0 640 380"></svg>
+      <div class="discuss" id="discuss-linear" hidden>
+        <span class="tag">💬 Stop and discuss</span>
+        <div class="qt" style="font-weight:600">Look at the points. Do they fall on a straight line? Should the line pass through the origin (0, 0)? Why?</div>
+        <textarea data-bind="discuss.linear" data-min="8"></textarea>
+        <div class="wc" data-wc="discuss.linear"></div>
+        <div class="save-state" id="fit-hint">The best-fit line will appear once you've answered.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 OTHER LIQUIDS -->
+  <section class="step" data-step="5">
+    <div class="step-head"><span class="num">5</span><h2>Measure in other liquids: change the density</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <ol class="howto">
+        <li>Take the cylinder out, <b>rinse and dry it</b>, and use a clean, dry beaker for the next liquid.</li>
+        <li>Put the beaker with the new liquid on the balance and press <b>TARE</b> again.</li>
+        <li>Repeat what you did in water, using the same marks. Aim for <b>at least 5 measurements</b> in each liquid.</li>
+      </ol>
+      <div id="other-liquids" style="display:grid;gap:12px"></div>
+      <svg class="plot" id="plot-all" viewBox="0 0 640 380"></svg>
+      <div class="legend" id="legend-all"></div>
+      <div class="discuss" id="discuss-compare" hidden>
+        <span class="tag">💬 Stop and discuss</span>
+        <div class="qt" style="font-weight:600">Compare the liquids on the graph. Which one gives the steepest line, and which one the least steep? How does that order match the densities you measured in step 3?</div>
+        <textarea data-bind="discuss.compare" data-min="10"></textarea>
+        <div class="wc" data-wc="discuss.compare"></div>
+        <div class="save-state" id="fit-hint-all">The best-fit lines of the other liquids will appear once you've answered.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 ANALYZE -->
+  <section class="step" data-step="6">
+    <div class="step-head"><span class="num">6</span><h2>Analyze: slope against density</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">Each line in step 5 has its own slope. Here every liquid becomes one point: its <b>density ρ</b> on the horizontal axis and the <b>slope of its line</b> on the vertical axis.</p>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Liquid</th><th>ρ (kg/m³)</th><th>Slope of F<sub>b</sub> vs V (N/m³)</th><th>R²</th></tr></thead>
+          <tbody id="slopes-body"></tbody>
+        </table>
+      </div>
+      <svg class="plot" id="plot-dens" viewBox="0 0 640 380"></svg>
+      <div class="stats" id="g-stats"></div>
+      <div class="note" id="g-eq" hidden></div>
+      <div class="q">
+        <div class="qt">The slope of each line in step 5 has units of N/m³. What does it mean physically? Why is it bigger for some liquids than for others?</div>
+        <textarea data-bind="answers.slope" data-min="10"></textarea>
+        <div class="wc" data-wc="answers.slope"></div>
+      </div>
+      <div class="q">
+        <div class="qt">The slope of the graph above is <em id="q-g">…</em>. Which known constant is it close to? Check the units: why should it be that constant?</div>
+        <textarea data-bind="answers.gslope" data-min="10"></textarea>
+        <div class="wc" data-wc="answers.gslope"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Put your two graphs together: write the formula for the buoyant force in terms of ρ, V and g.</div>
+        <div class="inline-k">F<sub>b</sub> = <input type="text" data-bind="answers.law" style="width:200px" placeholder="your formula"></div>
+      </div>
+      <div class="q">
+        <div class="qt">In step 2 you predicted that twice as deep makes the change <em id="q-pred-depth">…</em>, and that a denser liquid makes it <em id="q-pred-dens">…</em>. Were you right? Use your data as evidence.</div>
+        <textarea data-bind="answers.predcheck" data-min="10"></textarea>
+        <div class="wc" data-wc="answers.predcheck"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 TEST -->
+  <section class="step" data-step="7">
+    <div class="step-head"><span class="num">7</span><h2>Test your model</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <ol class="howto">
+        <li>Choose a liquid and a depth <b>you have not measured</b> (between two marks, or a new liquid whose density you measure as in step 3).</li>
+        <li>Use your formula to <b>calculate</b> the balance reading you will see, in grams.</li>
+        <li><b>Lock your prediction before</b> you lower the cylinder. Then tare, lower it to that depth and read the balance.</li>
+      </ol>
+      <div class="grid2">
+        <label class="f">Liquid<input type="text" data-bind="test.liq" id="test-liq" placeholder="e.g. salt water"></label>
+        <label class="f">Its density ρ (g/cm³)<input type="text" inputmode="decimal" data-bind="test.rho" id="test-rho"></label>
+        <label class="f">Depth h (cm)<input type="text" inputmode="decimal" data-bind="test.h" id="test-h"></label>
+        <label class="f">Your predicted reading (g)<input type="text" inputmode="decimal" data-bind="test.pred" id="test-pred"></label>
+      </div>
+      <div class="row-btns"><button class="btn primary" id="lock-pred">🔒 Lock prediction</button><span class="save-state" id="lock-msg"></span></div>
+      <div id="test-measure" hidden>
+        <label class="f">Now lower it. Measured reading (g)<input type="text" inputmode="decimal" data-bind="test.meas"></label>
+      </div>
+      <div id="test-result"></div>
+      <div class="note">When you finish: rinse and dry the cylinder and the beakers, and wipe the balance.</div>
+    </div>
+  </section>
+
+  <!-- 8 CONCLUDE -->
+  <section class="step" data-step="8">
+    <div class="step-head"><span class="num">8</span><h2>Conclude</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="q">
+        <div class="qt">Report the value of g from your slope-against-density graph, with its uncertainty:</div>
+        <div class="inline-k">g = <input type="text" inputmode="decimal" data-bind="conclusion.g"> ± <input type="text" inputmode="decimal" data-bind="conclusion.dg"> N/kg</div>
+        <div id="g-hint"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Which sources of error affected your measurements most? Discuss and choose.</div>
+        <div class="checks" id="err-checks"></div>
+        <textarea data-bind="conclusion.errtext" placeholder="Other sources of error, or how you could reduce them (optional)" style="min-height:60px"></textarea>
+      </div>
+      <div class="q">
+        <div class="qt">Conclusion: how does the buoyant force depend on the volume under the liquid and on the density of the liquid? State your formula, your value of g, and how confident you are. Use R² and your model test as evidence.</div>
+        <textarea data-bind="conclusion.text" data-min="30" style="min-height:120px"></textarea>
+        <div class="wc" data-wc="conclusion.text"></div>
+      </div>
+      <div class="q">
+        <div class="qt">How did you share the work? (Who moved the cylinder, who read the balance, who recorded, who wrote…)</div>
+        <textarea data-bind="conclusion.roles" data-min="5" style="min-height:60px"></textarea>
+        <div class="wc" data-wc="conclusion.roles"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 SUBMIT -->
+  <section class="step" data-step="9">
+    <div class="step-head"><span class="num">9</span><h2>Send your report</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="summary" id="summary"></div>
+      <div class="row-btns">
+        <button class="btn primary" id="send">📤 Send to teacher</button>
+        <button class="btn" id="download">⬇ Download backup file</button>
+      </div>
+      <div id="send-status"></div>
+    </div>
+  </section>
+</main>
+
+<dialog class="guide" id="guide">
+  <div class="guide-head"><h2>📋 Lab guide: Buoyant Force</h2><button class="pill-btn" data-guide-close>Close</button></div>
+  <div class="guide-body">
+    <p class="note">Read this together before you start. It tells you what you'll do in this lab; the detailed instructions are inside each step of the report. You can open it again at any moment with the <b>📋 Lab guide</b> button at the top.</p>
+
+    <section>
+      <h3>Goal</h3>
+      <p>A liquid pushes up on anything you put in it: the <b>buoyant force</b>. Find out how it depends on the <b>volume</b> of the object under the liquid and on the <b>density</b> of the liquid, and write the law yourselves.</p>
+    </section>
+
+    <section class="guide-cols wide-fig">
+      <div>
+        <h3>What you'll do</h3>
+        <ol>
+          <li><b>Predict</b> (step 2): what the balance does when the cylinder goes in, deeper, or into a denser liquid.</li>
+          <li><b>Measure</b> (step 3): the diameter of the cylinder and the density of each liquid.</li>
+          <li><b>Change the volume</b> (step 4): lower the cylinder into water mark by mark and record the balance. The graph of F<sub>b</sub> against V builds as you go.</li>
+          <li><b>Change the density</b> (step 5): repeat in at least two other liquids and compare the lines.</li>
+          <li><b>Analyze</b> (step 6): plot the slope of each line against the density of its liquid, and find the law.</li>
+          <li><b>Test your model</b> (step 7): predict a balance reading, then measure it.</li>
+          <li><b>Conclude and send</b> (steps 8 and 9).</li>
+        </ol>
+      </div>
+      <svg class="guide-fig" id="guide-fig" viewBox="0 0 240 300" aria-label="Setup: support and clamp holding a marked cylinder partly submerged in a beaker of liquid on a balance">
+        <rect x="8" y="284" width="96" height="10" rx="3" fill="var(--surface2)" stroke="var(--muted)"/>
+        <line x1="30" y1="284" x2="30" y2="16" stroke="var(--muted)" stroke-width="5" stroke-linecap="round"/>
+        <line x1="30" y1="44" x2="122" y2="44" stroke="var(--muted)" stroke-width="5" stroke-linecap="round"/>
+        <rect x="118" y="36" width="30" height="16" rx="3" fill="var(--surface2)" stroke="var(--text)"/>
+        <rect x="121" y="52" width="24" height="150" rx="2" fill="var(--surface2)" stroke="var(--text)" stroke-width="1.4"/>
+        <g stroke="var(--text)" stroke-width="1">
+          <line x1="121" y1="190" x2="129" y2="190"/><line x1="121" y1="178" x2="129" y2="178"/><line x1="121" y1="166" x2="129" y2="166"/>
+          <line x1="121" y1="154" x2="129" y2="154"/><line x1="121" y1="142" x2="129" y2="142"/><line x1="121" y1="130" x2="129" y2="130"/>
+          <line x1="121" y1="118" x2="129" y2="118"/><line x1="121" y1="106" x2="129" y2="106"/>
+        </g>
+        <rect x="92" y="166" width="82" height="80" fill="var(--accent)" fill-opacity=".22"/>
+        <line x1="92" y1="166" x2="174" y2="166" stroke="var(--accent)" stroke-width="1.5"/>
+        <path d="M90,132 L90,248 L176,248 L176,132" fill="none" stroke="var(--text)" stroke-width="1.8"/>
+        <line x1="158" y1="167" x2="158" y2="201" stroke="var(--green)" stroke-width="1.6"/>
+        <path d="M154,172 L158,166 L162,172 M154,196 L158,202 L162,196" fill="none" stroke="var(--green)" stroke-width="1.6"/>
+        <text x="164" y="189" fill="var(--green)" font-weight="700">h</text>
+        <rect x="70" y="250" width="126" height="30" rx="4" fill="var(--surface2)" stroke="var(--text)"/>
+        <rect x="146" y="258" width="42" height="14" rx="2" fill="var(--bg)" stroke="var(--muted)"/>
+        <text x="185" y="269" text-anchor="end" font-size="10" fill="var(--green)">+12.3 g</text>
+        <text x="152" y="30" font-size="11">clamp</text>
+        <text x="152" y="100" font-size="11">marked</text>
+        <text x="152" y="113" font-size="11">cylinder</text>
+        <text x="182" y="215" font-size="11" fill="var(--accent)">liquid</text>
+        <text x="80" y="298" font-size="11">balance</text>
+      </svg>
+    </section>
+
+    <section>
+      <h3>Materials</h3>
+      <div class="guide-materials">
+        <div class="guide-box"><div class="bt">Each pair</div>
+          <ul>
+            <li>A solid cylinder with depth marks (note its label, if it has one)</li>
+            <li>A support with a clamp to hold the cylinder</li>
+            <li>A balance (0.1 g or better) and a caliper or ruler</li>
+            <li>Beakers, a measuring cylinder, and water plus at least two other liquids</li>
+            <li>Paper towels, and this page open on one computer</li>
+          </ul>
+        </div>
+        <div class="guide-box"><div class="bt">Check before you start</div>
+          <ul>
+            <li>The cylinder hangs <b>vertically</b> and can go down without hitting the bottom or the walls</li>
+            <li>The balance is on a flat table and nobody leans on it</li>
+            <li>You know how to <b>TARE</b> (zero) the balance</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="note warn"><b>Safety:</b> wipe up spills at once (oil and salt water make the floor slippery), keep liquids away from the computer, keep alcohol away from flames, and don't taste anything.</div>
+  </div>
+  <div class="guide-foot"><button class="btn primary" data-guide-close>Got it, let's start</button></div>
+</dialog>
+
+
+<footer>
+  Buoyant Force Lab · Ergosfera Teaching Tools · <button id="reset">Start over (erase this report)</button>
+</footer>
+
+<script>
+// ── Config from the link the teacher shares ─────────────────
+const LAB_ID = 'buoyancy';
+const params = new URLSearchParams(location.search);
+const API = params.get('api') || '';
+const G = parseFloat(params.get('g')) || 9.8;
+const LINK_SESSION = params.get('session') || '';
+const STORE = 'lab_' + LAB_ID + '_' + (LINK_SESSION || 'default');
+
+const MIN_WATER = 5, MIN_OTHER = 4, MIN_LIQUIDS = 3, MAX_LIQUIDS = 6;
+const LIQ_COLORS = ['#58a6ff', '#f28e2b', '#59a14f', '#e15759', '#b07aa1', '#edc948'];
+const LIQ_HINTS = ['', 'e.g. salt water', 'e.g. vegetable oil', 'e.g. alcohol', 'e.g. glycerin', ''];
+const ERRORS = [
+  ['touching', 'Cylinder touched the bottom or the wall'],
+  ['depth', 'Reading the depth mark at the surface (meniscus, parallax)'],
+  ['tilt', 'Cylinder not vertical'],
+  ['balance', 'Balance not steady or not tared'],
+  ['drops', 'Drops of the previous liquid on the cylinder'],
+  ['bubbles', 'Air bubbles stuck to the cylinder'],
+  ['density', 'Density of the liquids not measured precisely'],
+];
+const PRED_IN = { same: 'stay the same', up: 'go up', down: 'go down' };
+const PRED_DEPTH = { same: 'stay about the same', less: 'grow, but less than double', double: 'double', more: 'more than double' };
+const PRED_DENS = { smaller: 'smaller', same: 'the same', bigger: 'bigger' };
+
+// ── State ───────────────────────────────────────────────────
+function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+const blankRows = () => [{ h: '', R: '' }, { h: '', R: '' }, { h: '', R: '' }];
+const blankLiquid = name => ({ name, V: '', m: '', data: blankRows() });
+function blank() {
+  return {
+    schema: 1, lab: LAB_ID, id: rid(), session: LINK_SESSION, group: '', students: ['', ''], cyl: '',
+    g: G, d: '', res: '0.1',
+    prediction: { into: '', depth: '', dens: '', why: '' },
+    liquids: [blankLiquid('Water'), blankLiquid(''), blankLiquid('')],
+    discuss: { linear: '', compare: '' },
+    answers: { slope: '', gslope: '', law: '', predcheck: '' },
+    test: { liq: '', rho: '', h: '', pred: '', locked: false, meas: '' },
+    conclusion: { g: '', dg: '', errors: [], errtext: '', text: '', roles: '' },
+    startedAt: new Date().toISOString(), unlocked: 1, sent: null,
+  };
+}
+let S = blank();
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+  if (saved && saved.lab === LAB_ID) S = Object.assign(blank(), saved);
+} catch (e) {}
+if (LINK_SESSION) S.session = LINK_SESSION;
+S.g = G;
+
+let saveTimer;
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {}
+  const el = document.getElementById('save-state');
+  el.textContent = 'Saving…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { el.textContent = 'Saved on this computer ✓'; }, 400);
+}
+
+function getPath(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), S); }
+function setPath(path, v) {
+  const keys = path.split('.'); let o = S;
+  keys.slice(0, -1).forEach(k => { o = o[k]; });
+  o[keys[keys.length - 1]] = v;
+}
+
+// ── Helpers ─────────────────────────────────────────────────
+const num = s => { const v = parseFloat(String(s ?? '').trim().replace(',', '.')); return isFinite(v) ? v : NaN; };
+const words = s => String(s || '').trim().split(/\s+/).filter(Boolean).length;
+function fmt(v, sig = 3) {
+  if (!isFinite(v)) return '—';
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e5 || a < 1e-3) return v.toExponential(sig - 1);
+  return String(parseFloat(v.toPrecision(sig)));
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const liqName = (l, i) => (l.name || '').trim() || 'Liquid ' + (i + 1);
+
+// Cross-section area of the cylinder (cm²)
+const area = () => { const d = num(S.d); return d > 0 ? Math.PI * d * d / 4 : NaN; };
+// Density of a liquid (g/cm³)
+const rho = l => { const V = num(l.V), m = num(l.m); return V > 0 && m > 0 ? m / V : NaN; };
+
+// Valid rows of a liquid → points with x = V (m³), y = F_b (N)
+function points(l) {
+  const A = area();
+  if (!(A > 0)) return [];
+  return l.data.map(r => ({ h: num(r.h), R: num(r.R) }))
+    .filter(r => isFinite(r.h) && isFinite(r.R) && r.h >= 0)
+    .map(r => ({ x: A * r.h * 1e-6, y: r.R / 1000 * S.g }));
+}
+
+// Least squares y = k x + b with standard errors
+function linfit(pts) {
+  const n = pts.length;
+  if (n < 2) return null;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0;
+  pts.forEach(p => { sx += p.x; sy += p.y; sxx += p.x * p.x; sxy += p.x * p.y; syy += p.y * p.y; });
+  const Sxx = sxx - sx * sx / n, Sxy = sxy - sx * sy / n, Syy = syy - sy * sy / n;
+  if (Sxx <= 0) return null;
+  const k = Sxy / Sxx, b = (sy - k * sx) / n;
+  const ssr = pts.reduce((a, p) => a + (p.y - k * p.x - b) ** 2, 0);
+  const r2 = Syy > 0 ? 1 - ssr / Syy : 1;
+  const s2 = n > 2 ? ssr / (n - 2) : NaN;
+  const sk = Math.sqrt(s2 / Sxx), sb = Math.sqrt(s2 * sxx / (n * Sxx));
+  return { n, k, b, r2, sk, sb };
+}
+const fitOf = l => { const p = points(l); return p.length >= 3 ? linfit(p) : null; };
+
+// One point per liquid: x = ρ (kg/m³), y = slope of F_b vs V (N/m³)
+function densPoints() {
+  return S.liquids.map((l, i) => ({ i, x: rho(l) * 1000, f: fitOf(l) }))
+    .filter(p => isFinite(p.x) && p.f).map(p => ({ i: p.i, x: p.x, y: p.f.k, e: p.f.sk }));
+}
+const gFit = () => { const p = densPoints(); return p.length >= MIN_LIQUIDS ? linfit(p) : null; };
+
+const others = () => S.liquids.slice(1);
+const otherReady = () => others().filter(l => points(l).length >= MIN_OTHER).length;
+
+// ── Steps: completion rules ─────────────────────────────────
+const DONE = {
+  1: () => S.group.trim() && S.students[0].trim() && S.students[1].trim() && S.session.trim(),
+  2: () => S.prediction.into && S.prediction.depth && S.prediction.dens && words(S.prediction.why) >= 10,
+  3: () => area() > 0 && S.liquids.length >= MIN_LIQUIDS && S.liquids.every(l => l.name.trim() && rho(l) > 0),
+  4: () => points(S.liquids[0]).length >= MIN_WATER && words(S.discuss.linear) >= 8,
+  5: () => otherReady() >= MIN_LIQUIDS - 1 && words(S.discuss.compare) >= 10,
+  6: () => words(S.answers.slope) >= 10 && words(S.answers.gslope) >= 10 && S.answers.law.trim().length >= 3 && words(S.answers.predcheck) >= 10,
+  7: () => S.test.locked && isFinite(num(S.test.meas)),
+  8: () => isFinite(num(S.conclusion.g)) && isFinite(num(S.conclusion.dg)) && words(S.conclusion.text) >= 30 && words(S.conclusion.roles) >= 5,
+  9: () => !!S.sent,
+};
+const NSTEPS = 9;
+
+function refresh() {
+  // unlock progressively; once unlocked, a step stays open
+  let firstOpen = 1;
+  while (firstOpen < NSTEPS && DONE[firstOpen]()) firstOpen++;
+  S.unlocked = Math.max(S.unlocked || 1, firstOpen);
+
+  const prog = document.getElementById('progress');
+  prog.innerHTML = '';
+  document.querySelectorAll('.step').forEach(sec => {
+    const i = +sec.dataset.step;
+    const done = !!DONE[i]();
+    const locked = i > S.unlocked;
+    sec.classList.toggle('done', done);
+    sec.classList.toggle('locked', locked);
+    sec.classList.toggle('active', !done && !locked);
+    sec.querySelector('.status').textContent = done ? '✓ Done' : locked ? '🔒' : 'In progress';
+    sec.querySelector('.step-lock').textContent = '🔒 Finish step ' + (i - 1) + ' to unlock this one.';
+    const dot = document.createElement('i');
+    if (done) dot.className = 'done'; else if (!locked) dot.className = 'current';
+    prog.appendChild(dot);
+  });
+
+  document.querySelectorAll('[data-wc]').forEach(el => {
+    const path = el.dataset.wc;
+    const min = +document.querySelector(`[data-bind="${path}"]`).dataset.min;
+    const w = words(getPath(path));
+    el.textContent = w + (w === 1 ? ' word' : ' words') + ' · at least ' + min;
+    el.classList.toggle('ok', w >= min);
+  });
+
+  refreshSetup();
+  refreshMeasure();
+  refreshAnalysis();
+  refreshTest();
+  refreshConclusion();
+  refreshSummary();
+}
+
+// ── Generic bindings ────────────────────────────────────────
+document.querySelectorAll('[data-bind]').forEach(el => {
+  const path = el.dataset.bind;
+  el.value = getPath(path) ?? '';
+  el.addEventListener('input', () => { setPath(path, el.value); save(); refresh(); });
+});
+if (LINK_SESSION) document.getElementById('session-input').readOnly = true;
+
+[['pred-in', 'into'], ['pred-depth', 'depth'], ['pred-dens', 'dens']].forEach(([name, key]) => {
+  document.querySelectorAll(`input[name=${name}]`).forEach(r => {
+    r.checked = r.value === S.prediction[key];
+    r.addEventListener('change', () => { S.prediction[key] = r.value; save(); refresh(); });
+  });
+});
+
+const errBox = document.getElementById('err-checks');
+ERRORS.forEach(([id, text]) => {
+  const lab = document.createElement('label');
+  lab.innerHTML = `<input type="checkbox" value="${id}"> <span>${esc(text)}</span>`;
+  const cb = lab.querySelector('input');
+  cb.checked = S.conclusion.errors.includes(id);
+  cb.addEventListener('change', () => {
+    S.conclusion.errors = ERRORS.map(e => e[0]).filter(k => errBox.querySelector(`input[value=${k}]`).checked);
+    save(); refresh();
+  });
+  errBox.appendChild(lab);
+});
+
+document.getElementById('setup-fig').innerHTML = document.getElementById('guide-fig').innerHTML;
+
+// ── Tables: liquids (step 3) and measurements (steps 4 and 5) ──
+// Inputs carry data-l (liquid), and data-i (row) for measurements; data-k is the field.
+const liqBody = document.getElementById('liq-body');
+function renderLiquids() {
+  liqBody.innerHTML = '';
+  S.liquids.forEach((l, li) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="idx"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${LIQ_COLORS[li]}"></i></td>
+      <td><input type="text" data-l="${li}" data-k="name" value="${esc(l.name)}" placeholder="${LIQ_HINTS[li] || 'liquid'}" ${li === 0 ? 'readonly' : ''}></td>
+      <td><input type="text" inputmode="decimal" data-l="${li}" data-k="V" value="${esc(l.V)}"></td>
+      <td><input type="text" inputmode="decimal" data-l="${li}" data-k="m" value="${esc(l.m)}"></td>
+      <td class="calc" data-rho="${li}"></td>
+      <td>${li === 0 ? '' : `<button class="del" title="Remove liquid" data-delliq="${li}">×</button>`}</td>`;
+    liqBody.appendChild(tr);
+  });
+  document.getElementById('add-liquid').disabled = S.liquids.length >= MAX_LIQUIDS;
+}
+
+function measureTable(li) {
+  return `<div class="table-wrap"><table class="data">
+    <thead><tr><th>#</th><th>Depth h (cm)</th><th>Balance reading (g)</th><th>Volume V (cm³)</th><th>F<sub>b</sub> (N)</th><th></th></tr></thead>
+    <tbody id="tb-${li}"></tbody></table></div>
+    <div class="row-btns"><button class="btn" data-addrow="${li}">+ Add measurement</button><span class="save-state" data-npoints="${li}"></span></div>`;
+}
+function renderRows(li) {
+  const tb = document.getElementById('tb-' + li);
+  tb.innerHTML = '';
+  S.liquids[li].data.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="idx">${i + 1}</td>
+      <td><input type="text" inputmode="decimal" data-l="${li}" data-i="${i}" data-k="h" value="${esc(row.h)}"></td>
+      <td><input type="text" inputmode="decimal" data-l="${li}" data-i="${i}" data-k="R" value="${esc(row.R)}"></td>
+      <td class="calc" data-v></td><td class="calc" data-f></td>
+      <td><button class="del" title="Delete row" data-del="${li}:${i}">×</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+function renderTables() {
+  renderLiquids();
+  document.getElementById('other-liquids').innerHTML = others().map((l, j) => `
+    <div class="liq-block"><h3><i style="background:${LIQ_COLORS[j + 1]}"></i><span data-liqname="${j + 1}"></span></h3>${measureTable(j + 1)}</div>`).join('');
+  S.liquids.forEach((l, li) => renderRows(li));
+}
+
+const main = document.querySelector('main');
+main.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.l == null) return;
+  const l = S.liquids[+t.dataset.l];
+  if (t.dataset.i != null) l.data[+t.dataset.i][t.dataset.k] = t.value;
+  else l[t.dataset.k] = t.value;
+  save(); refresh();
+});
+main.addEventListener('keydown', e => {
+  const t = e.target;
+  if (e.key !== 'Enter' || t.dataset.i == null) return;
+  e.preventDefault();
+  const li = +t.dataset.l, i = +t.dataset.i, tb = document.getElementById('tb-' + li);
+  if (t.dataset.k === 'h') return tb.querySelector(`input[data-i="${i}"][data-k="R"]`).focus();
+  if (i === S.liquids[li].data.length - 1) addRow(li);
+  document.getElementById('tb-' + li).querySelector(`input[data-i="${i + 1}"][data-k="h"]`).focus();
+});
+main.addEventListener('click', e => {
+  const t = e.target;
+  if (t.dataset.addrow != null) {
+    const li = +t.dataset.addrow;
+    addRow(li);
+    document.getElementById('tb-' + li).querySelector(`input[data-i="${S.liquids[li].data.length - 1}"][data-k="h"]`).focus();
+  } else if (t.dataset.del != null) {
+    const [li, i] = t.dataset.del.split(':').map(Number), data = S.liquids[li].data, r = data[i];
+    if ((r.h || r.R) && !confirm('Delete measurement ' + (i + 1) + '?')) return;
+    data.splice(i, 1);
+    if (!data.length) data.push({ h: '', R: '' });
+    renderRows(li); save(); refresh();
+  } else if (t.dataset.delliq != null) {
+    const li = +t.dataset.delliq, l = S.liquids[li];
+    const hasData = l.V || l.m || l.data.some(r => r.h || r.R);
+    if (hasData && !confirm(`Remove ${liqName(l, li)} and all its measurements?`)) return;
+    S.liquids.splice(li, 1);
+    renderTables(); save(); refresh();
+  }
+});
+function addRow(li) { S.liquids[li].data.push({ h: '', R: '' }); renderRows(li); save(); refresh(); }
+document.getElementById('add-liquid').addEventListener('click', () => {
+  if (S.liquids.length >= MAX_LIQUIDS) return;
+  S.liquids.push(blankLiquid(''));
+  renderTables(); save(); refresh();
+  liqBody.querySelector(`input[data-l="${S.liquids.length - 1}"][data-k="name"]`).focus();
+});
+
+// ── Step 3 ──────────────────────────────────────────────────
+function refreshSetup() {
+  const A = area();
+  document.getElementById('area-note').innerHTML = A > 0
+    ? `Cross-section area A = π·d²/4 = <b>${fmt(A)} cm²</b>. Each centimeter of depth puts ${fmt(A)} cm³ of cylinder under the liquid.`
+    : 'Type the diameter to get the cross-section area A = π·d²/4.';
+  S.liquids.forEach((l, li) => {
+    const c = liqBody.querySelector(`[data-rho="${li}"]`);
+    if (c) c.textContent = isFinite(rho(l)) ? fmt(rho(l)) : '';
+  });
+  const warns = [];
+  const rw = rho(S.liquids[0]);
+  if (isFinite(rw) && Math.abs(rw - 1) > 0.1) warns.push(`Your water density is ${fmt(rw)} g/cm³, far from 1.00. Check that you tared the measuring cylinder and read the volume at the meniscus.`);
+  if (S.liquids.length < MIN_LIQUIDS) warns.push(`You need water and at least ${MIN_LIQUIDS - 1} other liquids.`);
+  document.getElementById('liq-warn').innerHTML = warns.map(w => `<div class="note warn">${esc(w)}</div>`).join('');
+  document.querySelectorAll('[data-liqname]').forEach(el => {
+    const li = +el.dataset.liqname;
+    el.textContent = liqName(S.liquids[li], li) + (isFinite(rho(S.liquids[li])) ? ` · ρ = ${fmt(rho(S.liquids[li]))} g/cm³` : '');
+  });
+}
+
+// ── Steps 4 and 5: tables + plots ───────────────────────────
+function refreshMeasure() {
+  const A = area();
+  S.liquids.forEach((l, li) => {
+    const tb = document.getElementById('tb-' + li);
+    if (!tb) return;
+    [...tb.rows].forEach((tr, i) => {
+      const h = num(l.data[i].h), R = num(l.data[i].R);
+      const V = A * h, F = R / 1000 * S.g;
+      tr.querySelector('[data-v]').textContent = isFinite(V) ? fmt(V) : '';
+      tr.querySelector('[data-f]').textContent = isFinite(F) ? fmt(F) : '';
+      tr.classList.toggle('bad', (isFinite(R) && R < 0) || (isFinite(h) && h < 0));
+    });
+    const n = points(l).length, min = li === 0 ? MIN_WATER : MIN_OTHER;
+    const el = document.querySelector(`[data-npoints="${li}"]`);
+    if (el) el.textContent = n + ' valid measurement' + (n === 1 ? '' : 's') + (n < min ? ` · at least ${min} needed` : '');
+  });
+
+  const water = S.liquids[0], wpts = points(water);
+  const showLin = wpts.length >= 3;
+  document.getElementById('discuss-linear').hidden = !showLin;
+  const revealWater = showLin && words(S.discuss.linear) >= 8;
+  document.getElementById('fit-hint').hidden = revealWater;
+  drawPlot(document.getElementById('plot-water'), [{ pts: wpts, fit: revealWater ? fitOf(water) : null, color: LIQ_COLORS[0] }], {
+    xs: 1e6, xl: 'Volume under the liquid V (cm³)', yl: 'Buoyant force Fb (N)', empty: 'Your points will appear here as you measure',
+  });
+
+  const showCmp = others().filter(l => points(l).length >= 3).length >= MIN_LIQUIDS - 1;
+  document.getElementById('discuss-compare').hidden = !showCmp;
+  const revealAll = showCmp && words(S.discuss.compare) >= 10;
+  document.getElementById('fit-hint-all').hidden = revealAll;
+  drawPlot(document.getElementById('plot-all'), S.liquids.map((l, li) => ({
+    pts: points(l), color: LIQ_COLORS[li], fit: (li === 0 ? revealWater : revealAll) ? fitOf(l) : null,
+  })), { xs: 1e6, xl: 'Volume under the liquid V (cm³)', yl: 'Buoyant force Fb (N)', empty: 'Your points will appear here as you measure' });
+  document.getElementById('legend-all').innerHTML = S.liquids.map((l, li) =>
+    `<span><i style="background:${LIQ_COLORS[li]}"></i>${esc(liqName(l, li))}</span>`).join('');
+}
+
+function niceStep(range, n) {
+  const raw = range / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p;
+}
+// series: [{ pts: [{x, y, e?}] in SI, fit, color }]. o.xs scales x for display (m³ → cm³);
+// e is a vertical error bar. Both axes always include the origin.
+function drawPlot(svg, series, o) {
+  const W = 640, H = 380, M = { l: 70, r: 20, t: 18, b: 50 }, xs = o.xs || 1;
+  const all = series.flatMap(s => s.pts);
+  const xv = all.map(p => p.x * xs), yv = all.flatMap(p => [p.y + (p.e || 0), p.y - (p.e || 0)]);
+  const xMax = Math.max(...xv, 0) || 10, yMax = Math.max(...yv, 0) || 0.5;
+  const xStep = niceStep(xMax - Math.min(0, ...xv), 5), yStep = niceStep(yMax - Math.min(0, ...yv), 5);
+  const x0 = Math.floor(Math.min(0, ...xv) / xStep) * xStep, x1 = Math.ceil(xMax / xStep) * xStep;
+  const y0 = Math.floor(Math.min(0, ...yv, ...series.map(s => s.fit ? s.fit.b : 0)) / yStep) * yStep, y1 = Math.ceil(yMax / yStep) * yStep;
+  const X = v => M.l + (v - x0) / (x1 - x0) * (W - M.l - M.r);
+  const Y = v => H - M.b - (v - y0) / (y1 - y0) * (H - M.t - M.b);
+  let s = '';
+  for (let v = x0; v <= x1 + 1e-9 * xStep; v += xStep) s += `<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${M.t}" y2="${H - M.b}"/><text x="${X(v)}" y="${H - M.b + 18}" text-anchor="middle">${fmt(v)}</text>`;
+  for (let v = y0; v <= y1 + 1e-9 * yStep; v += yStep) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  s += `<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="${M.t}" y2="${H - M.b}"/><line class="axis" x1="${M.l}" x2="${W - M.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 8}" text-anchor="middle">${o.xl}</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">${o.yl}</text>`;
+  series.forEach(sr => {
+    if (!sr.fit) return;
+    const f = xd => sr.fit.k * xd / xs + sr.fit.b;
+    s += `<line class="fitc" stroke="${sr.color}" x1="${X(x0)}" y1="${Y(f(x0))}" x2="${X(x1)}" y2="${Y(f(x1))}" clip-path="url(#clip-${svg.id})"/>`;
+  });
+  series.forEach(sr => sr.pts.forEach(p => {
+    if (p.e > 0) s += `<line class="err" stroke="${sr.color}" x1="${X(p.x * xs)}" x2="${X(p.x * xs)}" y1="${Y(p.y - p.e)}" y2="${Y(p.y + p.e)}"/>`;
+    s += `<circle class="pt" style="fill:${sr.color}" cx="${X(p.x * xs)}" cy="${Y(p.y)}" r="6"/>`;
+  }));
+  if (!all.length) s += `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">${o.empty}</text>`;
+  svg.innerHTML = `<defs><clipPath id="clip-${svg.id}"><rect x="${M.l}" y="${M.t}" width="${W - M.l - M.r}" height="${H - M.t - M.b}"/></clipPath></defs>` + s;
+}
+
+// ── Step 6 ──────────────────────────────────────────────────
+function refreshAnalysis() {
+  document.getElementById('slopes-body').innerHTML = S.liquids.map((l, li) => {
+    const f = fitOf(l), r = rho(l);
+    return `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${LIQ_COLORS[li]}"></i> ${esc(liqName(l, li))}</td>
+      <td class="calc">${isFinite(r) ? fmt(r * 1000) : '—'}</td>
+      <td class="calc">${f ? fmt(f.k) + ' ± ' + fmt(f.sk, 2) : '—'}</td>
+      <td class="calc">${f ? f.r2.toFixed(4) : '—'}</td></tr>`;
+  }).join('');
+  const dp = densPoints(), gf = gFit();
+  drawPlot(document.getElementById('plot-dens'), dp.map(p => ({ pts: [p], color: LIQ_COLORS[p.i], fit: null }))
+    .concat(gf ? [{ pts: [], color: 'var(--green)', fit: gf }] : []),
+  { xs: 1, xl: 'Density of the liquid ρ (kg/m³)', yl: 'Slope of Fb vs V (N/m³)', empty: 'Each liquid with 3 or more measurements appears here' });
+  const box = document.getElementById('g-stats'), eq = document.getElementById('g-eq');
+  eq.hidden = !gf;
+  if (!gf) {
+    box.innerHTML = `<div class="note">The best-fit line appears when ${MIN_LIQUIDS} liquids have a density and at least 3 measurements.</div>`;
+    document.getElementById('q-g').textContent = '…';
+  } else {
+    box.innerHTML = `
+      <div class="stat"><div class="k">Slope</div><div class="v">${fmt(gf.k)} <small>N/kg</small></div></div>
+      <div class="stat"><div class="k">Uncertainty</div><div class="v">± ${fmt(gf.sk, 2)} <small>N/kg</small></div></div>
+      <div class="stat"><div class="k">Intercept</div><div class="v">${fmt(gf.b)} <small>N/m³</small></div></div>
+      <div class="stat"><div class="k">R²</div><div class="v">${isFinite(gf.r2) ? gf.r2.toFixed(4) : '—'}</div></div>`;
+    eq.innerHTML = `<span class="eq">slope = ${fmt(gf.k)} N/kg · ρ ${gf.b < 0 ? '−' : '+'} ${fmt(Math.abs(gf.b))} N/m³</span><br><span style="font-size:.82rem;color:var(--muted)">N/m³ divided by kg/m³ gives N/kg.${dp.length < 5 ? ` With only ${dp.length} points the uncertainty is large: more liquids make it smaller.` : ''}</span>`;
+    document.getElementById('q-g').textContent = fmt(gf.k) + ' N/kg';
+  }
+  document.getElementById('q-pred-depth').textContent = PRED_DEPTH[S.prediction.depth] || '…';
+  document.getElementById('q-pred-dens').textContent = PRED_DENS[S.prediction.dens] || '…';
+}
+
+// ── Step 7 ──────────────────────────────────────────────────
+const TEST_INPUTS = ['test-liq', 'test-rho', 'test-h', 'test-pred'];
+document.getElementById('lock-pred').addEventListener('click', () => {
+  if (!confirm('Lock your prediction? You won\'t be able to change it afterward.')) return;
+  S.test.locked = true; save(); refresh();
+});
+function refreshTest() {
+  const t = S.test, pred = num(t.pred), meas = num(t.meas);
+  const locked = t.locked;
+  TEST_INPUTS.forEach(id => { document.getElementById(id).readOnly = locked; });
+  const lockBtn = document.getElementById('lock-pred');
+  lockBtn.disabled = locked || !(t.liq.trim() && num(t.rho) > 0 && num(t.h) > 0 && pred > 0);
+  lockBtn.hidden = locked;
+  document.getElementById('lock-msg').textContent = locked ? '🔒 Prediction locked' : '';
+  document.getElementById('test-measure').hidden = !locked;
+  const out = document.getElementById('test-result');
+  if (!locked || !isFinite(meas)) { out.innerHTML = ''; return; }
+  const diff = (pred - meas) / meas * 100;
+  const good = Math.abs(diff) <= 10;
+  out.innerHTML = `<div class="note ${good ? 'good' : 'warn'}">
+    Predicted <b>${fmt(pred)} g</b>, measured <b>${fmt(meas)} g</b>.
+    Your prediction is off by <b>${fmt(Math.abs(diff), 2)}%</b>.
+    ${good ? 'Your model works well! 🎯' : 'That is a big difference. Check your calculation (units! g/cm³ · cm² · cm gives grams) and talk about what could cause it.'}
+  </div>`;
+}
+
+// ── Step 8 ──────────────────────────────────────────────────
+function refreshConclusion() {
+  const gf = gFit(), g = num(S.conclusion.g);
+  const hint = document.getElementById('g-hint');
+  if (!gf || !isFinite(g) || g <= 0) { hint.innerHTML = ''; return; }
+  const ratio = g / gf.k;
+  if (ratio > 50 || ratio < 0.02) hint.innerHTML = '<div class="note warn">That value is very far from your graph\'s slope. Check the units: g must be in <b>N/kg</b>.</div>';
+  else hint.innerHTML = '';
+}
+
+// ── Step 9: submit ──────────────────────────────────────────
+function payload() {
+  const { unlocked, sent, guideSeen, ...data } = S;
+  const fits = S.liquids.map(l => ({ name: l.name, rho_kg_m3: rho(l) * 1000, fit: fitOf(l) }));
+  return { ...data, area_cm2: area(), fits, gfit: gFit(), submittedAt: new Date().toISOString(), client: 'buoyancy_lab/1' };
+}
+function refreshSummary() {
+  const names = ['Team', 'Prediction', 'Cylinder and densities', 'Water', 'Other liquids', 'Analysis', 'Model test', 'Conclusion'];
+  document.getElementById('summary').innerHTML = names.map((n, i) => `<div class="${DONE[i + 1]() ? 'ok' : ''}">${n}</div>`).join('');
+  const sendBtn = document.getElementById('send');
+  sendBtn.disabled = !API;
+  const st = document.getElementById('send-status');
+  if (!API && !st.dataset.msg) st.innerHTML = '<div class="note warn">This link has no connection to your teacher. Use <b>Download backup file</b> and hand the file in, or ask your teacher for the class link.</div>';
+  else if (S.sent && !st.dataset.msg) st.innerHTML = `<div class="note good">Sent at ${new Date(S.sent).toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`;
+}
+function setStatus(html) { const st = document.getElementById('send-status'); st.dataset.msg = '1'; st.innerHTML = html; }
+
+document.getElementById('send').addEventListener('click', async () => {
+  const missing = [1, 2, 3, 4, 5, 6, 7, 8].filter(i => !DONE[i]());
+  if (missing.length && !confirm('Steps ' + missing.join(', ') + ' are not complete. Send anyway?')) return;
+  const btn = document.getElementById('send');
+  btn.disabled = true; setStatus('<div class="note">Sending…</div>');
+  const body = JSON.stringify(payload());
+  let ok = false, unconfirmed = false;
+  try {
+    const r = await fetch(API, { method: 'POST', body });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'server error');
+    ok = true;
+  } catch (e) {
+    try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; unconfirmed = true; } catch (e2) {}
+  }
+  btn.disabled = false;
+  if (ok) {
+    S.sent = new Date().toISOString(); save();
+    setStatus(`<div class="note good">✓ Sent${unconfirmed ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+  } else {
+    setStatus('<div class="note warn">Could not send: check the internet connection and try again. If it keeps failing, use <b>Download backup file</b> and give the file to your teacher.</div>');
+  }
+  refresh();
+});
+
+document.getElementById('download').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(payload(), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  const tag = [S.session, 'group' + (S.group || 'X')].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
+  a.href = URL.createObjectURL(blob);
+  a.download = `buoyancy_${tag}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+  if (!confirm('Erase this whole report from this computer? This cannot be undone.')) return;
+  try { localStorage.removeItem(STORE); } catch (e) {}
+  location.reload();
+});
+
+// ── Theme (shared with the tools index) ─────────────────────
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  document.getElementById('theme-toggle').textContent = light ? '☽ Dark' : '☀ Light';
+  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+applyTheme(savedTheme === 'light');
+document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
+
+// ── Lab guide: opens by itself the first time, and from the header anytime ──
+const guide = document.getElementById('guide');
+function openGuide() { if (!guide.open) guide.showModal(); }
+document.querySelectorAll('[data-guide]').forEach(b => b.addEventListener('click', openGuide));
+document.querySelectorAll('[data-guide-close]').forEach(b => b.addEventListener('click', () => guide.close()));
+guide.addEventListener('click', e => { if (e.target === guide) guide.close(); });
+guide.addEventListener('close', () => { if (!S.guideSeen) { S.guideSeen = true; save(); } });
+if (!S.guideSeen) openGuide();
+
+
+renderTables();
+refresh();
+</script>
+</body>
+</html>

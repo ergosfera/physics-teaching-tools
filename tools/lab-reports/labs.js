@@ -24,6 +24,12 @@ const LAB_TOPICS = [
         student: 'mechanics/net_force_rest_lab.html',
         teacher: 'mechanics/net_force_rest_teacher.html',
       },
+      {
+        id: 'buoyancy', icon: '🚢', title: 'Buoyant Force',
+        desc: 'Lower a marked cylinder into liquids on a balance. Change the volume under the liquid and the density of the liquid, and find the law of the buoyant force from the slopes.',
+        student: 'mechanics/buoyancy_lab.html',
+        teacher: 'mechanics/buoyancy_teacher.html',
+      },
     ],
   },
   {

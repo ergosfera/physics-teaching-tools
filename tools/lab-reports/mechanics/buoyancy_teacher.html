@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Buoyant Force Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="../lab-teacher.css">
+</head>
+<body>
+<script src="../lab-teacher.js"></script>
+<script>
+// Buoyant Force: the parts specific to this lab. Everything else comes from ../lab-teacher.js.
+const G_REF = 9.8;
+const PRED_IN = { same: 'Stays the same', up: 'Goes up', down: 'Goes down' };
+const PRED_DEPTH = { same: 'Stays about the same', less: 'Grows, less than double', double: 'Doubles', more: 'More than double' };
+const PRED_DENS = { smaller: 'Smaller than in water', same: 'Same as in water', bigger: 'Bigger than in water' };
+
+function modelTest(t) {
+  const pred = num(t.pred), meas = num(t.meas);
+  if (!t.locked || !isFinite(pred) || !isFinite(meas) || meas === 0) return NaN;
+  return Math.abs(pred - meas) / Math.abs(meas) * 100;
+}
+
+// ── Plots ───────────────────────────────────────────────────
+// series: [{ pts: [{x, y, e?}] in SI, fit?, color, name }]; o.xs scales x for display (m³ → cm³).
+// o.ref draws a dashed reference line y = o.ref · x (in SI). Both axes include the origin.
+function plotXY(svg, series, o, W = 720, H = 420) {
+  const M = { l: 72, r: 20, t: 18, b: 50 }, xs = o.xs || 1;
+  const all = series.flatMap(s => s.pts);
+  const xv = all.map(p => p.x * xs), yv = all.flatMap(p => [p.y + (p.e || 0), p.y - (p.e || 0)]);
+  const xMax = Math.max(...xv, 0) || 10, yMax = Math.max(...yv, 0) || 0.5;
+  const xStep = niceStep(xMax - Math.min(0, ...xv), 6), yStep = niceStep(yMax - Math.min(0, ...yv), 6);
+  const x0 = Math.floor(Math.min(0, ...xv) / xStep) * xStep, x1 = Math.ceil(xMax / xStep) * xStep;
+  const y0 = Math.floor(Math.min(0, ...yv) / yStep) * yStep, y1 = Math.ceil(yMax / yStep) * yStep;
+  const X = v => M.l + (v - x0) / (x1 - x0) * (W - M.l - M.r);
+  const Y = v => H - M.b - (v - y0) / (y1 - y0) * (H - M.t - M.b);
+  let s = `<defs><clipPath id="clip-${svg.id}"><rect x="${M.l}" y="${M.t}" width="${W - M.l - M.r}" height="${H - M.t - M.b}"/></clipPath></defs>`;
+  for (let v = x0; v <= x1 + 1e-9 * xStep; v += xStep) s += `<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${M.t}" y2="${H - M.b}"/><text x="${X(v)}" y="${H - M.b + 18}" text-anchor="middle">${fmt(v)}</text>`;
+  for (let v = y0; v <= y1 + 1e-9 * yStep; v += yStep) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  s += `<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="${M.t}" y2="${H - M.b}"/><line class="axis" x1="${M.l}" x2="${W - M.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 8}" text-anchor="middle">${o.xl}</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">${o.yl}</text>`;
+  if (o.ref) s += `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(x1)}" y2="${Y(o.ref * x1 / xs)}" stroke="var(--text)" stroke-width="1.5" stroke-dasharray="6 4" opacity=".6" clip-path="url(#clip-${svg.id})"/>`;
+  series.forEach(sr => {
+    if (!sr.fit) return;
+    const f = xd => sr.fit.k * xd / xs + sr.fit.b;
+    s += `<line x1="${X(x0)}" y1="${Y(f(x0))}" x2="${X(x1)}" y2="${Y(f(x1))}" stroke="${sr.color}" stroke-width="2" stroke-opacity=".75" clip-path="url(#clip-${svg.id})"/>`;
+  });
+  series.forEach(sr => sr.pts.forEach(p => {
+    if (p.e > 0) s += `<line x1="${X(p.x * xs)}" x2="${X(p.x * xs)}" y1="${Y(p.y - p.e)}" y2="${Y(p.y + p.e)}" stroke="${sr.color}" stroke-width="1.5"/>`;
+    s += `<circle cx="${X(p.x * xs)}" cy="${Y(p.y)}" r="5.5" fill="${sr.color}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(sr.name)}${p.tip ? ' · ' + esc(p.tip) : ''}</title></circle>`;
+  }));
+  if (!all.length) s += `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No data yet</text>`;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+}
+
+// Water only: F_b vs V for every group
+function plotWater(svg, groups, W, H) {
+  plotXY(svg, groups.map(G => ({ pts: G.liq[0] ? G.liq[0].pts : [], fit: G.liq[0] && G.liq[0].fit, color: G.color, name: label(G) + ' · water' })),
+    { xs: 1e6, xl: 'Volume under water V (cm³)', yl: 'Buoyant force Fb (N)', ref: 1000 * G_REF }, W, H);
+}
+// Slope of each liquid vs its density, every group, with each group's fit
+function plotDens(svg, groups, W, H) {
+  plotXY(svg, groups.map(G => ({ pts: G.dens, fit: G.gfit, color: G.color, name: label(G) })),
+    { xs: 1, xl: 'Density of the liquid ρ (kg/m³)', yl: 'Slope of Fb vs V (N/m³)', ref: G_REF }, W, H);
+}
+// One point per liquid of one group (detail dialog)
+function plotGroupLiquids(svg, G) {
+  const COLS = ['#4e79a7', '#f28e2b', '#59a14f', '#e15759', '#b07aa1', '#edc948'];
+  plotXY(svg, G.liq.map((l, i) => ({ pts: l.pts, fit: l.fit, color: COLS[i % COLS.length], name: l.name })),
+    { xs: 1e6, xl: 'Volume under the liquid V (cm³)', yl: 'Buoyant force Fb (N)' }, 640, 380);
+}
+
+function plotG(svg, groups) {
+  const W = 520, H = 420, M = { l: 56, r: 16, t: 18, b: 50 };
+  const gs = groups.filter(G => G.gfit).sort((a, b) => num(a.s.group) - num(b.s.group));
+  if (!gs.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No fits yet</text>`; return; }
+  const errs = G => isFinite(G.gfit.sk) ? G.gfit.sk : 0;
+  const hi = Math.max(G_REF, ...gs.map(G => G.gfit.k + errs(G))), lo = Math.min(0, ...gs.map(G => G.gfit.k - errs(G)));
+  const step = niceStep(hi - lo, 6), y0 = Math.floor(lo / step) * step, y1 = Math.ceil(hi * 1.05 / step) * step;
+  const Y = v => H - M.b - (v - y0) / (y1 - y0) * (H - M.t - M.b);
+  const bw = (W - M.l - M.r) / gs.length, X = i => M.l + bw * (i + 0.5);
+  let s = '';
+  for (let v = y0; v <= y1 + 1e-9; v += step) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">g from the graph (N/kg)</text>`;
+  s += `<line x1="${M.l}" x2="${W - M.r}" y1="${Y(G_REF)}" y2="${Y(G_REF)}" stroke="var(--text)" stroke-width="1.5" stroke-dasharray="6 4" opacity=".7"/>`;
+  s += `<text x="${W - M.r - 4}" y="${Y(G_REF) - 6}" text-anchor="end">g = ${G_REF}</text>`;
+  gs.forEach((G, i) => {
+    const x = X(i), k = G.gfit.k, e = errs(G);
+    s += `<line x1="${x}" x2="${x}" y1="${Y(k - e)}" y2="${Y(k + e)}" stroke="${G.color}" stroke-width="2"/>`;
+    s += `<line x1="${x - 6}" x2="${x + 6}" y1="${Y(k - e)}" y2="${Y(k - e)}" stroke="${G.color}" stroke-width="2"/><line x1="${x - 6}" x2="${x + 6}" y1="${Y(k + e)}" y2="${Y(k + e)}" stroke="${G.color}" stroke-width="2"/>`;
+    s += `<circle cx="${x}" cy="${Y(k)}" r="6.5" fill="${G.color}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(label(G))}: g = ${fmt(k)} ± ${fmt(e, 2)} N/kg</title></circle>`;
+    s += `<text x="${x}" y="${H - M.b + 18}" text-anchor="middle">G${esc(G.s.group || '?')}</text>`;
+  });
+  svg.innerHTML = s;
+}
+
+function gTiles(on) {
+  const fits = GROUPS.filter(G => G.gfit), gs = fits.map(G => G.gfit.k);
+  const water = GROUPS.map(G => G.liq[0] && G.liq[0].fit).filter(Boolean).map(f => f.k);
+  return `<div class="tile"><div class="k">Median g from graph</div><div class="v">${fits.length ? fmt(median(gs)) : '—'} <small>N/kg</small></div><div class="s">${fits.length} group${fits.length === 1 ? '' : 's'}${fits.length ? ` · range ${fmt(Math.min(...gs))}–${fmt(Math.max(...gs))}` : ''}</div></div>
+    <div class="tile"><div class="k">Median water slope</div><div class="v">${water.length ? fmt(median(water)) : '—'} <small>N/m³</small></div><div class="s">expected ρg ≈ ${fmt(1000 * G_REF)}</div></div>`;
+}
+
+LabTeacher({
+  id: 'buoyancy',
+  title: 'Buoyant Force',
+  icon: '🚢',
+  studentPage: 'buoyancy_lab.html',
+  tagline: 'Buoyant force vs volume and density · the law F = ρ·g·V · predictions and conclusions',
+
+  errors: {
+    touching: 'Touched bottom / wall', depth: 'Reading the depth mark', tilt: 'Cylinder not vertical', balance: 'Balance not steady / tared',
+    drops: 'Drops of previous liquid', bubbles: 'Air bubbles', density: 'Liquid densities imprecise',
+  },
+  questions: [
+    { id: 'prediction', title: 'Prediction: twice as deep, the change in the reading will…', get: s => s.prediction?.why, chart: 'pred' },
+    { id: 'linear', title: 'Is F vs V a straight line? Through the origin?', get: s => s.discuss?.linear },
+    { id: 'compare', title: 'Which liquid gives the steepest line? How does it match the densities?', get: s => s.discuss?.compare },
+    { id: 'slope', title: 'What does the slope of each line (N/m³) mean?', get: s => s.answers?.slope },
+    { id: 'gslope', title: 'Which constant is the slope of slope-vs-density? Why?', get: s => s.answers?.gslope },
+    { id: 'law', title: 'Their formula: F_b = …', get: s => s.answers?.law },
+    { id: 'predcheck', title: 'Were the predictions right?', get: s => s.answers?.predcheck },
+    { id: 'errors', title: 'Sources of error', get: s => s.conclusion?.errtext, chart: 'errors' },
+    { id: 'conclusion', title: 'Conclusion', get: s => s.conclusion?.text },
+    { id: 'roles', title: 'How did the pair share the work?', get: s => s.conclusion?.roles },
+  ],
+  questionChart(q) {
+    const tally = (key, names) => {
+      const counts = {}; GROUPS.forEach(G => { const c = G.s.prediction?.[key]; if (c) counts[c] = (counts[c] || 0) + 1; });
+      return `<div class="bars">${Object.keys(names).map(c => bar(names[c], counts[c] || 0)).join('')}</div>`;
+    };
+    return `<div class="muted" style="font-size:.8rem">When the cylinder goes in, the reading…</div>${tally('into', PRED_IN)}
+      <div class="muted" style="font-size:.8rem;margin-top:8px">Twice as deep, the change…</div>${tally('depth', PRED_DEPTH)}
+      <div class="muted" style="font-size:.8rem;margin-top:8px">In a denser liquid, the change is…</div>${tally('dens', PRED_DENS)}`;
+  },
+  answerPrefix: (q, s) => q.id === 'prediction' && s.prediction?.depth
+    ? [PRED_IN[s.prediction.into], PRED_DEPTH[s.prediction.depth], PRED_DENS[s.prediction.dens]].filter(Boolean).join(' · ') + '.' : '',
+
+  analyze(s) {
+    const g = num(s.g) || G_REF, d = num(s.d), A = d > 0 ? Math.PI * d * d / 4 : NaN;
+    const liq = (s.liquids || []).map((l, i) => {
+      const rows = (l.data || []).map(r => ({ h: num(r.h), R: num(r.R) })).filter(r => isFinite(r.h) && isFinite(r.R));
+      const pts = A > 0 ? rows.filter(r => r.h >= 0).map(r => ({ x: A * r.h * 1e-6, y: r.R / 1000 * g, tip: `h=${fmt(r.h)} cm, ${fmt(r.R)} g` })) : [];
+      const V = num(l.V), m = num(l.m), rho = V > 0 && m > 0 ? m / V * 1000 : NaN;
+      const fit = pts.length >= 3 ? linfit(pts) : null;
+      return { name: String(l.name || '').trim() || 'Liquid ' + (i + 1), V, m, rho, rows, pts, fit };
+    });
+    const dens = liq.filter(l => isFinite(l.rho) && l.fit).map(l => ({ x: l.rho, y: l.fit.k, e: l.fit.sk, tip: `${l.name}: ρ=${fmt(l.rho)} kg/m³` }));
+    const gfit = dens.length >= 3 ? linfit(dens) : null;
+    return { g, d, A, liq, dens, gfit, test: modelTest(s.test || {}) };
+  },
+  checks(G) {
+    const s = G.s, out = [], water = G.liq[0];
+    const nw = water ? water.pts.length : 0;
+    if (nw < 5) out.push(['Only ' + nw + ' water points', 'red']);
+    if (G.dens.length < 3) out.push(['Only ' + G.dens.length + ' liquids with a fit', 'red']);
+    if (G.liq.some(l => l.rows.some(r => r.R < 0))) out.push(['Negative readings', 'red']);
+    if (water && isFinite(water.rho) && Math.abs(water.rho - 1000) > 100) out.push(['Water ρ = ' + fmt(water.rho) + ' kg/m³', '']);
+    if (water && water.fit && water.fit.r2 < 0.97) out.push(['Low R² in water', '']);
+    if (water && water.fit && Math.abs(water.fit.k - 1000 * G_REF) / (1000 * G_REF) > 0.15) out.push(['Water slope > 15% from ρg (check d?)', '']);
+    if (G.gfit) {
+      if (Math.abs(G.gfit.k - G_REF) / G_REF > 0.15) out.push(['g > 15% from ' + G_REF, 'red']);
+      const gr = num(s.conclusion?.g);
+      if (isFinite(gr)) {
+        const ratio = gr / G.gfit.k;
+        if (ratio > 50 || ratio < 0.02) out.push(['Unit error in reported g?', 'red']);
+        else if (Math.abs(ratio - 1) > 0.15) out.push(['Reported g ≠ graph', '']);
+      }
+      if (!(num(s.conclusion?.dg) > 0)) out.push(['No uncertainty', '']);
+    }
+    if (!s.test?.locked) out.push(['Model test not done', '']);
+    return out;
+  },
+
+  summaryHtml: `
+    <div class="two">
+      <div class="card">
+        <h3>All groups: slope of F<sub>b</sub> vs V against the density of the liquid</h3>
+        <svg class="plot" id="all-plot" viewBox="0 0 720 420"></svg>
+        <div class="legend" id="legend"></div>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">Each point is one liquid of one group; each line is that group's fit. The dashed line is slope = 9.8 N/kg · ρ.</div>
+      </div>
+      <div class="card">
+        <h3>g from the graph, by group</h3>
+        <svg class="plot" id="g-plot" viewBox="0 0 520 420"></svg>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">Bars show ± uncertainty of each fit. The dashed line is 9.8 N/kg.</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <h3>All groups in water: F<sub>b</sub> vs V</h3>
+      <svg class="plot" id="water-plot" viewBox="0 0 720 420"></svg>
+      <div class="muted" style="font-size:.78rem;margin-top:6px">The dashed line is F<sub>b</sub> = 1000 kg/m³ · 9.8 N/kg · V.</div>
+    </div>`,
+  renderSummary(on) {
+    const tests = GROUPS.map(G => G.test).filter(isFinite);
+    const water = GROUPS.map(G => G.liq[0] && G.liq[0].fit).filter(Boolean);
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Reports</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'}</div></div>
+      ${gTiles(on)}
+      <div class="tile"><div class="k">Median R² in water</div><div class="v">${water.length ? median(water.map(f => f.r2)).toFixed(3) : '—'}</div><div class="s">how linear F vs V is</div></div>
+      <div class="tile"><div class="k">Model tests within 10%</div><div class="v">${tests.filter(e => e <= 10).length}<small>/${tests.length}</small></div><div class="s">predicted vs measured reading</div></div>`;
+    plotDens(document.getElementById('all-plot'), on);
+    plotG(document.getElementById('g-plot'), on);
+    plotWater(document.getElementById('water-plot'), on);
+  },
+
+  resultsHead: '<th>Cyl.</th><th>d (cm)</th><th>Liquids</th><th>Water slope (N/m³)</th><th>g from graph (N/kg)</th><th>R²</th><th>g reported (N/kg)</th><th>Model test</th>',
+  resultsRow(G) {
+    const f = G.gfit, w = G.liq[0] && G.liq[0].fit, c = G.s.conclusion || {};
+    return `<td>${esc(G.s.cyl || '—')}</td><td>${isFinite(G.d) ? fmt(G.d) : '—'}</td><td>${G.dens.length}</td>
+      <td>${w ? fmt(w.k) : '—'}</td>
+      <td>${f ? `<b>${fmt(f.k)}</b> <span class="muted">± ${fmt(f.sk, 2)}</span>` : '—'}</td>
+      <td>${f ? f.r2.toFixed(3) : '—'}</td>
+      <td>${c.g ? esc(c.g) + (c.dg ? ` <span class="muted">± ${esc(c.dg)}</span>` : '') : '<span class="muted">—</span>'}</td>
+      <td>${isFinite(G.test) ? fmt(G.test, 2) + '% off' : '<span class="muted">—</span>'}</td>`;
+  },
+
+  slides(on) {
+    const legend = `<div class="legend">${on.map(G => `<span class="chip"><i style="background:${G.color}"></i>${esc(label(G))}</span>`).join('')}</div>`;
+    return [
+      { html: `<h2>In water: does the buoyant force grow with the volume?</h2>
+        <div class="plot-wrap"><svg class="plot" id="show-water"></svg></div>${legend}`,
+        draw: () => plotWater(document.getElementById('show-water'), on) },
+      { html: `<h2>Slope of each line against the density of the liquid</h2>
+        <div class="plot-wrap"><svg class="plot" id="show-dens"></svg></div>${legend}`,
+        draw: () => plotDens(document.getElementById('show-dens'), on) },
+      { html: `<h2>What value of g did every group find?</h2>
+        <div class="tiles">${gTiles(on)}</div>
+        <div class="plot-wrap"><svg class="plot" id="show-g"></svg></div>`,
+        draw: () => plotG(document.getElementById('show-g'), on) },
+    ];
+  },
+
+  detail(G) {
+    const s = G.s, f = G.gfit, t = s.test || {}, c = s.conclusion || {};
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">g from graph</div><div class="v">${f ? fmt(f.k) : '—'} <small>N/kg</small></div><div class="s">± ${f ? fmt(f.sk, 2) : '—'} · R² ${f ? f.r2.toFixed(4) : '—'} · intercept ${f ? fmt(f.b) : '—'} N/m³</div></div>
+        <div class="tile"><div class="k">g they reported</div><div class="v">${esc(c.g || '—')} <small>± ${esc(c.dg || '—')} N/kg</small></div><div class="s">formula: F<sub>b</sub> = ${esc(s.answers?.law || '—')}</div></div>
+        <div class="tile"><div class="k">Model test</div><div class="v">${isFinite(G.test) ? fmt(G.test, 2) + '<small>% off</small>' : '—'}</div><div class="s">${esc(t.liq || '—')} (ρ ${esc(t.rho || '—')} g/cm³), h ${esc(t.h || '—')} cm: predicted ${esc(t.pred || '—')} g, measured ${esc(t.meas || '—')} g</div></div>
+        ${sentTile(G)}
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="two">
+        <div class="card"><h3>Their data: F<sub>b</sub> vs V</h3><svg class="plot" id="detail-plot"></svg></div>
+        <div class="card"><h3>Liquids (cylinder ${esc(s.cyl || '—')}, d = ${esc(s.d || '—')} cm, A = ${fmt(G.A)} cm², g = ${fmt(G.g)})</h3>
+          <div class="table-wrap"><table class="t"><thead><tr><th>Liquid</th><th>V (mL)</th><th>m (g)</th><th>ρ (kg/m³)</th><th>n</th><th>Slope (N/m³)</th><th>R²</th></tr></thead><tbody>
+          ${G.liq.map(l => `<tr><td>${esc(l.name)}</td><td>${fmt(l.V, 4)}</td><td>${fmt(l.m, 4)}</td><td>${fmt(l.rho)}</td><td>${l.pts.length}</td><td>${l.fit ? fmt(l.fit.k) : '—'}</td><td>${l.fit ? l.fit.r2.toFixed(3) : '—'}</td></tr>`).join('')}
+          </tbody></table></div>
+          <h3 style="margin-top:14px">Slope against density</h3><svg class="plot" id="detail-dens"></svg></div>
+      </div>
+      <div class="answers">
+        ${detailAnswer('Prediction: ' + [PRED_IN[s.prediction?.into], PRED_DEPTH[s.prediction?.depth], PRED_DENS[s.prediction?.dens]].map(x => x || '—').join(' · '), s.prediction?.why)}
+        ${detailAnswer('Is F vs V linear? Through the origin?', s.discuss?.linear)}
+        ${detailAnswer('Comparing the liquids', s.discuss?.compare)}
+        ${detailAnswer('Meaning of the slope of each line', s.answers?.slope)}
+        ${detailAnswer('Slope of slope-vs-density', s.answers?.gslope)}
+        ${detailAnswer('Were the predictions right?', s.answers?.predcheck)}
+        ${detailAnswer(errorsTitle(c), c.errtext)}
+        ${detailAnswer('Conclusion', c.text)}
+        ${detailAnswer('How they shared the work', c.roles)}
+      </div>`;
+  },
+  drawDetail: G => {
+    plotGroupLiquids(document.getElementById('detail-plot'), G);
+    plotXY(document.getElementById('detail-dens'), [{ pts: G.dens, fit: G.gfit, color: G.color, name: label(G) }],
+      { xs: 1, xl: 'ρ (kg/m³)', yl: 'Slope (N/m³)', ref: G_REF }, 640, 380);
+  },
+
+  computed: G => ({ area_cm2: G.A, liquids: G.liq.map(l => ({ name: l.name, rho_kg_m3: l.rho, fit_N_per_m3: l.fit })), g_fit_N_per_kg: G.gfit, model_test_percent_off: isFinite(G.test) ? G.test : null }),
+  csv: {
+    head: ['session', 'group', 'students', 'cylinder', 'd_cm', 'liquid', 'rho_kg_m3', 'n', 'slope_N_per_m3', 'slope_unc', 'R2', 'g_fit', 'g_unc', 'g_R2', 'g_reported', 'dg_reported', 'law', 'model_test_pct_off'],
+    rows: G => {
+      const f = G.gfit || {}, c = G.s.conclusion || {};
+      const liq = G.liq.length ? G.liq : [{}];
+      return liq.map(l => [G.s.session, G.s.group, who(G), G.s.cyl, G.d, l.name, l.rho, l.pts ? l.pts.length : '', l.fit?.k, l.fit?.sk, l.fit?.r2,
+        f.k, f.sk, f.r2, c.g, c.dg, G.s.answers?.law, G.test]);
+    },
+  },
+
+  demo() {
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz',
+      'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva', 'Camila Torres', 'Daniel Ramírez', 'Sara Medina', 'Felipe Ríos'];
+    const LIQS = [['Water', 1.00], ['Salt water', 1.17], ['Vegetable oil', 0.92], ['Alcohol', 0.80]];
+    const texts = {
+      linear: ['Yes, the points fall on a straight line. It should pass through the origin because with no volume under water there is no buoyant force.',
+        'Mostly a line. With zero depth the balance shows zero so it goes through (0,0).'],
+      compare: ['Salt water gives the steepest line and alcohol the least steep. That is the same order as the densities: the denser the liquid, the steeper the line.',
+        'Salt water is the steepest, the others are close. Denser liquid pushes more.'],
+      slope: ['The slope is the buoyant force for each cubic meter of cylinder under the liquid. It is bigger for denser liquids because the displaced liquid weighs more.',
+        'It is how much force per volume. Bigger for heavier liquids.'],
+      gslope: ['It is close to g = 9.8 N/kg. The slope is N/m³ divided by kg/m³, which gives N/kg, the units of g, because the force is the weight of the displaced liquid.',
+        'It is close to gravity, 9.8.'],
+      predcheck: ['We predicted it would double and it did: at 4 cm the reading was 19.8 g and at 8 cm it was 39.5 g. We also predicted a bigger change in salt water and it was right.',
+        'We thought the reading would not change because the cylinder does not touch the beaker, but it went up.'],
+      conclusion: ['The buoyant force is directly proportional to the volume of the cylinder under the liquid and to the density of the liquid: F = ρ·g·V. From the slope against density we got g = 9.6 ± 0.4 N/kg, close to 9.8. R² was above 0.99 for every liquid and our model test was only 4% off, so we are confident.',
+        'The force depends on the volume and the density. Our g was a bit off but close.'],
+      roles: ['Laura lowered the cylinder, Andrés read the balance, and we wrote the answers together.', 'We took turns.'],
+    };
+    const reports = [];
+    for (let gi = 1; gi <= 8; gi++) {
+      const good = gi !== 4 && gi !== 7, d = +rnd(2.45, 2.55).toFixed(2), A = Math.PI * d * d / 4;
+      const nLiq = gi === 7 ? 2 : gi % 3 === 0 ? 4 : 3;
+      const liquids = LIQS.slice(0, nLiq).map(([name, r], li) => {
+        const rTrue = r * rnd(0.99, 1.01), V = 50, m = +(V * rTrue * rnd(0.98, 1.02)).toFixed(1);
+        const nPts = li === 0 ? 7 : 5, data = [];
+        for (let h = 1; h <= nPts; h++) data.push({ h: String(h), R: (rTrue * A * h * (gi === 4 ? 0.85 : 1) + rnd(-0.3, 0.3) * (good ? 1 : 3)).toFixed(1) });
+        return { name, V: String(V), m: String(m), data };
+      });
+      const L = this.analyze({ g: 9.8, d: String(d), liquids });
+      const pick = k => good ? texts[k][0] : texts[k][1];
+      const tr = 1.17, th = 4.5, predR = tr * A * th * (gi === 6 ? 1.3 : 1);
+      reports.push({
+        schema: 1, lab: 'buoyancy', id: 'demo' + gi, session: 'DEMO', group: String(gi), students: [names[gi * 2 - 2], names[gi * 2 - 1]], cyl: gi <= 4 ? 'A' : 'B',
+        g: 9.8, d: String(d), res: '0.1',
+        prediction: { into: gi === 8 ? 'same' : 'up', depth: ['double', 'double', 'more', 'double', 'less', 'double', 'same', 'double'][gi - 1], dens: gi === 5 ? 'same' : 'bigger',
+          why: 'The water pushes the cylinder up, so the cylinder pushes the water down and the balance should feel it more when more of it is inside.' },
+        liquids, discuss: { linear: pick('linear'), compare: pick('compare') },
+        answers: { slope: pick('slope'), gslope: pick('gslope'), law: good ? 'ρ·g·V' : 'ρ·V', predcheck: pick('predcheck') },
+        test: { liq: 'Salt water', rho: String(tr), h: String(th), pred: predR.toFixed(1), locked: gi !== 7, meas: gi === 7 ? '' : (tr * A * th + rnd(-0.4, 0.4)).toFixed(1) },
+        conclusion: { g: L.gfit ? (gi === 3 ? fmt(L.gfit.k / 1000) : fmt(L.gfit.k)) : '', dg: gi === 5 || !L.gfit ? '' : fmt(L.gfit.sk, 2),
+          errors: ['touching', 'depth', 'tilt', 'balance', 'drops', 'bubbles'].filter(() => Math.random() < 0.4),
+          errtext: gi === 2 ? 'Some oil stayed on the cylinder when we moved it to the alcohol.' : '', text: pick('conclusion'), roles: pick('roles') },
+        startedAt: new Date().toISOString(), submittedAt: new Date(Date.now() - (9 - gi) * 60000).toISOString(),
+      });
+    }
+    return reports;
+  },
+});
+</script>
+</body>
+</html>
