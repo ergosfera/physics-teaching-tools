@@ -480,6 +480,7 @@
       <div class="row-btns">
         <button class="btn primary" id="send">📤 Send to teacher</button>
         <button class="btn" id="download">⬇ Download backup file</button>
+        <button class="btn" id="next-group">👥 New report for the next group</button>
       </div>
       <div id="send-status"></div>
     </div>
@@ -554,8 +555,29 @@
   <div class="guide-foot"><button class="btn primary" data-guide-close>Got it, let's start</button></div>
 </dialog>
 
+<dialog class="guide" id="who-dlg">
+  <div class="guide-head"><h2>👋 Whose report is this?</h2></div>
+  <div class="guide-body">
+    <p>This computer already has a report for this lab:</p>
+    <div class="note" id="who-cur"></div>
+    <p>Is it yours? If not, start a new report. The one already here is <b>kept on this computer</b>, so it is not lost.</p>
+    <div class="row-btns">
+      <button class="btn primary" id="who-continue">Yes, it's ours: continue</button>
+      <button class="btn" id="who-new">No, start a new report</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="guide" id="arch-dlg">
+  <div class="guide-head"><h2>🗂 Earlier reports on this computer</h2><button class="pill-btn" id="arch-close">Close</button></div>
+  <div class="guide-body">
+    <p class="note">Reports that earlier groups left on this computer. If one was not sent, download it and give the file to your teacher.</p>
+    <div id="arch-list" style="display:grid;gap:8px"></div>
+  </div>
+</dialog>
+
 <footer>
-  Falling Cone Lab · Ergosfera Teaching Tools · <button id="reset">Start over (erase this report)</button>
+  Falling Cone Lab · Ergosfera Teaching Tools · <button id="reset">Start a new report</button> · <button id="arch-open" hidden>Earlier reports on this computer</button>
 </footer>
 
 <script>
@@ -606,6 +628,7 @@ if (LINK_MODE) S.mode = LINK_MODE;
 
 let saveTimer;
 function save() {
+  S.savedAt = new Date().toISOString();
   let ok = true;
   try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { ok = false; }
   const el = document.getElementById('save-state');
@@ -1023,11 +1046,6 @@ document.getElementById('download').addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
 
-document.getElementById('reset').addEventListener('click', () => {
-  if (!confirm('Erase this whole report from this computer? This cannot be undone.')) return;
-  try { localStorage.removeItem(STORE); } catch (e) {}
-  location.reload();
-});
 
 // ── Theme (shared with the tools index) ─────────────────────
 function applyTheme(light) {
@@ -1047,6 +1065,82 @@ document.querySelectorAll('[data-guide-close]').forEach(b => b.addEventListener(
 guide.addEventListener('click', e => { if (e.target === guide) guide.close(); });
 guide.addEventListener('close', () => { if (!S.guideSeen) { S.guideSeen = true; save(); } });
 if (!S.guideSeen) openGuide();
+
+
+// ── Several groups on one computer: a report already here is kept, never overwritten ──
+const ARCHIVE = STORE + '_archive', ACK = 'ack_' + STORE;
+function readArchive() { try { return JSON.parse(localStorage.getItem(ARCHIVE) || '[]'); } catch (e) { return []; } }
+const hasWork = r => !!(String(r.group || '').trim() || String((r.students || [])[0] || '').trim());
+const reportWho = r => ['Group ' + (String(r.group || '').trim() || '?'),
+  (r.mode === 'individual' ? [(r.students || [])[0]] : r.students || []).filter(s => s && s.trim()).join(' & ')].filter(Boolean).join(' · ');
+const reportWhen = r => (r.savedAt ? 'last saved ' + new Date(r.savedAt).toLocaleString() : '') ;
+function ack() { try { sessionStorage.setItem(ACK, S.id); } catch (e) {} }
+// Download any report (this one or an earlier one) as the same file the Download button makes
+function downloadReport(r) {
+  const keep = S;
+  let body;
+  S = Object.assign(blank(), r);
+  try { body = JSON.stringify(payload(), null, 2); } finally { S = keep; }
+  const tag = [r.session, 'group' + (r.group || 'X'), r.mode === 'individual' ? (r.students || [])[0] : ''].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
+  a.download = `${LAB_ID}_${tag}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+// Keep the current report in the archive (or download it if there is no room), then open an empty one
+function newReport() {
+  let wait = 0;
+  if (hasWork(S)) {
+    const list = readArchive();
+    list.unshift({ ...S, archivedAt: new Date().toISOString() });
+    try { localStorage.setItem(ARCHIVE, JSON.stringify(list.slice(0, 12))); }
+    catch (e) {
+      alert('This computer has no room to keep a copy, so the report will be downloaded as a file. Give that file to your teacher.');
+      downloadReport(S); wait = 1500;
+    }
+  }
+  try { localStorage.removeItem(STORE); sessionStorage.removeItem(ACK); } catch (e) {}
+  setTimeout(() => location.reload(), wait);
+}
+function confirmNew() {
+  if (hasWork(S) && !S.sent && !confirm('This report was not sent yet. It will be kept on this computer, so it is not lost. Start a new report?')) return;
+  newReport();
+}
+
+const whoDlg = document.getElementById('who-dlg');
+whoDlg.addEventListener('cancel', e => e.preventDefault());
+document.getElementById('who-continue').addEventListener('click', () => { ack(); whoDlg.close(); });
+document.getElementById('who-new').addEventListener('click', confirmNew);
+document.getElementById('next-group').addEventListener('click', confirmNew);
+document.getElementById('reset').addEventListener('click', confirmNew);
+let acked = null; try { acked = sessionStorage.getItem(ACK); } catch (e) {}
+if (hasWork(S) && acked !== S.id) {
+  document.getElementById('who-cur').innerHTML = `<b>${esc(reportWho(S))}</b>` +
+    (reportWhen(S) ? ' · ' + reportWhen(S) : '') + (S.sent ? ' · sent to the teacher ✓' : ' · <b>not sent yet</b>');
+  if (guide.open) guide.close();
+  whoDlg.showModal();
+} else ack();
+
+const archDlg = document.getElementById('arch-dlg');
+function renderArchive() {
+  const list = readArchive();
+  document.getElementById('arch-open').hidden = !list.length;
+  document.getElementById('arch-open').textContent = `Earlier reports on this computer (${list.length})`;
+  document.getElementById('arch-list').innerHTML = list.map((r, i) => `
+    <div class="note${r.sent ? ' good' : ' warn'}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <span style="flex:1;min-width:200px"><b>${esc(reportWho(r))}</b>${r.session ? ' · session ' + esc(r.session) : ''}<br>
+      <span style="font-size:.8rem">${esc(reportWhen(r))}${r.sent ? ' · sent ✓' : ' · not sent'}</span></span>
+      <button class="btn" data-arch="${i}">⬇ Download</button>
+    </div>`).join('');
+}
+document.getElementById('arch-open').addEventListener('click', () => { renderArchive(); archDlg.showModal(); });
+document.getElementById('arch-close').addEventListener('click', () => archDlg.close());
+document.getElementById('arch-list').addEventListener('click', e => {
+  const i = e.target.dataset.arch;
+  if (i != null) downloadReport(readArchive()[+i]);
+});
+renderArchive();
 
 refresh();
 </script>
