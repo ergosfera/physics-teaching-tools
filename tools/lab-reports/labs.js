@@ -26,7 +26,7 @@ const LAB_TOPICS = [
       },
       {
         id: 'buoyancy', icon: '🚢', title: 'Buoyant Force',
-        desc: 'Lower a marked cylinder into liquids on a balance. Change the volume under the liquid and the density of the liquid, and find the law of the buoyant force from the slopes.',
+        desc: 'Lower a marked cylinder into your group\'s liquid on a balance and find how the buoyant force grows with the volume under the liquid. Then compare every group\'s liquid to find how it depends on density.',
         student: 'mechanics/buoyancy_lab.html',
         teacher: 'mechanics/buoyancy_teacher.html',
       },

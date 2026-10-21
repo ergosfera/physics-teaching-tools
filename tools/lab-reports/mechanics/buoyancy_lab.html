@@ -226,15 +226,6 @@
   footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
   footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
 
-  /* ── LIQUIDS ── */
-  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .82rem; color: var(--muted); }
-  .legend span { display: inline-flex; align-items: center; gap: 6px; }
-  .legend i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
-  .liq-block { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: grid; gap: 10px; }
-  .liq-block h3 { font-size: .95rem; display: flex; align-items: center; gap: 8px; }
-  .liq-block h3 i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
-  .plot .fitc { stroke-width: 2.2; stroke-dasharray: 7 4; }
-  .plot .err { stroke-width: 1.6; }
 </style>
 </head>
 <body>
@@ -264,7 +255,10 @@
         <label class="f">Student 1<input type="text" data-bind="students.0" placeholder="Full name"></label>
         <label class="f">Student 2<input type="text" data-bind="students.1" placeholder="Full name"></label>
       </div>
-      <label class="f">Cylinder label (the letter or number your teacher gave your cylinder, if any)<input type="text" data-bind="cyl" placeholder="e.g. A"></label>
+      <div class="grid2">
+        <label class="f">Your liquid (the one your teacher assigned to your group)<input type="text" data-bind="liquid.name" placeholder="e.g. salt water"></label>
+        <label class="f">Cylinder label (if it has one)<input type="text" data-bind="cyl" placeholder="e.g. A"></label>
+      </div>
     </div>
   </section>
 
@@ -273,7 +267,7 @@
     <div class="step-head"><span class="num">2</span><h2>Predict before you measure</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
-      <p class="lead">A beaker of liquid sits on a balance. You will lower a solid cylinder into the liquid, <b>without letting it touch the bottom or the walls</b>, and watch the balance. Before touching anything, <b>discuss with your partner</b>:</p>
+      <p class="lead">A beaker of your liquid sits on a balance. You will lower a solid cylinder into it, <b>without letting it touch the bottom or the walls</b>, and watch the balance. Before touching anything, <b>discuss with your partner</b>:</p>
       <div class="q">
         <div class="qt">When the cylinder goes into the liquid, the balance reading will…</div>
         <div class="choices">
@@ -292,11 +286,11 @@
         </div>
       </div>
       <div class="q">
-        <div class="qt">At the same depth, in a liquid <em>denser</em> than water (like salt water), the change in the reading will be…</div>
+        <div class="qt">Another group uses a liquid <em>denser</em> than yours. At the same depth, the change in their reading will be…</div>
         <div class="choices">
-          <label><input type="radio" name="pred-dens" value="smaller"> smaller than in water</label>
-          <label><input type="radio" name="pred-dens" value="same"> the same as in water</label>
-          <label><input type="radio" name="pred-dens" value="bigger"> bigger than in water</label>
+          <label><input type="radio" name="pred-dens" value="smaller"> smaller than yours</label>
+          <label><input type="radio" name="pred-dens" value="same"> the same as yours</label>
+          <label><input type="radio" name="pred-dens" value="bigger"> bigger than yours</label>
         </div>
       </div>
       <div class="q">
@@ -309,7 +303,7 @@
 
   <!-- 3 SETUP -->
   <section class="step" data-step="3">
-    <div class="step-head"><span class="num">3</span><h2>Measure the cylinder and the liquids</h2><span class="status"></span></div>
+    <div class="step-head"><span class="num">3</span><h2>Measure the cylinder and your liquid</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
       <div class="setup-grid">
@@ -333,47 +327,44 @@
         </div>
         <svg class="diagram" id="setup-fig" viewBox="0 0 240 300" aria-label="Cylinder held by a clamp, partly submerged in a beaker of liquid that sits on a balance"></svg>
       </div>
-      <h3 style="font-size:.95rem">Density of each liquid</h3>
+      <h3 style="font-size:.95rem">Density of your liquid</h3>
       <ol class="howto">
-        <li>You need <b>water and at least two other liquids</b> (for example salt water, vegetable oil, alcohol). Ask your teacher which ones you have.</li>
         <li>Put an empty measuring cylinder on the balance and press <b>TARE</b> (zero).</li>
-        <li>Pour in about 50 mL of the liquid. Read the volume V at the bottom of the meniscus and the mass m on the balance.</li>
-        <li>Empty, rinse and dry the measuring cylinder, and repeat for every liquid.</li>
+        <li>Pour in about 50 mL of your liquid. Read the volume V at the bottom of the meniscus and the mass m on the balance.</li>
       </ol>
-      <div class="table-wrap">
-        <table class="data">
-          <thead><tr><th>#</th><th>Liquid</th><th>Volume V (mL)</th><th>Mass m (g)</th><th>Density ρ = m/V (g/cm³)</th><th></th></tr></thead>
-          <tbody id="liq-body"></tbody>
-        </table>
+      <div class="grid2">
+        <label class="f">Volume V (mL)<input type="text" inputmode="decimal" data-bind="liquid.V" placeholder="e.g. 50.0"></label>
+        <label class="f">Mass m (g)<input type="text" inputmode="decimal" data-bind="liquid.m" placeholder="e.g. 58.4"></label>
+        <label class="f">Density ρ = m/V<input type="text" id="rho-out" readonly></label>
       </div>
-      <div class="row-btns"><button class="btn" id="add-liquid">+ Add liquid</button></div>
       <div id="liq-warn"></div>
     </div>
   </section>
 
-  <!-- 4 WATER -->
+  <!-- 4 MEASURE -->
   <section class="step" data-step="4">
-    <div class="step-head"><span class="num">4</span><h2>Measure in water: change the volume</h2><span class="status"></span></div>
+    <div class="step-head"><span class="num">4</span><h2>Measure: change the volume under the liquid</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
       <ol class="howto">
-        <li>Fill a beaker about two thirds with water and put it on the balance. Press <b>TARE</b>: from now on the balance shows only the change.</li>
+        <li>Fill a beaker about two thirds with your liquid and put it on the balance. Press <b>TARE</b>: from now on the balance shows only the change.</li>
         <li>Fix the cylinder in the clamp, <b>vertical</b>, right above the center of the beaker. It must never touch the bottom or the walls.</li>
-        <li>Lower the clamp until the water reaches the first mark. Wait until the reading is steady, then type the <b>depth h</b> and the <b>balance reading</b>.</li>
-        <li>Go deeper one mark at a time. Aim for <b>6 to 8 measurements</b>. Read h where the water surface meets the marks: the water rises when the cylinder goes in, and reading at the surface takes that into account.</li>
+        <li>Lower the clamp until the liquid reaches the first mark. Wait until the reading is steady, then type the <b>depth h</b> and the <b>balance reading</b>.</li>
+        <li>Go deeper one mark at a time. Aim for <b>6 to 8 measurements</b>, and keep one depth between two marks <b>unused</b>: you'll need it in step 6. Read h where the liquid surface meets the marks: the liquid rises when the cylinder goes in, and reading at the surface takes that into account.</li>
       </ol>
       <div class="table-wrap">
         <table class="data">
-          <thead><tr><th>#</th><th>Depth h (cm)</th><th>Balance reading (g)</th><th>Volume under water V = A·h (cm³)</th><th>Buoyant force F<sub>b</sub> (N)</th><th></th></tr></thead>
-          <tbody id="tb-0"></tbody>
+          <thead><tr><th>#</th><th>Depth h (cm)</th><th>Balance reading (g)</th><th>Volume under the liquid V = A·h (cm³)</th><th>Buoyant force F<sub>b</sub> (N)</th><th></th></tr></thead>
+          <tbody id="tbody"></tbody>
         </table>
       </div>
       <div class="row-btns">
-        <button class="btn" data-addrow="0">+ Add measurement</button>
-        <span class="save-state" data-npoints="0"></span>
+        <button class="btn" id="add-row">+ Add measurement</button>
+        <span class="save-state" id="n-points"></span>
       </div>
+      <div id="data-warn"></div>
       <div class="note">Why is the balance reading a force? The liquid pushes the cylinder up with the buoyant force F<sub>b</sub>, so the cylinder pushes the liquid down just as hard (Newton's third law), and the balance feels it. A reading of R grams means F<sub>b</sub> = (R / 1000)·g.</div>
-      <svg class="plot" id="plot-water" viewBox="0 0 640 380"></svg>
+      <svg class="plot" id="plot" viewBox="0 0 640 380"></svg>
       <div class="discuss" id="discuss-linear" hidden>
         <span class="tag">💬 Stop and discuss</span>
         <div class="qt" style="font-weight:600">Look at the points. Do they fall on a straight line? Should the line pass through the origin (0, 0)? Why?</div>
@@ -384,79 +375,52 @@
     </div>
   </section>
 
-  <!-- 5 OTHER LIQUIDS -->
+  <!-- 5 ANALYZE -->
   <section class="step" data-step="5">
-    <div class="step-head"><span class="num">5</span><h2>Measure in other liquids: change the density</h2><span class="status"></span></div>
+    <div class="step-head"><span class="num">5</span><h2>Analyze the graph</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
-      <ol class="howto">
-        <li>Take the cylinder out, <b>rinse and dry it</b>, and use a clean, dry beaker for the next liquid.</li>
-        <li>Put the beaker with the new liquid on the balance and press <b>TARE</b> again.</li>
-        <li>Repeat what you did in water, using the same marks. Aim for <b>at least 5 measurements</b> in each liquid.</li>
-      </ol>
-      <div id="other-liquids" style="display:grid;gap:12px"></div>
-      <svg class="plot" id="plot-all" viewBox="0 0 640 380"></svg>
-      <div class="legend" id="legend-all"></div>
-      <div class="discuss" id="discuss-compare" hidden>
-        <span class="tag">💬 Stop and discuss</span>
-        <div class="qt" style="font-weight:600">Compare the liquids on the graph. Which one gives the steepest line, and which one the least steep? How does that order match the densities you measured in step 3?</div>
-        <textarea data-bind="discuss.compare" data-min="10"></textarea>
-        <div class="wc" data-wc="discuss.compare"></div>
-        <div class="save-state" id="fit-hint-all">The best-fit lines of the other liquids will appear once you've answered.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 6 ANALYZE -->
-  <section class="step" data-step="6">
-    <div class="step-head"><span class="num">6</span><h2>Analyze: slope against density</h2><span class="status"></span></div>
-    <div class="step-lock"></div>
-    <div class="step-body">
-      <p class="lead">Each line in step 5 has its own slope. Here every liquid becomes one point: its <b>density ρ</b> on the horizontal axis and the <b>slope of its line</b> on the vertical axis.</p>
-      <div class="table-wrap">
-        <table class="data">
-          <thead><tr><th>Liquid</th><th>ρ (kg/m³)</th><th>Slope of F<sub>b</sub> vs V (N/m³)</th><th>R²</th></tr></thead>
-          <tbody id="slopes-body"></tbody>
-        </table>
-      </div>
-      <svg class="plot" id="plot-dens" viewBox="0 0 640 380"></svg>
-      <div class="stats" id="g-stats"></div>
-      <div class="note" id="g-eq" hidden></div>
+      <div class="stats" id="fit-stats"></div>
+      <div class="note"><span class="eq" id="fit-eq"></span><br><span style="font-size:.82rem;color:var(--muted)">R² measures how close the points are to a straight line: 1 means perfectly straight.</span></div>
       <div class="q">
-        <div class="qt">The slope of each line in step 5 has units of N/m³. What does it mean physically? Why is it bigger for some liquids than for others?</div>
+        <div class="qt">The slope of your graph is <em id="q-k">k</em>. What does it mean physically? (Hint: look at its units, N/m³.)</div>
         <textarea data-bind="answers.slope" data-min="10"></textarea>
         <div class="wc" data-wc="answers.slope"></div>
       </div>
+      <div class="note" id="ratio-note"></div>
       <div class="q">
-        <div class="qt">The slope of the graph above is <em id="q-g">…</em>. Which known constant is it close to? Check the units: why should it be that constant?</div>
+        <div class="qt">Divide your slope by the density of your liquid: <em id="q-ratio">…</em>. Which known constant is it close to? Check the units: why should it be that constant?</div>
         <textarea data-bind="answers.gslope" data-min="10"></textarea>
         <div class="wc" data-wc="answers.gslope"></div>
       </div>
       <div class="q">
-        <div class="qt">Put your two graphs together: write the formula for the buoyant force in terms of ρ, V and g.</div>
+        <div class="qt">Other groups measured other liquids. Using your result, how do you expect their lines to compare with yours? Your class will check this together.</div>
+        <textarea data-bind="answers.others" data-min="10"></textarea>
+        <div class="wc" data-wc="answers.others"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Write the formula for the buoyant force in terms of ρ, V and g.</div>
         <div class="inline-k">F<sub>b</sub> = <input type="text" data-bind="answers.law" style="width:200px" placeholder="your formula"></div>
       </div>
       <div class="q">
-        <div class="qt">In step 2 you predicted that twice as deep makes the change <em id="q-pred-depth">…</em>, and that a denser liquid makes it <em id="q-pred-dens">…</em>. Were you right? Use your data as evidence.</div>
+        <div class="qt">In step 2 you predicted that the reading would <em id="q-pred-in">…</em> and that twice as deep makes the change <em id="q-pred-depth">…</em>. Were you right? Use your data as evidence.</div>
         <textarea data-bind="answers.predcheck" data-min="10"></textarea>
         <div class="wc" data-wc="answers.predcheck"></div>
       </div>
     </div>
   </section>
 
-  <!-- 7 TEST -->
-  <section class="step" data-step="7">
-    <div class="step-head"><span class="num">7</span><h2>Test your model</h2><span class="status"></span></div>
+  <!-- 6 TEST -->
+  <section class="step" data-step="6">
+    <div class="step-head"><span class="num">6</span><h2>Test your model</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
       <ol class="howto">
-        <li>Choose a liquid and a depth <b>you have not measured</b> (between two marks, or a new liquid whose density you measure as in step 3).</li>
-        <li>Use your formula to <b>calculate</b> the balance reading you will see, in grams.</li>
+        <li>Take the depth you kept <b>unused</b> in step 4 (between two marks).</li>
+        <li>Use your formula and the density of your liquid to <b>calculate</b> the balance reading you will see, in grams.</li>
         <li><b>Lock your prediction before</b> you lower the cylinder. Then tare, lower it to that depth and read the balance.</li>
       </ol>
       <div class="grid2">
-        <label class="f">Liquid<input type="text" data-bind="test.liq" id="test-liq" placeholder="e.g. salt water"></label>
-        <label class="f">Its density ρ (g/cm³)<input type="text" inputmode="decimal" data-bind="test.rho" id="test-rho"></label>
         <label class="f">Depth h (cm)<input type="text" inputmode="decimal" data-bind="test.h" id="test-h"></label>
         <label class="f">Your predicted reading (g)<input type="text" inputmode="decimal" data-bind="test.pred" id="test-pred"></label>
       </div>
@@ -469,13 +433,14 @@
     </div>
   </section>
 
-  <!-- 8 CONCLUDE -->
-  <section class="step" data-step="8">
-    <div class="step-head"><span class="num">8</span><h2>Conclude</h2><span class="status"></span></div>
+  <!-- 7 CONCLUDE -->
+  <section class="step" data-step="7">
+    <div class="step-head"><span class="num">7</span><h2>Conclude</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
       <div class="q">
-        <div class="qt">Report the value of g from your slope-against-density graph, with its uncertainty:</div>
+        <div class="qt">Report the slope of your graph and the value of g you get from it (slope ÷ density), each with its uncertainty:</div>
+        <div class="inline-k">slope = <input type="text" inputmode="decimal" data-bind="conclusion.k"> ± <input type="text" inputmode="decimal" data-bind="conclusion.dk"> N/m³</div>
         <div class="inline-k">g = <input type="text" inputmode="decimal" data-bind="conclusion.g"> ± <input type="text" inputmode="decimal" data-bind="conclusion.dg"> N/kg</div>
         <div id="g-hint"></div>
       </div>
@@ -485,7 +450,7 @@
         <textarea data-bind="conclusion.errtext" placeholder="Other sources of error, or how you could reduce them (optional)" style="min-height:60px"></textarea>
       </div>
       <div class="q">
-        <div class="qt">Conclusion: how does the buoyant force depend on the volume under the liquid and on the density of the liquid? State your formula, your value of g, and how confident you are. Use R² and your model test as evidence.</div>
+        <div class="qt">Conclusion: how does the buoyant force depend on the volume under the liquid? What does the density of the liquid have to do with it? State your formula, your values, and how confident you are. Use R² and your model test as evidence.</div>
         <textarea data-bind="conclusion.text" data-min="30" style="min-height:120px"></textarea>
         <div class="wc" data-wc="conclusion.text"></div>
       </div>
@@ -497,9 +462,9 @@
     </div>
   </section>
 
-  <!-- 9 SUBMIT -->
-  <section class="step" data-step="9">
-    <div class="step-head"><span class="num">9</span><h2>Send your report</h2><span class="status"></span></div>
+  <!-- 8 SUBMIT -->
+  <section class="step" data-step="8">
+    <div class="step-head"><span class="num">8</span><h2>Send your report</h2><span class="status"></span></div>
     <div class="step-lock"></div>
     <div class="step-body">
       <div class="summary" id="summary"></div>
@@ -519,7 +484,7 @@
 
     <section>
       <h3>Goal</h3>
-      <p>A liquid pushes up on anything you put in it: the <b>buoyant force</b>. Find out how it depends on the <b>volume</b> of the object under the liquid and on the <b>density</b> of the liquid, and write the law yourselves.</p>
+      <p>A liquid pushes up on anything you put in it: the <b>buoyant force</b>. Find out how it depends on the <b>volume</b> of the object under the liquid. Each group measures a different liquid, so together the class can also find out how it depends on the <b>density</b> of the liquid.</p>
     </section>
 
     <section class="guide-cols wide-fig">
@@ -527,12 +492,11 @@
         <h3>What you'll do</h3>
         <ol>
           <li><b>Predict</b> (step 2): what the balance does when the cylinder goes in, deeper, or into a denser liquid.</li>
-          <li><b>Measure</b> (step 3): the diameter of the cylinder and the density of each liquid.</li>
-          <li><b>Change the volume</b> (step 4): lower the cylinder into water mark by mark and record the balance. The graph of F<sub>b</sub> against V builds as you go.</li>
-          <li><b>Change the density</b> (step 5): repeat in at least two other liquids and compare the lines.</li>
-          <li><b>Analyze</b> (step 6): plot the slope of each line against the density of its liquid, and find the law.</li>
-          <li><b>Test your model</b> (step 7): predict a balance reading, then measure it.</li>
-          <li><b>Conclude and send</b> (steps 8 and 9).</li>
+          <li><b>Measure</b> (step 3): the diameter of the cylinder and the density of your liquid.</li>
+          <li><b>Change the volume</b> (step 4): lower the cylinder into your liquid mark by mark and record the balance. The graph of F<sub>b</sub> against V builds as you go.</li>
+          <li><b>Analyze</b> (step 5): find the slope, divide it by the density, and write the law.</li>
+          <li><b>Test your model</b> (step 6): predict a balance reading, then measure it.</li>
+          <li><b>Conclude and send</b> (steps 7 and 8). Then your class compares all the liquids together.</li>
         </ol>
       </div>
       <svg class="guide-fig" id="guide-fig" viewBox="0 0 240 300" aria-label="Setup: support and clamp holding a marked cylinder partly submerged in a beaker of liquid on a balance">
@@ -571,14 +535,14 @@
             <li>A solid cylinder with depth marks (note its label, if it has one)</li>
             <li>A support with a clamp to hold the cylinder</li>
             <li>A balance (0.1 g or better) and a caliper or ruler</li>
-            <li>Beakers, a measuring cylinder, and water plus at least two other liquids</li>
+            <li>A beaker, a measuring cylinder, and <b>your group's liquid</b></li>
             <li>Paper towels, and this page open on one computer</li>
           </ul>
         </div>
         <div class="guide-box"><div class="bt">Check before you start</div>
           <ul>
+            <li>Which liquid your teacher assigned to your group</li>
             <li>The cylinder hangs <b>vertically</b> and can go down without hitting the bottom or the walls</li>
-            <li>The balance is on a flat table and nobody leans on it</li>
             <li>You know how to <b>TARE</b> (zero) the balance</li>
           </ul>
         </div>
@@ -604,43 +568,38 @@ const G = parseFloat(params.get('g')) || 9.8;
 const LINK_SESSION = params.get('session') || '';
 const STORE = 'lab_' + LAB_ID + '_' + (LINK_SESSION || 'default');
 
-const MIN_WATER = 5, MIN_OTHER = 4, MIN_LIQUIDS = 3, MAX_LIQUIDS = 6;
-const LIQ_COLORS = ['#58a6ff', '#f28e2b', '#59a14f', '#e15759', '#b07aa1', '#edc948'];
-const LIQ_HINTS = ['', 'e.g. salt water', 'e.g. vegetable oil', 'e.g. alcohol', 'e.g. glycerin', ''];
+const MIN_POINTS = 5;
 const ERRORS = [
   ['touching', 'Cylinder touched the bottom or the wall'],
   ['depth', 'Reading the depth mark at the surface (meniscus, parallax)'],
   ['tilt', 'Cylinder not vertical'],
   ['balance', 'Balance not steady or not tared'],
-  ['drops', 'Drops of the previous liquid on the cylinder'],
   ['bubbles', 'Air bubbles stuck to the cylinder'],
-  ['density', 'Density of the liquids not measured precisely'],
+  ['density', 'Density of the liquid not measured precisely'],
 ];
 const PRED_IN = { same: 'stay the same', up: 'go up', down: 'go down' };
 const PRED_DEPTH = { same: 'stay about the same', less: 'grow, but less than double', double: 'double', more: 'more than double' };
-const PRED_DENS = { smaller: 'smaller', same: 'the same', bigger: 'bigger' };
 
 // ── State ───────────────────────────────────────────────────
 function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
-const blankRows = () => [{ h: '', R: '' }, { h: '', R: '' }, { h: '', R: '' }];
-const blankLiquid = name => ({ name, V: '', m: '', data: blankRows() });
 function blank() {
   return {
-    schema: 1, lab: LAB_ID, id: rid(), session: LINK_SESSION, group: '', students: ['', ''], cyl: '',
+    schema: 2, lab: LAB_ID, id: rid(), session: LINK_SESSION, group: '', students: ['', ''], cyl: '',
     g: G, d: '', res: '0.1',
+    liquid: { name: '', V: '', m: '' },
     prediction: { into: '', depth: '', dens: '', why: '' },
-    liquids: [blankLiquid('Water'), blankLiquid(''), blankLiquid('')],
-    discuss: { linear: '', compare: '' },
-    answers: { slope: '', gslope: '', law: '', predcheck: '' },
-    test: { liq: '', rho: '', h: '', pred: '', locked: false, meas: '' },
-    conclusion: { g: '', dg: '', errors: [], errtext: '', text: '', roles: '' },
+    data: [{ h: '', R: '' }, { h: '', R: '' }, { h: '', R: '' }],
+    discuss: { linear: '' },
+    answers: { slope: '', gslope: '', others: '', law: '', predcheck: '' },
+    test: { h: '', pred: '', locked: false, meas: '' },
+    conclusion: { k: '', dk: '', g: '', dg: '', errors: [], errtext: '', text: '', roles: '' },
     startedAt: new Date().toISOString(), unlocked: 1, sent: null,
   };
 }
 let S = blank();
 try {
   const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
-  if (saved && saved.lab === LAB_ID) S = Object.assign(blank(), saved);
+  if (saved && saved.lab === LAB_ID && saved.schema === 2) S = Object.assign(blank(), saved);
 } catch (e) {}
 if (LINK_SESSION) S.session = LINK_SESSION;
 S.g = G;
@@ -672,18 +631,16 @@ function fmt(v, sig = 3) {
   return String(parseFloat(v.toPrecision(sig)));
 }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const liqName = (l, i) => (l.name || '').trim() || 'Liquid ' + (i + 1);
 
-// Cross-section area of the cylinder (cm²)
+// Cross-section area of the cylinder (cm²) and density of the liquid (g/cm³)
 const area = () => { const d = num(S.d); return d > 0 ? Math.PI * d * d / 4 : NaN; };
-// Density of a liquid (g/cm³)
-const rho = l => { const V = num(l.V), m = num(l.m); return V > 0 && m > 0 ? m / V : NaN; };
+const rho = () => { const V = num(S.liquid.V), m = num(S.liquid.m); return V > 0 && m > 0 ? m / V : NaN; };
 
-// Valid rows of a liquid → points with x = V (m³), y = F_b (N)
-function points(l) {
+// Valid rows → points with x = V (m³), y = F_b (N)
+function points() {
   const A = area();
   if (!(A > 0)) return [];
-  return l.data.map(r => ({ h: num(r.h), R: num(r.R) }))
+  return S.data.map(r => ({ h: num(r.h), R: num(r.R) }))
     .filter(r => isFinite(r.h) && isFinite(r.R) && r.h >= 0)
     .map(r => ({ x: A * r.h * 1e-6, y: r.R / 1000 * S.g }));
 }
@@ -703,31 +660,21 @@ function linfit(pts) {
   const sk = Math.sqrt(s2 / Sxx), sb = Math.sqrt(s2 * sxx / (n * Sxx));
   return { n, k, b, r2, sk, sb };
 }
-const fitOf = l => { const p = points(l); return p.length >= 3 ? linfit(p) : null; };
-
-// One point per liquid: x = ρ (kg/m³), y = slope of F_b vs V (N/m³)
-function densPoints() {
-  return S.liquids.map((l, i) => ({ i, x: rho(l) * 1000, f: fitOf(l) }))
-    .filter(p => isFinite(p.x) && p.f).map(p => ({ i: p.i, x: p.x, y: p.f.k, e: p.f.sk }));
-}
-const gFit = () => { const p = densPoints(); return p.length >= MIN_LIQUIDS ? linfit(p) : null; };
-
-const others = () => S.liquids.slice(1);
-const otherReady = () => others().filter(l => points(l).length >= MIN_OTHER).length;
+// slope ÷ density (N/kg), with ρ in kg/m³
+const ratio = fit => fit && rho() > 0 ? fit.k / (rho() * 1000) : NaN;
 
 // ── Steps: completion rules ─────────────────────────────────
 const DONE = {
-  1: () => S.group.trim() && S.students[0].trim() && S.students[1].trim() && S.session.trim(),
+  1: () => S.group.trim() && S.students[0].trim() && S.students[1].trim() && S.session.trim() && S.liquid.name.trim(),
   2: () => S.prediction.into && S.prediction.depth && S.prediction.dens && words(S.prediction.why) >= 10,
-  3: () => area() > 0 && S.liquids.length >= MIN_LIQUIDS && S.liquids.every(l => l.name.trim() && rho(l) > 0),
-  4: () => points(S.liquids[0]).length >= MIN_WATER && words(S.discuss.linear) >= 8,
-  5: () => otherReady() >= MIN_LIQUIDS - 1 && words(S.discuss.compare) >= 10,
-  6: () => words(S.answers.slope) >= 10 && words(S.answers.gslope) >= 10 && S.answers.law.trim().length >= 3 && words(S.answers.predcheck) >= 10,
-  7: () => S.test.locked && isFinite(num(S.test.meas)),
-  8: () => isFinite(num(S.conclusion.g)) && isFinite(num(S.conclusion.dg)) && words(S.conclusion.text) >= 30 && words(S.conclusion.roles) >= 5,
-  9: () => !!S.sent,
+  3: () => area() > 0 && rho() > 0,
+  4: () => points().length >= MIN_POINTS && words(S.discuss.linear) >= 8,
+  5: () => words(S.answers.slope) >= 10 && words(S.answers.gslope) >= 10 && words(S.answers.others) >= 10 && S.answers.law.trim().length >= 3 && words(S.answers.predcheck) >= 10,
+  6: () => S.test.locked && isFinite(num(S.test.meas)),
+  7: () => [S.conclusion.k, S.conclusion.dk, S.conclusion.g, S.conclusion.dg].every(v => isFinite(num(v))) && words(S.conclusion.text) >= 30 && words(S.conclusion.roles) >= 5,
+  8: () => !!S.sent,
 };
-const NSTEPS = 9;
+const NSTEPS = 8;
 
 function refresh() {
   // unlock progressively; once unlocked, a step stays open
@@ -797,223 +744,140 @@ ERRORS.forEach(([id, text]) => {
 
 document.getElementById('setup-fig').innerHTML = document.getElementById('guide-fig').innerHTML;
 
-// ── Tables: liquids (step 3) and measurements (steps 4 and 5) ──
-// Inputs carry data-l (liquid), and data-i (row) for measurements; data-k is the field.
-const liqBody = document.getElementById('liq-body');
-function renderLiquids() {
-  liqBody.innerHTML = '';
-  S.liquids.forEach((l, li) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="idx"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${LIQ_COLORS[li]}"></i></td>
-      <td><input type="text" data-l="${li}" data-k="name" value="${esc(l.name)}" placeholder="${LIQ_HINTS[li] || 'liquid'}" ${li === 0 ? 'readonly' : ''}></td>
-      <td><input type="text" inputmode="decimal" data-l="${li}" data-k="V" value="${esc(l.V)}"></td>
-      <td><input type="text" inputmode="decimal" data-l="${li}" data-k="m" value="${esc(l.m)}"></td>
-      <td class="calc" data-rho="${li}"></td>
-      <td>${li === 0 ? '' : `<button class="del" title="Remove liquid" data-delliq="${li}">×</button>`}</td>`;
-    liqBody.appendChild(tr);
-  });
-  document.getElementById('add-liquid').disabled = S.liquids.length >= MAX_LIQUIDS;
-}
-
-function measureTable(li) {
-  return `<div class="table-wrap"><table class="data">
-    <thead><tr><th>#</th><th>Depth h (cm)</th><th>Balance reading (g)</th><th>Volume V (cm³)</th><th>F<sub>b</sub> (N)</th><th></th></tr></thead>
-    <tbody id="tb-${li}"></tbody></table></div>
-    <div class="row-btns"><button class="btn" data-addrow="${li}">+ Add measurement</button><span class="save-state" data-npoints="${li}"></span></div>`;
-}
-function renderRows(li) {
-  const tb = document.getElementById('tb-' + li);
-  tb.innerHTML = '';
-  S.liquids[li].data.forEach((row, i) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td class="idx">${i + 1}</td>
-      <td><input type="text" inputmode="decimal" data-l="${li}" data-i="${i}" data-k="h" value="${esc(row.h)}"></td>
-      <td><input type="text" inputmode="decimal" data-l="${li}" data-i="${i}" data-k="R" value="${esc(row.R)}"></td>
-      <td class="calc" data-v></td><td class="calc" data-f></td>
-      <td><button class="del" title="Delete row" data-del="${li}:${i}">×</button></td>`;
-    tb.appendChild(tr);
-  });
-}
-function renderTables() {
-  renderLiquids();
-  document.getElementById('other-liquids').innerHTML = others().map((l, j) => `
-    <div class="liq-block"><h3><i style="background:${LIQ_COLORS[j + 1]}"></i><span data-liqname="${j + 1}"></span></h3>${measureTable(j + 1)}</div>`).join('');
-  S.liquids.forEach((l, li) => renderRows(li));
-}
-
-const main = document.querySelector('main');
-main.addEventListener('input', e => {
-  const t = e.target;
-  if (t.dataset.l == null) return;
-  const l = S.liquids[+t.dataset.l];
-  if (t.dataset.i != null) l.data[+t.dataset.i][t.dataset.k] = t.value;
-  else l[t.dataset.k] = t.value;
-  save(); refresh();
-});
-main.addEventListener('keydown', e => {
-  const t = e.target;
-  if (e.key !== 'Enter' || t.dataset.i == null) return;
-  e.preventDefault();
-  const li = +t.dataset.l, i = +t.dataset.i, tb = document.getElementById('tb-' + li);
-  if (t.dataset.k === 'h') return tb.querySelector(`input[data-i="${i}"][data-k="R"]`).focus();
-  if (i === S.liquids[li].data.length - 1) addRow(li);
-  document.getElementById('tb-' + li).querySelector(`input[data-i="${i + 1}"][data-k="h"]`).focus();
-});
-main.addEventListener('click', e => {
-  const t = e.target;
-  if (t.dataset.addrow != null) {
-    const li = +t.dataset.addrow;
-    addRow(li);
-    document.getElementById('tb-' + li).querySelector(`input[data-i="${S.liquids[li].data.length - 1}"][data-k="h"]`).focus();
-  } else if (t.dataset.del != null) {
-    const [li, i] = t.dataset.del.split(':').map(Number), data = S.liquids[li].data, r = data[i];
-    if ((r.h || r.R) && !confirm('Delete measurement ' + (i + 1) + '?')) return;
-    data.splice(i, 1);
-    if (!data.length) data.push({ h: '', R: '' });
-    renderRows(li); save(); refresh();
-  } else if (t.dataset.delliq != null) {
-    const li = +t.dataset.delliq, l = S.liquids[li];
-    const hasData = l.V || l.m || l.data.some(r => r.h || r.R);
-    if (hasData && !confirm(`Remove ${liqName(l, li)} and all its measurements?`)) return;
-    S.liquids.splice(li, 1);
-    renderTables(); save(); refresh();
-  }
-});
-function addRow(li) { S.liquids[li].data.push({ h: '', R: '' }); renderRows(li); save(); refresh(); }
-document.getElementById('add-liquid').addEventListener('click', () => {
-  if (S.liquids.length >= MAX_LIQUIDS) return;
-  S.liquids.push(blankLiquid(''));
-  renderTables(); save(); refresh();
-  liqBody.querySelector(`input[data-l="${S.liquids.length - 1}"][data-k="name"]`).focus();
-});
-
 // ── Step 3 ──────────────────────────────────────────────────
 function refreshSetup() {
-  const A = area();
+  const A = area(), r = rho();
   document.getElementById('area-note').innerHTML = A > 0
     ? `Cross-section area A = π·d²/4 = <b>${fmt(A)} cm²</b>. Each centimeter of depth puts ${fmt(A)} cm³ of cylinder under the liquid.`
     : 'Type the diameter to get the cross-section area A = π·d²/4.';
-  S.liquids.forEach((l, li) => {
-    const c = liqBody.querySelector(`[data-rho="${li}"]`);
-    if (c) c.textContent = isFinite(rho(l)) ? fmt(rho(l)) : '';
-  });
-  const warns = [];
-  const rw = rho(S.liquids[0]);
-  if (isFinite(rw) && Math.abs(rw - 1) > 0.1) warns.push(`Your water density is ${fmt(rw)} g/cm³, far from 1.00. Check that you tared the measuring cylinder and read the volume at the meniscus.`);
-  if (S.liquids.length < MIN_LIQUIDS) warns.push(`You need water and at least ${MIN_LIQUIDS - 1} other liquids.`);
-  document.getElementById('liq-warn').innerHTML = warns.map(w => `<div class="note warn">${esc(w)}</div>`).join('');
-  document.querySelectorAll('[data-liqname]').forEach(el => {
-    const li = +el.dataset.liqname;
-    el.textContent = liqName(S.liquids[li], li) + (isFinite(rho(S.liquids[li])) ? ` · ρ = ${fmt(rho(S.liquids[li]))} g/cm³` : '');
-  });
+  document.getElementById('rho-out').value = isFinite(r) ? `${fmt(r)} g/cm³ = ${fmt(r * 1000)} kg/m³` : '';
+  const isWater = /^\s*(water|agua)\s*$/i.test(S.liquid.name);
+  const warn = isFinite(r) && ((isWater && Math.abs(r - 1) > 0.1) || r < 0.6 || r > 1.6)
+    ? `A density of ${fmt(r)} g/cm³ is unusual for ${isWater ? 'water' : 'a liquid in this lab'}. Check that you tared the measuring cylinder and read the volume at the meniscus.` : '';
+  document.getElementById('liq-warn').innerHTML = warn ? `<div class="note warn">${esc(warn)}</div>` : '';
 }
 
-// ── Steps 4 and 5: tables + plots ───────────────────────────
+// ── Step 4: measurement table + plot ────────────────────────
+const tbody = document.getElementById('tbody');
+function renderTable() {
+  tbody.innerHTML = '';
+  S.data.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="idx">${i + 1}</td>
+      <td><input type="text" inputmode="decimal" data-i="${i}" data-k="h" value="${esc(row.h)}"></td>
+      <td><input type="text" inputmode="decimal" data-i="${i}" data-k="R" value="${esc(row.R)}"></td>
+      <td class="calc" data-v></td><td class="calc" data-f></td>
+      <td><button class="del" title="Delete row" data-del="${i}">×</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+tbody.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.i == null) return;
+  S.data[+t.dataset.i][t.dataset.k] = t.value;
+  save(); refresh();
+});
+tbody.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.target.dataset.i == null) return;
+  e.preventDefault();
+  const i = +e.target.dataset.i, k = e.target.dataset.k;
+  if (k === 'h') return tbody.querySelector(`input[data-i="${i}"][data-k="R"]`).focus();
+  if (i === S.data.length - 1) addRow();
+  tbody.querySelector(`input[data-i="${i + 1}"][data-k="h"]`).focus();
+});
+tbody.addEventListener('click', e => {
+  const i = e.target.dataset.del;
+  if (i == null) return;
+  const r = S.data[+i];
+  if ((r.h || r.R) && !confirm('Delete measurement ' + (+i + 1) + '?')) return;
+  S.data.splice(+i, 1);
+  if (!S.data.length) S.data.push({ h: '', R: '' });
+  renderTable(); save(); refresh();
+});
+function addRow() { S.data.push({ h: '', R: '' }); renderTable(); save(); refresh(); }
+document.getElementById('add-row').addEventListener('click', () => {
+  addRow();
+  tbody.querySelector(`input[data-i="${S.data.length - 1}"][data-k="h"]`).focus();
+});
+
 function refreshMeasure() {
   const A = area();
-  S.liquids.forEach((l, li) => {
-    const tb = document.getElementById('tb-' + li);
-    if (!tb) return;
-    [...tb.rows].forEach((tr, i) => {
-      const h = num(l.data[i].h), R = num(l.data[i].R);
-      const V = A * h, F = R / 1000 * S.g;
-      tr.querySelector('[data-v]').textContent = isFinite(V) ? fmt(V) : '';
-      tr.querySelector('[data-f]').textContent = isFinite(F) ? fmt(F) : '';
-      tr.classList.toggle('bad', (isFinite(R) && R < 0) || (isFinite(h) && h < 0));
-    });
-    const n = points(l).length, min = li === 0 ? MIN_WATER : MIN_OTHER;
-    const el = document.querySelector(`[data-npoints="${li}"]`);
-    if (el) el.textContent = n + ' valid measurement' + (n === 1 ? '' : 's') + (n < min ? ` · at least ${min} needed` : '');
+  const warns = [];
+  [...tbody.rows].forEach((tr, i) => {
+    const h = num(S.data[i].h), R = num(S.data[i].R);
+    const V = A * h, F = R / 1000 * S.g;
+    tr.querySelector('[data-v]').textContent = isFinite(V) ? fmt(V) : '';
+    tr.querySelector('[data-f]').textContent = isFinite(F) ? fmt(F) : '';
+    const bad = (isFinite(R) && R < 0) || (isFinite(h) && h < 0);
+    tr.classList.toggle('bad', bad);
+    if (bad) warns.push(`Row ${i + 1}: a negative value. Did you tare the balance with the beaker on it?`);
   });
+  const pts = points();
+  const nEl = document.getElementById('n-points');
+  nEl.textContent = pts.length + ' valid measurement' + (pts.length === 1 ? '' : 's') +
+    (pts.length < MIN_POINTS ? ` · at least ${MIN_POINTS} needed` : '');
+  document.getElementById('data-warn').innerHTML = warns.map(w => `<div class="note warn">${esc(w)}</div>`).join('');
 
-  const water = S.liquids[0], wpts = points(water);
-  const showLin = wpts.length >= 3;
-  document.getElementById('discuss-linear').hidden = !showLin;
-  const revealWater = showLin && words(S.discuss.linear) >= 8;
-  document.getElementById('fit-hint').hidden = revealWater;
-  drawPlot(document.getElementById('plot-water'), [{ pts: wpts, fit: revealWater ? fitOf(water) : null, color: LIQ_COLORS[0] }], {
-    xs: 1e6, xl: 'Volume under the liquid V (cm³)', yl: 'Buoyant force Fb (N)', empty: 'Your points will appear here as you measure',
-  });
-
-  const showCmp = others().filter(l => points(l).length >= 3).length >= MIN_LIQUIDS - 1;
-  document.getElementById('discuss-compare').hidden = !showCmp;
-  const revealAll = showCmp && words(S.discuss.compare) >= 10;
-  document.getElementById('fit-hint-all').hidden = revealAll;
-  drawPlot(document.getElementById('plot-all'), S.liquids.map((l, li) => ({
-    pts: points(l), color: LIQ_COLORS[li], fit: (li === 0 ? revealWater : revealAll) ? fitOf(l) : null,
-  })), { xs: 1e6, xl: 'Volume under the liquid V (cm³)', yl: 'Buoyant force Fb (N)', empty: 'Your points will appear here as you measure' });
-  document.getElementById('legend-all').innerHTML = S.liquids.map((l, li) =>
-    `<span><i style="background:${LIQ_COLORS[li]}"></i>${esc(liqName(l, li))}</span>`).join('');
+  const showDiscuss = pts.length >= 3;
+  document.getElementById('discuss-linear').hidden = !showDiscuss;
+  const revealFit = showDiscuss && words(S.discuss.linear) >= 8;
+  document.getElementById('fit-hint').hidden = revealFit;
+  drawPlot(document.getElementById('plot'), pts, revealFit ? linfit(pts) : null);
 }
 
 function niceStep(range, n) {
   const raw = range / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
   return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p;
 }
-// series: [{ pts: [{x, y, e?}] in SI, fit, color }]. o.xs scales x for display (m³ → cm³);
-// e is a vertical error bar. Both axes always include the origin.
-function drawPlot(svg, series, o) {
-  const W = 640, H = 380, M = { l: 70, r: 20, t: 18, b: 50 }, xs = o.xs || 1;
-  const all = series.flatMap(s => s.pts);
-  const xv = all.map(p => p.x * xs), yv = all.flatMap(p => [p.y + (p.e || 0), p.y - (p.e || 0)]);
-  const xMax = Math.max(...xv, 0) || 10, yMax = Math.max(...yv, 0) || 0.5;
-  const xStep = niceStep(xMax - Math.min(0, ...xv), 5), yStep = niceStep(yMax - Math.min(0, ...yv), 5);
-  const x0 = Math.floor(Math.min(0, ...xv) / xStep) * xStep, x1 = Math.ceil(xMax / xStep) * xStep;
-  const y0 = Math.floor(Math.min(0, ...yv, ...series.map(s => s.fit ? s.fit.b : 0)) / yStep) * yStep, y1 = Math.ceil(yMax / yStep) * yStep;
+// Plot F_b (N) vs V (cm³); fit is in SI (N/m³)
+function drawPlot(svg, pts, fit) {
+  const W = 640, H = 380, M = { l: 62, r: 20, t: 18, b: 50 };
+  const xs = pts.map(p => p.x * 1e6), ys = pts.map(p => p.y);
+  const xStep = niceStep(Math.max(10, ...xs) - Math.min(0, ...xs), 5);
+  const yStep = niceStep(Math.max(0.1, ...ys) - Math.min(0, ...ys), 5);
+  const x0 = Math.floor(Math.min(0, ...xs) / xStep) * xStep, x1 = Math.ceil(Math.max(10, ...xs) / xStep) * xStep;
+  const y0 = Math.floor(Math.min(0, ...ys, fit ? fit.b : 0) / yStep) * yStep, y1 = Math.ceil(Math.max(0.1, ...ys) / yStep) * yStep;
   const X = v => M.l + (v - x0) / (x1 - x0) * (W - M.l - M.r);
   const Y = v => H - M.b - (v - y0) / (y1 - y0) * (H - M.t - M.b);
   let s = '';
   for (let v = x0; v <= x1 + 1e-9 * xStep; v += xStep) s += `<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${M.t}" y2="${H - M.b}"/><text x="${X(v)}" y="${H - M.b + 18}" text-anchor="middle">${fmt(v)}</text>`;
   for (let v = y0; v <= y1 + 1e-9 * yStep; v += yStep) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
   s += `<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="${M.t}" y2="${H - M.b}"/><line class="axis" x1="${M.l}" x2="${W - M.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
-  s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 8}" text-anchor="middle">${o.xl}</text>`;
-  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">${o.yl}</text>`;
-  series.forEach(sr => {
-    if (!sr.fit) return;
-    const f = xd => sr.fit.k * xd / xs + sr.fit.b;
-    s += `<line class="fitc" stroke="${sr.color}" x1="${X(x0)}" y1="${Y(f(x0))}" x2="${X(x1)}" y2="${Y(f(x1))}" clip-path="url(#clip-${svg.id})"/>`;
-  });
-  series.forEach(sr => sr.pts.forEach(p => {
-    if (p.e > 0) s += `<line class="err" stroke="${sr.color}" x1="${X(p.x * xs)}" x2="${X(p.x * xs)}" y1="${Y(p.y - p.e)}" y2="${Y(p.y + p.e)}"/>`;
-    s += `<circle class="pt" style="fill:${sr.color}" cx="${X(p.x * xs)}" cy="${Y(p.y)}" r="6"/>`;
-  }));
-  if (!all.length) s += `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">${o.empty}</text>`;
-  svg.innerHTML = `<defs><clipPath id="clip-${svg.id}"><rect x="${M.l}" y="${M.t}" width="${W - M.l - M.r}" height="${H - M.t - M.b}"/></clipPath></defs>` + s;
+  s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 8}" text-anchor="middle">Volume under the liquid V (cm³)</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">Buoyant force Fb (N)</text>`;
+  if (fit) {
+    const f = xc => fit.k * xc * 1e-6 + fit.b;
+    s += `<line class="fit" x1="${X(x0)}" y1="${Y(f(x0))}" x2="${X(x1)}" y2="${Y(f(x1))}" clip-path="url(#clip)"/>`;
+  }
+  pts.forEach(p => { s += `<circle class="pt" cx="${X(p.x * 1e6)}" cy="${Y(p.y)}" r="6"/>`; });
+  if (!pts.length) s += `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">Your points will appear here as you measure</text>`;
+  svg.innerHTML = `<defs><clipPath id="clip"><rect x="${M.l}" y="${M.t}" width="${W - M.l - M.r}" height="${H - M.t - M.b}"/></clipPath></defs>` + s;
+}
+
+// ── Step 5 ──────────────────────────────────────────────────
+function refreshAnalysis() {
+  const fit = linfit(points());
+  const box = document.getElementById('fit-stats');
+  document.getElementById('q-pred-in').textContent = PRED_IN[S.prediction.into] || '…';
+  document.getElementById('q-pred-depth').textContent = PRED_DEPTH[S.prediction.depth] || '…';
+  if (!fit) { box.innerHTML = ''; document.getElementById('ratio-note').hidden = true; return; }
+  box.innerHTML = `
+    <div class="stat"><div class="k">Slope</div><div class="v">${fmt(fit.k)} <small>N/m³</small></div></div>
+    <div class="stat"><div class="k">Uncertainty of slope</div><div class="v">± ${fmt(fit.sk, 2)} <small>N/m³</small></div></div>
+    <div class="stat"><div class="k">Intercept</div><div class="v">${fmt(fit.b)} <small>N</small></div></div>
+    <div class="stat"><div class="k">R²</div><div class="v">${isFinite(fit.r2) ? fit.r2.toFixed(4) : '—'}</div></div>`;
+  document.getElementById('fit-eq').textContent = `Fb = ${fmt(fit.k)} N/m³ · V ${fit.b < 0 ? '−' : '+'} ${fmt(Math.abs(fit.b))} N`;
+  document.getElementById('q-k').textContent = fmt(fit.k) + ' N/m³';
+  const r = rho(), q = ratio(fit);
+  const note = document.getElementById('ratio-note');
+  note.hidden = false;
+  note.innerHTML = isFinite(q)
+    ? `<b>Slope ÷ density</b> = ${fmt(fit.k)} N/m³ ÷ ${fmt(r * 1000)} kg/m³ = <b>${fmt(q)} N/kg</b><br><span style="font-size:.82rem;color:var(--muted)">N/m³ divided by kg/m³ gives N/kg.</span>`
+    : 'Measure the density of your liquid in step 3 to divide your slope by it.';
+  document.getElementById('q-ratio').textContent = isFinite(q) ? fmt(q) + ' N/kg' : '…';
 }
 
 // ── Step 6 ──────────────────────────────────────────────────
-function refreshAnalysis() {
-  document.getElementById('slopes-body').innerHTML = S.liquids.map((l, li) => {
-    const f = fitOf(l), r = rho(l);
-    return `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${LIQ_COLORS[li]}"></i> ${esc(liqName(l, li))}</td>
-      <td class="calc">${isFinite(r) ? fmt(r * 1000) : '—'}</td>
-      <td class="calc">${f ? fmt(f.k) + ' ± ' + fmt(f.sk, 2) : '—'}</td>
-      <td class="calc">${f ? f.r2.toFixed(4) : '—'}</td></tr>`;
-  }).join('');
-  const dp = densPoints(), gf = gFit();
-  drawPlot(document.getElementById('plot-dens'), dp.map(p => ({ pts: [p], color: LIQ_COLORS[p.i], fit: null }))
-    .concat(gf ? [{ pts: [], color: 'var(--green)', fit: gf }] : []),
-  { xs: 1, xl: 'Density of the liquid ρ (kg/m³)', yl: 'Slope of Fb vs V (N/m³)', empty: 'Each liquid with 3 or more measurements appears here' });
-  const box = document.getElementById('g-stats'), eq = document.getElementById('g-eq');
-  eq.hidden = !gf;
-  if (!gf) {
-    box.innerHTML = `<div class="note">The best-fit line appears when ${MIN_LIQUIDS} liquids have a density and at least 3 measurements.</div>`;
-    document.getElementById('q-g').textContent = '…';
-  } else {
-    box.innerHTML = `
-      <div class="stat"><div class="k">Slope</div><div class="v">${fmt(gf.k)} <small>N/kg</small></div></div>
-      <div class="stat"><div class="k">Uncertainty</div><div class="v">± ${fmt(gf.sk, 2)} <small>N/kg</small></div></div>
-      <div class="stat"><div class="k">Intercept</div><div class="v">${fmt(gf.b)} <small>N/m³</small></div></div>
-      <div class="stat"><div class="k">R²</div><div class="v">${isFinite(gf.r2) ? gf.r2.toFixed(4) : '—'}</div></div>`;
-    eq.innerHTML = `<span class="eq">slope = ${fmt(gf.k)} N/kg · ρ ${gf.b < 0 ? '−' : '+'} ${fmt(Math.abs(gf.b))} N/m³</span><br><span style="font-size:.82rem;color:var(--muted)">N/m³ divided by kg/m³ gives N/kg.${dp.length < 5 ? ` With only ${dp.length} points the uncertainty is large: more liquids make it smaller.` : ''}</span>`;
-    document.getElementById('q-g').textContent = fmt(gf.k) + ' N/kg';
-  }
-  document.getElementById('q-pred-depth').textContent = PRED_DEPTH[S.prediction.depth] || '…';
-  document.getElementById('q-pred-dens').textContent = PRED_DENS[S.prediction.dens] || '…';
-}
-
-// ── Step 7 ──────────────────────────────────────────────────
-const TEST_INPUTS = ['test-liq', 'test-rho', 'test-h', 'test-pred'];
 document.getElementById('lock-pred').addEventListener('click', () => {
   if (!confirm('Lock your prediction? You won\'t be able to change it afterward.')) return;
   S.test.locked = true; save(); refresh();
@@ -1021,9 +885,10 @@ document.getElementById('lock-pred').addEventListener('click', () => {
 function refreshTest() {
   const t = S.test, pred = num(t.pred), meas = num(t.meas);
   const locked = t.locked;
-  TEST_INPUTS.forEach(id => { document.getElementById(id).readOnly = locked; });
+  document.getElementById('test-h').readOnly = locked;
+  document.getElementById('test-pred').readOnly = locked;
   const lockBtn = document.getElementById('lock-pred');
-  lockBtn.disabled = locked || !(t.liq.trim() && num(t.rho) > 0 && num(t.h) > 0 && pred > 0);
+  lockBtn.disabled = locked || !(num(t.h) > 0 && pred > 0);
   lockBtn.hidden = locked;
   document.getElementById('lock-msg').textContent = locked ? '🔒 Prediction locked' : '';
   document.getElementById('test-measure').hidden = !locked;
@@ -1038,24 +903,23 @@ function refreshTest() {
   </div>`;
 }
 
-// ── Step 8 ──────────────────────────────────────────────────
+// ── Step 7 ──────────────────────────────────────────────────
 function refreshConclusion() {
-  const gf = gFit(), g = num(S.conclusion.g);
-  const hint = document.getElementById('g-hint');
-  if (!gf || !isFinite(g) || g <= 0) { hint.innerHTML = ''; return; }
-  const ratio = g / gf.k;
-  if (ratio > 50 || ratio < 0.02) hint.innerHTML = '<div class="note warn">That value is very far from your graph\'s slope. Check the units: g must be in <b>N/kg</b>.</div>';
-  else hint.innerHTML = '';
+  const fit = linfit(points()), hint = document.getElementById('g-hint'), msgs = [];
+  const k = num(S.conclusion.k), g = num(S.conclusion.g), q = ratio(fit);
+  if (fit && k > 0) { const r = k / fit.k; if (r > 50 || r < 0.02) msgs.push('Your slope is very far from the graph\'s. Check the units: the slope must be in <b>N/m³</b>.'); }
+  if (isFinite(q) && g > 0) { const r = g / q; if (r > 50 || r < 0.02) msgs.push('Your g is very far from slope ÷ density. Check the units: g must be in <b>N/kg</b>.'); }
+  hint.innerHTML = msgs.map(m => `<div class="note warn">${m}</div>`).join('');
 }
 
-// ── Step 9: submit ──────────────────────────────────────────
+// ── Step 8: submit ──────────────────────────────────────────
 function payload() {
   const { unlocked, sent, guideSeen, ...data } = S;
-  const fits = S.liquids.map(l => ({ name: l.name, rho_kg_m3: rho(l) * 1000, fit: fitOf(l) }));
-  return { ...data, area_cm2: area(), fits, gfit: gFit(), submittedAt: new Date().toISOString(), client: 'buoyancy_lab/1' };
+  const fit = linfit(points());
+  return { ...data, area_cm2: area(), rho_kg_m3: rho() * 1000, fit, g_ratio: ratio(fit), submittedAt: new Date().toISOString(), client: 'buoyancy_lab/2' };
 }
 function refreshSummary() {
-  const names = ['Team', 'Prediction', 'Cylinder and densities', 'Water', 'Other liquids', 'Analysis', 'Model test', 'Conclusion'];
+  const names = ['Team', 'Prediction', 'Cylinder and density', 'Measurements', 'Analysis', 'Model test', 'Conclusion'];
   document.getElementById('summary').innerHTML = names.map((n, i) => `<div class="${DONE[i + 1]() ? 'ok' : ''}">${n}</div>`).join('');
   const sendBtn = document.getElementById('send');
   sendBtn.disabled = !API;
@@ -1066,7 +930,7 @@ function refreshSummary() {
 function setStatus(html) { const st = document.getElementById('send-status'); st.dataset.msg = '1'; st.innerHTML = html; }
 
 document.getElementById('send').addEventListener('click', async () => {
-  const missing = [1, 2, 3, 4, 5, 6, 7, 8].filter(i => !DONE[i]());
+  const missing = [1, 2, 3, 4, 5, 6, 7].filter(i => !DONE[i]());
   if (missing.length && !confirm('Steps ' + missing.join(', ') + ' are not complete. Send anyway?')) return;
   const btn = document.getElementById('send');
   btn.disabled = true; setStatus('<div class="note">Sending…</div>');
@@ -1126,7 +990,7 @@ guide.addEventListener('close', () => { if (!S.guideSeen) { S.guideSeen = true; 
 if (!S.guideSeen) openGuide();
 
 
-renderTables();
+renderTable();
 refresh();
 </script>
 </body>
