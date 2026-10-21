@@ -43,4 +43,15 @@ const LAB_TOPICS = [
       },
     ],
   },
+  {
+    name: 'PreCalculus', icon: '📐',
+    labs: [
+      {
+        id: 'rational-functions', icon: '📈', title: 'Rational Functions',
+        desc: 'AP Precalculus 1.7–1.12: end behavior, zeros, vertical asymptotes, holes, long division and transformations, with instant feedback and live graphs. Then build your own rational function.',
+        student: 'precalculus/rational_functions_lab.html',
+        teacher: 'precalculus/rational_functions_teacher.html',
+      },
+    ],
+  },
 ];

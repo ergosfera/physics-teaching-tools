@@ -68,7 +68,8 @@ const ON_STATE = {};
 // An individual report (mode 'individual') belongs to one student of a group: several can share a group number.
 const solo = s => s.mode === 'individual';
 const initials = name => String(name || '').trim().split(/\s+/).map(w => w[0] || '').join('').toUpperCase() || '?';
-const label = G => 'Group ' + (G.s.group || '?') + (solo(G.s) ? ' · ' + initials(G.s.students?.[0]) : '') + (CFG.session ? '' : ` (${G.s.session || '—'})`);
+const label = G => (solo(G.s) && !String(G.s.group || '').trim() ? initials(G.s.students?.[0])
+  : 'Group ' + (G.s.group || '?') + (solo(G.s) ? ' · ' + initials(G.s.students?.[0]) : '')) + (CFG.session ? '' : ` (${G.s.session || '—'})`);
 const who = G => (solo(G.s) ? [G.s.students?.[0]] : G.s.students || []).filter(Boolean).join(' & ');
 const flagsHtml = G => G.checks.map(([t, c]) => `<span class="flag ${c}">${esc(t)}</span>`).join('');
 const rawKey = s => (s.id || '') + '|' + (s.submittedAt || '');

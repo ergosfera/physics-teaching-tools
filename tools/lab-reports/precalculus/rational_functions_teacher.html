@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Rational Functions Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="../lab-teacher.css">
+<style>
+  .gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .gal .fn { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 6px 8px; display: grid; gap: 2px; }
+  .gal .fn.ok { border-color: var(--green); }
+  .gal .fn svg { width: 100%; height: auto; display: block; }
+  .gal .fn .who { font-size: .78rem; font-weight: 700; }
+  .gal .fn code { font-size: .74rem; color: var(--muted); word-break: break-all; }
+  .slide .gal { grid-template-columns: repeat(4, 1fr); }
+  .slide .gal .fn code, .slide .gal .fn .who { font-size: clamp(.75rem, 1vw, 1rem); }
+  .qblock { display: grid; gap: 6px; margin-bottom: 14px; }
+  .qblock .qh { font-size: .86rem; font-weight: 700; }
+  .qblock .qh small { color: var(--muted); font-weight: 600; }
+  .slide .qblock .qh { font-size: clamp(.9rem, 1.3vw, 1.3rem); }
+  .ok-mark { color: var(--green); font-weight: 800; }
+</style>
+</head>
+<body>
+<script src="../lab-teacher.js"></script>
+<script src="rational.js"></script>
+<script src="rational_questions.js"></script>
+<script>
+// Rational Functions (PreCalculus): the parts specific to this activity. Everything else comes from ../lab-teacher.js.
+// Students get immediate feedback, so the charts show each student's FIRST answer: that is where the
+// misconceptions are.
+const QIDS = Object.keys(RQ);
+
+// How a first answer is shown and grouped: the option for multiple choice, the numbers otherwise
+function answerKey(q, v) {
+  if (v == null || v === '') return null;
+  if (q.type === 'mc') return v;
+  const xs = rqNumbers(v);
+  if (!xs.length) return String(v).trim();
+  return (q.type === 'list' ? [...xs].sort((a, b) => a - b) : xs.slice(0, 1)).map(x => String(+x.toPrecision(6))).join(', ');
+}
+const answerLabel = (q, key) => q.type === 'mc' ? q.options[key] || key : key;
+
+// Bars of first answers for one question; the right answer is marked
+function firstAnswerBars(id) {
+  const q = RQ[id], counts = new Map();
+  GROUPS.forEach(G => { const k = answerKey(q, G.qs[id].first); if (k != null) counts.set(k, (counts.get(k) || 0) + 1); });
+  let keys = q.type === 'mc' ? Object.keys(q.options) : [...counts.keys()].sort((a, b) => counts.get(b) - counts.get(a)).slice(0, 6);
+  const right = q.type === 'mc' ? q.answer : answerKey(q, rqAnswerText(q));
+  if (q.type !== 'mc' && !keys.includes(right)) keys = [right, ...keys.slice(0, 5)];
+  const n = GROUPS.filter(G => G.qs[id].first != null).length, ok = GROUPS.filter(G => G.qs[id].firstOk).length;
+  return `<div class="qblock"><div class="qh">${esc(q.short)} <small>· ${ok}/${n} right on the first try</small></div>
+    <div class="bars">${keys.map(k => bar((k === right ? '✓ ' : '') + answerLabel(q, k), counts.get(k) || 0)).join('')}</div></div>`;
+}
+
+// The 'build your own' features, as on the student page
+function buildFeatures(an) {
+  const T = RQ_BUILD, same = (a, b) => a.length === b.length && b.every(v => a.some(x => Math.abs(x - v) < 1e-6));
+  return {
+    zeros: same(an.zeros.map(z => z.x), T.zeros), vas: same(an.vas.map(v => v.x), T.vas),
+    holes: same(an.holes.map(h => h.x), T.holes), ha: an.end.kind === 'ha' && Math.abs(an.end.y - T.ha) < 1e-6,
+  };
+}
+
+function gallery(groups, max = 99) {
+  const gs = groups.filter(G => G.build.an).slice(0, max);
+  if (!gs.length) return '<div class="muted">No functions yet.</div>';
+  return `<div class="gal">${gs.map(G => `<div class="fn ${G.build.ok ? 'ok' : ''}">
+    <div class="who">${esc(label(G))} ${G.build.ok ? '<span class="ok-mark">✓</span>' : `<span class="muted">${G.build.nOk}/4</span>`}${G.build.rev ? ' <span class="muted">(example shown)</span>' : ''}</div>
+    <svg data-mini="${esc(G.key)}"></svg><code>${esc(G.build.f)}</code></div>`).join('')}</div>`;
+}
+function drawGallery(root, groups) {
+  root.querySelectorAll('svg[data-mini]').forEach(svg => {
+    const G = groups.find(g => g.key === svg.dataset.mini);
+    if (G && G.build.an) RF.mini(svg, G.build.an, G.build.ok ? 'var(--green)' : 'var(--accent)');
+  });
+}
+// Right on the first try, one bar per question (most missed first)
+function accuracyBars(groups) {
+  return `<div class="bars">${QIDS.map(id => ({ id, n: groups.filter(G => G.qs[id].firstOk).length }))
+    .sort((a, b) => a.n - b.n).map(({ id, n }) => bar(`${RQ_SECTIONS[RQ[id].sec].code} · ${RQ[id].short}`, n)).join('')}</div>`;
+}
+
+LabTeacher({
+  id: 'rational-functions',
+  title: 'Rational Functions',
+  icon: '📈',
+  studentPage: 'rational_functions_lab.html',
+  tagline: 'AP Precalculus 1.7–1.12 · first answers, explanations and everyone\'s functions',
+
+  errors: {},
+  questions: [
+    { id: 'end', title: '1.7 End behavior: how do the degrees decide the end behavior?', get: s => s.why?.end, chart: 'end' },
+    { id: 'zero', title: '1.8 Zeros: why is x = −3 not a zero of r?', get: s => s.why?.zero, chart: 'zero' },
+    { id: 'va', title: '1.9 Vertical asymptotes: why +∞ on both sides of x = −2, but opposite infinities at x = 3?', get: s => s.why?.va, chart: 'va' },
+    { id: 'hole', title: '1.10 Holes: why doesn\'t a calculator show the hole? How do you find its y-coordinate?', get: s => s.why?.hole, chart: 'hole' },
+    { id: 'ld', title: '1.11 Equivalent representations: why does R/(x − 1) go to 0? What does it mean for the graph?', get: s => s.why?.ld, chart: 'ld' },
+    { id: 'tr', title: '1.12 Transformations: how can you find the asymptotes of g from its equation?', get: s => s.why?.tr, chart: 'tr' },
+    { id: 'build', title: 'Build your own: how did you choose each part of your function?', get: s => s.why?.build },
+    { id: 'hard', title: 'Which topic was the hardest, and why?', get: s => s.reflect?.hard },
+    { id: 'question', title: 'Questions students still have', get: s => s.reflect?.question },
+  ],
+  questionChart: q => QIDS.filter(id => RQ[id].sec === q.chart).map(firstAnswerBars).join(''),
+
+  analyze(s) {
+    const qs = {};
+    QIDS.forEach(id => {
+      const st = (s.ans || {})[id] || {};
+      qs[id] = { first: st.first ?? null, firstOk: st.first != null && rqCorrect(RQ[id], st.first), tries: st.tries || 0, rev: !!st.rev, ok: !!st.ok };
+    });
+    const b = s.build || {}, p = b.f ? RF.parse(b.f) : null, an = p && !p.error ? RF.analyze(p.rat) : null;
+    const feats = an ? buildFeatures(an) : null;
+    return {
+      qs,
+      firstRight: QIDS.filter(id => qs[id].firstOk).length,
+      answered: QIDS.filter(id => qs[id].first != null).length,
+      revealed: QIDS.filter(id => qs[id].rev).length,
+      tries: QIDS.reduce((a, id) => a + qs[id].tries, 0),
+      build: { f: b.f || '', an, ok: !!b.ok && !!feats && Object.values(feats).every(Boolean), rev: !!b.rev, tries: b.tries || 0, nOk: feats ? Object.values(feats).filter(Boolean).length : 0 },
+    };
+  },
+  checks(G) {
+    const out = [];
+    if (G.answered < QIDS.length) out.push([`${QIDS.length - G.answered} questions not answered`, 'red']);
+    if (G.revealed) out.push([`Saw ${G.revealed} answer${G.revealed === 1 ? '' : 's'}`, G.revealed >= 4 ? 'red' : '']);
+    if (G.build.rev) out.push(['Saw the example function', '']);
+    else if (!G.build.ok) out.push([G.build.f ? 'Function not finished' : 'No function', '']);
+    return out;
+  },
+
+  summaryHtml: `
+    <div class="two">
+      <div class="card">
+        <h3>Right on the first try, by question (most missed first)</h3>
+        <div id="acc"></div>
+      </div>
+      <div class="card">
+        <h3>Everyone's function</h3>
+        <div id="gal"></div>
+      </div>
+    </div>`,
+  renderSummary(on) {
+    const scores = GROUPS.filter(G => G.answered).map(G => G.firstRight);
+    const missed = QIDS.map(id => ({ id, n: GROUPS.filter(G => G.qs[id].firstOk).length })).sort((a, b) => a.n - b.n)[0];
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Reports</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'}</div></div>
+      <div class="tile"><div class="k">Median first-try score</div><div class="v">${scores.length ? fmt(median(scores)) : '—'}<small>/${QIDS.length}</small></div><div class="s">questions right on the first try</div></div>
+      <div class="tile"><div class="k">Most missed</div><div class="v" style="font-size:1rem">${GROUPS.length ? esc(RQ[missed.id].short) : '—'}</div><div class="s">${GROUPS.length ? `${missed.n}/${GROUPS.length} right on the first try` : ''}</div></div>
+      <div class="tile"><div class="k">Built a correct function</div><div class="v">${GROUPS.filter(G => G.build.ok).length}<small>/${GROUPS.length}</small></div><div class="s">without seeing the example</div></div>`;
+    document.getElementById('acc').innerHTML = accuracyBars(GROUPS);
+    const gal = document.getElementById('gal');
+    gal.innerHTML = gallery(on);
+    drawGallery(gal, on);
+  },
+
+  resultsHead: '<th>Right on 1st try</th><th>Tries</th><th>Answers seen</th><th>Function</th><th>Features</th>',
+  resultsRow(G) {
+    return `<td><b>${G.firstRight}</b><span class="muted">/${QIDS.length}</span></td><td>${G.tries}</td><td>${G.revealed || '<span class="muted">0</span>'}</td>
+      <td class="mono" style="font-size:.8rem">${esc(G.build.f || '—')}</td>
+      <td>${G.build.an ? (G.build.ok ? '<span class="ok-mark">✓ all</span>' : G.build.nOk + '/4') : '—'}${G.build.rev ? ' <span class="muted">(example)</span>' : ''}</td>`;
+  },
+
+  slides(on) {
+    return [
+      { html: `<h2>Right on the first try, by question</h2><div class="card">${accuracyBars(GROUPS)}</div>` },
+      { html: `<h2>Everyone's rational function</h2><div class="sub">Zeros at −4 and 1, a vertical asymptote at x = 2, a hole at x = −1, horizontal asymptote y = 3</div><div id="show-gal">${gallery(on, 16)}</div>`,
+        draw: () => drawGallery(document.getElementById('show-gal'), on) },
+    ];
+  },
+
+  detail(G) {
+    const s = G.s;
+    const row = id => {
+      const q = RQ[id], st = G.qs[id];
+      const first = st.first == null ? '<span class="muted">—</span>' : esc(answerLabel(q, answerKey(q, st.first)));
+      return `<tr><td>${RQ_SECTIONS[q.sec].code}</td><td>${esc(q.short)}</td><td>${first}</td><td>${st.firstOk ? '<span class="ok-mark">✓</span>' : st.first != null ? '✗' : ''}</td>
+        <td>${st.tries || ''}</td><td>${st.rev ? 'saw answer' : st.ok ? '<span class="ok-mark">✓</span>' : ''}</td></tr>`;
+    };
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">Right on the first try</div><div class="v">${G.firstRight}<small>/${QIDS.length}</small></div><div class="s">${G.tries} tries in all</div></div>
+        <div class="tile"><div class="k">Answers seen</div><div class="v">${G.revealed}</div><div class="s">after 2 wrong tries</div></div>
+        <div class="tile"><div class="k">Their function</div><div class="v" style="font-size:1rem" class="mono">${esc(G.build.f || '—')}</div><div class="s">${G.build.ok ? 'every feature ✓' : G.build.an ? G.build.nOk + ' of 4 features' : ''}${G.build.rev ? ' · saw the example' : ''} · ${G.build.tries} tries</div></div>
+        ${sentTile(G)}
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="two">
+        <div class="card"><h3>Answers (first try)</h3><div class="table-wrap"><table class="t">
+          <thead><tr><th></th><th>Question</th><th>First answer</th><th>1st</th><th>Tries</th><th>Final</th></tr></thead>
+          <tbody>${QIDS.map(row).join('')}</tbody></table></div></div>
+        <div class="card"><h3>Their function</h3><svg class="plot" id="detail-fn"></svg></div>
+      </div>
+      <div class="answers">
+        ${detailAnswer('1.7 End behavior', s.why?.end)}
+        ${detailAnswer('1.8 Zeros', s.why?.zero)}
+        ${detailAnswer('1.9 Vertical asymptotes', s.why?.va)}
+        ${detailAnswer('1.10 Holes', s.why?.hole)}
+        ${detailAnswer('1.11 Equivalent representations', s.why?.ld)}
+        ${detailAnswer('1.12 Transformations', s.why?.tr)}
+        ${detailAnswer('How they built their function', s.why?.build)}
+        ${detailAnswer('Hardest topic', s.reflect?.hard)}
+        ${detailAnswer('Question they still have', s.reflect?.question)}
+      </div>`;
+  },
+  drawDetail: G => { if (G.build.an) RF.mini(document.getElementById('detail-fn'), G.build.an, G.build.ok ? 'var(--green)' : 'var(--accent)', 440, 300); },
+
+  computed: G => ({ first_try_right: G.firstRight, answers_seen: G.revealed, tries: G.tries, build_ok: G.build.ok }),
+  csv: {
+    head: ['session', 'group', 'students', 'mode', 'first_try_right', 'tries', 'answers_seen', 'function', 'function_ok', ...QIDS.map(id => id + '_first')],
+    rows: G => [[G.s.session, G.s.group, who(G), G.s.mode, G.firstRight, G.tries, G.revealed, G.build.f, G.build.ok, ...QIDS.map(id => G.qs[id].first ?? '')]],
+  },
+
+  demo() {
+    const rnd = (a, b) => a + Math.random() * (b - a), pickOne = a => a[Math.floor(Math.random() * a.length)];
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz', 'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva'];
+    // Typical wrong first answers
+    const WRONG = {
+      end_f: ['zero', 'big'], end_g: ['ha'], end_h: ['ha', 'zero'], end_ha: ['1', '2/1x', '3'],
+      zer_list: ['2, -3', '2, -3, 5', '-3'], zer_sign: ['d', 'b', 'c'],
+      va_list: ['3', '3, -2, -1', '-1'], va_3l: ['pinf'], va_3r: ['minf'], va_m2: ['mp', 'pm', 'mm'],
+      hole_x: ['-3', '-1'], hole_y: ['0', '2'], hole_va: ['1', '3'],
+      ld_a: ['2'], ld_b: ['-1', '0'], ld_r: ['0', '-2'], ld_mean: ['b', 'c', 'd'],
+      tr_va: ['-3'], tr_ha: ['-1', '-2'], tr_list: ['b', 'c', 'd'], tr_val: ['-3', '1'],
+    };
+    const hardQ = { zer_list: .5, va_m2: .45, hole_y: .5, ld_mean: .6, tr_list: .55, end_h: .6, zer_sign: .45 };
+    const texts = {
+      end: ['If the numerator and denominator have the same degree the function approaches the ratio of the leading coefficients, if the denominator is bigger it goes to zero, and if the numerator is bigger it grows without bound.',
+        'It depends on which one is bigger, the top or the bottom.'],
+      zero: ['Because at x = -3 the denominator is also zero, so the function is undefined there. The factor cancels and it becomes a hole, not a zero.', 'Because it cancels.'],
+      va: ['At x = -2 the factor is squared, so it is positive on both sides and the sign does not change. At x = 3 the factor appears once so it changes sign.', 'Because of the square.'],
+      hole: ['The hole is only one missing point, so the calculator draws the line through it. You cancel the common factor and substitute x = 1 into what is left.', 'You plug in 1.'],
+      ld: ['Because the denominator gets very big and 2 stays the same, so 2 over a huge number is almost zero. So the graph gets close to the line y = x + 1.', 'Because it is divided by a big number.'],
+      tr: ['The vertical asymptote is where x - 3 = 0, so x = 3, and the horizontal asymptote is the number added at the end, y = 1.', 'Look at the numbers.'],
+      build: ['I put (x - 1)(x + 4) on top for the zeros, (x + 1) on top and bottom for the hole, and (x - 2) squared on the bottom so the degrees are equal. Then a 3 in front for the asymptote.', 'I tried until it worked.'],
+      hard: ['Holes, because I forgot to cancel the factor before plugging in the x value.', 'Transformations because I mix up left and right.', 'The sign of the function near the asymptotes was the hardest.'],
+      question: ['Can a graph cross its horizontal asymptote?', '', 'What happens if the hole is also on the x-axis?', ''],
+    };
+    const FUNCS = [['3(x-1)(x+4)(x+1)/((x-2)^2(x+1))', true], ['3(x-1)(x+4)(x+1)/((x-2)^2(x+1))', true], ['3(x^2+3x-4)(x+1)/((x-2)^2(x+1))', true],
+      ['3(x-1)(x+4)/((x-2)(x+1))', false], ['(x-1)(x+4)(x+1)/((x-2)^2(x+1))', false], ['3(x-1)(x+4)(x+1)/((x-2)(x+1))', false], ['3(x-1)(x+4)(x+1)/((x-2)(x+1)(x-2))', true]];
+    const reports = [];
+    for (let i = 0; i < 12; i++) {
+      const strong = i % 4 !== 3, ans = {};
+      QIDS.forEach(id => {
+        const q = RQ[id], pWrong = (hardQ[id] || .2) * (strong ? .6 : 1.4);
+        const wrong = Math.random() < pWrong;
+        const right = q.type === 'mc' ? q.answer : rqAnswerText(q);
+        const first = wrong ? pickOne(WRONG[id]) : right;
+        const tries = wrong ? 1 + Math.ceil(rnd(0, 2)) : 1;
+        const rev = wrong && tries >= 3 && Math.random() < .5;
+        ans[id] = { v: right, first, tries, ok: !rev, rev };
+      });
+      const [f, ok] = FUNCS[i % FUNCS.length];
+      const pick = k => strong ? texts[k][0] : texts[k][1];
+      reports.push({
+        schema: 1, lab: 'rational-functions', id: 'demo' + i, session: 'DEMO', mode: 'individual', group: '', students: [names[i], ''],
+        ans, why: { end: pick('end'), zero: pick('zero'), va: pick('va'), hole: pick('hole'), ld: pick('ld'), tr: pick('tr'), build: pick('build') },
+        build: { f, first: f, tries: ok ? 1 + (i % 3) : 4, ok, rev: !ok && i % 2 === 1 },
+        reflect: { hard: pickOne(texts.hard), question: pickOne(texts.question) },
+        startedAt: new Date().toISOString(), submittedAt: new Date(Date.now() - (12 - i) * 60000).toISOString(),
+      });
+    }
+    return reports;
+  },
+});
+</script>
+</body>
+</html>

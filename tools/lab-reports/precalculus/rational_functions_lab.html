@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rational Functions</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950;
+    --green-soft: rgba(63,185,80,.12);
+    --amber: #d29922;
+    --amber-soft: rgba(210,153,34,.14);
+    --red: #f85149;
+    --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #0969da;
+    --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37;
+    --green-soft: rgba(26,127,55,.09);
+    --amber: #9a6700;
+    --amber-soft: rgba(154,103,0,.10);
+    --red: #cf222e;
+  }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.5; min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.3px; }
+  header h1 span { color: var(--accent); }
+  .progress { flex: 1; min-width: 140px; display: flex; gap: 4px; }
+  .progress i { flex: 1; height: 6px; border-radius: 3px; background: var(--surface2); border: 1px solid var(--border); }
+  .progress i.done { background: var(--green); border-color: var(--green); }
+  .progress i.current { background: var(--accent); border-color: var(--accent); }
+  .save-state { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .pill-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 20px; padding: 5px 12px; font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer;
+  }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  .intro { color: var(--muted); font-size: .92rem; margin-bottom: 20px; }
+  .intro b { color: var(--text); }
+
+  /* ── STEPS ── */
+  .step {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .step-head {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-head .num {
+    width: 30px; height: 30px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; font-weight: 800; font-size: .9rem;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .step.done .num { background: var(--green); border-color: var(--green); color: #fff; }
+  .step.active .num { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step-head h2 { font-size: 1.02rem; font-weight: 700; flex: 1; }
+  .step-head .status { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .step.done .status { color: var(--green); }
+  .step-body { padding: 18px; display: grid; gap: 16px; }
+  .step-lock { display: none; padding: 14px 18px; color: var(--muted); font-size: .88rem; }
+  .step.locked .step-body { display: none; }
+  .step.locked .step-lock { display: block; }
+  .step.locked .step-head { border-bottom: none; opacity: .6; }
+
+  p.lead { font-size: .93rem; }
+  ul.tips { font-size: .86rem; color: var(--muted); padding-left: 20px; display: grid; gap: 3px; }
+  ul.tips b { color: var(--text); }
+
+  /* ── FORM ── */
+  label.f { display: grid; gap: 5px; font-size: .82rem; font-weight: 600; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; font: inherit; font-size: .95rem; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  input[readonly] { background: var(--surface2); color: var(--muted); }
+  .q { display: grid; gap: 6px; }
+  .q .qt { font-size: .93rem; font-weight: 600; }
+  .q .qt em { font-style: normal; color: var(--accent); }
+  .wc { font-size: .72rem; color: var(--muted); text-align: right; }
+  .wc.ok { color: var(--green); }
+
+  .choices { display: grid; gap: 6px; }
+  .choices label {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: .92rem;
+  }
+  .choices label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px; }
+  .checks label { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; cursor: pointer; }
+  .checks input { margin-top: 4px; }
+
+  .btn {
+    font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;
+    border-radius: 8px; padding: 9px 16px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text);
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .row-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .note {
+    border-radius: 8px; padding: 10px 14px; font-size: .88rem;
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+  }
+  .note.warn { background: var(--amber-soft); border-left-color: var(--amber); }
+  .note.good { background: var(--green-soft); border-left-color: var(--green); }
+  .discuss {
+    border: 1px dashed var(--accent); border-radius: 10px; padding: 14px; display: grid; gap: 8px;
+    background: var(--accent-soft);
+  }
+  .discuss .tag { font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table.data { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  table.data th {
+    text-align: left; font-size: .74rem; color: var(--muted); font-weight: 700;
+    padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  table.data td { padding: 4px 6px; border-bottom: 1px solid var(--border); }
+  table.data td.calc { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; white-space: nowrap; }
+  table.data td.idx { color: var(--muted); width: 28px; text-align: center; }
+  table.data input { padding: 6px 8px; min-width: 70px; }
+  table.data tr.bad td.calc { color: var(--red); }
+  .del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: 2px 6px; }
+  .del:hover { color: var(--red); }
+
+  /* ── PLOT ── */
+  .plot { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+  .plot text { fill: var(--muted); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .plot .axis { stroke: var(--muted); stroke-width: 1; }
+  .plot .grid { stroke: var(--border); stroke-width: 1; }
+  .plot .pt { fill: var(--accent); stroke: var(--bg); stroke-width: 1.5; }
+  .plot .fit { stroke: var(--green); stroke-width: 2.2; stroke-dasharray: 7 4; }
+  .plot .lbl { fill: var(--text); font-weight: 600; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+  .stat .k { font-size: .72rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .stat .v { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat .v small { font-size: .8rem; color: var(--muted); font-weight: 600; }
+  .eq { font-family: Consolas, 'Courier New', monospace; font-size: .95rem; }
+
+  .inline-k { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 700; }
+  .inline-k input { width: 110px; }
+
+  .summary { display: grid; gap: 4px; font-size: .9rem; }
+  .summary div::before { content: '○ '; color: var(--muted); }
+  .summary div.ok::before { content: '✓ '; color: var(--green); font-weight: 800; }
+
+  .diagram { max-width: 260px; margin: 0 auto; display: block; }
+  .diagram text { fill: var(--text); font-size: 13px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .setup-grid { display: grid; grid-template-columns: 1fr 220px; gap: 16px; align-items: start; }
+  @media (max-width: 620px) { .setup-grid { grid-template-columns: 1fr; } }
+
+  /* ── LAB GUIDE ── */
+  dialog.guide {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+    width: min(780px, 94vw); max-height: 90vh; margin: auto; padding: 0;
+  }
+  dialog.guide::backdrop { background: rgba(0,0,0,.55); }
+  .guide-head { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .guide-head h2 { font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .guide-body { padding: 18px; display: grid; gap: 18px; font-size: .92rem; }
+  .guide-body h3 { font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .guide-body ol, .guide-body ul { padding-left: 22px; display: grid; gap: 6px; }
+  .guide-body li b { color: var(--text); }
+  .guide-cols { display: grid; grid-template-columns: 1fr 230px; gap: 18px; align-items: start; }
+  .guide-cols.wide-fig { grid-template-columns: 1fr 280px; }
+  .guide-materials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .guide-cols, .guide-cols.wide-fig, .guide-materials { grid-template-columns: 1fr; } }
+  .guide-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .guide-box .bt { font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  .guide-fig { width: 100%; height: auto; display: block; }
+  .guide-fig text { fill: var(--text); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .guide-foot { padding: 0 18px 18px; display: flex; justify-content: flex-end; }
+  .guide-link { background: none; border: none; color: var(--accent); font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer; padding: 0; text-align: left; justify-self: start; }
+  .guide-link:hover { text-decoration: underline; }
+
+
+  /* ── HOW-TO LISTS (instructions where they are used) ── */
+  ol.howto { padding-left: 22px; display: grid; gap: 6px; font-size: .9rem; }
+  ol.howto li::marker { color: var(--accent); font-weight: 800; }
+  ol.howto b { color: var(--text); }
+
+  footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
+  footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+
+  /* ── RATIONAL FUNCTIONS ── */
+  .fx { font-family: 'Cambria Math', 'STIX Two Math', Georgia, serif; font-size: 1.05em; white-space: nowrap; }
+  .fbox { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 1.05rem; text-align: center; }
+  .chk { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; }
+  .chk.ok { border-color: var(--green); }
+  .chk .qt { font-size: .93rem; font-weight: 600; }
+  .chk .inline-k input { width: 150px; }
+  .chk.ok input { opacity: .8; }
+  .rf-graph { display: grid; gap: 8px; }
+  .rf-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .rf-bar .btn { padding: 5px 12px; font-size: .82rem; }
+  .rf-read { font-family: Consolas, 'Courier New', monospace; color: var(--muted); font-size: .85rem; margin-left: auto; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tabs button { font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; border-radius: 20px; padding: 5px 14px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); }
+  .tabs button.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .vtable td, .vtable th { text-align: right; font-variant-numeric: tabular-nums; }
+  .feat { display: grid; gap: 4px; font-size: .9rem; }
+  .feat div::before { content: '○ '; color: var(--muted); }
+  .feat div.ok::before { content: '✓ '; color: var(--green); font-weight: 800; }
+  .feat div.no::before { content: '✗ '; color: var(--red); font-weight: 800; }
+  .legend-line { font-size: .8rem; color: var(--muted); }
+  .legend-line i { display: inline-block; width: 18px; border-top: 2px dashed; vertical-align: middle; margin: 0 4px 0 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="pill-btn" href="../../../index.html#lab-reports" style="text-decoration:none">← Lab Reports</a>
+  <h1>📈 <span>Rational Functions</span></h1>
+  <div class="progress" id="progress"></div>
+  <span class="save-state" id="save-state">Saved on this computer</span>
+  <button class="pill-btn" data-guide>📋 Guide</button>
+  <button class="pill-btn" id="theme-toggle">☀ Light</button>
+</header>
+
+<main>
+  <p class="intro"><span data-team>Work <b>with your partner</b> through the sections in order.</span><span data-solo hidden>Work <b>on your own</b> through the sections in order.</span> In each section, answer and press <b>Check</b>: you'll see right away if you are right, with a hint if you aren't. Use the graph to check your thinking. Your work is saved on this computer as you type. When you finish, send it to your teacher.</p>
+
+  <!-- 1 TEAM -->
+  <section class="step" data-step="1">
+    <div class="step-head"><span class="num">1</span><h2>Who are you?</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="q">
+        <div class="qt">Who is answering? Do what your teacher told you.</div>
+        <div class="choices">
+          <label><input type="radio" name="mode" value="individual"> Just me: my own answers</label>
+          <label><input type="radio" name="mode" value="group"> Our group: one set of answers for the group</label>
+        </div>
+      </div>
+      <div class="grid2">
+        <label class="f">Class / session code<input type="text" data-bind="session" id="session-input" placeholder="e.g. PC-1"></label>
+        <label class="f"><span data-team>Group number</span><span data-solo hidden>Group or table number (if you have one)</span><input type="text" inputmode="numeric" data-bind="group" placeholder="e.g. 4"></label>
+      </div>
+      <div class="grid2">
+        <label class="f"><span data-team>Student 1</span><span data-solo hidden>Your name</span><input type="text" data-bind="students.0" placeholder="Full name"></label>
+        <label class="f" data-team>Student 2<input type="text" data-bind="students.1" placeholder="Full name"></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 END BEHAVIOR -->
+  <section class="step" data-step="2">
+    <div class="step-head"><span class="num">2</span><h2>1.7 · End behavior</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">What happens to a rational function when x gets very large, positive or negative? Look at these three:</p>
+      <div class="fbox"><span class="fx">f(x) = (2x² − 3) / (x² + 1)</span> &nbsp;·&nbsp; <span class="fx">g(x) = (x + 1) / (x² − 4)</span> &nbsp;·&nbsp; <span class="fx">h(x) = (x² + 1) / (x − 1)</span></div>
+      <div class="chk" data-q="end_f"></div>
+      <div class="chk" data-q="end_g"></div>
+      <div class="chk" data-q="end_h"></div>
+      <div class="chk" data-q="end_ha"></div>
+      <div class="tabs" id="end-tabs"><button data-fn="f" class="on">f(x)</button><button data-fn="g">g(x)</button><button data-fn="h">h(x)</button></div>
+      <div id="g-end"></div>
+      <div class="legend-line">Use <b>Zoom out</b> to see the end behavior.<i style="color:var(--red)"></i>vertical asymptote<i style="color:var(--amber)"></i>end behavior asymptote</div>
+      <div class="q">
+        <div class="qt">In your own words: how do the degrees of the numerator and the denominator decide the end behavior of a rational function?</div>
+        <textarea data-bind="why.end" data-min="15"></textarea>
+        <div class="wc" data-wc="why.end"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 ZEROS -->
+  <section class="step" data-step="3">
+    <div class="step-head"><span class="num">3</span><h2>1.8 · Zeros</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="fbox"><span class="fx">r(x) = (x − 2)(x + 3) / ((x + 3)(x − 5))</span></div>
+      <div class="chk" data-q="zer_list"></div>
+      <div class="chk" data-q="zer_sign"></div>
+      <div id="g-zero"></div>
+      <div class="q">
+        <div class="qt">Why is x = −3 not a zero of r, even though the numerator is 0 there?</div>
+        <textarea data-bind="why.zero" data-min="12"></textarea>
+        <div class="wc" data-wc="why.zero"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 VERTICAL ASYMPTOTES -->
+  <section class="step" data-step="4">
+    <div class="step-head"><span class="num">4</span><h2>1.9 · Vertical asymptotes</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="fbox"><span class="fx">s(x) = (x + 1) / ((x − 3)(x + 2)²)</span></div>
+      <div class="chk" data-q="va_list"></div>
+      <p class="lead">Use this table of values to see what s does close to each asymptote:</p>
+      <div class="table-wrap"><table class="data vtable" id="va-table"></table></div>
+      <div class="chk" data-q="va_3l"></div>
+      <div class="chk" data-q="va_3r"></div>
+      <div class="chk" data-q="va_m2"></div>
+      <div id="g-va"></div>
+      <div class="q">
+        <div class="qt">Why does s go to +∞ on <em>both</em> sides of x = −2, but to opposite infinities on each side of x = 3?</div>
+        <textarea data-bind="why.va" data-min="15"></textarea>
+        <div class="wc" data-wc="why.va"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 HOLES -->
+  <section class="step" data-step="5">
+    <div class="step-head"><span class="num">5</span><h2>1.10 · Holes</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="fbox"><span class="fx">q(x) = (x² − 1) / (x² + 2x − 3)</span></div>
+      <p class="lead">Factor the numerator and the denominator first.</p>
+      <div class="chk" data-q="hole_x"></div>
+      <div class="chk" data-q="hole_y"></div>
+      <div class="chk" data-q="hole_va"></div>
+      <div id="g-hole"></div>
+      <div class="legend-line">The open circle marks the hole.</div>
+      <div class="q">
+        <div class="qt">Why doesn't a calculator graph show the hole? How do you find its y-coordinate?</div>
+        <textarea data-bind="why.hole" data-min="12"></textarea>
+        <div class="wc" data-wc="why.hole"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 EQUIVALENT REPRESENTATIONS -->
+  <section class="step" data-step="6">
+    <div class="step-head"><span class="num">6</span><h2>1.11 · Equivalent representations</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">Back to <span class="fx">h(x) = (x² + 1) / (x − 1)</span> from section 1.7. Use <b>polynomial long division</b> to write it as</p>
+      <div class="fbox"><span class="fx">h(x) = q(x) + R / (x − 1)</span></div>
+      <div class="chk" data-q="ld_a"></div>
+      <div class="chk" data-q="ld_b"></div>
+      <div class="chk" data-q="ld_r"></div>
+      <div class="chk" data-q="ld_mean"></div>
+      <div id="g-ld"></div>
+      <div class="q">
+        <div class="qt">Why does R / (x − 1) get closer to 0 when |x| is large? What does that mean for the graph of h?</div>
+        <textarea data-bind="why.ld" data-min="12"></textarea>
+        <div class="wc" data-wc="why.ld"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 TRANSFORMATIONS -->
+  <section class="step" data-step="7">
+    <div class="step-head"><span class="num">7</span><h2>1.12 · Transformations</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="fbox"><span class="fx">g(x) = −2 / (x − 3) + 1</span> &nbsp; compared with &nbsp; <span class="fx">f(x) = 1/x</span></div>
+      <div class="chk" data-q="tr_va"></div>
+      <div class="chk" data-q="tr_ha"></div>
+      <div class="chk" data-q="tr_list"></div>
+      <div class="chk" data-q="tr_val"></div>
+      <div id="g-tr"></div>
+      <div class="legend-line">The dotted curve is f(x) = 1/x.</div>
+      <div class="q">
+        <div class="qt">How can you find the asymptotes of g just by looking at its equation, without graphing?</div>
+        <textarea data-bind="why.tr" data-min="12"></textarea>
+        <div class="wc" data-wc="why.tr"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 BUILD -->
+  <section class="step" data-step="8">
+    <div class="step-head"><span class="num">8</span><h2>Build your own rational function</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">Write a rational function that has <b>all</b> of these features, and <b>no other</b> zeros, vertical asymptotes or holes:</p>
+      <div class="feat" id="build-feats"></div>
+      <label class="f">Your function r(x) =
+        <input type="text" id="build-input" data-bind="build.f" placeholder="e.g. 2(x - 1)/((x + 3)(x - 5))" autocomplete="off" spellcheck="false"></label>
+      <div class="save-state">Type * for multiplication or just write factors next to each other, and ^ for powers: <b>(x-2)^2</b>.</div>
+      <div class="row-btns"><button class="btn primary" id="build-check">Check my function</button><button class="btn" id="build-reveal" hidden>Show an example</button><span class="save-state" id="build-tries"></span></div>
+      <div id="build-fb"></div>
+      <div id="g-build"></div>
+      <div class="q">
+        <div class="qt">Explain how you chose each part of your function: the numerator, the denominator and the number in front.</div>
+        <textarea data-bind="why.build" data-min="15"></textarea>
+        <div class="wc" data-wc="why.build"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 REFLECT -->
+  <section class="step" data-step="9">
+    <div class="step-head"><span class="num">9</span><h2>Reflect</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="q">
+        <div class="qt">Which topic was the hardest for you, and why?</div>
+        <textarea data-bind="reflect.hard" data-min="10"></textarea>
+        <div class="wc" data-wc="reflect.hard"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Write one question you still have about rational functions. (Optional)</div>
+        <textarea data-bind="reflect.question" style="min-height:60px"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 SUBMIT -->
+  <section class="step" data-step="10">
+    <div class="step-head"><span class="num">10</span><h2>Send your answers</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="summary" id="summary"></div>
+      <div class="row-btns">
+        <button class="btn primary" id="send">📤 Send to teacher</button>
+        <button class="btn" id="download">⬇ Download backup file</button>
+        <button class="btn" id="next-group">👥 New report for the next student</button>
+      </div>
+      <div id="send-status"></div>
+    </div>
+  </section>
+</main>
+
+<dialog class="guide" id="guide">
+  <div class="guide-head"><h2>📋 Guide: Rational Functions</h2><button class="pill-btn" data-guide-close>Close</button></div>
+  <div class="guide-body">
+    <p class="note">Read this before you start. You can open it again at any moment with the <b>📋 Guide</b> button at the top.</p>
+    <section>
+      <h3>Goal</h3>
+      <p>Understand what the factors of a rational function tell you about its graph: its <b>end behavior</b>, <b>zeros</b>, <b>vertical asymptotes</b> and <b>holes</b>, how to rewrite it with <b>long division</b>, and how <b>transformations</b> move it. (AP Precalculus, topics 1.7 to 1.12.)</p>
+    </section>
+    <section>
+      <h3>How it works</h3>
+      <ol>
+        <li>Each section has a function and a few questions. <b>Answer first, then press Check.</b> If you are not right, read the hint and try again.</li>
+        <li>After two wrong tries you can see the answer, but try first: your teacher sees how many tries you needed.</li>
+        <li>Use the <b>graph</b> to check your thinking. Zoom out to see the end behavior; move the mouse over the graph to read values.</li>
+        <li>Each section ends with an explanation in your own words. Your teacher will share some of them with the class.</li>
+        <li>At the end, you build your own rational function with the features we give you.</li>
+      </ol>
+    </section>
+    <section>
+      <h3>Writing functions</h3>
+      <p>Type <b>^</b> for powers and use parentheses: <span class="fx">(x^2 - 1)/((x - 2)(x + 3))</span>. You can write <span class="fx">3(x - 1)</span> without a * sign.</p>
+    </section>
+  </div>
+  <div class="guide-foot"><button class="btn primary" data-guide-close>Got it, let's start</button></div>
+</dialog>
+
+<dialog class="guide" id="who-dlg">
+  <div class="guide-head"><h2>👋 Whose answers are these?</h2></div>
+  <div class="guide-body">
+    <p>This computer already has answers for this activity:</p>
+    <div class="note" id="who-cur"></div>
+    <p>Are they yours? If not, start a new report. The one already here is <b>kept on this computer</b>, so it is not lost.</p>
+    <div class="row-btns">
+      <button class="btn primary" id="who-continue">Yes, they're mine: continue</button>
+      <button class="btn" id="who-new">No, start a new report</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="guide" id="arch-dlg">
+  <div class="guide-head"><h2>🗂 Earlier reports on this computer</h2><button class="pill-btn" id="arch-close">Close</button></div>
+  <div class="guide-body">
+    <p class="note">Reports that earlier students left on this computer. If one was not sent, download it and give the file to your teacher.</p>
+    <div id="arch-list" style="display:grid;gap:8px"></div>
+  </div>
+</dialog>
+
+<footer>
+  Rational Functions · Ergosfera Teaching Tools · <button id="reset">Start a new report</button> · <button id="arch-open" hidden>Earlier reports on this computer</button>
+</footer>
+
+<script src="rational.js"></script>
+<script src="rational_questions.js"></script>
+<script>
+// ── Config from the link the teacher shares ─────────────────
+const LAB_ID = 'rational-functions';
+const params = new URLSearchParams(location.search);
+const API = params.get('api') || '';
+const LINK_SESSION = params.get('session') || '';
+const LINK_MODE = ['group', 'individual'].includes(params.get('mode')) ? params.get('mode') : '';
+const STORE = 'lab_' + LAB_ID + '_' + (LINK_SESSION || 'default');
+const REVEAL_AFTER = 2, BUILD_REVEAL_AFTER = 5;
+
+// ── State ───────────────────────────────────────────────────
+function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+function blank() {
+  return {
+    schema: 1, lab: LAB_ID, id: rid(), session: LINK_SESSION, mode: LINK_MODE, group: '', students: ['', ''],
+    ans: {},   // question id → { v, first, tries, ok, rev }
+    why: { end: '', zero: '', va: '', hole: '', ld: '', tr: '', build: '' },
+    build: { f: '', first: '', tries: 0, ok: false, rev: false },
+    reflect: { hard: '', question: '' },
+    startedAt: new Date().toISOString(), unlocked: 1, sent: null,
+  };
+}
+let S = blank();
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+  if (saved && saved.lab === LAB_ID) S = Object.assign(blank(), saved);
+} catch (e) {}
+if (LINK_SESSION) S.session = LINK_SESSION;
+if (LINK_MODE) S.mode = LINK_MODE;
+
+let saveTimer;
+function save() {
+  S.savedAt = new Date().toISOString();
+  try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {}
+  const el = document.getElementById('save-state');
+  el.textContent = 'Saving…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { el.textContent = 'Saved on this computer ✓'; }, 400);
+}
+
+function getPath(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), S); }
+function setPath(path, v) {
+  const keys = path.split('.'); let o = S;
+  keys.slice(0, -1).forEach(k => { o = o[k]; });
+  o[keys[keys.length - 1]] = v;
+}
+
+// ── Helpers ─────────────────────────────────────────────────
+const words = s => String(s || '').trim().split(/\s+/).filter(Boolean).length;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fn = text => RF.analyze(RF.parse(text).rat);
+const qState = id => S.ans[id] || (S.ans[id] = { v: '', first: null, tries: 0, ok: false, rev: false });
+const qDone = id => !!(S.ans[id] && (S.ans[id].ok || S.ans[id].rev));
+const secQs = sec => Object.keys(RQ).filter(id => RQ[id].sec === sec);
+
+// ── Steps: completion rules ─────────────────────────────────
+const secDone = (sec, min) => secQs(sec).every(qDone) && words(S.why[sec]) >= min;
+const DONE = {
+  1: () => S.mode && S.session.trim() && S.students[0].trim() && (S.mode === 'individual' || (S.group.trim() && S.students[1].trim())),
+  2: () => secDone('end', 15),
+  3: () => secDone('zero', 12),
+  4: () => secDone('va', 15),
+  5: () => secDone('hole', 12),
+  6: () => secDone('ld', 12),
+  7: () => secDone('tr', 12),
+  8: () => (S.build.ok || S.build.rev) && words(S.why.build) >= 15,
+  9: () => words(S.reflect.hard) >= 10,
+  10: () => !!S.sent,
+};
+const NSTEPS = 10;
+
+function refresh() {
+  let firstOpen = 1;
+  while (firstOpen < NSTEPS && DONE[firstOpen]()) firstOpen++;
+  S.unlocked = Math.max(S.unlocked || 1, firstOpen);
+  const prog = document.getElementById('progress');
+  prog.innerHTML = '';
+  document.querySelectorAll('.step').forEach(sec => {
+    const i = +sec.dataset.step;
+    const done = !!DONE[i]();
+    const locked = i > S.unlocked;
+    sec.classList.toggle('done', done);
+    sec.classList.toggle('locked', locked);
+    sec.classList.toggle('active', !done && !locked);
+    sec.querySelector('.status').textContent = done ? '✓ Done' : locked ? '🔒' : 'In progress';
+    sec.querySelector('.step-lock').textContent = '🔒 Finish section ' + (i - 1) + ' to unlock this one.';
+    const dot = document.createElement('i');
+    if (done) dot.className = 'done'; else if (!locked) dot.className = 'current';
+    prog.appendChild(dot);
+  });
+  document.querySelectorAll('[data-wc]').forEach(el => {
+    const path = el.dataset.wc;
+    const min = +document.querySelector(`[data-bind="${path}"]`).dataset.min;
+    const w = words(getPath(path));
+    el.textContent = w + (w === 1 ? ' word' : ' words') + ' · at least ' + min;
+    el.classList.toggle('ok', w >= min);
+  });
+  refreshSummary();
+}
+
+// ── Generic bindings ────────────────────────────────────────
+document.querySelectorAll('[data-bind]').forEach(el => {
+  const path = el.dataset.bind;
+  el.value = getPath(path) ?? '';
+  el.addEventListener('input', () => { setPath(path, el.value); save(); refresh(); });
+});
+if (LINK_SESSION) document.getElementById('session-input').readOnly = true;
+
+// Report mode: one report per group, or one per student. The class link can fix it (&mode=…).
+function applyMode() {
+  const solo = S.mode === 'individual';
+  document.querySelectorAll('[data-solo]').forEach(el => { el.hidden = !solo; });
+  document.querySelectorAll('[data-team]').forEach(el => { el.hidden = solo; });
+}
+document.querySelectorAll('input[name=mode]').forEach(r => {
+  r.checked = r.value === S.mode;
+  r.disabled = !!LINK_MODE;
+  r.addEventListener('change', () => { S.mode = r.value; applyMode(); save(); refresh(); });
+});
+applyMode();
+
+// ── Questions with immediate feedback ───────────────────────
+// The first answer checked is kept (that's what the teacher's charts show); after REVEAL_AFTER
+// wrong tries the student may see the answer.
+function renderQ(box) {
+  const id = box.dataset.q, q = RQ[id], st = qState(id);
+  const input = q.type === 'mc'
+    ? `<div class="choices">${Object.entries(q.options).map(([k, t]) =>
+        `<label><input type="radio" name="q-${id}" value="${k}"> ${esc(t)}</label>`).join('')}</div>`
+    : `<div class="inline-k"><input type="text" data-in placeholder="${q.type === 'list' ? 'e.g. 1, -2' : 'your answer'}" autocomplete="off"></div>`;
+  box.innerHTML = `<div class="qt">${q.text}</div>${input}
+    <div class="row-btns"><button class="btn primary" data-check>Check</button><button class="btn" data-reveal hidden>Show the answer</button><span class="save-state" data-tries></span></div>
+    <div data-fb></div>`;
+  if (q.type === 'mc') box.querySelectorAll('input').forEach(r => { r.checked = r.value === st.v; });
+  else box.querySelector('[data-in]').value = st.v;
+  box.addEventListener('input', e => {
+    st.v = e.target.type === 'radio' ? e.target.value : e.target.value;
+    save();
+  });
+  box.addEventListener('change', e => { if (e.target.type === 'radio') { st.v = e.target.value; save(); } });
+  box.querySelector('[data-in]')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); check(); } });
+  box.querySelector('[data-check]').addEventListener('click', check);
+  box.querySelector('[data-reveal]').addEventListener('click', () => {
+    st.rev = true; st.v = q.type === 'mc' ? q.answer : rqAnswerText(q);
+    if (q.type === 'mc') box.querySelectorAll('input').forEach(r => { r.checked = r.value === q.answer; });
+    else box.querySelector('[data-in]').value = st.v;
+    save(); paintQ(box); refresh();
+  });
+  function check() {
+    if (st.ok || st.rev) return;
+    if (!String(st.v).trim()) { box.querySelector('[data-fb]').innerHTML = '<div class="note warn">Answer first, then check.</div>'; return; }
+    if (q.type !== 'mc' && !rqNumbers(st.v).length) { box.querySelector('[data-fb]').innerHTML = '<div class="note warn">Type a number, like 3, −2 or 1/2.</div>'; return; }
+    if (st.first === null) st.first = st.v;
+    st.tries++;
+    st.ok = rqCorrect(q, st.v);
+    st.last = st.v;
+    save(); paintQ(box); refresh();
+  }
+  paintQ(box);
+}
+function paintQ(box) {
+  const id = box.dataset.q, q = RQ[id], st = qState(id);
+  const done = st.ok || st.rev;
+  box.classList.toggle('ok', done);
+  box.querySelectorAll('input').forEach(i => { i.disabled = done; });
+  box.querySelector('[data-check]').hidden = done;
+  box.querySelector('[data-reveal]').hidden = done || st.tries < REVEAL_AFTER;
+  box.querySelector('[data-tries]').textContent = st.tries ? `${st.tries} ${st.tries === 1 ? 'try' : 'tries'}` : '';
+  const fb = box.querySelector('[data-fb]');
+  if (st.ok) fb.innerHTML = `<div class="note good">✓ Right! ${esc(q.ok)}</div>`;
+  else if (st.rev) fb.innerHTML = `<div class="note">The answer is <b>${esc(rqAnswerText(q))}</b>. ${esc(q.ok)}</div>`;
+  else if (st.tries) fb.innerHTML = `<div class="note warn">✗ Not yet. ${esc(q.hint(rqValue(q, st.last ?? st.v)) || 'Try again.')}</div>`;
+  else fb.innerHTML = '';
+}
+document.querySelectorAll('.chk[data-q]').forEach(renderQ);
+
+// ── Graphs ──────────────────────────────────────────────────
+const F = {
+  f: fn('(2x^2-3)/(x^2+1)'), g: fn('(x+1)/(x^2-4)'), h: fn('(x^2+1)/(x-1)'),
+  r: fn('(x-2)(x+3)/((x+3)(x-5))'), s: fn('(x+1)/((x-3)(x+2)^2)'), q: fn('(x^2-1)/(x^2+2x-3)'),
+  t: fn('-2/(x-3)+1'), inv: fn('1/x'),
+};
+const gEnd = RF.graph(document.getElementById('g-end'), { win: { x0: -10, x1: 10, y0: -8, y1: 8 } });
+function showEnd(k) {
+  document.querySelectorAll('#end-tabs button').forEach(b => b.classList.toggle('on', b.dataset.fn === k));
+  gEnd.draw([{ an: F[k] }]);
+}
+document.getElementById('end-tabs').addEventListener('click', e => { if (e.target.dataset.fn) showEnd(e.target.dataset.fn); });
+showEnd('f');
+RF.graph(document.getElementById('g-zero'), { win: { x0: -8, x1: 10, y0: -6, y1: 6 } }).draw([{ an: F.r }]);
+RF.graph(document.getElementById('g-va'), { win: { x0: -6, x1: 6, y0: -3, y1: 3 } }).draw([{ an: F.s }]);
+RF.graph(document.getElementById('g-hole'), { win: { x0: -8, x1: 6, y0: -5, y1: 5 } }).draw([{ an: F.q }]);
+RF.graph(document.getElementById('g-ld'), { win: { x0: -8, x1: 10, y0: -10, y1: 14 } }).draw([{ an: F.h }]);
+RF.graph(document.getElementById('g-tr'), { win: { x0: -6, x1: 10, y0: -6, y1: 7 } }).draw([{ an: F.inv, faint: true, color: 'var(--muted)' }, { an: F.t }]);
+
+// Table of values near the asymptotes of s
+(function vaTable() {
+  const xs = [[2.9, 2.99, 2.999, 3.001, 3.01, 3.1], [-2.1, -2.01, -2.001, -1.999, -1.99, -1.9]];
+  const show = v => Math.abs(v) >= 1e4 ? Math.round(v).toLocaleString('en-US') : String(parseFloat(v.toPrecision(4)));
+  document.getElementById('va-table').innerHTML = xs.map(row =>
+    `<tr><th>x</th>${row.map(x => `<td>${x}</td>`).join('')}</tr><tr><th>s(x)</th>${row.map(x => `<td class="calc">${show(F.s.f(x))}</td>`).join('')}</tr>`).join('');
+})();
+
+// ── Section 8: build your own ───────────────────────────────
+const featHtml = [
+  ['zeros', `Zeros at x = ${RQ_BUILD.zeros.join(' and x = ')}`],
+  ['vas', `A vertical asymptote at x = ${RQ_BUILD.vas[0]}`],
+  ['holes', `A hole at x = ${RQ_BUILD.holes[0]}`],
+  ['ha', `A horizontal asymptote y = ${RQ_BUILD.ha}`],
+];
+const sameSet = (a, b) => a.length === b.length && b.every(v => a.some(x => Math.abs(x - v) < 1e-6));
+// Which target features this function has, with a hint for each one it misses
+function buildCheck(an) {
+  const zs = an.zeros.map(z => z.x), vs = an.vas.map(v => v.x), hs = an.holes.map(h => h.x), T = RQ_BUILD;
+  const out = {};
+  out.zeros = sameSet(zs, T.zeros) ? '' : `Your zeros: ${zs.length ? 'x = ' + RF.list(zs) : 'none'}. Zeros come from factors of the numerator that don't cancel.`;
+  out.vas = sameSet(vs, T.vas) ? '' : `Your vertical asymptotes: ${vs.length ? 'x = ' + RF.list(vs) : 'none'}. They come from factors of the denominator that don't cancel.`;
+  out.holes = sameSet(hs, T.holes) ? '' : `Your holes: ${hs.length ? 'x = ' + RF.list(hs) : 'none'}. A hole needs the same factor in the numerator and the denominator.`;
+  const e = an.end;
+  out.ha = e.kind === 'ha' && Math.abs(e.y - T.ha) < 1e-6 ? ''
+    : e.kind === 'ha' ? `Your horizontal asymptote is y = ${RF.list([e.y])}. With equal degrees it is the ratio of the leading coefficients: change the number in front.`
+    : e.kind === 'zero' ? `Your horizontal asymptote is y = 0, because the denominator has the higher degree (${an.degD} against ${an.degN}). Make the degrees equal.`
+    : `Your function has no horizontal asymptote: the numerator's degree (${an.degN}) is higher than the denominator's (${an.degD}). Make the degrees equal.`;
+  return out;
+}
+const gBuild = RF.graph(document.getElementById('g-build'), { win: { x0: -8, x1: 8, y0: -10, y1: 14 } });
+function paintBuild(an) {
+  const res = an ? buildCheck(an) : null, b = S.build, done = b.ok || b.rev;
+  document.getElementById('build-feats').innerHTML = featHtml.map(([k, t]) =>
+    `<div class="${!res ? '' : res[k] ? 'no' : 'ok'}">${t}</div>`).join('');
+  document.getElementById('build-input').disabled = done;
+  document.getElementById('build-check').hidden = done;
+  document.getElementById('build-reveal').hidden = done || b.tries < BUILD_REVEAL_AFTER;
+  document.getElementById('build-tries').textContent = b.tries ? `${b.tries} ${b.tries === 1 ? 'try' : 'tries'}` : '';
+  const fb = document.getElementById('build-fb');
+  if (b.rev) fb.innerHTML = '<div class="note">One function that works: <span class="fx">3(x − 1)(x + 4)(x + 1) / ((x − 2)²(x + 1))</span>. The factor (x − 2) is squared so that the degrees are equal (3 and 3) without adding another asymptote.</div>';
+  else if (b.ok) fb.innerHTML = '<div class="note good">✓ Your function has every feature. Well done!</div>';
+  else if (res) fb.innerHTML = Object.values(res).filter(Boolean).map(t => `<div class="note warn">${esc(t)}</div>`).join('');
+  if (an) gBuild.draw([{ an }]); else gBuild.draw([]);
+}
+function checkBuild() {
+  const b = S.build;
+  if (b.ok || b.rev) return;
+  const p = RF.parse(b.f);
+  if (p.error) { document.getElementById('build-fb').innerHTML = `<div class="note warn">${esc(p.error)}</div>`; return; }
+  const an = RF.analyze(p.rat);
+  if (!b.first) b.first = b.f;
+  b.tries++;
+  b.ok = Object.values(buildCheck(an)).every(t => !t);
+  save(); paintBuild(an); refresh();
+}
+document.getElementById('build-check').addEventListener('click', checkBuild);
+document.getElementById('build-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); checkBuild(); } });
+document.getElementById('build-reveal').addEventListener('click', () => { S.build.rev = true; save(); paintBuild(null); refresh(); });
+(function initBuild() {
+  const p = S.build.tries ? RF.parse(S.build.f) : null;
+  paintBuild(p && !p.error ? RF.analyze(p.rat) : null);
+})();
+
+// ── Submit ──────────────────────────────────────────────────
+function payload() {
+  const { unlocked, sent, guideSeen, ...data } = S;
+  return { ...data, submittedAt: new Date().toISOString(), client: 'rational_functions_lab/1' };
+}
+function refreshSummary() {
+  const names = ['Who are you', '1.7 End behavior', '1.8 Zeros', '1.9 Vertical asymptotes', '1.10 Holes', '1.11 Equivalent representations', '1.12 Transformations', 'Build your own', 'Reflect'];
+  document.getElementById('summary').innerHTML = names.map((n, i) => `<div class="${DONE[i + 1]() ? 'ok' : ''}">${n}</div>`).join('');
+  document.getElementById('send').disabled = !API;
+  const st = document.getElementById('send-status');
+  if (!API && !st.dataset.msg) st.innerHTML = '<div class="note warn">This link has no connection to your teacher. Use <b>Download backup file</b> and hand the file in, or ask your teacher for the class link.</div>';
+  else if (S.sent && !st.dataset.msg) st.innerHTML = `<div class="note good">Sent at ${new Date(S.sent).toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`;
+}
+function setStatus(html) { const st = document.getElementById('send-status'); st.dataset.msg = '1'; st.innerHTML = html; }
+
+document.getElementById('send').addEventListener('click', async () => {
+  const missing = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(i => !DONE[i]());
+  if (missing.length && !confirm('Sections ' + missing.join(', ') + ' are not complete. Send anyway?')) return;
+  const btn = document.getElementById('send');
+  btn.disabled = true; setStatus('<div class="note">Sending…</div>');
+  const body = JSON.stringify(payload());
+  let ok = false, unconfirmed = false;
+  try {
+    const r = await fetch(API, { method: 'POST', body });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'server error');
+    ok = true;
+  } catch (e) {
+    try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; unconfirmed = true; } catch (e2) {}
+  }
+  btn.disabled = false;
+  if (ok) {
+    S.sent = new Date().toISOString(); save();
+    setStatus(`<div class="note good">✓ Sent${unconfirmed ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+  } else {
+    setStatus('<div class="note warn">Could not send: check the internet connection and try again. If it keeps failing, use <b>Download backup file</b> and give the file to your teacher.</div>');
+  }
+  refresh();
+});
+document.getElementById('download').addEventListener('click', () => downloadReport(S));
+
+// ── Theme (shared with the tools index) ─────────────────────
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  document.getElementById('theme-toggle').textContent = light ? '☽ Dark' : '☀ Light';
+  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+applyTheme(savedTheme === 'light');
+document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
+
+// ── Guide: opens by itself the first time, and from the header anytime ──
+const guide = document.getElementById('guide');
+function openGuide() { if (!guide.open) guide.showModal(); }
+document.querySelectorAll('[data-guide]').forEach(b => b.addEventListener('click', openGuide));
+document.querySelectorAll('[data-guide-close]').forEach(b => b.addEventListener('click', () => guide.close()));
+guide.addEventListener('click', e => { if (e.target === guide) guide.close(); });
+guide.addEventListener('close', () => { if (!S.guideSeen) { S.guideSeen = true; save(); } });
+if (!S.guideSeen) openGuide();
+
+// ── Several students on one computer: a report already here is kept, never overwritten ──
+const ARCHIVE = STORE + '_archive', ACK = 'ack_' + STORE;
+function readArchive() { try { return JSON.parse(localStorage.getItem(ARCHIVE) || '[]'); } catch (e) { return []; } }
+const hasWork = r => !!(String(r.group || '').trim() || String((r.students || [])[0] || '').trim());
+const reportWho = r => [(r.mode === 'individual' ? [(r.students || [])[0]] : r.students || []).filter(s => s && s.trim()).join(' & '),
+  String(r.group || '').trim() ? 'group ' + r.group : ''].filter(Boolean).join(' · ') || 'No name yet';
+const reportWhen = r => (r.savedAt ? 'last saved ' + new Date(r.savedAt).toLocaleString() : '');
+function ack() { try { sessionStorage.setItem(ACK, S.id); } catch (e) {} }
+function downloadReport(r) {
+  const keep = S;
+  let body;
+  S = Object.assign(blank(), r);
+  try { body = JSON.stringify(payload(), null, 2); } finally { S = keep; }
+  const tag = [r.session, r.mode === 'individual' ? (r.students || [])[0] : 'group' + (r.group || 'X')].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
+  a.download = `${LAB_ID}_${tag}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function newReport() {
+  let wait = 0;
+  if (hasWork(S)) {
+    const list = readArchive();
+    list.unshift({ ...S, archivedAt: new Date().toISOString() });
+    try { localStorage.setItem(ARCHIVE, JSON.stringify(list.slice(0, 12))); }
+    catch (e) {
+      alert('This computer has no room to keep a copy, so the report will be downloaded as a file. Give that file to your teacher.');
+      downloadReport(S); wait = 1500;
+    }
+  }
+  try { localStorage.removeItem(STORE); sessionStorage.removeItem(ACK); } catch (e) {}
+  setTimeout(() => location.reload(), wait);
+}
+function confirmNew() {
+  if (hasWork(S) && !S.sent && !confirm('These answers were not sent yet. They will be kept on this computer, so they are not lost. Start a new report?')) return;
+  newReport();
+}
+const whoDlg = document.getElementById('who-dlg');
+whoDlg.addEventListener('cancel', e => e.preventDefault());
+document.getElementById('who-continue').addEventListener('click', () => { ack(); whoDlg.close(); });
+document.getElementById('who-new').addEventListener('click', confirmNew);
+document.getElementById('next-group').addEventListener('click', confirmNew);
+document.getElementById('reset').addEventListener('click', confirmNew);
+let acked = null; try { acked = sessionStorage.getItem(ACK); } catch (e) {}
+if (hasWork(S) && acked !== S.id) {
+  document.getElementById('who-cur').innerHTML = `<b>${esc(reportWho(S))}</b>` +
+    (reportWhen(S) ? ' · ' + reportWhen(S) : '') + (S.sent ? ' · sent to the teacher ✓' : ' · <b>not sent yet</b>');
+  if (guide.open) guide.close();
+  whoDlg.showModal();
+} else ack();
+const archDlg = document.getElementById('arch-dlg');
+function renderArchive() {
+  const list = readArchive();
+  document.getElementById('arch-open').hidden = !list.length;
+  document.getElementById('arch-open').textContent = `Earlier reports on this computer (${list.length})`;
+  document.getElementById('arch-list').innerHTML = list.map((r, i) => `
+    <div class="note${r.sent ? ' good' : ' warn'}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <span style="flex:1;min-width:200px"><b>${esc(reportWho(r))}</b>${r.session ? ' · session ' + esc(r.session) : ''}<br>
+      <span style="font-size:.8rem">${esc(reportWhen(r))}${r.sent ? ' · sent ✓' : ' · not sent'}</span></span>
+      <button class="btn" data-arch="${i}">⬇ Download</button>
+    </div>`).join('');
+}
+document.getElementById('arch-open').addEventListener('click', () => { renderArchive(); archDlg.showModal(); });
+document.getElementById('arch-close').addEventListener('click', () => archDlg.close());
+document.getElementById('arch-list').addEventListener('click', e => {
+  const i = e.target.dataset.arch;
+  if (i != null) downloadReport(readArchive()[+i]);
+});
+renderArchive();
+
+refresh();
+</script>
+</body>
+</html>
