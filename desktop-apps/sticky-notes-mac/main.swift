@@ -740,7 +740,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard ensureFolder() else { return false }
         let p = path(d.id)
         do {
-            try NoteFile.serialize(d).write(toFile: p, atomically: true, encoding: .utf8)
+            // Overwrite in place, never atomically: an atomic save writes into a temporary
+            // "(A Document Being Saved By …)" folder and swaps the file in, which Google Drive
+            // syncs as a new folder plus a deleted note.
+            try Data(NoteFile.serialize(d).utf8).write(to: URL(fileURLWithPath: p))
         } catch {
             return false
         }
@@ -969,7 +972,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showAbout(_ sender: Any?) {
-        alert("Sticky Notes 1.0",
+        alert("Sticky Notes 1.0.1",
               "Notes folder:\n\(folder)\n\nEach note is a text file in this folder. Google Drive for desktop copies it to your other computers, where Sticky Notes for Mac or Windows shows it. Deleted notes go to the Trash folder inside it.\n\n© 2026 Mauricio Mendivelso. MIT License.\nProvided \"as is\", without warranty of any kind.")
     }
 
