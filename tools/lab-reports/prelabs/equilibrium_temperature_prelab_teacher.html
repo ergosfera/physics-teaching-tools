@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Equilibrium Temperature Prelab Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="../lab-teacher.css">
+<style>
+  .qblock { display: grid; gap: 6px; }
+  .qblock .qh { font-size: .86rem; font-weight: 700; }
+  .qblock .qh small { color: var(--muted); font-weight: 600; }
+  .slide .qblock .qh { font-size: clamp(.9rem, 1.3vw, 1.3rem); }
+  .ok-mark { color: var(--green); font-weight: 800; }
+</style>
+</head>
+<body>
+<script src="../lab-teacher.js"></script>
+<script src="equilibrium_temperature_prelab.js"></script>
+<script>
+// Equilibrium Temperature prelab: the questions and answers come from equilibrium_temperature_prelab.js,
+// everything else from ../lab-teacher.js. Students get no feedback, so every answer is their first one.
+const ITEMS = PRELAB.items, GRADED = prelabGraded();
+const qNum = q => ITEMS.indexOf(q) + 1;   // the number the student page shows
+const plain = html => String(html).replace(/<sub>(.*?)<\/sub>/g, '_$1').replace(/<[^>]+>/g, '');
+
+// How an answer is shown and grouped: the option for multiple choice, the number (3 significant figures) otherwise
+function answerKey(q, v) {
+  if (v == null || String(v).trim() === '') return null;
+  if (q.type === 'mc') return v;
+  const x = prelabNumber(v);
+  return isFinite(x) ? String(+x.toPrecision(3)) : String(v).trim();
+}
+const answerLabel = (q, key) => q.type === 'mc' ? plain(q.options[key] || key) : key + ' ' + q.unit;
+// A J answer about 1000 times too big: the mass was written in grams
+const usedGrams = (q, v) => q.unit === 'J' && Math.abs(prelabNumber(v) / q.answer - 1000) <= 20;
+
+// Bars of answers for one question; the right answer is marked
+function answerBars(q) {
+  const counts = new Map(), right = q.type === 'mc' ? q.answer : String(+q.answer.toPrecision(3));
+  let n = 0, ok = 0;
+  GROUPS.forEach(G => {
+    const v = G.s.ans?.[q.id], k = answerKey(q, v);
+    if (k == null) return;
+    n++;
+    if (prelabCorrect(q, v)) { ok++; counts.set(right, (counts.get(right) || 0) + 1); } else counts.set(k, (counts.get(k) || 0) + 1);
+  });
+  let keys = q.type === 'mc' ? Object.keys(q.options) : [...counts.keys()].sort((a, b) => counts.get(b) - counts.get(a)).slice(0, 6);
+  if (q.type !== 'mc' && !keys.includes(right)) keys = [right, ...keys.slice(0, 5)];
+  const grams = q.unit === 'J' ? GROUPS.filter(G => usedGrams(q, G.s.ans?.[q.id])).length : 0;
+  return `<div class="qblock"><div class="qh">${ok}/${n} right <small>· right answer: ${esc(plain(prelabAnswerText(q)))}${grams ? ` · ${grams} used grams instead of kilograms` : ''}</small></div>
+    <div class="bars">${keys.map(k => bar((k === right ? '✓ ' : '') + answerLabel(q, k), counts.get(k) || 0)).join('')}</div></div>`;
+}
+// Right answers, one bar per question (most missed first)
+function accuracyBars() {
+  return `<div class="bars">${GRADED.map(q => ({ q, n: GROUPS.filter(G => G.ok[q.id]).length }))
+    .sort((a, b) => a.n - b.n).map(({ q, n }) => bar(`Q${qNum(q)} · ${q.short}`, n)).join('')}</div>`;
+}
+function mostMissed() { return GRADED.map(q => ({ q, n: GROUPS.filter(G => G.ok[q.id]).length })).sort((a, b) => a.n - b.n)[0]; }
+
+LabTeacher({
+  id: PRELAB.id,
+  title: PRELAB.title + ' Prelab',
+  icon: '📋',
+  studentPage: 'equilibrium_temperature_prelab.html',
+  tagline: 'Heat lost by the hot water = heat gained by the cold water',
+  titleExtra: () => GROUPS.length ? ` · median score ${fmt(median(GROUPS.map(G => G.score)))}/${GRADED.length}` : '',
+
+  errors: {},
+  // Same order as the student page, so the engine's Q1, Q2… match the numbers students saw
+  questions: ITEMS.map(q => q.type === 'text'
+    ? { id: q.id, title: q.short, get: s => s.ans?.[q.id] }
+    : { id: q.id, title: q.short, chart: q.id }),
+  questionChart: q => answerBars(ITEMS.find(x => x.id === q.chart)),
+
+  analyze(s) {
+    const a = s.ans || {}, ok = {};
+    GRADED.forEach(q => { ok[q.id] = prelabCorrect(q, a[q.id]); });
+    return {
+      ok,
+      score: GRADED.filter(q => ok[q.id]).length,
+      blank: ITEMS.filter(q => !q.optional && !String(a[q.id] ?? '').trim()).length,
+      grams: GRADED.filter(q => usedGrams(q, a[q.id])).length,
+    };
+  },
+  checks(G) {
+    const out = [];
+    if (G.blank) out.push([`${G.blank} not answered`, 'red']);
+    if (G.grams) out.push([`Used grams instead of kg (${G.grams})`, '']);
+    if (G.s.ans?.balance && G.s.ans.balance !== 'equal') out.push(['Thinks heat lost ≠ heat gained', '']);
+    if (String(G.s.ans?.doubt || '').trim()) out.push(['Has a question', '']);
+    return out;
+  },
+
+  summaryHtml: `
+    <div class="card">
+      <h3>Right answers, by question (most missed first)</h3>
+      <div id="acc"></div>
+    </div>`,
+  renderSummary() {
+    const missed = mostMissed();
+    const balanced = GROUPS.filter(G => G.ok.balance).length;
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Prelabs</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'}</div></div>
+      <div class="tile"><div class="k">Median score</div><div class="v">${GROUPS.length ? fmt(median(GROUPS.map(G => G.score))) : '—'}<small>/${GRADED.length}</small></div><div class="s">choice and number questions</div></div>
+      <div class="tile"><div class="k">Heat lost = heat gained</div><div class="v">${balanced}<small>/${GROUPS.length}</small></div><div class="s">chose "equal" in Q${qNum(ITEMS.find(q => q.id === 'balance'))}</div></div>
+      <div class="tile"><div class="k">Most missed</div><div class="v" style="font-size:1rem">${GROUPS.length ? `Q${qNum(missed.q)} · ${esc(missed.q.short)}` : '—'}</div><div class="s">${GROUPS.length ? `${missed.n}/${GROUPS.length} right` : ''}</div></div>`;
+    document.getElementById('acc').innerHTML = accuracyBars();
+  },
+
+  resultsHead: '<th>Score</th>' + GRADED.map(q => `<th title="${esc(q.short)}">Q${qNum(q)}</th>`).join(''),
+  resultsRow(G) {
+    return `<td><b>${G.score}</b><span class="muted">/${GRADED.length}</span></td>` +
+      GRADED.map(q => `<td>${G.ok[q.id] ? '<span class="ok-mark">✓</span>' : String(G.s.ans?.[q.id] ?? '').trim() ? '✗' : '<span class="muted">—</span>'}</td>`).join('');
+  },
+
+  slides: () => [{ html: `<h2>Right answers, by question</h2><div class="card">${accuracyBars()}</div>` }],
+
+  detail(G) {
+    const a = G.s.ans || {};
+    const row = q => {
+      const k = answerKey(q, a[q.id]);
+      return `<tr><td>Q${qNum(q)}</td><td>${esc(q.short)}</td><td>${k == null ? '<span class="muted">—</span>' : esc(answerLabel(q, k))}</td>
+        <td>${G.ok[q.id] ? '<span class="ok-mark">✓</span>' : k == null ? '' : '✗'}</td><td class="muted">${esc(plain(prelabAnswerText(q)))}</td></tr>`;
+    };
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">Score</div><div class="v">${G.score}<small>/${GRADED.length}</small></div><div class="s">choice and number questions</div></div>
+        ${sentTile(G)}
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="card"><h3>Choice and number answers</h3><div class="table-wrap"><table class="t">
+        <thead><tr><th></th><th>Question</th><th>Answer</th><th></th><th>Right answer</th></tr></thead>
+        <tbody>${GRADED.map(row).join('')}</tbody></table></div></div>
+      <div class="answers">${ITEMS.filter(q => q.type === 'text').map(q => detailAnswer(`Q${qNum(q)} · ${q.short}`, a[q.id])).join('')}</div>`;
+  },
+
+  computed: G => ({ score: G.score, out_of: GRADED.length, right: GRADED.filter(q => G.ok[q.id]).map(q => q.id) }),
+  csv: {
+    head: ['session', 'group', 'students', 'mode', 'score', ...ITEMS.map(q => `Q${qNum(q)}_${q.id}`), ...GRADED.map(q => `Q${qNum(q)}_ok`)],
+    rows: G => [[G.s.session, G.s.group, who(G), G.s.mode, G.score, ...ITEMS.map(q => G.s.ans?.[q.id] ?? ''), ...GRADED.map(q => G.ok[q.id])]],
+  },
+
+  demo() {
+    const pickOne = a => a[Math.floor(Math.random() * a.length)];
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz', 'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva'];
+    // A wrong answer: another option, or a typical mistake with the numbers
+    const wrongOf = q => q.type === 'mc' ? pickOne(Object.keys(q.options).filter(k => k !== q.answer))
+      : q.unit === 'J' ? String(Math.round(q.answer * pickOne([1000, 1000, 0.5, 1.5])))
+      : q.id === 'teq' ? '42.5' : '50';
+    const texts = {
+      why: ['Energy is not created or destroyed. The hot water gives energy to the cold water until they have the same temperature, so all the energy that leaves the hot water goes into the cold water.', 'Because the heat goes from one to the other.'],
+      claim: ['The student is only right if both waters have the same mass. If there is more cold water, the same energy is spread over more mass, so the cold water warms up fewer degrees.', 'The student is right because degrees are conserved.'],
+      steps: ['I wrote 0.150·4186·(60 − T) = 0.100·4186·(T − 25), cancelled c, expanded both sides and grouped the T terms: 9000 + 2500 = 250 T, so T = 46 °C.', 'I did the average of 60 and 25.'],
+      where: ['Some energy goes to the glass of the beaker and some to the air while we pour and stir. We will pour quickly and stir all the time, and read the thermometer as soon as it is steady.', 'The air.'],
+      doubt: ['', '', 'Does the thermometer also take some of the energy?', 'How long should we stir before reading the temperature?'],
+    };
+    const reports = [];
+    for (let i = 0; i < 12; i++) {
+      const strong = i % 4 !== 3, ans = {};
+      ITEMS.forEach((q, qi) => {
+        if (q.type === 'text') { ans[q.id] = q.id === 'doubt' ? pickOne(texts.doubt) : texts[q.id][strong ? 0 : 1]; return; }
+        const wrong = Math.random() < (strong ? .15 : .45) + (['deg-unequal', 'equation', 'mass'].includes(q.id) ? .2 : 0);
+        ans[q.id] = wrong ? wrongOf(q) : q.type === 'mc' ? q.answer : String(+q.answer.toPrecision(5));
+      });
+      reports.push({
+        schema: 1, lab: PRELAB.id, id: 'demo' + i, session: 'DEMO', mode: 'individual', group: String(Math.floor(i / 2) + 1), students: [names[i], ''], ans,
+        startedAt: new Date().toISOString(), submittedAt: new Date(Date.now() - (12 - i) * 60000).toISOString(),
+      });
+    }
+    return reports;
+  },
+});
+</script>
+</body>
+</html>

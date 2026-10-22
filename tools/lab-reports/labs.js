@@ -6,6 +6,18 @@
 //   teacher: the consolidated class results for the same experiment
 const LAB_TOPICS = [
   {
+    // Done before the lab it prepares; reports go to the same sheet, under their own id
+    name: 'Prelabs', icon: '📋',
+    labs: [
+      {
+        id: 'prelab-equilibrium-temperature', icon: '☕', title: 'Equilibrium Temperature Prelab',
+        desc: 'Before the lab: why the heat lost by the hot water equals the heat gained by the cold water. Concept questions, Q = m·c·ΔT calculations and a first prediction.',
+        student: 'prelabs/equilibrium_temperature_prelab.html',
+        teacher: 'prelabs/equilibrium_temperature_prelab_teacher.html',
+      },
+    ],
+  },
+  {
     name: 'Mechanics', icon: '⚙️',
     labs: [
       {
