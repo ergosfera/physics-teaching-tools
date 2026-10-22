@@ -190,7 +190,9 @@
       display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
       margin-bottom: 20px;
     }
-    .setup::before { content: 'Lists'; }
+    .setup::before { content: 'Setup'; }
+    .opts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; }
+    .opt { display: flex; align-items: center; gap: 6px; font-weight: 700; }
     .field label { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; margin-bottom: 4px; }
     .field label small { font-weight: 400; font-family: var(--font-mono); font-size: 12px; }
     .field textarea {
@@ -289,6 +291,10 @@
 
     .leftover { margin-top: 8px; font-size: 13px; }
 
+    /* Groups only: no exercise column, field or slots */
+    .no-ex .ex-field, .no-ex .ex-col, .no-ex .ex-slot { display: none; }
+    .no-ex .stage { grid-template-columns: minmax(190px, 250px) minmax(0, 1fr); grid-template-areas: "pool groups"; }
+
     /* ---- Footer ---- */
     footer {
       margin-top: 20px; padding-top: 10px;
@@ -306,7 +312,7 @@
 
     /* ---- Responsive ---- */
     @media (max-width: 1000px) {
-      .stage { grid-template-columns: 1fr; grid-template-areas: "pool" "groups" "ex"; }
+      .stage, .no-ex .stage { grid-template-columns: 1fr; grid-template-areas: "pool" "groups" "ex"; }
       .hat { min-height: 0; }
     }
     @media (max-width: 640px) {
@@ -345,7 +351,7 @@
       </div>
       <div class="actions">
         <button class="btn" id="setupBtn" aria-expanded="true" aria-controls="setup">Hide lists</button>
-        <div class="seg" role="group" aria-label="Animation speed">
+        <div class="seg" id="speedSeg" role="group" aria-label="Animation speed">
           <button data-speed="dramatic" aria-pressed="false">Dramatic</button>
           <button data-speed="normal" aria-pressed="true">Normal</button>
           <button data-speed="fast" aria-pressed="false">Fast</button>
@@ -357,11 +363,23 @@
     </header>
 
     <section class="setup" id="setup">
+      <div class="opts">
+        <div class="opt">Group size
+          <div class="seg" id="sizeSeg" role="group" aria-label="Group size">
+            <button data-size="2" aria-pressed="true">2</button>
+            <button data-size="3" aria-pressed="false">3</button>
+            <button data-size="4" aria-pressed="false">4</button>
+            <button data-size="5" aria-pressed="false">5</button>
+            <button data-size="6" aria-pressed="false">6</button>
+          </div>
+        </div>
+        <button class="btn" id="exBtn" aria-pressed="true">Exercises: on</button>
+      </div>
       <div class="field">
         <label for="names">Students <small id="nameCount"></small></label>
         <textarea id="names" spellcheck="false" placeholder="One name per line"></textarea>
       </div>
-      <div class="field">
+      <div class="field ex-field">
         <label for="exercises">Exercises <small id="exCount"></small></label>
         <textarea id="exercises" spellcheck="false" placeholder="One exercise per line"></textarea>
       </div>
@@ -374,7 +392,7 @@
         <div class="hat" id="pool"></div>
       </section>
       <section class="col groups-col">
-        <h2>Pairs <span class="count" id="groupCount"></span></h2>
+        <h2><span id="groupHead">Pairs</span> <span class="count" id="groupCount"></span></h2>
         <div class="groups" id="groups"></div>
       </section>
       <section class="col ex-col">
@@ -413,6 +431,7 @@
     fast:     { spin: 450,  fly: 300, pause: 60,  shake: 260, rounds: 1 },
   };
   let speed = reduceMotion ? 'fast' : 'normal';
+  let size = 2, useEx = true;
 
   // ---------- true randomness ----------
   // Uniform integer in [0, n) from crypto, rejecting the biased tail of the 32-bit range.
@@ -434,25 +453,49 @@
     try { return JSON.parse(localStorage.getItem(STORE) || 'null'); } catch { return null; }
   }
   function save() {
-    try { localStorage.setItem(STORE, JSON.stringify({ names: namesEl.value, ex: exEl.value, speed })); } catch {}
+    try { localStorage.setItem(STORE, JSON.stringify({ names: namesEl.value, ex: exEl.value, speed, size, useEx })); } catch {}
   }
 
   const parseNames = t => t.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
   const parseEx = t => t.split(/\n+/).map(s => s.trim()).filter(Boolean);
 
-  function validate(names, ex) {
+  // Split n students into groups as close to size k as possible: sizes differ by at most one,
+  // and on a tie the class makes fewer, bigger groups (19 students in pairs → 8 pairs + 1 trio, nobody alone).
+  function groupSizes(n, k) {
+    if (n < 2) return [];
+    const lo = Math.max(1, Math.floor(n / k)), hi = Math.ceil(n / k);
+    const dev = g => Math.max(Math.ceil(n / g) - k, k - Math.floor(n / g));
+    const g = dev(hi) < dev(lo) ? hi : lo;
+    const base = Math.floor(n / g), extra = n % g;
+    return Array.from({ length: g }, (_, i) => base + (i >= g - extra ? 1 : 0));
+  }
+
+  function validate(names, ex, sizes) {
     if (names.length < 2) return 'Add at least two students.';
-    if (names.length % 2) return `${names.length} students can’t be split into pairs. Add or remove one name.`;
-    const groups = names.length / 2;
-    if (ex.length < groups) return `${groups} pairs need at least ${groups} exercises. You have ${ex.length}.`;
+    const g = sizes.length;
+    if (useEx && ex.length < g) return `${g} groups need at least ${g} exercises. You have ${ex.length}. Add more, or turn exercises off.`;
     return '';
   }
 
-  // (n-1)!! ways to split n people into unordered pairs
-  function pairings(n) {
-    let r = 1n;
-    for (let k = BigInt(n - 1); k > 1n; k -= 2n) r *= k;
-    return r;
+  const fact = n => { let r = 1n; for (let i = 2n; i <= BigInt(n); i++) r *= i; return r; };
+  // Ways to split n people into unlabeled groups of the given sizes: n! / (Π sᵢ! · Π mⱼ!)
+  function partitions(sizes) {
+    const n = sizes.reduce((a, b) => a + b, 0), counts = {};
+    let d = 1n;
+    sizes.forEach(s => { d *= fact(s); counts[s] = (counts[s] || 0) + 1; });
+    Object.values(counts).forEach(m => { d *= fact(m); });
+    return fact(n) / d;
+  }
+
+  const label = s => size === 2 ? (s === 2 ? 'Pair' : 'Trio') : 'Group';
+  function describe(sizes) {
+    const counts = {};
+    sizes.forEach(s => { counts[s] = (counts[s] || 0) + 1; });
+    return Object.keys(counts).map(Number).sort((a, b) => a - b).map(s => {
+      const m = counts[s];
+      const [one, many] = size === 2 && s === 2 ? ['pair', 'pairs'] : size === 2 && s === 3 ? ['trio', 'trios'] : [`group of ${s}`, `groups of ${s}`];
+      return `${m} ${m === 1 ? one : many}`;
+    }).join(' + ');
   }
   const fmt = v => v.toLocaleString('en-US');
 
@@ -467,12 +510,15 @@
 
   function renderIdle() {
     const names = parseNames(namesEl.value), ex = parseEx(exEl.value);
-    const err = validate(names, ex);
-    const groups = Math.floor(names.length / 2);
+    const sizes = groupSizes(names.length, size);
+    const err = validate(names, ex, sizes);
+    const groups = sizes.length;
 
+    document.body.classList.toggle('no-ex', !useEx);
+    $('#groupHead').textContent = size === 2 ? 'Pairs' : 'Groups';
     poolEl.replaceChildren(...names.map(n => chip(n)));
     exPoolEl.replaceChildren(...ex.map(e => chip(e, 'ex')));
-    groupsEl.replaceChildren(...Array.from({ length: groups }, (_, i) => groupCard(i)));
+    groupsEl.replaceChildren(...sizes.map((s, i) => groupCard(i, s)));
     leftoverEl.hidden = true;
 
     $('#nameCount').textContent = `${names.length} names`;
@@ -487,21 +533,23 @@
     } else {
       const spare = ex.length - groups;
       noteEl.textContent = (isExample ? 'These are example names. Replace them with your class, one per line. ' : '') +
-        (spare ? `${spare} exercise${spare > 1 ? 's' : ''} will be left over.` : 'Every exercise will be used.');
+        (!useEx ? 'Groups only, no exercises.' :
+          spare ? `${spare} exercise${spare > 1 ? 's' : ''} will be left over.` : 'Every exercise will be used.');
       noteEl.className = 'note';
     }
+    const ways = err ? 0n : partitions(sizes);
     $('#summary').innerHTML = err ? 'Fix the lists to draw.' :
-      `${names.length} students → ${groups} pairs · <span class="num">${fmt(pairings(names.length))}</span> possible ways to pair this class`;
+      `${names.length} students → ${describe(sizes)} · <span class="num">${fmt(ways)}</span> possible way${ways === 1n ? '' : 's'} to group this class`;
     drawBtn.disabled = !!err;
     copyBtn.disabled = true;
     copyOut.hidden = true;
   }
 
-  function groupCard(i) {
+  function groupCard(i, s) {
     const card = document.createElement('article');
     card.className = 'group';
-    card.innerHTML = `<div class="g-head"><span class="lbl">Pair</span><span class="n">${i + 1}</span></div>
-      <div class="slot" data-slot="0"></div><div class="slot" data-slot="1"></div>
+    card.innerHTML = `<div class="g-head"><span class="lbl">${label(s)}</span><span class="n">${i + 1}</span></div>
+      ${'<div class="slot"></div>'.repeat(s)}
       <div class="ex-slot"><span class="lbl">Exercise</span><span class="val"></span></div>`;
     return card;
   }
@@ -632,14 +680,14 @@
   async function draw() {
     if (running) { skip(); return; }
     const names = parseNames(namesEl.value), ex = parseEx(exEl.value);
-    if (validate(names, ex)) return;
+    if (validate(names, ex, groupSizes(names.length, size))) return;
 
     running = true; skipping = false;
     initAudio();
     renderIdle();
     setRunning(true);
 
-    await Promise.all([shake(poolEl), shake(exPoolEl)]);
+    await Promise.all([shake(poolEl), useEx && shake(exPoolEl)]);
 
     const cards = [...groupsEl.children];
     const result = cards.map(() => ({ names: [], ex: '' }));
@@ -649,21 +697,22 @@
       const card = cards[g];
       card.classList.add('active');
       scrollNear(card);
-      for (let s = 0; s < 2; s++) {
+      const slots = card.querySelectorAll('.slot');
+      for (let s = 0; s < slots.length; s++) {
         const idx = randInt(remaining.length);
         const el = remaining[idx];
         await spin(remaining, idx);
         remaining.splice(idx, 1);
         $('#poolCount').textContent = remaining.length;
         result[g].names.push(el.textContent);
-        await fly(el, card.querySelector(`[data-slot="${s}"]`), false);
+        await fly(el, slots[s], false);
       }
       card.classList.remove('active');
       await sleep(SPEEDS[speed].pause);
     }
 
-    let exLeft = [...exPoolEl.children];
-    for (let g = 0; g < cards.length; g++) {
+    let exLeft = useEx ? [...exPoolEl.children] : [];
+    for (let g = 0; g < cards.length && useEx; g++) {
       const card = cards[g];
       card.classList.add('active');
       scrollNear(card);
@@ -703,6 +752,7 @@
   function setRunning(on) {
     drawBtn.textContent = on ? 'Skip to result' : (lastResult ? 'Draw again' : 'Draw');
     namesEl.disabled = exEl.disabled = on;
+    document.querySelectorAll('#sizeSeg button, #exBtn').forEach(b => { b.disabled = on; });
     if (on) toggleSetup(false);
   }
 
@@ -714,13 +764,28 @@
   }
   setupBtn.addEventListener('click', () => toggleSetup(setupEl.hidden));
 
-  document.querySelectorAll('.seg button').forEach(b => {
+  document.querySelectorAll('#speedSeg button').forEach(b => {
     b.addEventListener('click', () => {
       speed = b.dataset.speed;
-      document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      document.querySelectorAll('#speedSeg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
       save();
     });
   });
+
+  // Changing how groups are made resets the board, like editing the lists does.
+  function reset() { lastResult = null; drawBtn.textContent = 'Draw'; renderIdle(); save(); }
+  function showSize() {
+    document.querySelectorAll('#sizeSeg button').forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.size === size)));
+  }
+  function showEx() {
+    const b = $('#exBtn');
+    b.setAttribute('aria-pressed', String(useEx));
+    b.textContent = 'Exercises: ' + (useEx ? 'on' : 'off');
+  }
+  document.querySelectorAll('#sizeSeg button').forEach(b => {
+    b.addEventListener('click', () => { size = +b.dataset.size; showSize(); reset(); });
+  });
+  $('#exBtn').addEventListener('click', () => { useEx = !useEx; showEx(); reset(); });
 
   $('#soundBtn').addEventListener('click', e => {
     soundOn = !soundOn;
@@ -742,7 +807,8 @@
   drawBtn.addEventListener('click', draw);
 
   function resultText() {
-    const lines = lastResult.result.map((r, i) => `Pair ${i + 1}: ${r.names.join(' & ')} — ${r.ex}`);
+    const lines = lastResult.result.map((r, i) =>
+      `${label(r.names.length)} ${i + 1}: ${r.names.slice(0, -1).join(', ')} & ${r.names.at(-1)}` + (r.ex ? ` — ${r.ex}` : ''));
     if (lastResult.leftovers.length) lines.push(`Not assigned: ${lastResult.leftovers.join(', ')}`);
     return lines.join('\n');
   }
@@ -761,7 +827,7 @@
   let t;
   [namesEl, exEl].forEach(el => el.addEventListener('input', () => {
     clearTimeout(t);
-    t = setTimeout(() => { lastResult = null; drawBtn.textContent = 'Draw'; renderIdle(); save(); }, 200);
+    t = setTimeout(reset, 200);
   }));
 
   // ---------- boot ----------
@@ -769,7 +835,10 @@
   namesEl.value = saved?.names ?? EXAMPLE_NAMES.join('\n');
   exEl.value = saved?.ex ?? EXAMPLE_EX.join('\n');
   if (saved?.speed && SPEEDS[saved.speed] && !reduceMotion) speed = saved.speed;
-  document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.speed === speed)));
+  if ([2, 3, 4, 5, 6].includes(saved?.size)) size = saved.size;
+  if (typeof saved?.useEx === 'boolean') useEx = saved.useEx;
+  document.querySelectorAll('#speedSeg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.speed === speed)));
+  showSize(); showEx();
   renderIdle();
 })();
 </script>
