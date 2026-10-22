@@ -69,6 +69,12 @@ const MATH_TOPICS = [
         student: 'precalculus/rational_functions_lab.html',
         teacher: 'precalculus/rational_functions_teacher.html',
       },
+      {
+        id: 'pc-transformations-desmos', icon: '🎚️', title: 'Transformations with Desmos',
+        desc: 'AP Precalculus 1.12 self-study guide: put a slider a in Desmos and find out yourself what f(x) + a, f(x + a), a·f(x) and f(ax) do to a graph and to its points. Then combine them.',
+        student: 'precalculus/transformations_desmos_lab.html',
+        teacher: 'precalculus/transformations_desmos_teacher.html',
+      },
     ],
   },
   {

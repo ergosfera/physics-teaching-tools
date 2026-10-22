@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Transformations with Desmos Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="../lab-teacher.css">
+<style>
+  .qblock { display: grid; gap: 6px; }
+  .qblock .qh { font-size: .86rem; font-weight: 700; }
+  .qblock .qh small { color: var(--muted); font-weight: 600; }
+  .slide .qblock .qh { font-size: clamp(.9rem, 1.3vw, 1.3rem); }
+  .ok-mark { color: var(--green); font-weight: 800; }
+  /* Live progress: one square per question */
+  .strip { display: flex; gap: 2px; flex-wrap: nowrap; }
+  .strip .gap { width: 6px; }
+  .sq { width: 12px; height: 16px; border-radius: 3px; border: 1px solid var(--border); background: transparent; flex: none; }
+  .sq.first { background: var(--green); border-color: var(--green); }
+  .sq.later { background: var(--amber); border-color: var(--amber); }
+  .sq.wrong { background: var(--red); border-color: var(--red); }
+  .sq.seen { background: var(--muted); border-color: var(--muted); }
+  .sq.pred { background: #a371f7; border-color: #a371f7; }
+  .sq.text { background: var(--accent); border-color: var(--accent); }
+  .sq-key { display: flex; gap: 14px; flex-wrap: wrap; font-size: .78rem; color: var(--muted); align-items: center; }
+  .sq-key span { display: inline-flex; gap: 5px; align-items: center; }
+  .stale { color: var(--muted); }
+  .fresh { color: var(--green); font-weight: 700; }
+</style>
+</head>
+<body>
+<script src="../lab-teacher.js"></script>
+<script src="transformations_desmos.js"></script>
+<script>
+// Transformations with Desmos (AP Precalculus 1.12). Everything else comes from ../lab-teacher.js.
+// Students send their report after every answer (live: true), so with "Live: on" this page follows the
+// class question by question. The charts show each student's FIRST answer, and predictions against what happens.
+const ITEMS = TD.items;
+const CHECKED = ITEMS.filter(q => q.type !== 'text');   // predictions and checked questions
+const TEXTS = ITEMS.filter(q => q.type === 'text');
+const PREDICTS = ITEMS.filter(q => q.type === 'predict');
+const qnum = Object.fromEntries(ITEMS.map((q, i) => [q.id, i + 1]));
+const stepOf = n => TD.steps.find(st => st.n === n);
+
+// How an answer is grouped in a chart: the option for multiple choice, the rounded numbers otherwise
+function answerKey(q, v) {
+  if (v == null || v === '') return null;
+  if (q.type === 'mc' || q.type === 'predict') return v;
+  const x = tdValue(q, v);
+  if (x == null) return String(v).trim();
+  return q.type === 'pt' ? `(${tdRound(x[0])}, ${tdRound(x[1])})` : tdRound(x);
+}
+const rightKey = q => q.type === 'predict' ? q.truth : q.type === 'mc' ? q.answer : answerKey(q, q.type === 'pt' ? q.answer.join(';') : String(q.answer));
+const answerLabel = (q, key) => q.options ? q.options[key] || key : key;
+
+// Bars of first answers (or predictions) for one question; what really happens is marked ✓
+function firstAnswerBars(q) {
+  const counts = new Map();
+  GROUPS.forEach(G => { const k = answerKey(q, G.qs[q.id].first); if (k != null) counts.set(k, (counts.get(k) || 0) + 1); });
+  const right = rightKey(q);
+  let keys = q.options ? Object.keys(q.options) : [...counts.keys()].sort((a, b) => counts.get(b) - counts.get(a)).slice(0, 6);
+  if (!q.options && !keys.includes(right)) keys = [right, ...keys.slice(0, 5)];
+  const n = GROUPS.filter(G => G.qs[q.id].first != null).length;
+  const head = q.type === 'predict'
+    ? `${n} prediction${n === 1 ? '' : 's'} <small>· what really happens: ${esc(tdAnswerText(q))}</small>`
+    : `${GROUPS.filter(G => G.qs[q.id].firstOk).length}/${n} right on the first try <small>· right answer: ${esc(tdAnswerText(q))}</small>`;
+  return `<div class="qblock"><div class="qh">${head}</div>
+    <div class="bars">${keys.map(k => bar((k === right ? '✓ ' : '') + answerLabel(q, k), counts.get(k) || 0)).join('')}</div></div>`;
+}
+// Right on the first try, one bar per checked question, in order
+function accuracyBars() {
+  return `<div class="bars">${TD_GRADED.map(q => bar(`${qnum[q.id]} · ${q.short}`, GROUPS.filter(G => G.qs[q.id].firstOk).length)).join('')}</div>`;
+}
+// The predictions that matched what happens
+function predictionBars() {
+  return `<div class="bars">${PREDICTS.map(q =>
+    bar(`${qnum[q.id]} · ${q.short.replace('PREDICT: ', '')}`, GROUPS.filter(G => G.qs[q.id].first === q.truth).length)).join('')}</div>`;
+}
+// Where the class is: how many students are working on each step
+function stepBars() {
+  return `<div class="bars">${[...TD.steps.map(st => [st.n, `${st.n} · ${st.title}`]), [TD.steps.length + 2, 'Finished']].map(([n, name]) =>
+    bar(name, GROUPS.filter(G => G.step === n).length)).join('')}</div>`;
+}
+
+// One square per question, grouped by step
+function sqClass(q, st) {
+  if (q.type === 'text') return st.text ? 'text' : '';
+  if (q.type === 'predict') return st.first != null ? 'pred' : '';
+  if (st.firstOk) return 'first';
+  if (st.rev) return 'seen';
+  if (st.ok) return 'later';
+  return st.tries ? 'wrong' : '';
+}
+function strip(G) {
+  return `<div class="strip">${TD.steps.map(st => ITEMS.filter(q => q.step === st.n).map(q =>
+    `<span class="sq ${sqClass(q, G.qs[q.id])}" title="${qnum[q.id]} · ${esc(q.short)}"></span>`).join('')).join('<span class="gap"></span>')}</div>`;
+}
+const SQ_KEY = `<div class="sq-key">
+  <span><i class="sq first"></i>right on the 1st try</span><span><i class="sq later"></i>right after more tries</span>
+  <span><i class="sq wrong"></i>trying, not right yet</span><span><i class="sq seen"></i>saw the answer</span>
+  <span><i class="sq pred"></i>prediction saved</span><span><i class="sq text"></i>written answer</span><span><i class="sq"></i>not yet</span></div>`;
+function ago(iso) {
+  const min = (Date.now() - new Date(iso)) / 60000;
+  if (!isFinite(min)) return '—';
+  return min < 1 ? 'now' : min < 60 ? Math.round(min) + ' min ago' : new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+LabTeacher({
+  id: TD.id,
+  title: TD.title,
+  icon: '🎚️',
+  studentPage: 'transformations_desmos_lab.html',
+  board: 'math',
+  tagline: 'AP Precalculus 1.12 · f(x) + a, f(x + a), a·f(x), f(ax) found with a Desmos slider',
+  backendVersion: 3,
+  backendWhy: 'so live answers replace each student\'s row instead of adding one row per answer',
+
+  errors: {},
+  questions: ITEMS.map(q => q.type === 'text'
+    ? { id: q.id, title: q.short, get: s => (s.text || {})[q.id] }
+    : { id: q.id, title: q.short, chart: q.id }),
+  // 51 questions: the top bar links to the first one of each step
+  jump: () => TD.steps.map(st => [ITEMS.find(q => q.step === st.n).id, `${st.n} · ${st.title}`]),
+  questionChart: q => firstAnswerBars(ITEMS.find(x => x.id === q.chart)),
+
+  analyze(s) {
+    const qs = {};
+    ITEMS.forEach(q => {
+      if (q.type === 'text') { qs[q.id] = { text: words((s.text || {})[q.id]) >= Math.max(1, q.min) }; return; }
+      const st = (s.ans || {})[q.id] || {};
+      const first = q.type === 'predict' ? (st.saved ? st.v : null) : st.first ?? null;
+      qs[q.id] = { first, firstOk: q.type !== 'predict' && first != null && tdCorrect(q, first), tries: st.tries || 0, rev: !!st.rev, ok: !!st.ok };
+    });
+    const done = q => q.type === 'text' ? q.optional || qs[q.id].text : q.type === 'predict' ? qs[q.id].first != null : qs[q.id].ok || qs[q.id].rev;
+    const open = TD.steps.find(st => !ITEMS.filter(q => q.step === st.n).every(done));
+    return {
+      qs,
+      step: open ? open.n : s.live === false ? TD.steps.length + 2 : TD.steps[TD.steps.length - 1].n,
+      done: ITEMS.filter(done).length,
+      firstRight: TD_GRADED.filter(q => qs[q.id].firstOk).length,
+      answered: TD_GRADED.filter(q => qs[q.id].first != null).length,
+      revealed: TD_GRADED.filter(q => qs[q.id].rev).length,
+      tries: TD_GRADED.reduce((a, q) => a + qs[q.id].tries, 0),
+      predRight: PREDICTS.filter(q => qs[q.id].first === q.truth).length,
+    };
+  },
+  checks(G) {
+    const out = [];
+    if (G.revealed) out.push([`Saw ${G.revealed} answer${G.revealed === 1 ? '' : 's'}`, G.revealed >= 4 ? 'red' : '']);
+    const stuck = TD_GRADED.filter(q => G.qs[q.id].tries >= 3 && !G.qs[q.id].ok && !G.qs[q.id].rev);
+    if (stuck.length) out.push([`Stuck on ${stuck.map(q => qnum[q.id]).join(', ')}`, 'red']);
+    if (G.s.live !== false && (Date.now() - new Date(G.s.submittedAt)) > 10 * 60000 && G.step <= TD.steps.length + 1) out.push(['No activity for 10+ min', '']);
+    return out;
+  },
+
+  summaryHtml: `
+    <div class="card">
+      <h3>Where is the class? Students working on each step</h3>
+      <div id="where"></div>
+    </div>
+    <div class="card">
+      <h3>Predictions that matched what Desmos showed</h3>
+      <div id="preds"></div>
+    </div>
+    <div class="card">
+      <h3>Right on the first try, by question</h3>
+      <div id="acc"></div>
+    </div>`,
+  renderSummary(on) {
+    const scores = GROUPS.filter(G => G.answered).map(G => G.firstRight);
+    const live = GROUPS.filter(G => (Date.now() - new Date(G.s.submittedAt)) < 3 * 60000).length;
+    const missed = TD_GRADED.map(q => ({ q, n: GROUPS.filter(G => G.qs[q.id].first != null).length, ok: GROUPS.filter(G => G.qs[q.id].firstOk).length }))
+      .filter(x => x.n).sort((a, b) => a.ok / a.n - b.ok / b.n)[0];
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Students</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'}</div></div>
+      <div class="tile"><div class="k">Active now</div><div class="v">${live}</div><div class="s">answered in the last 3 minutes</div></div>
+      <div class="tile"><div class="k">Median first-try score</div><div class="v">${scores.length ? fmt(median(scores)) : '—'}<small>/${TD_GRADED.length}</small></div><div class="s">checked questions right on the first try</div></div>
+      <div class="tile"><div class="k">Most missed so far</div><div class="v" style="font-size:1rem">${missed ? `${qnum[missed.q.id]} · ${esc(missed.q.short)}` : '—'}</div><div class="s">${missed ? `${missed.ok}/${missed.n} right on the first try` : ''}</div></div>`;
+    document.getElementById('where').innerHTML = stepBars();
+    document.getElementById('preds').innerHTML = predictionBars();
+    document.getElementById('acc').innerHTML = accuracyBars();
+  },
+
+  resultsHead: '<th>Step</th><th>Right on 1st try</th><th>Tries</th><th>Seen</th><th>Last answer</th><th>Progress: one square per question, by step</th>',
+  resultsRow(G) {
+    const recent = (Date.now() - new Date(G.s.submittedAt)) < 3 * 60000;
+    return `<td>${G.step > TD.steps.length + 1 ? '<span class="ok-mark">✓ sent</span>' : G.step}</td>
+      <td><b>${G.firstRight}</b><span class="muted">/${G.answered}</span></td><td>${G.tries}</td><td>${G.revealed || '<span class="muted">0</span>'}</td>
+      <td class="${recent ? 'fresh' : 'stale'}">${ago(G.s.submittedAt)}</td><td>${strip(G)}</td>`;
+  },
+  sections: [{ id: 'key', title: 'Progress key', render: el => { el.innerHTML = `<div class="card">${SQ_KEY}</div>`; } }],
+
+  slides: () => [
+    { html: `<h2>Where is the class?</h2><div class="card">${stepBars()}</div>` },
+    { html: `<h2>Predictions that matched Desmos</h2><div class="card">${predictionBars()}</div>` },
+  ],
+
+  detail(G) {
+    const row = q => {
+      const st = G.qs[q.id];
+      if (q.type === 'text') return '';
+      const first = st.first == null ? '<span class="muted">—</span>' : esc(answerLabel(q, answerKey(q, st.first)));
+      const mark = q.type === 'predict' ? (st.first == null ? '' : st.first === q.truth ? 'matched' : 'differs')
+        : st.firstOk ? '<span class="ok-mark">✓</span>' : st.first != null ? '✗' : '';
+      return `<tr><td>${qnum[q.id]}</td><td>${esc(q.short)}</td><td>${first}</td><td>${mark}</td>
+        <td>${q.type === 'predict' ? '' : st.tries || ''}</td><td>${st.rev ? 'saw answer' : st.ok ? '<span class="ok-mark">✓</span>' : ''}</td></tr>`;
+    };
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">Right on the first try</div><div class="v">${G.firstRight}<small>/${TD_GRADED.length}</small></div><div class="s">${G.tries} tries in all</div></div>
+        <div class="tile"><div class="k">Predictions that matched</div><div class="v">${G.predRight}<small>/${PREDICTS.length}</small></div><div class="s">before moving the slider</div></div>
+        <div class="tile"><div class="k">Answers seen</div><div class="v">${G.revealed}</div><div class="s">after 2 wrong tries</div></div>
+        ${sentTile(G)}
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="card">${strip(G)}</div>
+      <div class="card"><h3>Answers (first try)</h3><div class="table-wrap"><table class="t">
+        <thead><tr><th></th><th>Question</th><th>First answer</th><th>1st</th><th>Tries</th><th>Final</th></tr></thead>
+        <tbody>${CHECKED.map(row).join('')}</tbody></table></div></div>
+      <div class="answers">${TEXTS.map(q => detailAnswer(`${qnum[q.id]} · ${q.short}`, (G.s.text || {})[q.id])).join('')}</div>`;
+  },
+
+  computed: G => ({ first_try_right: G.firstRight, predictions_matched: G.predRight, answers_seen: G.revealed, tries: G.tries, step: G.step }),
+  csv: {
+    head: ['session', 'group', 'students', 'mode', 'step', 'first_try_right', 'predictions_matched', 'tries', 'answers_seen',
+      ...CHECKED.map(q => q.id + '_first'), ...TD_GRADED.map(q => q.id + '_first_ok'), ...TEXTS.map(q => q.id)],
+    rows: G => [[G.s.session, G.s.group, who(G), G.s.mode, G.step, G.firstRight, G.predRight, G.tries, G.revealed,
+      ...CHECKED.map(q => G.qs[q.id].first ?? ''), ...TD_GRADED.map(q => G.qs[q.id].firstOk), ...TEXTS.map(q => (G.s.text || {})[q.id] || '')]],
+  },
+
+  demo() {
+    const pickOne = a => a[Math.floor(Math.random() * a.length)];
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz', 'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva'];
+    const asText = q => q.type === 'mc' ? q.answer : q.type === 'pt' ? q.answer.join(';') : String(q.answer);
+    // A typical wrong first answer: another option, a sign error, or a move the wrong way
+    const wrongOf = q => q.type === 'mc' ? pickOne(Object.keys(q.options).filter(k => k !== q.answer))
+      : q.type === 'pt' ? pickOne([[q.answer[0], -q.answer[1]], [2 * (q.answer[0] || 1), q.answer[1]], [-q.answer[0], q.answer[1]]]).join(';')
+      : String(-q.answer || 1);
+    const texts = {
+      v_why: ['Because a is added to the output of f, so every y value goes up by a and x stays the same.', 'It goes up.'],
+      h_why: ['g(0) = f(2), so g gets the value that f had at 2 already at 0, two units earlier. That is to the left. I predicted right.', 'Because it is inside so it is the opposite.'],
+      k_why: ['g(1) = f(2): g gets to each height of f at half the x, so the graph is squeezed toward the y-axis.', 'Because it is multiplied.'],
+      r_words: ['f(x) + a and a f(x) change the y values, as written, because they act on the output. f(x + a) and f(ax) change the x values and work backwards, because g has to undo them to give f its old input.', 'Inside is x, outside is y.'],
+    };
+    const reports = [];
+    for (let i = 0; i < 12; i++) {
+      const strong = i % 4 !== 3, reach = i < 3 ? 8 : 3 + (i % 5);   // the first three finished, the others are on the way
+      const ans = {}, text = {};
+      ITEMS.forEach((q, qi) => {
+        if (q.step > reach || (q.step === reach && reach < 8 && qi % 3 === 0)) return;
+        if (q.type === 'text') { if (texts[q.id]) text[q.id] = strong ? texts[q.id][0] : texts[q.id][1]; return; }
+        if (q.type === 'predict') {
+          const v = Math.random() < (q.id === 'h_pred' || q.id === 'k_pred' ? .35 : .8) ? q.truth : pickOne(Object.keys(q.options).filter(k => k !== q.truth));
+          ans[q.id] = { v, first: v, saved: true };
+          return;
+        }
+        const wrong = Math.random() < (strong ? .15 : .4) + (['h_pos', 'h_pt', 'k_big', 'k_zero', 'c8'].includes(q.id) ? .35 : 0);
+        const tries = wrong ? 2 + Math.floor(Math.random() * 2) : 1, rev = wrong && tries >= 3 && Math.random() < .4;
+        ans[q.id] = { v: asText(q), first: wrong ? wrongOf(q) : asText(q), tries, ok: !rev, rev };
+      });
+      reports.push({
+        live: i >= 3, schema: 1, lab: TD.id, id: 'demo' + i, session: 'DEMO', mode: 'individual', group: '', students: [names[i], ''], ans, text,
+        startedAt: new Date(Date.now() - 40 * 60000).toISOString(), submittedAt: new Date(Date.now() - (i < 3 ? 15 : i % 6) * 60000).toISOString(),
+      });
+    }
+    return reports;
+  },
+});
+</script>
+</body>
+</html>

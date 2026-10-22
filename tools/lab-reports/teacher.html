@@ -117,7 +117,7 @@
     <div class="form-row"><label for="key">Teacher key</label><input type="password" id="key"></div>
     <div class="btns"><button class="btn primary" id="save">Save and test</button><span class="muted" id="save-msg"></span></div>
     <div class="note warn" id="update-note" hidden>
-      <b>Update your Apps Script.</b> Your sheet runs an older version of the code, which can't store reports with screenshots (for example, Falling Cone).
+      <b>Update your Apps Script.</b> Your sheet runs an older version of the code. Version 2 stores reports with screenshots (for example, Falling Cone); version 3 keeps one row per student for live activities (for example, Transformations with Desmos) instead of one row per answer.
       To update: open your sheet → <b>Extensions → Apps Script</b>, replace the code with the new code below (<b>keep your own TEACHER_KEY</b>),
       save, then <b>Deploy → Manage deployments → ✏ Edit → Version: New version → Deploy</b>. The Web app URL stays the same, and all your reports are kept.
     </div>
@@ -142,7 +142,7 @@
 <script type="text/plain" id="gs-source">// Ergosfera lab reports backend (all labs share it).
 // Paste into Extensions → Apps Script of a Google Sheet, then deploy as a Web app.
 const TEACHER_KEY = 'change-this-word';   // teacher pages need this word to read reports
-const VERSION = 2;
+const VERSION = 3;
 // A cell holds at most 50,000 characters, so long reports (for example with a screenshot) are split
 // across several cells. Each piece starts with '~' so Sheets never reads it as a number or a formula.
 const PIECE = 45000;
@@ -155,8 +155,18 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents);
     const json = JSON.stringify(data), pieces = [];
     for (let i = 0; i < json.length; i += PIECE) pieces.push('~' + json.slice(i, i + PIECE));
-    getSheet_().appendRow([new Date(), data.lab || '', String(data.session || ''), String(data.group || ''),
-      (data.students || []).join(' & ')].concat(pieces));
+    const row = [new Date(), data.lab || '', String(data.session || ''), String(data.group || ''),
+      (data.students || []).join(' & ')].concat(pieces);
+    const sh = getSheet_();
+    // Live activities send the whole report after every answer: each update replaces the report's
+    // previous live row, so the sheet keeps one row per student instead of one per answer.
+    const at = data.id ? liveRow_(sh, String(data.id)) : 0;
+    if (at) {
+      sh.getRange(at, 1, 1, sh.getLastColumn()).clearContent();
+      sh.getRange(at, 1, 1, row.length).setValues([row]);
+    } else {
+      sh.appendRow(row);
+    }
     return json_({ ok: true, version: VERSION });
   } catch (err) {
     return json_({ ok: false, error: String(err) });
@@ -184,6 +194,16 @@ function doGet(e) {
   return json_({ ok: true, version: VERSION, submissions: out });
 }
 
+// The row of this report's latest live update (0 if it has none). Reports start with "live", so it is in column F.
+function liveRow_(sh, id) {
+  if (sh.getLastRow() < 2) return 0;
+  const cells = sh.getRange(2, 6, sh.getLastRow() - 1, 1).createTextFinder('"id":"' + id + '"').findAll();
+  for (let i = cells.length - 1; i >= 0; i--) {
+    if (String(cells[i].getValue()).indexOf('"live":true') >= 0) return cells[i].getRow();
+  }
+  return 0;
+}
+
 function getSheet_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sh = ss.getSheetByName('Submissions');
@@ -208,7 +228,7 @@ const CONN = { api: '', key: '' };
 try { Object.assign(CONN, JSON.parse(localStorage.getItem(CKEY) || '{}')); } catch (e) {}
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const BACKEND_VERSION = 2;   // version of the Apps Script code below
+const BACKEND_VERSION = 3;   // version of the Apps Script code below
 let COUNTS = null;   // lab id → { reports, sessions:Set, last }
 
 function renderTopics() {

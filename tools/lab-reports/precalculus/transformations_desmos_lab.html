@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Transformations with Desmos</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎚️</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950;
+    --green-soft: rgba(63,185,80,.12);
+    --amber: #d29922;
+    --amber-soft: rgba(210,153,34,.14);
+    --red: #f85149;
+    --purple: #bc8cff;
+    --purple-soft: rgba(188,140,255,.12);
+    --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #0969da;
+    --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37;
+    --green-soft: rgba(26,127,55,.09);
+    --amber: #9a6700;
+    --amber-soft: rgba(154,103,0,.10);
+    --red: #cf222e;
+    --purple: #8250df;
+    --purple-soft: rgba(130,80,223,.08);
+  }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.5; min-height: 100vh;
+  }
+  a { color: var(--accent); }
+  code { font-family: Consolas, 'Courier New', monospace; font-size: .9em; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.3px; }
+  header h1 span { color: var(--accent); }
+  .progress { flex: 1; min-width: 140px; display: flex; gap: 4px; }
+  .progress i { flex: 1; height: 6px; border-radius: 3px; background: var(--surface2); border: 1px solid var(--border); }
+  .progress i.done { background: var(--green); border-color: var(--green); }
+  .progress i.current { background: var(--accent); border-color: var(--accent); }
+  .save-state { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .live-state { font-size: .75rem; font-weight: 700; white-space: nowrap; color: var(--muted); }
+  .live-state.on { color: var(--green); }
+  .live-state.bad { color: var(--amber); }
+  .pill-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 20px; padding: 5px 12px; font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer;
+  }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  .intro { color: var(--muted); font-size: .92rem; margin-bottom: 20px; }
+  .intro b { color: var(--text); }
+
+  /* ── STEPS ── */
+  .step {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .step-head {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-head .num {
+    width: 30px; height: 30px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; font-weight: 800; font-size: .9rem;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .step.done .num { background: var(--green); border-color: var(--green); color: #fff; }
+  .step.active .num { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step-head h2 { font-size: 1.02rem; font-weight: 700; flex: 1; }
+  .step-head .status { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .step.done .status { color: var(--green); }
+  .step-body { padding: 18px; display: grid; gap: 16px; }
+  .step-lock { display: none; padding: 14px 18px; color: var(--muted); font-size: .88rem; }
+  .step.locked .step-body { display: none; }
+  .step.locked .step-lock { display: block; }
+  .step.locked .step-head { border-bottom: none; opacity: .6; }
+
+  p.lead { font-size: .93rem; }
+  .desmos {
+    background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--green); border-radius: 10px;
+    padding: 12px 16px; display: grid; gap: 8px; font-size: .9rem;
+  }
+  .desmos .bt { font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--green); }
+  .desmos ol { padding-left: 22px; display: grid; gap: 6px; }
+  .desmos ol li::marker { color: var(--green); font-weight: 800; }
+
+  /* ── FORM ── */
+  label.f { display: grid; gap: 5px; font-size: .82rem; font-weight: 600; color: var(--muted); align-content: end; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  input[type=text], textarea {
+    width: 100%; font: inherit; font-size: .95rem; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  input[readonly] { background: var(--surface2); color: var(--muted); }
+  .q { display: grid; gap: 6px; }
+  .qt { font-size: .93rem; font-weight: 600; }
+  .qt em { font-style: normal; color: var(--accent); }
+  .qn { color: var(--accent); font-weight: 800; margin-right: 6px; }
+  .wc { font-size: .72rem; color: var(--muted); text-align: right; }
+  .wc.ok { color: var(--green); }
+  .fx { font-family: 'Cambria Math', 'STIX Two Math', Georgia, serif; font-size: 1.05em; white-space: nowrap; }
+
+  .choices { display: grid; gap: 6px; }
+  .choices label {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: .92rem;
+  }
+  .choices label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .choices label:has(input:disabled) { cursor: default; }
+
+  .chk { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; }
+  .chk.ok { border-color: var(--green); }
+  .chk.predict { border-color: var(--purple); border-style: dashed; }
+  .chk.predict.ok { border-style: solid; }
+  .tag-predict { display: inline-block; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--purple); background: var(--purple-soft); border-radius: 4px; padding: 1px 6px; margin-right: 6px; }
+  .num-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-weight: 700; font-size: 1.05rem; }
+  .num-row input { width: 110px; text-align: center; }
+
+  .btn {
+    font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;
+    border-radius: 8px; padding: 8px 16px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text);
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
+  .btn.purple { background: var(--purple); border-color: var(--purple); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .row-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .note {
+    border-radius: 8px; padding: 10px 14px; font-size: .88rem;
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+  }
+  .note.warn { background: var(--amber-soft); border-left-color: var(--amber); }
+  .note.good { background: var(--green-soft); border-left-color: var(--green); }
+  .note.purple { background: var(--purple-soft); border-left-color: var(--purple); }
+
+  .summary { display: grid; gap: 4px; font-size: .9rem; }
+  .summary div::before { content: '○ '; color: var(--muted); }
+  .summary div.ok::before { content: '✓ '; color: var(--green); font-weight: 800; }
+
+  /* ── DIALOGS ── */
+  dialog.guide {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+    width: min(780px, 94vw); max-height: 90vh; margin: auto; padding: 0;
+  }
+  dialog.guide::backdrop { background: rgba(0,0,0,.55); }
+  .guide-head { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .guide-head h2 { font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .guide-body { padding: 18px; display: grid; gap: 18px; font-size: .92rem; }
+  .guide-body h3 { font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .guide-body ol { padding-left: 22px; display: grid; gap: 6px; }
+  .guide-foot { padding: 0 18px 18px; display: flex; justify-content: flex-end; }
+
+  footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
+  footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="pill-btn" href="../../../index.html#math-activities" style="text-decoration:none">← Math Activities</a>
+  <h1>🎚️ <span>Transformations</span> with Desmos</h1>
+  <div class="progress" id="progress"></div>
+  <span class="live-state" id="live-state"></span>
+  <span class="save-state" id="save-state">Saved on this computer</span>
+  <button class="pill-btn" data-guide>📋 Guide</button>
+  <button class="pill-btn" id="theme-toggle">☀ Light</button>
+</header>
+
+<main>
+  <p class="intro">AP Precalculus 1.12. You will <b>find the transformation rules yourself</b>: put a slider in Desmos, move it, and watch what happens to a graph. <span data-solo>Work <b>on your own</b>.</span><span data-team hidden>Work <b>with your partner</b>.</span> Press <b>Check</b> after each answer: you'll see right away whether you're right, with a hint if you aren't. Your work is saved on this computer as you type<span id="intro-live" hidden>, and your teacher sees each answer as soon as you check it</span>.</p>
+
+  <!-- 1 WHO -->
+  <section class="step" data-step="1">
+    <div class="step-head"><span class="num">1</span><h2>Who are you?</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="q">
+        <div class="qt">Who is answering? Do what your teacher told you.</div>
+        <div class="choices">
+          <label><input type="radio" name="mode" value="individual"> Just me: my own answers</label>
+          <label><input type="radio" name="mode" value="group"> Our group: one set of answers for the group</label>
+        </div>
+      </div>
+      <div class="grid2">
+        <label class="f">Class / session code<input type="text" data-bind="session" id="session-input" placeholder="e.g. PC-1"></label>
+        <label class="f"><span data-team hidden>Group number</span><span data-solo>Group or table number (if you have one)</span><input type="text" inputmode="numeric" data-bind="group" placeholder="e.g. 4"></label>
+      </div>
+      <div class="grid2">
+        <label class="f"><span data-team hidden>Student 1</span><span data-solo>Your name</span><input type="text" data-bind="students.0" placeholder="Full name"></label>
+        <label class="f" data-team hidden>Student 2<input type="text" data-bind="students.1" placeholder="Full name"></label>
+      </div>
+    </div>
+  </section>
+
+  <div id="content-steps"></div>
+
+  <!-- LAST: SEND -->
+  <section class="step" id="send-step">
+    <div class="step-head"><span class="num"></span><h2>Finish</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="summary" id="summary"></div>
+      <div class="row-btns">
+        <button class="btn primary" id="send">📤 Send final version</button>
+        <button class="btn" id="download">⬇ Download backup file</button>
+        <button class="btn" id="next-group">👥 New report for the next student</button>
+      </div>
+      <div id="send-status"></div>
+    </div>
+  </section>
+</main>
+
+<dialog class="guide" id="guide">
+  <div class="guide-head"><h2>📋 Guide: Transformations with Desmos</h2><button class="pill-btn" data-guide-close>Close</button></div>
+  <div class="guide-body">
+    <p class="note">Read this before you start. You can open it again at any moment with the <b>📋 Guide</b> button at the top.</p>
+    <section>
+      <h3>How it works</h3>
+      <ol>
+        <li>Open <a href="https://www.desmos.com/calculator" target="_blank" rel="noopener">Desmos</a> in another tab or window, next to this page. The green boxes tell you what to type there.</li>
+        <li>There is one function, <span class="fx">f(x) = 0.1x⁴ − 0.75x³ + x² + 2x − 1</span>, and one slider, <b>a</b>. You change f in four ways and find out what each one does to the graph.</li>
+        <li><b>Predictions</b> (purple) come before you move the slider. Save your honest guess: it is never marked wrong.</li>
+        <li>For the other questions, <b>answer first, then press Check</b>. If you are not right, read the hint, look at Desmos again and try again. After two wrong tries you can see the answer, but try first: your teacher sees how many tries you needed.</li>
+      </ol>
+    </section>
+    <section>
+      <h3>Typing answers</h3>
+      <p>Type numbers like <b>2.6</b>, <b>−1</b> or <b>1/2</b>. A point has two boxes: x in the first one and y in the second one.</p>
+    </section>
+  </div>
+  <div class="guide-foot"><button class="btn primary" data-guide-close>Got it, let's start</button></div>
+</dialog>
+
+<dialog class="guide" id="who-dlg">
+  <div class="guide-head"><h2>👋 Whose answers are these?</h2></div>
+  <div class="guide-body">
+    <p>This computer already has answers for this activity:</p>
+    <div class="note" id="who-cur"></div>
+    <p>Are they yours? If not, start a new report. The one already here is <b>kept on this computer</b>, so it is not lost.</p>
+    <div class="row-btns">
+      <button class="btn primary" id="who-continue">Yes, they're mine: continue</button>
+      <button class="btn" id="who-new">No, start a new report</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="guide" id="arch-dlg">
+  <div class="guide-head"><h2>🗂 Earlier reports on this computer</h2><button class="pill-btn" id="arch-close">Close</button></div>
+  <div class="guide-body">
+    <p class="note">Reports that earlier students left on this computer. If one was not sent, download it and give the file to your teacher.</p>
+    <div id="arch-list" style="display:grid;gap:8px"></div>
+  </div>
+</dialog>
+
+<footer>
+  Transformations with Desmos · Ergosfera Teaching Tools · <button id="reset">Start a new report</button> · <button id="arch-open" hidden>Earlier reports on this computer</button>
+</footer>
+
+<script src="transformations_desmos.js"></script>
+<script>
+// ── Config from the link the teacher shares ─────────────────
+const LAB_ID = TD.id;
+const params = new URLSearchParams(location.search);
+const API = params.get('api') || '';
+const LINK_SESSION = params.get('session') || '';
+const LINK_MODE = ['group', 'individual'].includes(params.get('mode')) ? params.get('mode') : '';
+const STORE = 'lab_' + LAB_ID + '_' + (LINK_SESSION || 'default');
+const ITEMS = TD.items;
+const Q = Object.fromEntries(ITEMS.map(q => [q.id, q]));
+const NSTEPS = TD.steps.length + 2;   // who + content steps + finish
+const REVEAL_AFTER = 2;
+
+// ── State ───────────────────────────────────────────────────
+function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+function blank() {
+  return {
+    schema: 1, lab: LAB_ID, id: rid(), session: LINK_SESSION, mode: LINK_MODE || 'individual', group: '', students: ['', ''],
+    ans: {},     // checked items: id → { v, first, tries, ok, rev, at }; predictions: { v, saved, at }
+    text: {},    // text items: id → text
+    startedAt: new Date().toISOString(), unlocked: 1, sent: null,
+  };
+}
+let S = blank();
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+  if (saved && saved.lab === LAB_ID) S = Object.assign(blank(), saved);
+} catch (e) {}
+if (LINK_SESSION) S.session = LINK_SESSION;
+if (LINK_MODE) S.mode = LINK_MODE;
+
+let saveTimer;
+function save() {
+  S.savedAt = new Date().toISOString();
+  try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {}
+  const el = document.getElementById('save-state');
+  el.textContent = 'Saving…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { el.textContent = 'Saved on this computer ✓'; }, 400);
+}
+
+function getPath(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), S); }
+function setPath(path, v) {
+  const keys = path.split('.'); let o = S;
+  keys.slice(0, -1).forEach(k => { o = o[k] ?? (o[k] = {}); });
+  o[keys[keys.length - 1]] = v;
+}
+
+// ── Helpers ─────────────────────────────────────────────────
+const words = s => String(s || '').trim().split(/\s+/).filter(Boolean).length;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const qState = id => S.ans[id] || (S.ans[id] = { v: '', first: null, tries: 0, ok: false, rev: false });
+function itemDone(q) {
+  if (q.type === 'text') return q.optional || words(S.text[q.id]) >= q.min;
+  const st = S.ans[q.id];
+  return !!st && (q.type === 'predict' ? !!st.saved : st.ok || st.rev);
+}
+
+// ── Content steps, built from TD ────────────────────────────
+let qn = 0;
+document.getElementById('content-steps').innerHTML = TD.steps.map(st => `
+  <section class="step" data-step="${st.n}">
+    <div class="step-head"><span class="num">${st.n}</span><h2>${st.title}</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">${st.lead}</p>
+      ${st.box ? `<div class="desmos"><div class="bt">In Desmos</div>${st.box}</div>` : ''}
+      ${ITEMS.filter(q => q.step === st.n).map(q => {
+        const head = `<div class="qt"><span class="qn">${++qn}</span>${q.type === 'predict' ? '<span class="tag-predict">Predict</span>' : ''}${q.text}</div>`;
+        if (q.type === 'text') return `<div class="q">${head}<textarea data-bind="text.${q.id}" data-min="${q.min}"${q.optional ? ' style="min-height:56px"' : ''}></textarea>
+          ${q.optional ? '' : `<div class="wc" data-wc="text.${q.id}"></div>`}</div>`;
+        return `<div class="chk${q.type === 'predict' ? ' predict' : ''}" data-q="${q.id}">${head}</div>`;
+      }).join('')}
+    </div>
+  </section>`).join('');
+const sendStep = document.getElementById('send-step');
+sendStep.dataset.step = NSTEPS;
+sendStep.querySelector('.num').textContent = NSTEPS;
+
+// ── Steps: completion rules ─────────────────────────────────
+const DONE = {
+  1: () => S.mode && S.session.trim() && S.students[0].trim() && (S.mode === 'individual' || (S.group.trim() && S.students[1].trim())),
+  [NSTEPS]: () => !!S.sent,
+};
+TD.steps.forEach(st => { DONE[st.n] = () => ITEMS.filter(q => q.step === st.n).every(itemDone); });
+
+function refresh() {
+  let firstOpen = 1;
+  while (firstOpen < NSTEPS && DONE[firstOpen]()) firstOpen++;
+  S.unlocked = Math.max(S.unlocked || 1, firstOpen);
+  const prog = document.getElementById('progress');
+  prog.innerHTML = '';
+  document.querySelectorAll('.step').forEach(sec => {
+    const i = +sec.dataset.step;
+    const done = !!DONE[i]();
+    const locked = i > S.unlocked;
+    sec.classList.toggle('done', done);
+    sec.classList.toggle('locked', locked);
+    sec.classList.toggle('active', !done && !locked);
+    sec.querySelector('.status').textContent = done ? '✓ Done' : locked ? '🔒' : 'In progress';
+    sec.querySelector('.step-lock').textContent = '🔒 Finish step ' + (i - 1) + ' to unlock this one.';
+    const dot = document.createElement('i');
+    if (done) dot.className = 'done'; else if (!locked) dot.className = 'current';
+    prog.appendChild(dot);
+  });
+  document.querySelectorAll('[data-wc]').forEach(el => {
+    const path = el.dataset.wc;
+    const min = +document.querySelector(`[data-bind="${path}"]`).dataset.min;
+    const w = words(getPath(path));
+    el.textContent = w + (w === 1 ? ' word' : ' words') + ' · at least ' + min;
+    el.classList.toggle('ok', w >= min);
+  });
+  refreshSummary();
+}
+
+// ── Generic bindings ────────────────────────────────────────
+document.querySelectorAll('[data-bind]').forEach(el => {
+  const path = el.dataset.bind;
+  el.value = getPath(path) ?? '';
+  el.addEventListener('input', () => {
+    setPath(path, el.value); save(); refresh();
+    if (path.startsWith('text.')) liveSoon(5000);
+  });
+  if (!path.startsWith('text.')) el.addEventListener('change', () => liveSoon(500));
+});
+if (LINK_SESSION) document.getElementById('session-input').readOnly = true;
+
+// Report mode: one report per student (default), or one per group. The class link can fix it (&mode=…).
+function applyMode() {
+  const solo = S.mode === 'individual';
+  document.querySelectorAll('[data-solo]').forEach(el => { el.hidden = !solo; });
+  document.querySelectorAll('[data-team]').forEach(el => { el.hidden = solo; });
+  document.getElementById('next-group').textContent = solo ? '👥 New report for the next student' : '👥 New report for the next group';
+}
+document.querySelectorAll('input[name=mode]').forEach(r => {
+  r.checked = r.value === S.mode;
+  r.disabled = !!LINK_MODE;
+  r.addEventListener('change', () => { S.mode = r.value; applyMode(); save(); refresh(); liveSoon(500); });
+});
+applyMode();
+
+// ── Predictions: saved once, never marked right or wrong ────
+function renderPredict(box) {
+  const id = box.dataset.q, q = Q[id], st = qState(id);
+  box.insertAdjacentHTML('beforeend', `<div class="choices">${Object.entries(q.options).map(([k, t]) =>
+      `<label><input type="radio" name="q-${id}" value="${k}"> ${esc(t)}</label>`).join('')}</div>
+    <div class="row-btns"><button class="btn purple" data-save>Save my prediction</button></div><div data-fb></div>`);
+  box.querySelectorAll('input').forEach(r => {
+    r.checked = r.value === st.v;
+    r.addEventListener('change', () => { st.v = r.value; save(); });
+  });
+  box.querySelector('[data-save]').addEventListener('click', () => {
+    if (!st.v) { box.querySelector('[data-fb]').innerHTML = '<div class="note warn">Choose an answer first.</div>'; return; }
+    st.saved = true; st.first = st.v; st.at = new Date().toISOString();
+    save(); paintPredict(box); refresh(); liveSoon(300);
+  });
+  paintPredict(box);
+}
+function paintPredict(box) {
+  const st = qState(box.dataset.q);
+  box.classList.toggle('ok', !!st.saved);
+  box.querySelectorAll('input').forEach(i => { i.disabled = !!st.saved; });
+  box.querySelector('[data-save]').hidden = !!st.saved;
+  if (st.saved) box.querySelector('[data-fb]').innerHTML = '<div class="note purple">Prediction saved. Now move the slider and find out with the next questions.</div>';
+}
+
+// ── Checked questions with immediate feedback ───────────────
+// The first answer checked is kept (that's what the teacher's charts show); after REVEAL_AFTER
+// wrong tries the student may see the answer.
+function renderQ(box) {
+  const id = box.dataset.q, q = Q[id], st = qState(id);
+  const input = q.type === 'mc'
+    ? `<div class="choices">${Object.entries(q.options).map(([k, t]) =>
+        `<label><input type="radio" name="q-${id}" value="${k}"> ${esc(t)}</label>`).join('')}</div>`
+    : q.type === 'pt'
+      ? `<div class="num-row">( <input type="text" inputmode="decimal" data-x placeholder="x" autocomplete="off"> , <input type="text" inputmode="decimal" data-y placeholder="y" autocomplete="off"> )</div>`
+      : `<div class="num-row"><input type="text" inputmode="decimal" data-n placeholder="number" autocomplete="off"></div>`;
+  box.insertAdjacentHTML('beforeend', `${input}
+    <div class="row-btns"><button class="btn primary" data-check>Check</button><button class="btn" data-reveal hidden>Show the answer</button><span class="save-state" data-tries></span></div>
+    <div data-fb></div>`);
+  if (q.type === 'mc') box.querySelectorAll('input').forEach(r => { r.checked = r.value === st.v; });
+  else if (q.type === 'pt') { const [x = '', y = ''] = String(st.v).split(';'); box.querySelector('[data-x]').value = x; box.querySelector('[data-y]').value = y; }
+  else box.querySelector('[data-n]').value = st.v;
+  const read = () => {
+    if (q.type === 'pt') st.v = box.querySelector('[data-x]').value.trim() + ';' + box.querySelector('[data-y]').value.trim();
+    else if (q.type === 'num') st.v = box.querySelector('[data-n]').value.trim();
+    else st.v = box.querySelector('input:checked')?.value || '';
+    save();
+  };
+  box.addEventListener('input', read);
+  box.addEventListener('change', read);
+  box.querySelectorAll('input[type=text]').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); check(); } }));
+  box.querySelector('[data-check]').addEventListener('click', check);
+  box.querySelector('[data-reveal]').addEventListener('click', () => {
+    st.rev = true; st.at = new Date().toISOString();
+    save(); paintQ(box); refresh(); liveSoon(300);
+  });
+  function check() {
+    if (st.ok || st.rev) return;
+    const fb = box.querySelector('[data-fb]');
+    if (q.type === 'mc' && !st.v) { fb.innerHTML = '<div class="note warn">Choose an answer first, then check.</div>'; return; }
+    if (q.type !== 'mc' && tdValue(q, st.v) == null) {
+      fb.innerHTML = `<div class="note warn">${q.type === 'pt' ? 'Type a number in each box: x first, then y.' : 'Type a number, like 2.6, −1 or 1/2.'}</div>`;
+      return;
+    }
+    if (st.first === null) st.first = st.v;
+    st.tries++;
+    st.ok = tdCorrect(q, st.v);
+    st.last = st.v;
+    st.at = new Date().toISOString();
+    save(); paintQ(box); refresh(); liveSoon(300);
+  }
+  paintQ(box);
+}
+function paintQ(box) {
+  const id = box.dataset.q, q = Q[id], st = qState(id);
+  const done = st.ok || st.rev;
+  box.classList.toggle('ok', done);
+  box.querySelectorAll('input').forEach(i => { i.disabled = done; });
+  box.querySelector('[data-check]').hidden = done;
+  box.querySelector('[data-reveal]').hidden = done || st.tries < REVEAL_AFTER;
+  box.querySelector('[data-tries]').textContent = st.tries ? `${st.tries} ${st.tries === 1 ? 'try' : 'tries'}` : '';
+  const fb = box.querySelector('[data-fb]');
+  if (st.ok) fb.innerHTML = `<div class="note good">✓ Right! ${esc(q.ok)}</div>`;
+  else if (st.rev) fb.innerHTML = `<div class="note">The answer is <b>${esc(tdAnswerText(q))}</b>. ${esc(q.ok)}</div>`;
+  else if (st.tries) fb.innerHTML = `<div class="note warn">✗ Not yet. ${esc(q.hint(tdValue(q, st.last ?? st.v)) || 'Try again.')}</div>`;
+  else fb.innerHTML = '';
+}
+document.querySelectorAll('.chk[data-q]').forEach(box => (Q[box.dataset.q].type === 'predict' ? renderPredict : renderQ)(box));
+
+// ── Live: each checked answer reaches the teacher's page right away ──
+// Every update is sent as the whole report with live: true; the teacher page keeps the latest one.
+// Nothing is sent before step 1 is complete, so the teacher knows whose answers they are.
+const liveEl = document.getElementById('live-state');
+let liveTimer = null, liveBusy = false, liveAgain = false;
+function liveSoon(ms) {
+  if (!API || !DONE[1]()) return;
+  clearTimeout(liveTimer);
+  liveTimer = setTimeout(liveSend, ms);
+}
+async function liveSend() {
+  if (liveBusy) { liveAgain = true; return; }
+  liveBusy = true;
+  const body = JSON.stringify(payload(true));
+  let ok = false;
+  try {
+    const j = await (await fetch(API, { method: 'POST', body })).json();
+    ok = !!j.ok;
+  } catch (e) {
+    try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; } catch (e2) {}
+  }
+  liveBusy = false;
+  liveEl.className = 'live-state ' + (ok ? 'on' : 'bad');
+  liveEl.textContent = ok ? '● Live with teacher · ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '⚠ Teacher not reached: your work is saved here';
+  if (liveAgain) { liveAgain = false; liveSend(); }
+}
+if (API) {
+  document.getElementById('intro-live').hidden = false;
+  liveEl.textContent = '● Live with teacher';
+}
+
+// ── Send ────────────────────────────────────────────────────
+function payload(live) {
+  const { unlocked, sent, guideSeen, ...data } = S;
+  // live first, so the sheet can find the live row of this report
+  return { live: !!live, ...data, submittedAt: new Date().toISOString(), client: 'transformations_desmos_lab/1' };
+}
+function refreshSummary() {
+  const names = ['Who are you', ...TD.steps.map(st => st.title)];
+  document.getElementById('summary').innerHTML = names.map((n, i) => `<div class="${DONE[i + 1]() ? 'ok' : ''}">${esc(n)}</div>`).join('');
+  document.getElementById('send').disabled = !API;
+  const st = document.getElementById('send-status');
+  if (!API && !st.dataset.msg) st.innerHTML = '<div class="note warn">This link has no connection to your teacher. Use <b>Download backup file</b> and hand the file in, or ask your teacher for the class link.</div>';
+  else if (S.sent && !st.dataset.msg) st.innerHTML = `<div class="note good">Sent at ${new Date(S.sent).toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`;
+}
+function setStatus(html) { const st = document.getElementById('send-status'); st.dataset.msg = '1'; st.innerHTML = html; }
+
+document.getElementById('send').addEventListener('click', async () => {
+  const missing = Array.from({ length: NSTEPS - 1 }, (_, i) => i + 1).filter(i => !DONE[i]());
+  if (missing.length && !confirm('Steps ' + missing.join(', ') + ' are not complete. Send anyway?')) return;
+  clearTimeout(liveTimer);
+  const btn = document.getElementById('send');
+  btn.disabled = true; setStatus('<div class="note">Sending…</div>');
+  const body = JSON.stringify(payload(false));
+  let ok = false, unconfirmed = false;
+  try {
+    const r = await fetch(API, { method: 'POST', body });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'server error');
+    ok = true;
+  } catch (e) {
+    try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; unconfirmed = true; } catch (e2) {}
+  }
+  btn.disabled = false;
+  if (ok) {
+    S.sent = new Date().toISOString(); save();
+    setStatus(`<div class="note good">✓ Sent${unconfirmed ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+  } else {
+    setStatus('<div class="note warn">Could not send: check the internet connection and try again. If it keeps failing, use <b>Download backup file</b> and give the file to your teacher.</div>');
+  }
+  refresh();
+});
+document.getElementById('download').addEventListener('click', () => downloadReport(S));
+
+// ── Theme (shared with the tools index) ─────────────────────
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  document.getElementById('theme-toggle').textContent = light ? '☽ Dark' : '☀ Light';
+  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+applyTheme(savedTheme === 'light');
+document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
+
+// ── Guide: opens by itself the first time, and from the header anytime ──
+const guide = document.getElementById('guide');
+function openGuide() { if (!guide.open) guide.showModal(); }
+document.querySelectorAll('[data-guide]').forEach(b => b.addEventListener('click', openGuide));
+document.querySelectorAll('[data-guide-close]').forEach(b => b.addEventListener('click', () => guide.close()));
+guide.addEventListener('click', e => { if (e.target === guide) guide.close(); });
+guide.addEventListener('close', () => { if (!S.guideSeen) { S.guideSeen = true; save(); } });
+if (!S.guideSeen) openGuide();
+
+// ── Several students on one computer: a report already here is kept, never overwritten ──
+const ARCHIVE = STORE + '_archive', ACK = 'ack_' + STORE;
+function readArchive() { try { return JSON.parse(localStorage.getItem(ARCHIVE) || '[]'); } catch (e) { return []; } }
+const hasWork = r => !!(String(r.group || '').trim() || String((r.students || [])[0] || '').trim());
+const reportWho = r => [(r.mode === 'individual' ? [(r.students || [])[0]] : r.students || []).filter(s => s && s.trim()).join(' & '),
+  String(r.group || '').trim() ? 'group ' + r.group : ''].filter(Boolean).join(' · ') || 'No name yet';
+const reportWhen = r => (r.savedAt ? 'last saved ' + new Date(r.savedAt).toLocaleString() : '');
+function ack() { try { sessionStorage.setItem(ACK, S.id); } catch (e) {} }
+function downloadReport(r) {
+  const keep = S;
+  let body;
+  S = Object.assign(blank(), r);
+  try { body = JSON.stringify(payload(false), null, 2); } finally { S = keep; }
+  const tag = [r.session, r.mode === 'individual' ? (r.students || [])[0] : 'group' + (r.group || 'X')].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
+  a.download = `${LAB_ID}_${tag}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function newReport() {
+  let wait = 0;
+  if (hasWork(S)) {
+    const list = readArchive();
+    list.unshift({ ...S, archivedAt: new Date().toISOString() });
+    try { localStorage.setItem(ARCHIVE, JSON.stringify(list.slice(0, 12))); }
+    catch (e) {
+      alert('This computer has no room to keep a copy, so the report will be downloaded as a file. Give that file to your teacher.');
+      downloadReport(S); wait = 1500;
+    }
+  }
+  try { localStorage.removeItem(STORE); sessionStorage.removeItem(ACK); } catch (e) {}
+  setTimeout(() => location.reload(), wait);
+}
+function confirmNew() {
+  if (hasWork(S) && !S.sent && !confirm('These answers were not sent as a final version yet. They will be kept on this computer, so they are not lost. Start a new report?')) return;
+  newReport();
+}
+const whoDlg = document.getElementById('who-dlg');
+whoDlg.addEventListener('cancel', e => e.preventDefault());
+document.getElementById('who-continue').addEventListener('click', () => { ack(); whoDlg.close(); });
+document.getElementById('who-new').addEventListener('click', confirmNew);
+document.getElementById('next-group').addEventListener('click', confirmNew);
+document.getElementById('reset').addEventListener('click', confirmNew);
+let acked = null; try { acked = sessionStorage.getItem(ACK); } catch (e) {}
+if (hasWork(S) && acked !== S.id) {
+  document.getElementById('who-cur').innerHTML = `<b>${esc(reportWho(S))}</b>` +
+    (reportWhen(S) ? ' · ' + reportWhen(S) : '') + (S.sent ? ' · sent to the teacher ✓' : ' · <b>final version not sent yet</b>');
+  if (guide.open) guide.close();
+  whoDlg.showModal();
+} else ack();
+const archDlg = document.getElementById('arch-dlg');
+function renderArchive() {
+  const list = readArchive();
+  document.getElementById('arch-open').hidden = !list.length;
+  document.getElementById('arch-open').textContent = `Earlier reports on this computer (${list.length})`;
+  document.getElementById('arch-list').innerHTML = list.map((r, i) => `
+    <div class="note${r.sent ? ' good' : ' warn'}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <span style="flex:1;min-width:200px"><b>${esc(reportWho(r))}</b>${r.session ? ' · session ' + esc(r.session) : ''}<br>
+      <span style="font-size:.8rem">${esc(reportWhen(r))}${r.sent ? ' · sent ✓' : ' · not sent'}</span></span>
+      <button class="btn" data-arch="${i}">⬇ Download</button>
+    </div>`).join('');
+}
+document.getElementById('arch-open').addEventListener('click', () => { renderArchive(); archDlg.showModal(); });
+document.getElementById('arch-close').addEventListener('click', () => archDlg.close());
+document.getElementById('arch-list').addEventListener('click', e => {
+  const i = e.target.dataset.arch;
+  if (i != null) downloadReport(readArchive()[+i]);
+});
+renderArchive();
+
+refresh();
+</script>
+</body>
+</html>

@@ -19,13 +19,14 @@
 //   questionChart?(q) → html                     charts for questions other than 'errors'
 //   answerPrefix?(q, s) → text                   bold text before an answer (e.g. the chosen prediction)
 //   sections?: [{ id, title, render(el) }]       extra sections after the results (e.g. screenshots)
+//   jump?() → [[question id, text], …]           links to the answers in the top bar (default: one per question)
 //   titleExtra?() → text                         appended to the title slide's subtitle
 //   slides(on) → [{ html, draw?, cls? }]         lab slides between the title and the results table
 //   detail(G) → html, drawDetail?(G)             body of the group dialog
 //   computed(G) → object                         values recomputed here, added to the JSON export
 //   csv: { head: [...], rows: G => [[...], …] }  CSV export
 //   demo() → [report, …]                         demo class (session DEMO)
-//   backendVersion?                              minimum Apps Script version this lab needs
+//   backendVersion?, backendWhy?                 minimum Apps Script version this lab needs, and why (shown if older)
 
 // ── Helpers shared with the lab pages ───────────────────────
 const num = s => { const v = parseFloat(String(s ?? '').trim().replace(',', '.')); return isFinite(v) ? v : NaN; };
@@ -219,7 +220,8 @@ function render() {
   $('jump').innerHTML = empty ? '' :
     '<a href="#sec-summary">Summary</a><a href="#sec-results">Results</a>' +
     (LAB.sections || []).map(sec => `<a href="#sec-${sec.id}">${esc(sec.title)}</a>`).join('') +
-    LAB.questions.map((q, i) => `<a href="#q-${q.id}">Q${i + 1} · ${esc(q.title.split(/[?:…]/)[0])}</a>`).join('');
+    (LAB.jump ? LAB.jump() : LAB.questions.map((q, i) => [q.id, `Q${i + 1} · ${q.title.split(/[?:…]/)[0]}`]))
+      .map(([id, text]) => `<a href="#q-${id}">${esc(text)}</a>`).join('');
   if (empty) return;
   LAB.renderSummary(GROUPS.filter(G => G.on));
   const legend = $('legend');
@@ -361,7 +363,7 @@ async function load() {
     cacheRaw();
     fstate.textContent = 'Updated ' + new Date().toLocaleTimeString();
     if (LAB.backendVersion && (j.version || 1) < LAB.backendVersion)
-      fstate.textContent += ' · ⚠ Update your Apps Script (see the Lab Reports teacher page) so reports with screenshots can be saved';
+      fstate.textContent += ' · ⚠ Update your Apps Script (see the Lab Reports teacher page) ' + (LAB.backendWhy || 'so reports with screenshots can be saved');
   } catch (e) {
     fstate.textContent = '⚠ ' + (e.message || 'Could not load') + (RAW.size ? ' (showing saved reports)' : '');
   }
