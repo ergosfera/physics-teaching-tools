@@ -2,7 +2,7 @@
 //
 // A teacher page loads lab-teacher.css and this file, then calls LabTeacher({...}) with only the
 // parts that are specific to its experiment. The engine does the rest: Google Sheet connection,
-// one report per group (latest version), consolidated page, answers side by side, group detail,
+// one row per report (latest version), consolidated page, answers side by side, group detail,
 // Projector slides, student link, import (with upload to the sheet), JSON/CSV export and demo.
 //
 // The lab object:
@@ -153,6 +153,7 @@ function buildPage() {
 
   <div id="empty" class="empty-state" hidden>
     <p><b>No reports yet.</b></p>
+    <p id="empty-hidden" hidden></p>
     <p>Students' reports for this lab will appear here. Open <b>⚙ Setup &amp; data</b> to get the student link, import report files, or load a demo class.</p>
   </div>
 
@@ -164,6 +165,7 @@ function buildPage() {
     <h2 class="sec" id="sec-results">Results by group</h2>
     <div class="card">
       <div class="table-wrap"><table class="t" id="results"></table></div>
+      <p class="note" id="hidden-note" hidden style="margin-top:8px"></p>
       <p class="muted" style="font-size:.78rem;margin-top:8px">Values are recomputed from each group's raw measurements. Data checks point out things to look at; they are not grades. Click a row to see the full report.</p>
     </div>
     ${(LAB.sections || []).map(sec => `<h2 class="sec" id="sec-${sec.id}">${esc(sec.title)}</h2><div id="${sec.id}"></div>`).join('')}
@@ -192,13 +194,17 @@ function buildPage() {
 <dialog id="lightbox"><img alt=""><div class="cap"></div></dialog>`;
 }
 
-// ── Groups: latest report per (session, group), recomputed from raw data ──
+// ── Groups: latest version of each report, recomputed from raw data ──
+// A report is what one computer sends (its id stays the same when it is sent again), so two students
+// or groups who typed the same group number or name never hide each other: both are shown and flagged.
+let HIDDEN = 0;   // reports of this lab in other sessions (not shown while a session is chosen)
+const whoKey = s => norm(s.session) + '|' + norm(s.group) + (solo(s) ? '|' + norm(s.students?.[0]) : '');
 function buildGroups() {
   const sess = norm(CFG.session);
   const latest = new Map(), versions = new Map();
   [...RAW.values()].forEach(s => {
     if (sess && norm(s.session) !== sess) return;
-    const key = norm(s.session) + '|' + norm(s.group) + (solo(s) ? '|' + norm(s.students?.[0]) : '');
+    const key = s.id ? 'id|' + s.id : whoKey(s);
     versions.set(key, (versions.get(key) || 0) + 1);
     const cur = latest.get(key);
     if (!cur || String(s.submittedAt) > String(cur.submittedAt)) latest.set(key, s);
@@ -209,6 +215,14 @@ function buildGroups() {
   GROUPS.forEach((G, i) => { G.color = COLORS[i % COLORS.length]; });
   if (LAB.finish) LAB.finish(GROUPS);
   GROUPS.forEach(G => { G.checks = LAB.checks(G); });
+  // The same group (or the same student) with more than one report: e.g. two computers, or a mistyped group number
+  const same = new Map();
+  GROUPS.forEach(G => { const k = whoKey(G.s); same.set(k, (same.get(k) || 0) + 1); });
+  GROUPS.forEach(G => {
+    const n = same.get(whoKey(G.s));
+    if (n > 1) G.checks.unshift([`${n} reports with this ${solo(G.s) ? 'name' : 'group number'}`, '']);
+  });
+  HIDDEN = new Set([...RAW.values()].filter(s => sess && norm(s.session) !== sess).map(s => s.id || whoKey(s))).size;
 }
 
 // ── Consolidated page ───────────────────────────────────────
@@ -216,6 +230,8 @@ function render() {
   buildGroups();
   const empty = !GROUPS.length;
   $('empty').hidden = !empty;
+  $('empty-hidden').hidden = !HIDDEN;
+  $('empty-hidden').innerHTML = `<b>${HIDDEN}</b> report${HIDDEN === 1 ? ' is' : 's are'} in other sessions: clear the Session box at the top to see them.`;
   $('report').hidden = empty;
   $('jump').innerHTML = empty ? '' :
     '<a href="#sec-summary">Summary</a><a href="#sec-results">Results</a>' +
@@ -234,6 +250,8 @@ function render() {
 }
 
 function renderResults() {
+  $('hidden-note').hidden = !HIDDEN;
+  $('hidden-note').textContent = `${HIDDEN} more report${HIDDEN === 1 ? ' is' : 's are'} in other sessions. Clear the Session box at the top to see every report.`;
   $('results').innerHTML = `<thead><tr>
       <th>Group</th>${CFG.names ? '<th>Students</th>' : ''}${LAB.resultsHead}<th>Data checks</th>
     </tr></thead><tbody>` + GROUPS.map((G, i) => `<tr class="click" data-i="${i}">
