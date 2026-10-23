@@ -115,10 +115,10 @@
     <p class="muted">All labs send their reports to one Google Sheet. You set this up once, and every lab page on this browser uses it.</p>
     <div class="form-row"><label for="api">Web app URL</label><input type="text" id="api" placeholder="https://script.google.com/macros/s/…/exec"></div>
     <div class="form-row"><label for="key">Teacher key</label><input type="password" id="key"></div>
-    <div class="btns"><button class="btn primary" id="save">Save and test</button><span class="muted" id="save-msg"></span></div>
+    <div class="btns"><button class="btn primary" id="save">Save and test</button><a class="btn" id="sheet-link" target="_blank" rel="noopener" hidden>📄 Open the Google Sheet</a><span class="muted" id="save-msg"></span></div>
     <div class="note warn" id="update-note" hidden>
-      <b>Update your Apps Script.</b> Your sheet runs an older version of the code. Version 2 stores reports with screenshots (for example, Falling Cone); version 3 keeps one row per student for live activities (for example, Transformations with Desmos) instead of one row per answer.
-      To update: open your sheet → <b>Extensions → Apps Script</b>, replace the code with the new code below (<b>keep your own TEACHER_KEY</b>),
+      <b>Update your Apps Script.</b> Your sheet runs an older version of the code. Version 2 stores reports with screenshots (for example, Falling Cone); version 3 keeps one row per student for live activities (for example, Transformations with Desmos) instead of one row per answer; version 4 works in a standalone script too and asks students' pages to try again when many reports arrive at once.
+      To update: open your Apps Script project (from your sheet: <b>Extensions → Apps Script</b>), replace the code with the new code below (<b>keep your own TEACHER_KEY</b>),
       save, then <b>Deploy → Manage deployments → ✏ Edit → Version: New version → Deploy</b>. The Web app URL stays the same, and all your reports are kept.
     </div>
     <details id="howto">
@@ -128,9 +128,11 @@
           <li>Create a new Google Sheet, for example <i>Lab reports</i>.</li>
           <li>In the sheet, open <b>Extensions → Apps Script</b>. Delete what's there and paste the code below.</li>
           <li>Change <code>TEACHER_KEY</code> to a secret word of your own. Only someone with this word can read the reports.</li>
+          <li>Save, choose the function <b>setup</b> in the toolbar and press <b>▶ Run</b>. Authorize when Google asks. The log shows the link to the Sheet where reports are saved.</li>
           <li>Click <b>Deploy → New deployment</b>, choose type <b>Web app</b>, set <i>Execute as</i>: <b>Me</b> and <i>Who has access</i>: <b>Anyone</b>. Deploy, and authorize when Google asks.</li>
           <li>Copy the <b>Web app URL</b> (it ends in <code>/exec</code>) and paste it above with your key.</li>
         </ol>
+        <div class="note">Made the project at <b>script.google.com</b> instead of from a Sheet? That works too: the script creates a Sheet called <b>Ergosfera lab reports</b> in your Google Drive and saves the reports there. After <b>Save and test</b>, use <b>📄 Open the Google Sheet</b> above to find it.</div>
         <div class="btns"><button class="btn" id="copy-code">Copy Apps Script code</button><span class="muted" id="copy-msg"></span></div>
         <pre class="code" id="gs-code"></pre>
         <div class="note">If you change the code later, use <b>Deploy → Manage deployments → Edit → New version</b> so the URL stays the same. Every report is also a row in the sheet, so you always have a backup. On another computer, open this page and enter the same URL and key.</div>
@@ -141,16 +143,20 @@
 
 <script type="text/plain" id="gs-source">// Ergosfera lab reports backend (all labs share it).
 // Paste into Extensions → Apps Script of a Google Sheet, then deploy as a Web app.
+// It also works as a standalone project (script.google.com): then it creates the Sheet
+// "Ergosfera lab reports" in your Drive the first time, and the Lab Reports teacher page links to it.
 const TEACHER_KEY = 'change-this-word';   // teacher pages need this word to read reports
-const VERSION = 3;
+const VERSION = 4;
 // A cell holds at most 50,000 characters, so long reports (for example with a screenshot) are split
 // across several cells. Each piece starts with '~' so Sheets never reads it as a number or a formula.
 const PIECE = 45000;
 
 // Students send reports here (POST).
 function doPost(e) {
+  // One report at a time. When a whole class sends at once, a report that waits too long gets
+  // { ok: false, busy: true } and the student page sends it again a bit later.
   const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  if (!lock.tryLock(25000)) return json_({ ok: false, busy: true, error: 'The sheet is busy, try again' });
   try {
     const data = JSON.parse(e.postData.contents);
     const json = JSON.stringify(data), pieces = [];
@@ -179,7 +185,9 @@ function doPost(e) {
 function doGet(e) {
   const p = e.parameter || {};
   if (p.key !== TEACHER_KEY) return json_({ ok: false, error: 'Wrong teacher key' });
-  const rows = getSheet_().getDataRange().getValues().slice(1);
+  let sh;
+  try { sh = getSheet_(); } catch (err) { return json_({ ok: false, error: String(err) }); }
+  const rows = sh.getDataRange().getValues().slice(1);
   const out = [];
   rows.forEach(function (r) {
     try {
@@ -191,7 +199,7 @@ function doGet(e) {
       out.push(p.summary ? { lab: d.lab, session: d.session, group: d.group, submittedAt: d.submittedAt } : d);
     } catch (err) {}
   });
-  return json_({ ok: true, version: VERSION, submissions: out });
+  return json_({ ok: true, version: VERSION, sheetUrl: sh.getParent().getUrl(), submissions: out });
 }
 
 // The row of this report's latest live update (0 if it has none). Reports start with "live", so it is in column F.
@@ -204,8 +212,27 @@ function liveRow_(sh, id) {
   return 0;
 }
 
+// Run this once from the editor (select setup, then ▶ Run): Google asks for permission, and the log
+// shows the link to the Sheet where the reports are saved.
+function setup() {
+  Logger.log('Reports are saved in: ' + getSheet_().getParent().getUrl());
+}
+
+// The spreadsheet the script is attached to (Extensions → Apps Script). A standalone script has none,
+// so it uses the one it created the first time, whose id it keeps in the script properties.
+function spreadsheet_() {
+  const active = SpreadsheetApp.getActiveSpreadsheet();
+  if (active) return active;
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty('SHEET_ID');
+  if (id) return SpreadsheetApp.openById(id);
+  const ss = SpreadsheetApp.create('Ergosfera lab reports');
+  props.setProperty('SHEET_ID', ss.getId());
+  return ss;
+}
+
 function getSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = spreadsheet_();
   let sh = ss.getSheetByName('Submissions');
   if (!sh) {
     sh = ss.insertSheet('Submissions');
@@ -228,7 +255,7 @@ const CONN = { api: '', key: '' };
 try { Object.assign(CONN, JSON.parse(localStorage.getItem(CKEY) || '{}')); } catch (e) {}
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const BACKEND_VERSION = 3;   // version of the Apps Script code below
+const BACKEND_VERSION = 4;   // version of the Apps Script code below
 let COUNTS = null;   // lab id → { reports, sessions:Set, last }
 
 function renderTopics() {
@@ -274,6 +301,9 @@ async function test() {
       if (String(s.submittedAt) > c.last) c.last = s.submittedAt;
     });
     setStatus('Connected ✓', 'ok');
+    const sheet = document.getElementById('sheet-link');
+    sheet.hidden = !j.sheetUrl;
+    if (j.sheetUrl) sheet.href = j.sheetUrl;
     const outdated = (j.version || 1) < BACKEND_VERSION;
     document.getElementById('update-note').hidden = !outdated;
     if (outdated) { setStatus('Connected · update needed', 'bad'); document.getElementById('howto').open = true; }

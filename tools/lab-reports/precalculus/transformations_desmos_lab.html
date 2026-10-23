@@ -526,6 +526,8 @@ document.querySelectorAll('.chk[data-q]').forEach(box => (Q[box.dataset.q].type 
 // ── Live: each checked answer reaches the teacher's page right away ──
 // Every update is sent as the whole report with live: true; the teacher page keeps the latest one.
 // Nothing is sent before step 1 is complete, so the teacher knows whose answers they are.
+// An update the sheet did not confirm (busy, no internet, a script error) is sent again later, so a
+// student's answers are never lost while the page is open: the next update carries all of them.
 const liveEl = document.getElementById('live-state');
 let liveTimer = null, liveBusy = false, liveAgain = false;
 function liveSoon(ms) {
@@ -533,26 +535,35 @@ function liveSoon(ms) {
   clearTimeout(liveTimer);
   liveTimer = setTimeout(liveSend, ms);
 }
+// POST a report. confirmed: the sheet answered ok; reached: it answered at all (error says why not ok)
+async function post(body) {
+  try {
+    const j = await (await fetch(API, { method: 'POST', body })).json();
+    return { confirmed: !!j.ok, reached: true, busy: !!j.busy, error: j.error || '' };
+  } catch (e) {
+    // No readable answer (old script, network, browser blocking it): send blind, it may still arrive
+    try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); } catch (e2) { return { confirmed: false, reached: false }; }
+    return { confirmed: false, reached: false, blind: true };
+  }
+}
 async function liveSend() {
   if (liveBusy) { liveAgain = true; return; }
   liveBusy = true;
-  const body = JSON.stringify(payload(true));
-  let ok = false;
-  try {
-    const j = await (await fetch(API, { method: 'POST', body })).json();
-    ok = !!j.ok;
-  } catch (e) {
-    try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; } catch (e2) {}
-  }
+  const r = await post(JSON.stringify(payload(true)));
   liveBusy = false;
-  liveEl.className = 'live-state ' + (ok ? 'on' : 'bad');
-  liveEl.textContent = ok ? '● Live with teacher · ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '⚠ Teacher not reached: your work is saved here';
+  liveEl.className = 'live-state ' + (r.confirmed ? 'on' : 'bad');
+  liveEl.textContent = r.confirmed ? '● Live with teacher · ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : r.busy ? '● Many answers at once: sending again soon' : '⚠ Teacher not reached yet: your work is saved here, sending again soon';
   if (liveAgain) { liveAgain = false; liveSend(); }
+  else if (!r.confirmed) liveSoon((r.busy ? 10000 : 30000) + Math.random() * 15000);   // spread the retries of a whole class
 }
 if (API) {
   document.getElementById('intro-live').hidden = false;
   liveEl.textContent = '● Live with teacher';
+  // Reopened page: send what is here again, in case earlier updates never arrived
+  if (hasWorkNow() && (!S.sent || S.savedAt > S.sent)) liveSoon(1500 + Math.random() * 3000);
 }
+function hasWorkNow() { return Object.keys(S.ans).length > 0 || Object.values(S.text).some(Boolean); }
 
 // ── Send ────────────────────────────────────────────────────
 function payload(live) {
@@ -577,19 +588,20 @@ document.getElementById('send').addEventListener('click', async () => {
   const btn = document.getElementById('send');
   btn.disabled = true; setStatus('<div class="note">Sending…</div>');
   const body = JSON.stringify(payload(false));
-  let ok = false, unconfirmed = false;
-  try {
-    const r = await fetch(API, { method: 'POST', body });
-    const j = await r.json();
-    if (!j.ok) throw new Error(j.error || 'server error');
-    ok = true;
-  } catch (e) {
-    try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; unconfirmed = true; } catch (e2) {}
+  // The sheet may be busy when the whole class finishes at once: try a few times before giving up
+  let r;
+  for (let i = 0; i < 4; i++) {
+    r = await post(body);
+    if (!r.busy) break;
+    setStatus('<div class="note">Many reports are arriving at once. Trying again…</div>');
+    await new Promise(res => setTimeout(res, 4000 + Math.random() * 6000));
   }
   btn.disabled = false;
-  if (ok) {
+  if (r.confirmed || r.blind) {
     S.sent = new Date().toISOString(); save();
-    setStatus(`<div class="note good">✓ Sent${unconfirmed ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+    setStatus(`<div class="note good">✓ Sent${r.blind ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+  } else if (r.reached) {
+    setStatus(`<div class="note warn">Your teacher's sheet did not save it${r.error ? ` (${esc(r.error)})` : ''}. Try again in a minute. If it keeps failing, use <b>Download backup file</b> and give the file to your teacher.</div>`);
   } else {
     setStatus('<div class="note warn">Could not send: check the internet connection and try again. If it keeps failing, use <b>Download backup file</b> and give the file to your teacher.</div>');
   }
