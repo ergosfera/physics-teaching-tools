@@ -12,3 +12,6 @@ desktop-apps/field-timer/mac/build/
 desktop-apps/sticky-notes/StickyNotes.exe
 desktop-apps/sticky-notes/app.ico
 desktop-apps/sticky-notes-mac/build/
+desktop-apps/screen-ruler/windows/ScreenRuler.exe
+desktop-apps/screen-ruler/windows/app.ico
+desktop-apps/screen-ruler/mac/build/

@@ -6,6 +6,7 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 - **Physics Calculator**: the calculator from the Ergosfera *Notebook & Physics Calculator* web tool, where numbers carry units.
 - **Field**: the Ergosfera *Field* dot timer, a field of dots that go dark as time runs out, with no numbers.
 - **Sticky Notes**: sticky notes on your desktop that sync between your Mac and Windows computers through Google Drive.
+- **Screen Ruler**: up to three rulers and a protractor that float over anything on the screen.
 
 ## Download and install
 
@@ -13,7 +14,8 @@ Download the file for your system from the app's release page:
 [Countdown Timer](https://github.com/ergosfera/physics-teaching-tools/releases/tag/countdown-timer) ·
 [Physics Calculator](https://github.com/ergosfera/physics-teaching-tools/releases/tag/physics-calculator) ·
 [Field](https://github.com/ergosfera/physics-teaching-tools/releases/tag/field-timer) ·
-[Sticky Notes](https://github.com/ergosfera/physics-teaching-tools/releases/tag/sticky-notes).
+[Sticky Notes](https://github.com/ergosfera/physics-teaching-tools/releases/tag/sticky-notes) ·
+[Screen Ruler](https://github.com/ergosfera/physics-teaching-tools/releases/tag/screen-ruler).
 
 **Windows (10 or 11):** double-click the `.exe`. No installation is needed.
 The apps aren't signed with a paid certificate, so the first time Windows may show
@@ -106,33 +108,55 @@ How it works:
 - Notes are plain text (no bold, pictures or checkboxes), so they look the same on both systems.
 - The first time, macOS may ask to let Sticky Notes access files in Google Drive. Click **Allow**.
 
+## Screen Ruler
+
+- Up to three see-through rulers and a protractor, always on top of other windows. Clicks on empty space around them go to the window underneath.
+- Each ruler measures from its 0 to its red marker, and shows its own angle.
+- Units (right-click a ruler): cm, in and px on the screen, or m, km and cm to a scale you set. Each ruler keeps its own scale.
+- **Set Scale…**: lay the ruler along a length you know (a map's scale bar, an object in a photo), put the marker at its end and type its real length.
+- **Correct Screen Size…**: when centimeters on screen don't match a real ruler (projectors often report no size), hold a real ruler against the screen, put the marker on a length you can read and type it.
+- The protractor's arm reads the angle from its baseline. Where two rulers cross, the angle between them is shown, and the panel lists every reading.
+- Closing the panel quits; the tools come back where they were.
+
+| Action | Mouse | Keyboard (on a tool you clicked) |
+|---|---|---|
+| Add a ruler / the protractor | **+ Ruler** / **+ Protractor** in the panel, or right-click a tool | ⌘N / ⇧⌘N on Mac |
+| Move a tool | Drag it | Arrows: 1 pixel (Shift: 10) |
+| Turn a tool | Drag its round knob (Shift: 15° steps) | Alt/⌥ + ← / →: 0.1° (Shift: 1°) |
+| Make a ruler longer or shorter | Drag its far end (the three lines) | — |
+| Read a length | Drag the red marker (Shift: snap to ticks) | — |
+| Read an angle | Drag the protractor's red arm (Shift: 5° steps); drag its rim to resize | — |
+| Units, scale, screen size, remove | Right-click a tool | Delete removes the tool |
+
 ## Privacy
 
 These apps **collect no personal data and never connect to the internet**.
 They only save their own settings on your computer (for example the last time set, display
 options, always-on-top and the window position).
 
+Screen Ruler doesn't capture or record the screen; it only remembers where its tools are, their units and scales, and any screen-size correction.
+
 Sticky Notes saves your notes as files in the folder you choose (normally your Google Drive folder).
 The app itself doesn't connect to Google; Google Drive for desktop syncs that folder, under your
 Google account's terms.
 
-- Windows: `%APPDATA%\CountdownTimer\`, `%APPDATA%\PhysicsCalculator\`, `%APPDATA%\FieldTimer\` and `%APPDATA%\StickyNotes\`
-- macOS: each app's standard preferences (`net.ergosfera.countdowntimer`, `net.ergosfera.physicscalculator`, `net.ergosfera.fieldtimer`, `net.ergosfera.stickynotes`)
+- Windows: `%APPDATA%\CountdownTimer\`, `%APPDATA%\PhysicsCalculator\`, `%APPDATA%\FieldTimer\`, `%APPDATA%\StickyNotes\` and `%APPDATA%\ScreenRuler\`
+- macOS: each app's standard preferences (`net.ergosfera.countdowntimer`, `net.ergosfera.physicscalculator`, `net.ergosfera.fieldtimer`, `net.ergosfera.stickynotes`, `net.ergosfera.screenruler`)
 
 ## Disclaimer
 
 This software is provided **"as is", without warranty of any kind**. Don't rely on it
-where an inaccurate result or an interrupted countdown could cause harm or loss, and check
+where an inaccurate result, measurement or an interrupted countdown could cause harm or loss, and check
 important results independently. The author is not liable for any claim, damages or other
 liability arising from its use. See [LICENSE](LICENSE) for the full terms.
 
 ## Building from source
 
 - **Windows:** run `powershell -ExecutionPolicy Bypass -File <app>\build.ps1`
-  (`countdown-timer\build.ps1`, `physics-calculator\windows\build.ps1`, `field-timer\windows\build.ps1` or `sticky-notes\build.ps1`).
+  (`countdown-timer\build.ps1`, `physics-calculator\windows\build.ps1`, `field-timer\windows\build.ps1`, `sticky-notes\build.ps1` or `screen-ruler\windows\build.ps1`).
   It uses the C# compiler included with Windows, so nothing needs to be installed.
 - **macOS:** install the Xcode Command Line Tools (`xcode-select --install`), then run
-  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh`, `field-timer/mac/build.sh` or `sticky-notes-mac/build.sh`. Each creates the app and a `.dmg` in its `build/` folder.
+  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh`, `field-timer/mac/build.sh`, `sticky-notes-mac/build.sh` or `screen-ruler/mac/build.sh`. Each creates the app and a `.dmg` in its `build/` folder.
 
 ## License
 

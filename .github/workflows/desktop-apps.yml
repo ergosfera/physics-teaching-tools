@@ -3,6 +3,7 @@
 #   "physics-calculator": PhysicsCalculator.dmg (Mac) and PhysicsCalculator.exe (Windows)
 #   "field-timer":        Field.dmg (Mac) and Field.exe (Windows)
 #   "sticky-notes":       StickyNotes.dmg (Mac) and StickyNotes.exe (Windows)
+#   "screen-ruler":       ScreenRuler.dmg (Mac) and ScreenRuler.exe (Windows)
 # Pull requests only build the apps, so a broken build shows up before it reaches main.
 name: Desktop apps
 
@@ -99,6 +100,26 @@ jobs:
           name: notes-windows
           path: desktop-apps/sticky-notes/StickyNotes.exe
 
+  ruler-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./desktop-apps/screen-ruler/mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ruler-mac
+          path: desktop-apps/screen-ruler/mac/build/ScreenRuler.dmg
+
+  ruler-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop-apps/screen-ruler/windows/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ruler-windows
+          path: desktop-apps/screen-ruler/windows/ScreenRuler.exe
+
   release-timer:
     if: github.event_name != 'pull_request'
     needs: [timer-mac, timer-windows]
@@ -190,3 +211,26 @@ jobs:
               --notes "Sticky notes that sync between Mac and Windows through Google Drive. Mac: download StickyNotes.dmg. Windows: download StickyNotes.exe."
           gh release upload sticky-notes dist/* -R "$REPO" --clobber
           gh release edit sticky-notes -R "$REPO" --draft=false
+
+  release-ruler:
+    if: github.event_name != 'pull_request'
+    needs: [ruler-mac, ruler-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ruler-*
+          path: dist
+          merge-multiple: true
+      - name: Publish to the screen-ruler release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release view screen-ruler -R "$REPO" > /dev/null 2>&1 || \
+            gh release create screen-ruler -R "$REPO" --latest=false --title "Screen Ruler" \
+              --notes "Rulers and a protractor that float over the screen. Mac: download ScreenRuler.dmg. Windows: download ScreenRuler.exe."
+          gh release upload screen-ruler dist/* -R "$REPO" --clobber
+          gh release edit screen-ruler -R "$REPO" --draft=false
