@@ -871,7 +871,7 @@ function setMode(m){
   document.querySelectorAll(".slider").forEach(function(row){
     var k=row.dataset.key;
     row.hidden= single? k!==single : false;
-    row.querySelector("input").step= m==="ch"?(k==="a"||k==="b"?"0.5":"1"):"0.05";
+    row.querySelector("input").step= m==="ch"?"0.1":"0.05";
   });
   $("play").hidden= m==="ch";
   $("legend").innerHTML="<span><i class='sw p'></i>f(x)</span><span><i class='sw'></i>"+(m==="ch"?"your g(x)":"g(x)")+"</span>"+
