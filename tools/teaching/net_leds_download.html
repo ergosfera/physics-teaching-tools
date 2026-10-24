@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Net LEDs — Desktop App</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚦</text></svg>">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2128;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --warn-bg: #2b2111;
+      --warn-border: #9e6a03;
+      --warn-text: #e3b341;
+      --radius: 12px;
+    }
+
+    body.light {
+      --bg: #f6f8fa;
+      --surface: #ffffff;
+      --surface2: #f0f3f6;
+      --border: #d0d7de;
+      --text: #1f2328;
+      --muted: #656d76;
+      --accent: #0969da;
+      --green: #1a7f37;
+      --warn-bg: #fff8c5;
+      --warn-border: #d4a72c;
+      --warn-text: #7d4e00;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    .wrap { max-width: 860px; margin: 0 auto; padding: 24px 40px 48px; }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      margin-bottom: 22px;
+    }
+    .back { color: var(--accent); text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+    .back:hover { text-decoration: underline; }
+
+    #theme-toggle {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 6px 14px; cursor: pointer;
+      font: inherit; font-size: 0.78rem; font-weight: 600; color: var(--muted);
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    h1 { font-size: clamp(1.4rem, 3vw, 1.9rem); font-weight: 800; letter-spacing: -0.4px; }
+    .subtitle { color: var(--muted); margin-top: 4px; font-size: 0.92rem; }
+    .subtitle a { color: var(--accent); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .chip {
+      font-size: 0.72rem; font-weight: 700; color: var(--muted);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 2px 10px;
+    }
+
+    .notice {
+      margin-top: 22px;
+      background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--text);
+      border-radius: var(--radius); padding: 14px 16px; font-size: 0.9rem;
+    }
+    .notice strong { color: var(--warn-text); }
+    .notice a { color: var(--accent); font-weight: 600; }
+
+    .preview {
+      margin-top: 22px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px; text-align: center;
+    }
+    .preview img { max-width: 100%; height: auto; }
+    .preview p { color: var(--muted); font-size: 0.8rem; margin-top: 8px; }
+
+    section { margin-top: 30px; }
+    h2 {
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 10px;
+    }
+    .step {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--accent); color: var(--bg); font-size: 0.72rem; margin-right: 6px;
+      letter-spacing: 0;
+    }
+    .panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 18px; font-size: 0.9rem;
+    }
+    .panel h3 { font-size: 0.92rem; margin: 14px 0 4px; }
+    .panel h3:first-child { margin-top: 0; }
+    .panel ul { padding-left: 20px; }
+    .panel li + li { margin-top: 3px; }
+    .panel p + p { margin-top: 8px; }
+    kbd {
+      font-family: inherit; font-size: 0.8em; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 4px; padding: 0 5px;
+    }
+
+    .license {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px 18px; max-height: 260px; overflow-y: auto;
+      font-family: Consolas, 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap;
+    }
+    .license:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .hint { color: var(--muted); font-size: 0.8rem; margin-top: 6px; }
+    .hint.done { color: var(--green); }
+
+    .accept {
+      display: flex; gap: 10px; align-items: flex-start;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; font-size: 0.9rem; cursor: pointer;
+    }
+    .accept input { margin-top: 4px; width: 16px; height: 16px; flex: none; accent-color: var(--accent); }
+    .accept.disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .downloads { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+    .dl {
+      display: flex; flex-direction: column; gap: 4px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; text-decoration: none; color: inherit;
+      transition: border-color .2s, transform .15s;
+    }
+    .dl .t { font-weight: 700; color: var(--accent); }
+    .dl .d { font-size: 0.8rem; color: var(--muted); }
+    .dl[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+    .dl[aria-disabled="true"] .t { color: var(--muted); }
+    .dl:not([aria-disabled="true"]):hover { border-color: var(--accent); transform: translateY(-2px); }
+
+    .source { margin-top: 14px; font-size: 0.82rem; color: var(--muted); }
+    .source a { color: var(--accent); }
+
+    @media (max-width: 600px) { .wrap { padding: 18px 16px 40px; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <a class="back" href="../../index.html#teaching">← Teaching tools</a>
+    <button id="theme-toggle" type="button"><span id="theme-icon">☀</span><span id="theme-label">Light</span></button>
+  </div>
+
+  <h1>🟢🔴 Net LEDs</h1>
+  <p class="subtitle">Two little lights next to the clock, like the activity LEDs on an old modem: green blinks when data comes in (download), red when it goes out (upload). Click them for a live graph of your traffic.</p>
+  <div class="chips">
+    <span class="chip">💻 Desktop app</span>
+    <span class="chip">Windows 10 / 11</span>
+    <span class="chip">macOS 11 or later</span>
+    <span class="chip">Free · MIT License</span>
+  </div>
+
+  <div class="notice">
+    <strong>This is a download, not a web page.</strong>
+    Unlike the other tools on this site, Net LEDs is a program that you download and run on your own computer.
+    Before downloading, please read the <a href="#about">About</a> and the <a href="#license">License</a> below.
+    The download buttons unlock once you have scrolled through the license and accepted it.
+  </div>
+
+  <section id="about">
+    <h2><span class="step">1</span>About</h2>
+    <div class="panel">
+      <h3>What it does</h3>
+      <ul>
+        <li>A <strong>green light</strong> and a <strong>red light</strong> sit in the Mac menu bar or the Windows system tray, next to the clock.</li>
+        <li>Green blinks when data <strong>comes in</strong> (download), red when data <strong>goes out</strong> (upload). A burst of packets makes them flicker, a steady stream keeps them lit, and they glow brighter with more traffic.</li>
+        <li><strong>Click the lights</strong> for a live graph of the last 60 seconds: download in green above the line, upload in red below, with the current speeds. Each side rescales itself, so slow traffic still shows.</li>
+        <li><strong>Drag the graph</strong> away and it stays open as a small window while you work. Close it with the <strong>×</strong> (Windows), by clicking the lights again, or with <kbd>Esc</kbd>.</li>
+        <li><strong>Right-click the lights</strong> (or Control-click on a Mac) for the current speeds, <strong>Open at Login</strong> (Mac) or <strong>Start with Windows</strong>, and <strong>Quit</strong>. On a Mac you can also show the speeds as numbers next to the lights.</li>
+        <li>It counts all your network adapters together (Wi-Fi, Ethernet…), leaving out the computer talking to itself.</li>
+      </ul>
+
+      <h3>Privacy</h3>
+      <p>Net LEDs <strong>collects no personal data and never connects to the internet</strong> itself.
+         It only reads the totals of bytes received and sent that your system already keeps for each network adapter.
+         It doesn't look at what the data is or where it goes, and it records nothing: the graph only lives in memory and is gone when you quit.</p>
+
+      <h3>Installing</h3>
+      <ul>
+        <li><strong>Windows:</strong> double-click <code>NetLEDs.exe</code>. No installation is needed.
+            The app isn't signed with a paid certificate, so the first time Windows may show “Windows protected your PC”. Click <strong>More info</strong>, then <strong>Run anyway</strong>.
+            If you don't see the lights, click the <strong>^</strong> arrow next to the clock and drag them out to the taskbar.</li>
+        <li><strong>macOS:</strong> open <code>NetLEDs.dmg</code> and drag <strong>Net LEDs</strong> into <strong>Applications</strong>.
+            The app isn't signed with a paid Apple Developer ID, so the first time macOS may block it. Open <strong>System Settings → Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>.
+            If the menu bar is full, the lights may be hidden: check <strong>System Settings → Menu Bar</strong>.</li>
+      </ul>
+
+      <h3>Disclaimer</h3>
+      <p>This software is free and is provided <strong>“as is”, without warranty of any kind</strong>.
+         It shows how busy your connection is; it isn't a speed test or a security tool.
+         The author is not liable for any claim, damages or other liability arising from its use.</p>
+    </div>
+  </section>
+
+  <section id="license">
+    <h2><span class="step">2</span>License</h2>
+    <div class="license" id="license-text" tabindex="0">MIT License
+
+Copyright (c) 2026 Mauricio Mendivelso
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</div>
+    <p class="hint" id="license-hint">Scroll to the end of the license to continue.</p>
+  </section>
+
+  <section id="download">
+    <h2><span class="step">3</span>Accept and download</h2>
+    <label class="accept disabled" id="accept-label">
+      <input type="checkbox" id="accept" disabled>
+      <span>I have read the About and the License. I understand that Net LEDs is a program I download and run on my own computer,
+            and I accept that it is provided “as is”, without warranty of any kind.</span>
+    </label>
+
+    <div class="downloads">
+      <a class="dl" id="dl-win" aria-disabled="true" role="link"
+         data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/net-leds/NetLEDs.exe">
+        <span class="t">⬇ Download for Windows</span>
+        <span class="d">NetLEDs.exe · about 45 KB · Windows 10 or 11</span>
+      </a>
+      <a class="dl" id="dl-mac" aria-disabled="true" role="link"
+         data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/net-leds/NetLEDs.dmg">
+        <span class="t">⬇ Download for macOS</span>
+        <span class="d">NetLEDs.dmg · about 0.1 MB · macOS 11 or later (Apple Silicon and Intel)</span>
+      </a>
+    </div>
+    <p class="source">The source code is public:
+      <a href="https://github.com/ergosfera/physics-teaching-tools/tree/main/desktop-apps" target="_blank" rel="noopener">desktop-apps on GitHub</a>.</p>
+  </section>
+
+</div>
+
+<script>
+  function applyTheme(light) {
+    document.body.classList.toggle('light', light);
+    document.getElementById('theme-icon').textContent = light ? '☽' : '☀';
+    document.getElementById('theme-label').textContent = light ? 'Dark' : 'Light';
+    try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+  }
+  let savedTheme = null;
+  try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+  applyTheme(savedTheme === 'light');
+  document.getElementById('theme-toggle').addEventListener('click', () =>
+    applyTheme(!document.body.classList.contains('light')));
+
+  // Download gate: scroll through the license, then accept, then the buttons unlock.
+  const box = document.getElementById('license-text');
+  const hint = document.getElementById('license-hint');
+  const accept = document.getElementById('accept');
+  const acceptLabel = document.getElementById('accept-label');
+  const links = [document.getElementById('dl-win'), document.getElementById('dl-mac')];
+
+  function licenseRead() {
+    if (box.scrollTop + box.clientHeight < box.scrollHeight - 4) return;
+    accept.disabled = false;
+    acceptLabel.classList.remove('disabled');
+    hint.textContent = '✓ License read. Tick the box below to unlock the downloads.';
+    hint.classList.add('done');
+    box.removeEventListener('scroll', licenseRead);
+  }
+  box.addEventListener('scroll', licenseRead);
+  window.addEventListener('load', licenseRead);   // license may fit without scrolling
+
+  accept.addEventListener('change', () => {
+    for (const a of links) {
+      if (accept.checked) {
+        a.href = a.dataset.href;
+        a.removeAttribute('aria-disabled');
+      } else {
+        a.removeAttribute('href');
+        a.setAttribute('aria-disabled', 'true');
+      }
+    }
+  });
+</script>
+</body>
+</html>

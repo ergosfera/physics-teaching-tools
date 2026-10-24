@@ -9,6 +9,7 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 - **Screen Ruler**: up to three rulers and a protractor that float over anything on the screen.
 - **Screen Shapes**: lines, rectangles, circles and guide lines that float over the screen and measure what's under them.
 - **Reading Window**: shades the screen except a clear window that follows the pointer, to help focus while reading.
+- **Net LEDs**: green and red lights next to the clock that blink with download and upload traffic, with a live graph.
 
 ## Download and install
 
@@ -19,7 +20,8 @@ Download the file for your system from the app's release page:
 [Sticky Notes](https://github.com/ergosfera/physics-teaching-tools/releases/tag/sticky-notes) ·
 [Screen Ruler](https://github.com/ergosfera/physics-teaching-tools/releases/tag/screen-ruler) ·
 [Screen Shapes](https://github.com/ergosfera/physics-teaching-tools/releases/tag/screen-shapes) ·
-[Reading Window](https://github.com/ergosfera/physics-teaching-tools/releases/tag/reading-window).
+[Reading Window](https://github.com/ergosfera/physics-teaching-tools/releases/tag/reading-window) ·
+[Net LEDs](https://github.com/ergosfera/physics-teaching-tools/releases/tag/net-leds).
 
 **Windows (10 or 11):** double-click the `.exe`. No installation is needed.
 The apps aren't signed with a paid certificate, so the first time Windows may show
@@ -174,6 +176,21 @@ A focus aid for reading, for example for people with ADHD: the whole screen is d
 | Resize | Drag just outside its edge while held, or the Width/Height sliders | Scroll over a slider to fine-tune |
 | Shape | Rect, Round, Ellipse, Band buttons | ⌘1–⌘4 on Mac, Ctrl+1–4 on Windows |
 | Shade on/off | **Shade: On/Off** | ⌘S on Mac, Ctrl+S on Windows |
+
+## Net LEDs
+
+Two lamps like the activity LEDs on an old modem, in the Mac menu bar or the Windows system tray.
+
+- Green blinks when data comes in (download), red when data goes out (upload); brighter with more traffic.
+- A live graph of the last 60 seconds: download above the line, upload below, each side auto-scaled.
+- Counts all network adapters together, leaving out loopback. It reads the system's byte counters only.
+
+| Action | Mouse | Keyboard (graph) |
+|---|---|---|
+| Show / hide the graph | Click the lights | Esc hides it |
+| Keep the graph open | Drag it away from the menu bar or tray | — |
+| Speeds, start at login, quit | Right-click (or Control-click on Mac) the lights | — |
+| Speeds next to the lights (Mac) | Right-click → Show Speeds in Menu Bar | — |
 
 ## Privacy
 
