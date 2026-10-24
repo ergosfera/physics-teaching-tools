@@ -21,3 +21,6 @@ desktop-apps/screen-shapes/mac/build/
 desktop-apps/reading-window/windows/ReadingWindow.exe
 desktop-apps/reading-window/windows/app.ico
 desktop-apps/reading-window/mac/build/
+desktop-apps/net-leds/windows/NetLEDs.exe
+desktop-apps/net-leds/windows/app.ico
+desktop-apps/net-leds/mac/build/

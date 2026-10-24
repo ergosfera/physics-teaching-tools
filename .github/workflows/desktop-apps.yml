@@ -6,6 +6,7 @@
 #   "screen-ruler":       ScreenRuler.dmg (Mac) and ScreenRuler.exe (Windows)
 #   "screen-shapes":      ScreenShapes.dmg (Mac) and ScreenShapes.exe (Windows)
 #   "reading-window":     ReadingWindow.dmg (Mac) and ReadingWindow.exe (Windows)
+#   "net-leds":           NetLEDs.dmg (Mac) and NetLEDs.exe (Windows)
 # Pull requests only build the apps, so a broken build shows up before it reaches main.
 name: Desktop apps
 
@@ -161,6 +162,26 @@ jobs:
         with:
           name: reading-windows
           path: desktop-apps/reading-window/windows/ReadingWindow.exe
+
+  netleds-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./desktop-apps/net-leds/mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: netleds-mac
+          path: desktop-apps/net-leds/mac/build/NetLEDs.dmg
+
+  netleds-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop-apps/net-leds/windows/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: netleds-windows
+          path: desktop-apps/net-leds/windows/NetLEDs.exe
 
   release-timer:
     if: github.event_name != 'pull_request'
@@ -322,3 +343,26 @@ jobs:
               --notes "Shades the screen except a clear window that follows the pointer, to help focus while reading. Mac: download ReadingWindow.dmg. Windows: download ReadingWindow.exe."
           gh release upload reading-window dist/* -R "$REPO" --clobber
           gh release edit reading-window -R "$REPO" --draft=false
+
+  release-netleds:
+    if: github.event_name != 'pull_request'
+    needs: [netleds-mac, netleds-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: netleds-*
+          path: dist
+          merge-multiple: true
+      - name: Publish to the net-leds release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release view net-leds -R "$REPO" > /dev/null 2>&1 || \
+            gh release create net-leds -R "$REPO" --latest=false --title "Net LEDs" \
+              --notes "Green and red lights that blink with download and upload traffic, with a live graph. Mac: download NetLEDs.dmg. Windows: download NetLEDs.exe."
+          gh release upload net-leds dist/* -R "$REPO" --clobber
+          gh release edit net-leds -R "$REPO" --draft=false

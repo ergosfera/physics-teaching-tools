@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds "Net LEDs.app" (universal: Apple Silicon + Intel), a menu bar app with
+# Builds "Net LEDs.app" and NetLEDs.dmg (universal: Apple Silicon + Intel), a menu bar app with
 # download (green) and upload (red) activity lights.
 # Needs a Mac with Xcode or the Command Line Tools (xcode-select --install). Usage: ./build.sh
 set -euo pipefail
@@ -24,6 +24,7 @@ fi
 C="$OUT/$APP.app/Contents"
 mkdir -p "$C/MacOS" "$C/Resources"
 cp "$OUT/NetLEDs" "$C/MacOS/NetLEDs"
+cp ../../LICENSE "$C/Resources/LICENSE.txt"
 
 cat > "$C/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -48,4 +49,11 @@ PLIST
 
 # Ad-hoc signature (required for Apple Silicon; not a paid Developer ID).
 codesign --force --deep --sign - "$OUT/$APP.app"
-echo "Built $OUT/$APP.app"
+
+mkdir -p "$OUT/dmg"
+cp -R "$OUT/$APP.app" "$OUT/dmg/"
+cp ../../LICENSE "$OUT/dmg/LICENSE.txt"
+cp ../../README.md "$OUT/dmg/README.md"
+ln -s /Applications "$OUT/dmg/Applications"
+hdiutil create -volname "$APP" -srcfolder "$OUT/dmg" -ov -format UDZO "$OUT/NetLEDs.dmg"
+echo "Built $OUT/NetLEDs.dmg"
