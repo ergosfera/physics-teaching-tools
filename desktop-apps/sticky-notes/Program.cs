@@ -21,8 +21,8 @@ using Timer = System.Windows.Forms.Timer;
 [assembly: AssemblyTitle("Sticky Notes")]
 [assembly: AssemblyProduct("Sticky Notes")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Mauricio Mendivelso. MIT License.")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace StickyNotes
 {
@@ -152,6 +152,92 @@ namespace StickyNotes
         }
     }
 
+    // A run of characters, counted in UTF-16 units like the Mac app
+    struct TextSpan
+    {
+        public int Start, Length;
+        public TextSpan(int start, int length) { Start = start; Length = length; }
+    }
+
+    // Checkboxes and bold, kept in the note text as plain markers so the file stays readable anywhere:
+    //   "[ ] milk" / "[x] milk" at the start of a line is a checkbox (shown as ☐ / ☑), and "**word**" is bold.
+    // On screen the markers become a box character plus a space, and bold text.
+    static class Markup
+    {
+        public const char Unchecked = '\u2610', Checked = '\u2611';
+
+        public static bool IsBox(char c) { return c == Unchecked || c == Checked; }
+
+        // Is there a box (and its space) at the start of the line beginning at index i?
+        public static bool HasBox(string s, int i) { return i >= 0 && i + 1 < s.Length && IsBox(s[i]) && s[i + 1] == ' '; }
+
+        public static string Parse(string markup, List<TextSpan> bold)
+        {
+            var o = new StringBuilder();
+            string[] lines = markup.Split('\n');
+            for (int n = 0; n < lines.Length; n++)
+            {
+                if (n > 0) o.Append('\n');
+                string line = lines[n];
+                if (line.StartsWith("[ ] ", StringComparison.Ordinal)) { o.Append(Unchecked).Append(' '); line = line.Substring(4); }
+                else if (line.StartsWith("[x] ", StringComparison.Ordinal) || line.StartsWith("[X] ", StringComparison.Ordinal))
+                { o.Append(Checked).Append(' '); line = line.Substring(4); }
+                // "**" marks pair up within the line; an odd one out, or an empty pair, stays as typed
+                var marks = new List<int>();
+                for (int j = 0; j + 1 < line.Length; )
+                {
+                    if (line[j] == '*' && line[j + 1] == '*') { marks.Add(j); j += 2; } else j++;
+                }
+                if (marks.Count % 2 == 1) marks.RemoveAt(marks.Count - 1);
+                int cursor = 0;
+                for (int k = 0; k < marks.Count; k += 2)
+                {
+                    int a = marks[k], b = marks[k + 1];
+                    if (b == a + 2) continue;
+                    o.Append(line, cursor, a - cursor);
+                    bold.Add(new TextSpan(o.Length, b - a - 2));
+                    o.Append(line, a + 2, b - a - 2);
+                    cursor = b + 2;
+                }
+                o.Append(line, cursor, line.Length - cursor);
+            }
+            return o.ToString();
+        }
+
+        public static string Serialize(string t, List<TextSpan> bold)
+        {
+            var isBold = new bool[t.Length];
+            foreach (var r in bold)
+                for (int i = Math.Max(0, r.Start); i < Math.Min(t.Length, r.Start + r.Length); i++) isBold[i] = true;
+            var o = new StringBuilder();
+            int start = 0;
+            while (start <= t.Length)
+            {
+                int end = t.IndexOf('\n', start);
+                if (end < 0) end = t.Length;
+                int i = start;
+                if (HasBox(t, i) && i + 1 < end)
+                {
+                    o.Append(t[i] == Unchecked ? "[ ] " : "[x] ");
+                    i += 2;
+                }
+                // Bold runs get "**" around them; each line closes its own
+                while (i < end)
+                {
+                    bool b = isBold[i];
+                    int j = i;
+                    while (j < end && isBold[j] == b) j++;
+                    string piece = t.Substring(i, j - i);
+                    if (b && piece.Trim(' ', '\t').Length > 0) o.Append("**").Append(piece).Append("**"); else o.Append(piece);
+                    i = j;
+                }
+                if (end < t.Length) o.Append('\n');
+                start = end + 1;
+            }
+            return o.ToString();
+        }
+    }
+
     // StickyNotes.exe --selftest (run by build.ps1). The Mac app checks the same cases.
     static class SelfTest
     {
@@ -171,6 +257,24 @@ namespace StickyNotes
             if (list.Text != "Shopping list\n---\nmilk" || list.Color != "yellow") fails++;
             var bodyOnly = NoteFile.Parse("e", "---\nonly body");
             if (bodyOnly.Text != "only body" || bodyOnly.Color != "yellow") fails++;
+
+            // Checkboxes and bold
+            var b0 = new List<TextSpan>();
+            if (Markup.Parse("[ ] milk\n[x] eggs\nplain", b0) != "\u2610 milk\n\u2611 eggs\nplain" || b0.Count != 0) fails++;
+            var b1 = new List<TextSpan>();
+            if (Markup.Parse("a **b** c", b1) != "a b c" || b1.Count != 1 || b1[0].Start != 2 || b1[0].Length != 1) fails++;
+            var b2 = new List<TextSpan>();
+            if (Markup.Parse("x ** y", b2) != "x ** y" || b2.Count != 0) fails++;
+            var b3 = new List<TextSpan>();
+            if (Markup.Parse("****", b3) != "****" || b3.Count != 0) fails++;
+            if (Markup.Serialize("\u2610 a\n\u2611 b", new List<TextSpan>()) != "[ ] a\n[x] b") fails++;
+            if (Markup.Serialize("abc d", new List<TextSpan> { new TextSpan(0, 3) }) != "**abc** d") fails++;
+            if (Markup.Serialize("ab\ncd", new List<TextSpan> { new TextSpan(1, 3) }) != "a**b**\n**c**d") fails++;
+            if (Markup.Serialize("\u2610x", new List<TextSpan>()) != "\u2610x") fails++;
+            string mixed = "[ ] **buy** milk\n[x] done\n**Title**\nend\n";
+            var bm = new List<TextSpan>();
+            string shown = Markup.Parse(mixed, bm);
+            if (Markup.Serialize(shown, bm) != mixed) fails++;
             return fails;
         }
     }
@@ -422,7 +526,7 @@ namespace StickyNotes
         const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
         const string RunValue = "ErgosferaStickyNotes";
         public static readonly string Machine = Environment.MachineName;
-        const string Welcome = "Welcome to Sticky Notes!\n\nWrite anything here. Notes save as you type and sync through your Google Drive folder, so they also appear on your other computer.\n\n+  makes a new note.\n⋯  changes the color or deletes the note.\nDrag the top bar to move a note, and an edge to resize it.";
+        const string Welcome = "Welcome to Sticky Notes!\n\nWrite anything here. Notes save as you type and sync through your Google Drive folder, so they also appear on your other computer.\n\n+  makes a new note.\n☐  makes a checklist: click a box to check it.\nB  makes the selected text bold.\n⋯  changes the color or deletes the note.\nDrag the top bar to move a note, and an edge or the corner to resize it.";
 
         readonly LocalState local = new LocalState();
         readonly Dictionary<string, NoteForm> notes = new Dictionary<string, NoteForm>();
@@ -779,7 +883,7 @@ namespace StickyNotes
 
         void About()
         {
-            MessageBox.Show("Sticky Notes 1.0\n\nNotes folder:\n" + folder +
+            MessageBox.Show("Sticky Notes 1.1\n\nNotes folder:\n" + folder +
                 "\n\nEach note is a text file in this folder. Google Drive for desktop copies it to your other computers, where Sticky Notes for Windows or Mac shows it. Deleted notes go to the Trash folder inside it." +
                 "\n\n© 2026 Mauricio Mendivelso. MIT License.\nProvided \"as is\", without warranty of any kind.",
                 "About Sticky Notes", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -798,20 +902,59 @@ namespace StickyNotes
 
     // MARK: One note on the desktop
 
+    // The note's text box: a click on a ☐ / ☑ checks it instead of moving the cursor
+    class NoteBox : RichTextBox
+    {
+        public Func<Point, bool> CheckboxClick;
+
+        protected override void WndProc(ref Message m)
+        {
+            const int WM_LBUTTONDOWN = 0x201;
+            if (m.Msg == WM_LBUTTONDOWN && CheckboxClick != null)
+            {
+                long lp = m.LParam.ToInt64();
+                if (CheckboxClick(new Point((short)(lp & 0xFFFF), (short)((lp >> 16) & 0xFFFF)))) return;
+            }
+            base.WndProc(ref m);
+        }
+    }
+
     class NoteForm : Form
     {
         [DllImport("user32.dll")] static extern bool ReleaseCapture();
         [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, ref CHARFORMAT2 lParam);
+        [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, ref Point lParam);
         [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hWnd, int attr, ref int value, int size);
 
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        struct CHARFORMAT2
+        {
+            public int cbSize;
+            public uint dwMask, dwEffects;
+            public int yHeight, yOffset, crTextColor;
+            public byte bCharSet, bPitchAndFamily;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string szFaceName;
+            public short wWeight, sSpacing;
+            public int crBackColor, lcid, dwReserved;
+            public short sStyle, wKerning;
+            public byte bUnderlineType, bAnimation, bRevAuthor, bUnderlineColor;
+        }
+
+        const int EM_GETCHARFORMAT = 0x43A, EM_SETCHARFORMAT = 0x444, SCF_SELECTION = 1, WM_SETREDRAW = 0x0B;
+        const int EM_GETSCROLLPOS = 0x4DD, EM_SETSCROLLPOS = 0x4DE;
+        const uint CFM_BOLD = 0x1, CFM_STRIKEOUT = 0x8, CFM_COLOR = 0x40000000;
+        const uint CFE_BOLD = 0x1, CFE_STRIKEOUT = 0x8;
+        static readonly Color DoneInk = Color.FromArgb(140, 140, 140);
+
         readonly NotesApp app;
-        readonly RichTextBox box = new RichTextBox();
+        readonly NoteBox box = new NoteBox();
         readonly Timer saveTimer = new Timer();
         readonly ContextMenuStrip menu = new ContextMenuStrip();
         readonly ToolStripMenuItem topItem;
         readonly float S;
         NoteData data; // the version last read from or written to the file
-        bool loading, quiet;
+        bool loading, quiet, restyling;
         int hot = -1;
 
         public bool Dirty { get; private set; }
@@ -825,6 +968,8 @@ namespace StickyNotes
         int ButtonSize { get { return HeaderH - (int)(6 * S); } }
         Rectangle PlusRect { get { return new Rectangle((int)(4 * S), (HeaderH - ButtonSize) / 2, ButtonSize, ButtonSize); } }
         Rectangle MenuRect { get { return new Rectangle(ClientSize.Width - (int)(4 * S) - ButtonSize, (HeaderH - ButtonSize) / 2, ButtonSize, ButtonSize); } }
+        Rectangle BoldRect { get { var r = MenuRect; r.X -= ButtonSize + (int)(2 * S); return r; } }
+        Rectangle CheckRect { get { var r = BoldRect; r.X -= ButtonSize + (int)(2 * S); return r; } }
 
         public NoteForm(NotesApp app, NoteData d)
         {
@@ -846,15 +991,14 @@ namespace StickyNotes
             box.AcceptsTab = true;
             box.TextChanged += delegate
             {
-                if (loading) return;
-                Dirty = true;
-                saveTimer.Stop();
-                saveTimer.Interval = 700;
-                saveTimer.Start();
-                UpdateTitle();
+                if (loading || restyling) return;
+                RestyleLine(LineStart(box.SelectionStart));
+                Changed();
             };
             box.LinkClicked += (s, e) => { try { Process.Start(e.LinkText); } catch { } };
             box.KeyDown += BoxKeyDown;
+            box.KeyPress += BoxKeyPress;
+            box.CheckboxClick = CheckboxClick;
             box.ContextMenuStrip = EditMenu();
             Controls.Add(box);
 
@@ -865,6 +1009,9 @@ namespace StickyNotes
                 string name = NoteColors.Names[i];
                 menu.Items.Add(new ToolStripMenuItem(NoteColors.Labels[i], NoteColors.Swatch(i, S), delegate { SetColor(name); }));
             }
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add(new ToolStripMenuItem("Checklist", null, delegate { ToggleChecklist(); }) { ShortcutKeyDisplayString = "Ctrl+Shift+L" });
+            menu.Items.Add(new ToolStripMenuItem("Bold", null, delegate { ToggleBold(); }) { ShortcutKeyDisplayString = "Ctrl+B" });
             menu.Items.Add(new ToolStripSeparator());
             topItem = new ToolStripMenuItem("Keep on top", null, delegate { TopMost = !TopMost; app.PlacementChanged(this); });
             menu.Items.Add(topItem);
@@ -878,13 +1025,7 @@ namespace StickyNotes
                     ((ToolStripMenuItem)menu.Items[i]).Checked = NoteColors.Index(data.Color) == i;
             };
 
-            loading = true;
-            box.Text = d.Text;
-            box.ClearUndo();
-            loading = false;
             ApplyColor();
-            UpdateTitle();
-
             Deactivate += delegate { if (Dirty) SaveNow(); };
             LocationChanged += delegate { app.PlacementChanged(this); };
             SizeChanged += delegate { app.PlacementChanged(this); LayoutBox(); Invalidate(); };
@@ -915,6 +1056,15 @@ namespace StickyNotes
             LayoutBox();
         }
 
+        // The text goes in once the text box exists, since bold and checkboxes are formats on it
+        protected override void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+            SetMarkup(data.Text);
+            box.Select(box.TextLength, 0);
+            UpdateTitle();
+        }
+
         void LayoutBox()
         {
             int top = HeaderH + (int)(4 * S);
@@ -933,6 +1083,7 @@ namespace StickyNotes
             string t = box.Text.Trim();
             int nl = t.IndexOf('\n');
             if (nl >= 0) t = t.Substring(0, nl);
+            if (Markup.HasBox(t, 0)) t = t.Substring(2);
             if (t.Length > 60) t = t.Substring(0, 60);
             Text = t.Length == 0 ? "Sticky note" : t;
         }
@@ -944,12 +1095,238 @@ namespace StickyNotes
             box.Select(box.TextLength, 0);
         }
 
+        void Changed()
+        {
+            Dirty = true;
+            saveTimer.Stop();
+            saveTimer.Interval = 700;
+            saveTimer.Start();
+            UpdateTitle();
+        }
+
+        // MARK: Checkboxes and bold (the text box keeps only these, so both apps show the same thing)
+
+        // Runs an action that moves the selection around, then puts the selection, scroll and drawing back
+        void Quietly(Action a)
+        {
+            if (!box.IsHandleCreated) { a(); return; }
+            int ss = box.SelectionStart, sl = box.SelectionLength;
+            var scroll = Point.Empty;
+            SendMessage(box.Handle, EM_GETSCROLLPOS, IntPtr.Zero, ref scroll);
+            SendMessage(box.Handle, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
+            bool was = restyling;
+            restyling = true;
+            try { a(); }
+            finally
+            {
+                box.Select(ss, sl);
+                SendMessage(box.Handle, EM_SETSCROLLPOS, IntPtr.Zero, ref scroll);
+                restyling = was;
+                SendMessage(box.Handle, WM_SETREDRAW, (IntPtr)1, IntPtr.Zero);
+                box.Invalidate();
+            }
+        }
+
+        CHARFORMAT2 GetFormat()
+        {
+            var cf = new CHARFORMAT2 { cbSize = Marshal.SizeOf(typeof(CHARFORMAT2)) };
+            SendMessage(box.Handle, EM_GETCHARFORMAT, (IntPtr)SCF_SELECTION, ref cf);
+            return cf;
+        }
+
+        void SetFormat(uint mask, uint effects, Color color)
+        {
+            var cf = new CHARFORMAT2 { cbSize = Marshal.SizeOf(typeof(CHARFORMAT2)), dwMask = mask, dwEffects = effects,
+                                       crTextColor = color.R | (color.G << 8) | (color.B << 16) };
+            SendMessage(box.Handle, EM_SETCHARFORMAT, (IntPtr)SCF_SELECTION, ref cf);
+        }
+
+        // The note as it is saved: plain text with "[ ] ", "[x] " and "**" markers
+        string MarkupText
+        {
+            get
+            {
+                string t = box.Text;
+                var bold = new List<TextSpan>();
+                if (box.IsHandleCreated)
+                    Quietly(delegate
+                    {
+                        int start = 0;
+                        while (start <= t.Length)
+                        {
+                            int end = t.IndexOf('\n', start);
+                            if (end < 0) end = t.Length;
+                            BoldSpans(start, end - start, bold);
+                            start = end + 1;
+                        }
+                    });
+                return Markup.Serialize(t, bold);
+            }
+        }
+
+        // Finds the bold runs in a stretch of text, splitting it until each part is all bold or not bold
+        void BoldSpans(int start, int length, List<TextSpan> bold)
+        {
+            if (length <= 0) return;
+            box.Select(start, length);
+            var cf = GetFormat();
+            if ((cf.dwMask & CFM_BOLD) != 0)
+            {
+                if ((cf.dwEffects & CFE_BOLD) != 0) bold.Add(new TextSpan(start, length));
+                return;
+            }
+            if (length == 1) return;
+            int half = length / 2;
+            BoldSpans(start, half, bold);
+            BoldSpans(start + half, length - half, bold);
+        }
+
+        void SetMarkup(string m)
+        {
+            var bold = new List<TextSpan>();
+            string t = Markup.Parse(m, bold);
+            loading = true;
+            box.Text = t;
+            Quietly(delegate
+            {
+                box.SelectAll();
+                SetFormat(CFM_BOLD, 0, NoteColors.Ink);
+                foreach (var r in bold)
+                {
+                    box.Select(r.Start, r.Length);
+                    SetFormat(CFM_BOLD, CFE_BOLD, NoteColors.Ink);
+                }
+            });
+            RestyleAll();
+            box.ClearUndo();
+            loading = false;
+        }
+
+        int LineStart(int i)
+        {
+            string t = box.Text;
+            i = Math.Min(i, t.Length);
+            return i <= 0 ? 0 : t.LastIndexOf('\n', i - 1) + 1;
+        }
+
+        int LineEnd(int start)
+        {
+            int end = box.Text.IndexOf('\n', start);
+            return end < 0 ? box.TextLength : end;
+        }
+
+        void RestyleAll()
+        {
+            string t = box.Text;
+            int start = 0;
+            while (start <= t.Length)
+            {
+                RestyleLine(start);
+                int end = t.IndexOf('\n', start);
+                if (end < 0) break;
+                start = end + 1;
+            }
+        }
+
+        // A checked item's text is gray and crossed out; everything else is plain ink.
+        // The format only changes when it has to, so typing doesn't fill the undo list with format changes.
+        void RestyleLine(int start)
+        {
+            if (!box.IsHandleCreated) return;
+            string t = box.Text;
+            int end = LineEnd(start);
+            bool done = Markup.HasBox(t, start) && t[start] == Markup.Checked;
+            Quietly(delegate
+            {
+                int from = done ? start + 2 : start;
+                if (end > from)
+                {
+                    box.Select(from, end - from);
+                    var cf = GetFormat();
+                    bool struck = (cf.dwMask & CFM_STRIKEOUT) != 0 && (cf.dwEffects & CFE_STRIKEOUT) != 0;
+                    bool plain = (cf.dwMask & CFM_STRIKEOUT) != 0 && (cf.dwEffects & CFE_STRIKEOUT) == 0;
+                    if (done && !struck) SetFormat(CFM_STRIKEOUT | CFM_COLOR, CFE_STRIKEOUT, DoneInk);
+                    else if (!done && !plain) SetFormat(CFM_STRIKEOUT | CFM_COLOR, 0, NoteColors.Ink);
+                }
+                if (done)
+                {
+                    box.Select(start, 2);
+                    var cf = GetFormat();
+                    if ((cf.dwMask & CFM_STRIKEOUT) == 0 || (cf.dwEffects & CFE_STRIKEOUT) != 0) SetFormat(CFM_STRIKEOUT | CFM_COLOR, 0, NoteColors.Ink);
+                }
+            });
+        }
+
+        bool CheckboxClick(Point p)
+        {
+            int i = box.GetCharIndexFromPosition(p);
+            string t = box.Text;
+            if (!Markup.HasBox(t, i) || (i > 0 && t[i - 1] != '\n')) return false;
+            Point a = box.GetPositionFromCharIndex(i), b = box.GetPositionFromCharIndex(i + 1);
+            int lineH = box.Font.Height;
+            if (p.X < a.X - 2 || p.X > Math.Max(b.X, a.X + lineH) + 2 || p.Y < a.Y - 2 || p.Y > a.Y + lineH + 2) return false;
+            ToggleCheck(i);
+            return true;
+        }
+
+        void ToggleCheck(int i)
+        {
+            string t = box.Text;
+            if (!Markup.HasBox(t, i)) return;
+            int ss = box.SelectionStart, sl = box.SelectionLength;
+            restyling = true;
+            box.Select(i, 1);
+            box.SelectedText = (t[i] == Markup.Unchecked ? Markup.Checked : Markup.Unchecked).ToString();
+            box.Select(ss, sl);
+            restyling = false;
+            RestyleLine(i);
+            Changed();
+        }
+
+        // Adds a checkbox to each selected line, or takes them away if they all have one
+        void ToggleChecklist()
+        {
+            string t = box.Text;
+            int first = LineStart(box.SelectionStart), last = LineStart(box.SelectionStart + box.SelectionLength);
+            var starts = new List<int>();
+            for (int i = first; ; )
+            {
+                starts.Add(i);
+                int end = t.IndexOf('\n', i);
+                if (end < 0 || end + 1 > last) break;
+                i = end + 1;
+            }
+            bool allBoxed = true;
+            foreach (int st in starts) if (!Markup.HasBox(t, st)) allBoxed = false;
+            restyling = true;
+            for (int k = starts.Count - 1; k >= 0; k--)
+            {
+                int st = starts[k];
+                if (allBoxed) { box.Select(st, 2); box.SelectedText = ""; }
+                else if (!Markup.HasBox(t, st)) { box.Select(st, 0); box.SelectedText = Markup.Unchecked + " "; }
+            }
+            restyling = false;
+            box.Select(LineEnd(LineStart(first)), 0);
+            RestyleAll();
+            Changed();
+            box.Focus();
+        }
+
+        void ToggleBold()
+        {
+            var cf = GetFormat();
+            bool allBold = (cf.dwMask & CFM_BOLD) != 0 && (cf.dwEffects & CFE_BOLD) != 0;
+            SetFormat(CFM_BOLD, allBold ? 0 : CFE_BOLD, NoteColors.Ink);
+            if (box.SelectionLength > 0) Changed();
+            box.Focus();
+        }
+
         // MARK: Saving and syncing
 
         public bool SaveNow()
         {
             saveTimer.Stop();
-            var d = new NoteData { Id = data.Id, Color = data.Color, Text = box.Text, Modified = NoteFile.Now(), By = NotesApp.Machine };
+            var d = new NoteData { Id = data.Id, Color = data.Color, Text = MarkupText, Modified = NoteFile.Now(), By = NotesApp.Machine };
             if (app.Write(d))
             {
                 data = d;
@@ -972,13 +1349,10 @@ namespace StickyNotes
         {
             if (d.Modified == data.Modified && d.Color == data.Color && d.Text == data.Text) return; // our own save
             if (Dirty) { app.ConflictCopy(d, this); return; }
-            if (d.Text != box.Text)
+            if (d.Text != MarkupText)
             {
                 int caret = box.SelectionStart;
-                loading = true;
-                box.Text = d.Text;
-                box.ClearUndo();
-                loading = false;
+                SetMarkup(d.Text);
                 box.Select(Math.Min(caret, box.TextLength), 0);
             }
             data = d;
@@ -1009,26 +1383,91 @@ namespace StickyNotes
             base.OnFormClosing(e);
         }
 
-        // MARK: Text editing (plain text only, so both apps show the same thing)
+        // MARK: Text editing
 
         void BoxKeyDown(object sender, KeyEventArgs e)
         {
             if ((e.Control && e.KeyCode == Keys.V) || (e.Shift && e.KeyCode == Keys.Insert))
             {
                 e.Handled = e.SuppressKeyPress = true;
-                PastePlain();
+                PasteMarkup();
                 return;
             }
-            // Rich-edit shortcuts (alignment, line spacing, font size) would change only this screen.
+            if (e.Control && !e.Shift && e.KeyCode == Keys.B)
+            {
+                e.Handled = e.SuppressKeyPress = true;
+                ToggleBold();
+                return;
+            }
+            if (e.Control && e.Shift && e.KeyCode == Keys.L)
+            {
+                e.Handled = e.SuppressKeyPress = true;
+                ToggleChecklist();
+                return;
+            }
+            if (e.KeyCode == Keys.Enter && !e.Control && !e.Shift && !e.Alt && ContinueChecklist())
+            {
+                e.Handled = e.SuppressKeyPress = true;
+                return;
+            }
+            // Rich-edit shortcuts (alignment, line spacing, font size, italic, underline) would change only this screen.
             Keys k = e.KeyCode;
             if (e.Control && (k == Keys.L || k == Keys.E || k == Keys.R || k == Keys.J || k == Keys.D1 || k == Keys.D2 || k == Keys.D5
-                || k == Keys.OemPeriod || k == Keys.Oemcomma))
+                || k == Keys.OemPeriod || k == Keys.Oemcomma || k == Keys.I || k == Keys.U))
                 e.Handled = e.SuppressKeyPress = true;
         }
 
-        void PastePlain()
+        // Enter on a checkbox line starts a new one; on an empty one it ends the list
+        bool ContinueChecklist()
         {
-            try { if (Clipboard.ContainsText()) box.SelectedText = NoteFile.Normalize(Clipboard.GetText()); }
+            if (box.SelectionLength != 0) return false;
+            string t = box.Text;
+            int caret = box.SelectionStart, start = LineStart(caret), end = LineEnd(start);
+            if (!Markup.HasBox(t, start) || caret < start + 2) return false;
+            if (t.Substring(start + 2, end - start - 2).Trim().Length == 0)
+            {
+                box.Select(start, end - start);
+                box.SelectedText = "";
+            }
+            else box.SelectedText = "\n" + Markup.Unchecked + " ";
+            return true;
+        }
+
+        // "[ ]" or "[x]" then a space at the start of a line becomes a checkbox
+        void BoxKeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar != ' ' || box.SelectionLength != 0) return;
+            int caret = box.SelectionStart, start = LineStart(caret);
+            if (caret - start != 3) return;
+            string pre = box.Text.Substring(start, 3);
+            if (pre != "[ ]" && pre != "[x]" && pre != "[X]") return;
+            e.Handled = true;
+            box.Select(start, 3);
+            box.SelectedText = (pre == "[ ]" ? Markup.Unchecked : Markup.Checked) + " ";
+        }
+
+        // Pastes plain text; any checkbox and bold markers in it come in formatted
+        void PasteMarkup()
+        {
+            try
+            {
+                if (!Clipboard.ContainsText()) return;
+                var bold = new List<TextSpan>();
+                string t = Markup.Parse(NoteFile.Normalize(Clipboard.GetText()), bold);
+                int at = box.SelectionStart;
+                box.SelectedText = t;
+                Quietly(delegate
+                {
+                    box.Select(at, t.Length);
+                    SetFormat(CFM_BOLD, 0, NoteColors.Ink);
+                    foreach (var r in bold)
+                    {
+                        box.Select(at + r.Start, r.Length);
+                        SetFormat(CFM_BOLD, CFE_BOLD, NoteColors.Ink);
+                    }
+                });
+                RestyleAll();
+            }
             catch { }
         }
 
@@ -1039,7 +1478,10 @@ namespace StickyNotes
             m.Items.Add(new ToolStripSeparator());
             var cut = m.Items.Add("Cut", null, delegate { box.Cut(); });
             var copy = m.Items.Add("Copy", null, delegate { box.Copy(); });
-            var paste = m.Items.Add("Paste", null, delegate { PastePlain(); });
+            var paste = m.Items.Add("Paste", null, delegate { PasteMarkup(); });
+            m.Items.Add(new ToolStripSeparator());
+            m.Items.Add(new ToolStripMenuItem("Bold", null, delegate { ToggleBold(); }) { ShortcutKeyDisplayString = "Ctrl+B" });
+            m.Items.Add(new ToolStripMenuItem("Checklist", null, delegate { ToggleChecklist(); }) { ShortcutKeyDisplayString = "Ctrl+Shift+L" });
             m.Items.Add(new ToolStripSeparator());
             m.Items.Add("Select all", null, delegate { box.SelectAll(); });
             m.Opening += delegate
@@ -1070,34 +1512,65 @@ namespace StickyNotes
             g.SmoothingMode = SmoothingMode.AntiAlias;
             using (var b = new SolidBrush(NoteColors.Header(data.Color)))
                 g.FillRectangle(b, 0, 0, ClientSize.Width, HeaderH);
-            DrawButton(g, PlusRect, hot == 0, true);
-            DrawButton(g, MenuRect, hot == 1, false);
+            DrawButton(g, PlusRect, 0);
+            DrawButton(g, CheckRect, 2);
+            DrawButton(g, BoldRect, 3);
+            DrawButton(g, MenuRect, 1);
+
+            // Corner grip: every edge resizes the note, the corner too
+            using (var pen = new Pen(Color.FromArgb(90, 0, 0, 0), Math.Max(1f, 1.2f * S)) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+                foreach (float k in new[] { 4f, 8f, 12f })
+                {
+                    float w = ClientSize.Width - 3 * S, h = ClientSize.Height - 3 * S;
+                    g.DrawLine(pen, w, h - k * S, w - k * S, h);
+                }
         }
 
-        void DrawButton(Graphics g, Rectangle r, bool hover, bool plus)
+        void DrawButton(Graphics g, Rectangle r, int which)
         {
-            if (hover)
+            if (hot == which)
                 using (var b = new SolidBrush(Color.FromArgb(28, 0, 0, 0)))
                 using (var p = NoteColors.Round(r, 4 * S))
                     g.FillPath(b, p);
             float cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f, a = r.Width * 0.24f;
-            if (plus)
+            using (var pen = new Pen(NoteColors.Glyph, Math.Max(1.5f, 1.6f * S)) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
+            using (var b = new SolidBrush(NoteColors.Glyph))
             {
-                using (var pen = new Pen(NoteColors.Glyph, Math.Max(1.5f, 1.6f * S)) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+                switch (which)
                 {
-                    g.DrawLine(pen, cx - a, cy, cx + a, cy);
-                    g.DrawLine(pen, cx, cy - a, cx, cy + a);
+                    case 0:
+                        g.DrawLine(pen, cx - a, cy, cx + a, cy);
+                        g.DrawLine(pen, cx, cy - a, cx, cy + a);
+                        break;
+                    case 1:
+                        float dot = Math.Max(2.5f, 3f * S);
+                        for (int i = -1; i <= 1; i++) g.FillEllipse(b, cx + i * a - dot / 2, cy - dot / 2, dot, dot);
+                        break;
+                    case 2:
+                        float h = 5.5f * S;
+                        using (var thin = new Pen(NoteColors.Glyph, Math.Max(1.2f, 1.3f * S)))
+                        using (var p = NoteColors.Round(new RectangleF(cx - h, cy - h, 2 * h, 2 * h), 2 * S))
+                            g.DrawPath(thin, p);
+                        g.DrawLines(pen, new[] { new PointF(cx - h + 2.5f * S, cy), new PointF(cx - h + 4.7f * S, cy + h - 2.5f * S),
+                                                 new PointF(cx + h - 2.2f * S, cy - h + 2.5f * S) });
+                        break;
+                    case 3:
+                        using (var f = new Font("Segoe UI", 10.5f * S, FontStyle.Bold, GraphicsUnit.Pixel))
+                        using (var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                            g.DrawString("B", f, b, new RectangleF(r.X, r.Y, r.Width, r.Height), sf);
+                        break;
                 }
-            }
-            else
-            {
-                float dot = Math.Max(2.5f, 3f * S);
-                using (var b = new SolidBrush(NoteColors.Glyph))
-                    for (int i = -1; i <= 1; i++) g.FillEllipse(b, cx + i * a - dot / 2, cy - dot / 2, dot, dot);
             }
         }
 
-        int HitButton(Point p) { return PlusRect.Contains(p) ? 0 : MenuRect.Contains(p) ? 1 : -1; }
+        int HitButton(Point p)
+        {
+            if (PlusRect.Contains(p)) return 0;
+            if (MenuRect.Contains(p)) return 1;
+            if (CheckRect.Contains(p)) return 2;
+            if (BoldRect.Contains(p)) return 3;
+            return -1;
+        }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
@@ -1120,6 +1593,8 @@ namespace StickyNotes
             if (e.Button != MouseButtons.Left) return;
             if (h == 0) app.NewNote(this);
             else if (h == 1) menu.Show(this, new Point(MenuRect.Left, MenuRect.Bottom));
+            else if (h == 2) ToggleChecklist();
+            else if (h == 3) ToggleBold();
             else if (e.Y < HeaderH)
             {
                 ReleaseCapture();

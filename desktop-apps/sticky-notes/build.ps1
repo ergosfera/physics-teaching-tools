@@ -4,7 +4,7 @@
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-$common = @('/nologo', '/target:winexe', '/optimize+', '/r:System.Windows.Forms.dll', '/r:System.Drawing.dll')
+$common = @('/nologo', '/codepage:65001', '/target:winexe', '/optimize+', '/r:System.Windows.Forms.dll', '/r:System.Drawing.dll')
 
 # Pass 1: build a throwaway copy in %TEMP%, run the self-test and draw the icon file with it.
 $maker = Join-Path $env:TEMP 'StickyNotes-build.exe'

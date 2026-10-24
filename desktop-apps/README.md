@@ -93,8 +93,10 @@ there when you open the Windows PC at home.
 | Action | How |
 |---|---|
 | New note | **+** on a note, Ctrl+N / ⌘N, or click the tray icon (Windows) / Dock icon (Mac) |
+| Checklist | **☐** on the top bar, Ctrl+Shift+L / ⇧⌘L, or type `[ ]` and a space at the start of a line. Click a box to check it; Enter adds the next one, Enter on an empty one ends the list |
+| Bold | Select text, then **B** on the top bar or Ctrl+B / ⌘B |
 | Color, keep on top, delete | **⋯** on the note's top bar (or right-click the bar) |
-| Move / resize | Drag the top bar / drag an edge or the bottom-right corner |
+| Move / resize | Drag the top bar / drag any edge or the bottom-right corner |
 | Bring all notes forward | Tray icon → Show all notes (Windows) · click the Dock icon (Mac) |
 | Change where notes sync | Tray menu → Change sync folder (Windows) · Sticky Notes menu → Change Sync Folder (Mac) |
 
@@ -109,7 +111,9 @@ How it works:
   separate notes, so nothing is lost. Delete the one you don't need.
 - Deleted notes move to **My Drive/StickyNotes/Trash**. To get one back, move its file back into
   StickyNotes; to free space, empty that folder yourself.
-- Notes are plain text (no bold, pictures or checkboxes), so they look the same on both systems.
+- Notes can have checklists and bold text, and nothing else (no pictures, fonts or colors), so they look the same on both systems.
+  In the file they're plain text markers: `[ ] milk` and `[x] milk` for checkboxes, `**word**` for bold.
+  A checked item shows crossed out.
 - The first time, macOS may ask to let Sticky Notes access files in Google Drive. Click **Allow**.
 
 ## Screen Ruler

@@ -91,6 +91,89 @@ enum NoteFile {
     }
 }
 
+// Checkboxes and bold, kept in the note text as plain markers so the file stays readable anywhere:
+//   "[ ] milk" / "[x] milk" at the start of a line is a checkbox (shown as ☐ / ☑), and "**word**" is bold.
+// On screen the markers become a box character plus a space, and bold text. Ranges count UTF-16 units,
+// like the Windows app.
+enum Markup {
+    static let unchecked = "\u{2610}", checked = "\u{2611}"
+    static let uncheckedChar: unichar = 0x2610, checkedChar: unichar = 0x2611
+
+    static func isBox(_ c: unichar) -> Bool { c == uncheckedChar || c == checkedChar }
+
+    // Is there a box (and its space) at the start of the line beginning at index i?
+    static func hasBox(_ s: NSString, at i: Int) -> Bool {
+        i + 1 < s.length && isBox(s.character(at: i)) && s.character(at: i + 1) == 32
+    }
+
+    static func parse(_ markup: String) -> (text: String, bold: [NSRange]) {
+        let out = NSMutableString()
+        var bold: [NSRange] = []
+        for (n, raw) in markup.components(separatedBy: "\n").enumerated() {
+            if n > 0 { out.append("\n") }
+            var line = raw as NSString
+            if line.hasPrefix("[ ] ") {
+                out.append(unchecked + " ")
+                line = line.substring(from: 4) as NSString
+            } else if line.hasPrefix("[x] ") || line.hasPrefix("[X] ") {
+                out.append(checked + " ")
+                line = line.substring(from: 4) as NSString
+            }
+            // "**" marks pair up within the line; an odd one out, or an empty pair, stays as typed
+            var marks: [Int] = []
+            var j = 0
+            while j + 1 < line.length {
+                if line.character(at: j) == 42 && line.character(at: j + 1) == 42 { marks.append(j); j += 2 } else { j += 1 }
+            }
+            if marks.count % 2 == 1 { marks.removeLast() }
+            var cursor = 0
+            var k = 0
+            while k < marks.count {
+                let a = marks[k], b = marks[k + 1]
+                k += 2
+                if b == a + 2 { continue }
+                out.append(line.substring(with: NSRange(location: cursor, length: a - cursor)))
+                bold.append(NSRange(location: out.length, length: b - a - 2))
+                out.append(line.substring(with: NSRange(location: a + 2, length: b - a - 2)))
+                cursor = b + 2
+            }
+            out.append(line.substring(from: cursor))
+        }
+        return (out as String, bold)
+    }
+
+    static func serialize(_ text: String, bold: [NSRange]) -> String {
+        let t = text as NSString
+        var isBold = [Bool](repeating: false, count: t.length)
+        for r in bold {
+            for i in max(0, r.location)..<min(t.length, r.location + r.length) { isBold[i] = true }
+        }
+        let out = NSMutableString()
+        var start = 0
+        while start <= t.length {
+            var end = t.range(of: "\n", options: [], range: NSRange(location: start, length: t.length - start)).location
+            if end == NSNotFound { end = t.length }
+            var i = start
+            if hasBox(t, at: i) && i + 1 < end {
+                out.append(t.character(at: i) == uncheckedChar ? "[ ] " : "[x] ")
+                i += 2
+            }
+            // Bold runs get "**" around them; each line closes its own
+            while i < end {
+                let b = isBold[i]
+                var j = i
+                while j < end && isBold[j] == b { j += 1 }
+                let piece = t.substring(with: NSRange(location: i, length: j - i))
+                if b && !piece.trimmingCharacters(in: .whitespaces).isEmpty { out.append("**" + piece + "**") } else { out.append(piece) }
+                i = j
+            }
+            if end < t.length { out.append("\n") }
+            start = end + 1
+        }
+        return out as String
+    }
+}
+
 // "Sticky Notes --selftest" (run by build.sh). The Windows app checks the same cases.
 func selfTest() -> Int32 {
     var fails: Int32 = 0
@@ -114,6 +197,21 @@ func selfTest() -> Int32 {
     check(list.text == "Shopping list\n---\nmilk" && list.color == "yellow", "dashes in a plain note")
     let bodyOnly = NoteFile.parse(id: "e", content: "---\nonly body")
     check(bodyOnly.text == "only body" && bodyOnly.color == "yellow", "empty header")
+
+    // Checkboxes and bold
+    let boxes = Markup.parse("[ ] milk\n[x] eggs\nplain")
+    check(boxes.text == "\u{2610} milk\n\u{2611} eggs\nplain" && boxes.bold.isEmpty, "parse checkboxes")
+    let b1 = Markup.parse("a **b** c")
+    check(b1.text == "a b c" && b1.bold == [NSRange(location: 2, length: 1)], "parse bold")
+    check(Markup.parse("x ** y").text == "x ** y" && Markup.parse("x ** y").bold.isEmpty, "lone marks stay")
+    check(Markup.parse("****").text == "****" && Markup.parse("****").bold.isEmpty, "empty bold stays")
+    check(Markup.serialize("\u{2610} a\n\u{2611} b", bold: []) == "[ ] a\n[x] b", "write checkboxes")
+    check(Markup.serialize("abc d", bold: [NSRange(location: 0, length: 3)]) == "**abc** d", "write bold")
+    check(Markup.serialize("ab\ncd", bold: [NSRange(location: 1, length: 3)]) == "a**b**\n**c**d", "bold across lines")
+    check(Markup.serialize("\u{2610}x", bold: []) == "\u{2610}x", "box without space")
+    let mixed = "[ ] **buy** milk\n[x] done\n**Title**\nend\n"
+    let p = Markup.parse(mixed)
+    check(Markup.serialize(p.text, bold: p.bold) == mixed, "round trip with markers")
     print(fails == 0 ? "Note format self-test passed" : "Note format self-test failed")
     return fails
 }
@@ -235,7 +333,7 @@ final class NoteWindow: NSWindow {
     override var canBecomeMain: Bool { true }
 }
 
-// Bottom-right corner handle for resizing.
+// Bottom-right corner handle for resizing (every edge resizes too; see NoteView).
 final class GripView: NSView {
     private var startMouse = NSPoint.zero
     private var startFrame = NSRect.zero
@@ -244,15 +342,18 @@ final class GripView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor(white: 0, alpha: 0.25).setStroke()
+        NSColor(white: 0, alpha: 0.35).setStroke()
         let p = NSBezierPath()
-        p.lineWidth = 1
-        for k: CGFloat in [4, 8] {
+        p.lineWidth = 1.2
+        p.lineCapStyle = .round
+        for k: CGFloat in [4, 8, 12] {
             p.move(to: NSPoint(x: bounds.width - 3, y: bounds.height - 3 - k))
             p.line(to: NSPoint(x: bounds.width - 3 - k, y: bounds.height - 3))
         }
         p.stroke()
     }
+
+    override func resetCursorRects() { addCursorRect(bounds, cursor: .crosshair) }
 
     override func mouseDown(with event: NSEvent) {
         startMouse = NSEvent.mouseLocation
@@ -268,17 +369,109 @@ final class GripView: NSView {
     }
 }
 
-// The note's colored top bar (+ and ⋯ buttons, drag to move) and its text area.
+// The note's text: clicking a ☐ / ☑ checks it, Enter continues a checklist, typing "[ ] " at the start of
+// a line makes a checkbox, and paste brings in plain text (with any checkbox and bold markers in it).
+final class NoteTextView: NSTextView {
+    weak var note: NoteController?
+
+    override func paste(_ sender: Any?) {
+        if let note = note { note.pasteMarkup() } else { super.paste(sender) }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if let note = note, let i = checkbox(at: convert(event.locationInWindow, from: nil)) {
+            note.toggleCheck(at: i)
+            return
+        }
+        super.mouseDown(with: event)
+    }
+
+    // The index of the checkbox under p, if p is on one
+    func checkbox(at p: NSPoint) -> Int? {
+        guard let lm = layoutManager, let tc = textContainer, !string.isEmpty else { return nil }
+        let q = NSPoint(x: p.x - textContainerOrigin.x, y: p.y - textContainerOrigin.y)
+        let g = lm.glyphIndex(for: q, in: tc)
+        let c = lm.characterIndexForGlyph(at: g)
+        let s = string as NSString
+        guard Markup.hasBox(s, at: c), c == 0 || s.character(at: c - 1) == 10 else { return nil }
+        let r = lm.boundingRect(forGlyphRange: NSRange(location: g, length: 1), in: tc).insetBy(dx: -3, dy: -2)
+        return r.contains(q) ? c : nil
+    }
+
+    override func resetCursorRects() {
+        super.resetCursorRects()
+        guard let lm = layoutManager, let tc = textContainer else { return }
+        let s = string as NSString
+        var i = 0
+        while i < s.length {
+            let line = s.lineRange(for: NSRange(location: i, length: 0))
+            if Markup.hasBox(s, at: line.location) {
+                let g = lm.glyphIndexForCharacter(at: line.location)
+                var r = lm.boundingRect(forGlyphRange: NSRange(location: g, length: 1), in: tc)
+                r.origin.x += textContainerOrigin.x
+                r.origin.y += textContainerOrigin.y
+                addCursorRect(r, cursor: .pointingHand)
+            }
+            i = NSMaxRange(line)
+        }
+    }
+
+    override func insertText(_ string: Any, replacementRange: NSRange) {
+        // "[ ]" or "[x]" then a space at the start of a line becomes a checkbox
+        if let typed = string as? String, typed == " ", replacementRange.location == NSNotFound {
+            let sel = selectedRange()
+            let s = self.string as NSString
+            let start = s.lineRange(for: NSRange(location: sel.location, length: 0)).location
+            if sel.length == 0 && sel.location - start == 3 {
+                let pre = s.substring(with: NSRange(location: start, length: 3))
+                if pre == "[ ]" || pre == "[x]" || pre == "[X]" {
+                    super.insertText((pre == "[ ]" ? Markup.unchecked : Markup.checked) + " ",
+                                     replacementRange: NSRange(location: start, length: 3))
+                    return
+                }
+            }
+        }
+        super.insertText(string, replacementRange: replacementRange)
+    }
+
+    override func insertNewline(_ sender: Any?) {
+        let s = string as NSString
+        let sel = selectedRange()
+        let line = s.lineRange(for: NSRange(location: sel.location, length: 0))
+        if sel.length == 0 && Markup.hasBox(s, at: line.location) && sel.location >= line.location + 2 {
+            var end = NSMaxRange(line)
+            if end > line.location && s.character(at: end - 1) == 10 { end -= 1 }
+            let rest = s.substring(with: NSRange(location: line.location + 2, length: end - line.location - 2))
+            if rest.trimmingCharacters(in: .whitespaces).isEmpty {
+                // Enter on an empty checkbox ends the list
+                super.insertText("", replacementRange: NSRange(location: line.location, length: end - line.location))
+            } else {
+                super.insertText("\n" + Markup.unchecked + " ", replacementRange: sel)
+            }
+            return
+        }
+        super.insertNewline(sender)
+    }
+}
+
+// The note's colored top bar (+, ☐, B and ⋯ buttons, drag to move) and its text area.
+// Every edge of the note resizes it, and so does the corner handle.
 final class NoteView: NSView {
     weak var note: NoteController?
     let scroll = NSScrollView()
     let grip = GripView()
     let headerH: CGFloat = 28
+    let edge: CGFloat = 6
     private var hot = -1
     private var tracking: NSTrackingArea?
+    private var resizing: (l: Bool, r: Bool, t: Bool, b: Bool)?
+    private var startMouse = NSPoint.zero
+    private var startFrame = NSRect.zero
 
     var plusRect: NSRect { NSRect(x: 4, y: 3, width: 22, height: 22) }
     var menuRect: NSRect { NSRect(x: bounds.width - 26, y: 3, width: 22, height: 22) }
+    var boldRect: NSRect { NSRect(x: bounds.width - 52, y: 3, width: 22, height: 22) }
+    var checkRect: NSRect { NSRect(x: bounds.width - 78, y: 3, width: 22, height: 22) }
 
     override var isFlipped: Bool { true }
 
@@ -298,7 +491,8 @@ final class NoteView: NSView {
 
     private func layoutParts() {
         scroll.frame = NSRect(x: 10, y: headerH + 2, width: max(10, bounds.width - 20), height: max(10, bounds.height - headerH - 12))
-        grip.frame = NSRect(x: bounds.width - 14, y: bounds.height - 14, width: 14, height: 14)
+        grip.frame = NSRect(x: bounds.width - 18, y: bounds.height - 18, width: 18, height: 18)
+        window?.invalidateCursorRects(for: self)
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -307,18 +501,8 @@ final class NoteView: NSView {
         bounds.fill()
         NoteColors.header(note.data.color).setFill()
         NSRect(x: 0, y: 0, width: bounds.width, height: headerH).fill()
-        drawButton(plusRect, hover: hot == 0, plus: true)
-        drawButton(menuRect, hover: hot == 1, plus: false)
-    }
-
-    private func drawButton(_ r: NSRect, hover: Bool, plus: Bool) {
-        if hover {
-            NSColor(white: 0, alpha: 0.1).setFill()
-            NSBezierPath(roundedRect: r, xRadius: 4, yRadius: 4).fill()
-        }
-        let cx = r.midX, cy = r.midY, a = r.width * 0.24
-        NoteColors.glyph.set()
-        if plus {
+        drawButton(plusRect, hover: hot == 0) { r in
+            let cx = r.midX, cy = r.midY, a = r.width * 0.24
             let p = NSBezierPath()
             p.move(to: NSPoint(x: cx - a, y: cy))
             p.line(to: NSPoint(x: cx + a, y: cy))
@@ -327,12 +511,41 @@ final class NoteView: NSView {
             p.lineWidth = 1.6
             p.lineCapStyle = .round
             p.stroke()
-        } else {
-            let d: CGFloat = 3
+        }
+        drawButton(menuRect, hover: hot == 1) { r in
+            let cx = r.midX, cy = r.midY, a = r.width * 0.24, d: CGFloat = 3
             for i in -1...1 {
                 NSBezierPath(ovalIn: NSRect(x: cx + CGFloat(i) * a - d / 2, y: cy - d / 2, width: d, height: d)).fill()
             }
         }
+        drawButton(checkRect, hover: hot == 2) { r in
+            let box = NSRect(x: r.midX - 5.5, y: r.midY - 5.5, width: 11, height: 11)
+            let b = NSBezierPath(roundedRect: box, xRadius: 2, yRadius: 2)
+            b.lineWidth = 1.3
+            b.stroke()
+            let tick = NSBezierPath()
+            tick.move(to: NSPoint(x: box.minX + 2.5, y: box.midY))
+            tick.line(to: NSPoint(x: box.minX + 4.7, y: box.maxY - 2.5))
+            tick.line(to: NSPoint(x: box.maxX - 2.2, y: box.minY + 2.5))
+            tick.lineWidth = 1.5
+            tick.lineCapStyle = .round
+            tick.lineJoinStyle = .round
+            tick.stroke()
+        }
+        drawButton(boldRect, hover: hot == 3) { r in
+            let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.boldSystemFont(ofSize: 14), .foregroundColor: NoteColors.glyph]
+            let sz = ("B" as NSString).size(withAttributes: attrs)
+            ("B" as NSString).draw(at: NSPoint(x: r.midX - sz.width / 2, y: r.midY - sz.height / 2), withAttributes: attrs)
+        }
+    }
+
+    private func drawButton(_ r: NSRect, hover: Bool, _ glyph: (NSRect) -> Void) {
+        if hover {
+            NSColor(white: 0, alpha: 0.1).setFill()
+            NSBezierPath(roundedRect: r, xRadius: 4, yRadius: 4).fill()
+        }
+        NoteColors.glyph.set()
+        glyph(r)
     }
 
     override func updateTrackingAreas() {
@@ -344,9 +557,29 @@ final class NoteView: NSView {
         tracking = t
     }
 
+    override func resetCursorRects() {
+        let w = bounds.width, h = bounds.height
+        addCursorRect(NSRect(x: 0, y: 0, width: edge, height: h), cursor: .resizeLeftRight)
+        addCursorRect(NSRect(x: w - edge, y: 0, width: edge, height: h), cursor: .resizeLeftRight)
+        addCursorRect(NSRect(x: 0, y: 0, width: w, height: 3), cursor: .resizeUpDown)
+        addCursorRect(NSRect(x: 0, y: h - edge, width: w, height: edge), cursor: .resizeUpDown)
+    }
+
+    // The edges belong to the note, not to the text view (which otherwise takes clicks in the margin)
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let p = convert(point, from: superview)
+        if bounds.contains(p) && !grip.frame.contains(p)
+            && (p.x < edge || p.x > bounds.width - edge || p.y < 3 || p.y > bounds.height - edge) { return self }
+        return super.hitTest(point)
+    }
+
     private func hit(_ event: NSEvent) -> Int {
         let p = convert(event.locationInWindow, from: nil)
-        return plusRect.contains(p) ? 0 : menuRect.contains(p) ? 1 : -1
+        if plusRect.contains(p) { return 0 }
+        if menuRect.contains(p) { return 1 }
+        if checkRect.contains(p) { return 2 }
+        if boldRect.contains(p) { return 3 }
+        return -1
     }
 
     private func setHot(_ h: Int) {
@@ -361,19 +594,41 @@ final class NoteView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         guard let note = note else { return }
+        let p = convert(event.locationInWindow, from: nil)
+        let l = p.x < edge, r = p.x > bounds.width - edge, t = p.y < 3, b = p.y > bounds.height - edge
+        if (l || r || t || b) && hit(event) < 0 {
+            resizing = (l, r, t, b)
+            startMouse = NSEvent.mouseLocation
+            startFrame = window?.frame ?? .zero
+            return
+        }
         switch hit(event) {
-        case 0:
-            note.app.newNote(near: note)
-        case 1:
-            _ = note.menu().popUp(positioning: nil, at: NSPoint(x: menuRect.minX, y: menuRect.maxY), in: self)
+        case 0: note.app.newNote(near: note)
+        case 1: _ = note.menu().popUp(positioning: nil, at: NSPoint(x: menuRect.minX, y: menuRect.maxY), in: self)
+        case 2: note.toggleChecklist()
+        case 3: note.toggleBold()
         default:
-            if convert(event.locationInWindow, from: nil).y < headerH {
+            if p.y < headerH {
                 window?.performDrag(with: event)
             } else {
                 window?.makeFirstResponder(note.text)
             }
         }
     }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let e = resizing, let w = window else { return }
+        let m = NSEvent.mouseLocation
+        let dx = m.x - startMouse.x, dy = m.y - startMouse.y
+        var minX = startFrame.minX, maxX = startFrame.maxX, minY = startFrame.minY, maxY = startFrame.maxY
+        if e.l { minX = min(startFrame.minX + dx, maxX - w.minSize.width) }
+        if e.r { maxX = max(startFrame.maxX + dx, minX + w.minSize.width) }
+        if e.b { minY = min(startFrame.minY + dy, maxY - w.minSize.height) }     // the view is flipped: its bottom is the window's minY
+        if e.t { maxY = max(startFrame.maxY + dy, minY + w.minSize.height) }
+        w.setFrame(NSRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY), display: true)
+    }
+
+    override func mouseUp(with event: NSEvent) { resizing = nil }
 
     override func rightMouseDown(with event: NSEvent) {
         guard let note = note else { return }
@@ -386,17 +641,23 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
     var data: NoteData  // the version last read from or written to the file
     let window: NoteWindow
     let view: NoteView
-    let text: NSTextView
+    let text: NoteTextView
     private(set) var dirty = false
     private var saveTimer: Timer?
+    private var restyling = false
     var ready = false
+
+    static let regular = NSFont.systemFont(ofSize: 14)
+    static let bold = NSFont.boldSystemFont(ofSize: 14)
+    static let boxFont = NSFont.systemFont(ofSize: 16)
+    static let doneInk = NSColor(srgbRed: 0.133, green: 0.133, blue: 0.133, alpha: 0.5)
 
     init(app: AppDelegate, data: NoteData, frame: NSRect) {
         self.app = app
         self.data = data
         window = NoteWindow(contentRect: frame, styleMask: [.borderless, .resizable], backing: .buffered, defer: false)
         view = NoteView(frame: NSRect(origin: .zero, size: frame.size))
-        text = NSTextView(frame: NSRect(x: 0, y: 0, width: max(10, frame.width - 20), height: 100))
+        text = NoteTextView(frame: NSRect(x: 0, y: 0, width: max(10, frame.width - 20), height: 100))
         super.init()
 
         window.isOpaque = false
@@ -413,8 +674,10 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         view.layer?.cornerRadius = 8
         view.layer?.masksToBounds = true
 
-        // Plain text only, so both apps show the same thing.
-        text.isRichText = false
+        // Only bold and checkboxes, so both apps show the same thing (restyle() keeps it that way)
+        text.note = self
+        text.isRichText = true
+        text.usesFontPanel = false
         text.importsGraphics = false
         text.allowsUndo = true
         text.drawsBackground = false
@@ -426,8 +689,9 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         text.textContainer?.widthTracksTextView = true
         text.textContainer?.containerSize = NSSize(width: text.frame.width, height: CGFloat.greatestFiniteMagnitude)
         text.textContainerInset = NSSize(width: 0, height: 4)
-        text.string = data.text
-        restyle()
+        text.insertionPointColor = NoteColors.ink
+        text.typingAttributes = [.font: NoteController.regular, .foregroundColor: NoteColors.ink]
+        setMarkup(data.text)
         text.delegate = self
 
         view.scroll.documentView = text
@@ -439,14 +703,137 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         updateTitle()
     }
 
-    private func restyle() {
-        text.font = NSFont.systemFont(ofSize: 14)
-        text.textColor = NoteColors.ink
-        text.insertionPointColor = NoteColors.ink
+    // MARK: Checkboxes and bold
+
+    // The note as it is saved: plain text with "[ ] ", "[x] " and "**" markers
+    var markup: String {
+        var bold: [NSRange] = []
+        if let ts = text.textStorage {
+            ts.enumerateAttribute(.font, in: NSRange(location: 0, length: ts.length)) { v, r, _ in
+                if let f = v as? NSFont, f.fontDescriptor.symbolicTraits.contains(.bold) { bold.append(r) }
+            }
+        }
+        return Markup.serialize(text.string, bold: bold)
+    }
+
+    func attributed(_ markup: String) -> NSAttributedString {
+        let (t, bold) = Markup.parse(markup)
+        let a = NSMutableAttributedString(string: t, attributes: [.font: NoteController.regular, .foregroundColor: NoteColors.ink])
+        for r in bold { a.addAttribute(.font, value: NoteController.bold, range: r) }
+        return a
+    }
+
+    func setMarkup(_ m: String) {
+        text.textStorage?.setAttributedString(attributed(m))
+        restyle()
+    }
+
+    // Keeps the look in step with the text: only regular or bold, boxes a little bigger,
+    // and the text of a checked item gray and crossed out.
+    func restyle() {
+        guard let ts = text.textStorage, !restyling else { return }
+        restyling = true
+        defer { restyling = false }
+        let s = ts.string as NSString
+        let all = NSRange(location: 0, length: ts.length)
+        ts.beginEditing()
+        ts.enumerateAttribute(.font, in: all) { v, r, _ in
+            let isBold = (v as? NSFont)?.fontDescriptor.symbolicTraits.contains(.bold) ?? false
+            ts.addAttribute(.font, value: isBold ? NoteController.bold : NoteController.regular, range: r)
+        }
+        ts.removeAttribute(.strikethroughStyle, range: all)
+        ts.addAttribute(.foregroundColor, value: NoteColors.ink, range: all)
+        var i = 0
+        while i < s.length {
+            let line = s.lineRange(for: NSRange(location: i, length: 0))
+            if Markup.hasBox(s, at: line.location) {
+                ts.addAttribute(.font, value: NoteController.boxFont, range: NSRange(location: line.location, length: 1))
+                if s.character(at: line.location) == Markup.checkedChar {
+                    var end = NSMaxRange(line)
+                    if end > line.location && s.character(at: end - 1) == 10 { end -= 1 }
+                    let r = NSRange(location: line.location + 2, length: max(0, end - line.location - 2))
+                    ts.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: r)
+                    ts.addAttribute(.foregroundColor, value: NoteController.doneInk, range: r)
+                }
+            }
+            i = NSMaxRange(line)
+        }
+        ts.endEditing()
+        // New typing takes the look of the line it's on, never the box's
+        var typing = text.typingAttributes
+        typing.removeValue(forKey: .strikethroughStyle)
+        typing[.foregroundColor] = NoteColors.ink
+        if let f = typing[.font] as? NSFont, f.pointSize != 14 { typing[.font] = NoteController.regular }
+        text.typingAttributes = typing
+        text.window?.invalidateCursorRects(for: text)
+    }
+
+    // Replaces a range as an undoable edit
+    private func edit(_ r: NSRange, _ s: String) {
+        guard text.shouldChangeText(in: r, replacementString: s) else { return }
+        text.textStorage?.replaceCharacters(in: r, with: s)
+        text.didChangeText()
+    }
+
+    func toggleCheck(at i: Int) {
+        let s = text.string as NSString
+        guard Markup.hasBox(s, at: i) else { return }
+        let sel = text.selectedRange()
+        edit(NSRange(location: i, length: 1), s.character(at: i) == Markup.uncheckedChar ? Markup.checked : Markup.unchecked)
+        text.setSelectedRange(sel)
+    }
+
+    // Adds a checkbox to each selected line, or takes them away if they all have one
+    @objc func toggleChecklist() {
+        let s = text.string as NSString
+        let lines = s.lineRange(for: text.selectedRange())
+        var starts: [Int] = []
+        var i = lines.location
+        repeat {
+            starts.append(i)
+            i = NSMaxRange(s.lineRange(for: NSRange(location: i, length: 0)))
+        } while i < NSMaxRange(lines)
+        let allBoxed = starts.allSatisfy { Markup.hasBox(s, at: $0) }
+        text.undoManager?.beginUndoGrouping()
+        for start in starts.reversed() {
+            if allBoxed {
+                edit(NSRange(location: start, length: 2), "")
+            } else if !Markup.hasBox(s, at: start) {
+                edit(NSRange(location: start, length: 0), Markup.unchecked + " ")
+            }
+        }
+        text.undoManager?.endUndoGrouping()
+        window.makeFirstResponder(text)
+    }
+
+    @objc func toggleBold() {
+        let r = text.selectedRange()
+        guard let ts = text.textStorage else { return }
+        if r.length == 0 {
+            let isBold = (text.typingAttributes[.font] as? NSFont)?.fontDescriptor.symbolicTraits.contains(.bold) ?? false
+            text.typingAttributes[.font] = isBold ? NoteController.regular : NoteController.bold
+            return
+        }
+        var allBold = true
+        ts.enumerateAttribute(.font, in: r) { v, _, stop in
+            if !((v as? NSFont)?.fontDescriptor.symbolicTraits.contains(.bold) ?? false) { allBold = false; stop.pointee = true }
+        }
+        guard text.shouldChangeText(in: r, replacementString: nil) else { return }
+        ts.addAttribute(.font, value: allBold ? NoteController.regular : NoteController.bold, range: r)
+        text.didChangeText()
+        window.makeFirstResponder(text)
+    }
+
+    // Pastes plain text; any checkbox and bold markers in it come in formatted
+    func pasteMarkup() {
+        guard let s = NSPasteboard.general.string(forType: .string) else { return }
+        text.insertText(attributed(NoteFile.normalize(s)), replacementRange: text.selectedRange())
     }
 
     private func updateTitle() {
-        let first = text.string.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: "\n").first ?? ""
+        var first = markup.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: "\n").first ?? ""
+        if first.hasPrefix("[ ] ") || first.hasPrefix("[x] ") { first = String(first.dropFirst(4)) }
+        first = first.replacingOccurrences(of: "**", with: "")
         window.title = first.isEmpty ? "Sticky Note" : String(first.prefix(60))
     }
 
@@ -458,6 +845,7 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
     // MARK: Saving and syncing
 
     func textDidChange(_ notification: Notification) {
+        restyle()
         dirty = true
         scheduleSave(after: 0.7)
         updateTitle()
@@ -473,7 +861,7 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         saveTimer?.invalidate()
         saveTimer = nil
         var d = data
-        d.text = text.string
+        d.text = markup
         d.modified = NoteFile.now()
         d.by = NoteFile.machine
         if app.write(d) {
@@ -497,11 +885,10 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
             app.conflictCopy(d, near: self)
             return
         }
-        if d.text != text.string {
+        if d.text != markup {
             let caret = text.selectedRange().location
-            text.string = d.text
-            restyle()
-            text.setSelectedRange(NSRange(location: min(caret, (d.text as NSString).length), length: 0))
+            setMarkup(d.text)
+            text.setSelectedRange(NSRange(location: min(caret, (text.string as NSString).length), length: 0))
         }
         data = d
         view.needsDisplay = true
@@ -542,6 +929,9 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
             item.image = NoteColors.swatch(i)
             item.state = NoteColors.index(data.color) == i ? .on : .off
         }
+        m.addItem(.separator())
+        m.addItem(withTitle: "Checklist", action: #selector(toggleChecklist), keyEquivalent: "").target = self
+        m.addItem(withTitle: "Bold", action: #selector(toggleBold), keyEquivalent: "").target = self
         m.addItem(.separator())
         let top = m.addItem(withTitle: "Keep on Top", action: #selector(toggleTop(_:)), keyEquivalent: "")
         top.target = self
@@ -638,7 +1028,7 @@ enum IconArt {
 // MARK: - App: the notes folder and the open notes
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    static let welcome = "Welcome to Sticky Notes!\n\nWrite anything here. Notes save as you type and sync through your Google Drive folder, so they also appear on your other computer.\n\n+  makes a new note.\n⋯  changes the color or deletes the note.\nDrag the top bar to move a note, and the corner to resize it."
+    static let welcome = "Welcome to Sticky Notes!\n\nWrite anything here. Notes save as you type and sync through your Google Drive folder, so they also appear on your other computer.\n\n+  makes a new note.\n☐  makes a checklist: click a box to check it.\nB  makes the selected text bold.\n⋯  changes the color or deletes the note.\nDrag the top bar to move a note, and an edge or the corner to resize it."
 
     let local = LocalState()
     let fm = FileManager.default
@@ -908,6 +1298,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let c = keyNote { delete(c) }
     }
 
+    @objc func boldCommand(_ sender: Any?) { keyNote?.toggleBold() }
+    @objc func checklistCommand(_ sender: Any?) { keyNote?.toggleChecklist() }
+
     @objc func openFolder(_ sender: Any?) {
         if ensureFolder() {
             NSWorkspace.shared.open(URL(fileURLWithPath: folder))
@@ -972,7 +1365,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showAbout(_ sender: Any?) {
-        alert("Sticky Notes 1.0.1",
+        alert("Sticky Notes 1.1",
               "Notes folder:\n\(folder)\n\nEach note is a text file in this folder. Google Drive for desktop copies it to your other computers, where Sticky Notes for Mac or Windows shows it. Deleted notes go to the Trash folder inside it.\n\n© 2026 Mauricio Mendivelso. MIT License.\nProvided \"as is\", without warranty of any kind.")
     }
 
@@ -1018,6 +1411,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
         edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         add(edit, title: "Edit", to: main)
+
+        let format = NSMenu()
+        format.addItem(withTitle: "Bold", action: #selector(boldCommand(_:)), keyEquivalent: "b").target = self
+        let check = format.addItem(withTitle: "Checklist", action: #selector(checklistCommand(_:)), keyEquivalent: "l")
+        check.keyEquivalentModifierMask = [.command, .shift]
+        check.target = self
+        add(format, title: "Format", to: main)
 
         let windowMenu = NSMenu()
         windowMenu.addItem(withTitle: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
