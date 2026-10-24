@@ -15,3 +15,6 @@ desktop-apps/sticky-notes-mac/build/
 desktop-apps/screen-ruler/windows/ScreenRuler.exe
 desktop-apps/screen-ruler/windows/app.ico
 desktop-apps/screen-ruler/mac/build/
+desktop-apps/screen-shapes/windows/ScreenShapes.exe
+desktop-apps/screen-shapes/windows/app.ico
+desktop-apps/screen-shapes/mac/build/

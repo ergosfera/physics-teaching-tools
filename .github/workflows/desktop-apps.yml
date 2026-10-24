@@ -4,6 +4,7 @@
 #   "field-timer":        Field.dmg (Mac) and Field.exe (Windows)
 #   "sticky-notes":       StickyNotes.dmg (Mac) and StickyNotes.exe (Windows)
 #   "screen-ruler":       ScreenRuler.dmg (Mac) and ScreenRuler.exe (Windows)
+#   "screen-shapes":      ScreenShapes.dmg (Mac) and ScreenShapes.exe (Windows)
 # Pull requests only build the apps, so a broken build shows up before it reaches main.
 name: Desktop apps
 
@@ -120,6 +121,26 @@ jobs:
           name: ruler-windows
           path: desktop-apps/screen-ruler/windows/ScreenRuler.exe
 
+  shapes-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./desktop-apps/screen-shapes/mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shapes-mac
+          path: desktop-apps/screen-shapes/mac/build/ScreenShapes.dmg
+
+  shapes-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop-apps/screen-shapes/windows/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shapes-windows
+          path: desktop-apps/screen-shapes/windows/ScreenShapes.exe
+
   release-timer:
     if: github.event_name != 'pull_request'
     needs: [timer-mac, timer-windows]
@@ -234,3 +255,26 @@ jobs:
               --notes "Rulers and a protractor that float over the screen. Mac: download ScreenRuler.dmg. Windows: download ScreenRuler.exe."
           gh release upload screen-ruler dist/* -R "$REPO" --clobber
           gh release edit screen-ruler -R "$REPO" --draft=false
+
+  release-shapes:
+    if: github.event_name != 'pull_request'
+    needs: [shapes-mac, shapes-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shapes-*
+          path: dist
+          merge-multiple: true
+      - name: Publish to the screen-shapes release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release view screen-shapes -R "$REPO" > /dev/null 2>&1 || \
+            gh release create screen-shapes -R "$REPO" --latest=false --title "Screen Shapes" \
+              --notes "Lines, rectangles, circles and guide lines that float over the screen and measure. Mac: download ScreenShapes.dmg. Windows: download ScreenShapes.exe."
+          gh release upload screen-shapes dist/* -R "$REPO" --clobber
+          gh release edit screen-shapes -R "$REPO" --draft=false
