@@ -160,15 +160,13 @@ A focus aid for reading, for example for people with ADHD: the whole screen is d
 
 - Shapes: rectangle, rounded rectangle, ellipse, or a full-width reading band. Width and height are set in the panel.
 - Darkness from 10% to 95%, and any shade color (a palette of dark, calm colors, or Other color…).
-- The clear window follows the pointer, and the page under it can still be scrolled. A click holds it in place
-  (the click also reaches the page). While held, the clear window works like the screen under it; click the dark area
-  to grab it again, or drag just outside its edge to resize it.
+- The clear window follows the pointer, and the page under it can still be scrolled. A click holds it in place,
+  and another click makes it follow again (the clicks also reach the page). While held, drag just outside its edge to resize it.
 - The panel stays above the shade, and the clear window doesn't follow the pointer onto it. Closing the panel quits.
 
 | Action | Mouse | Keyboard (panel) |
 |---|---|---|
-| Hold the clear window | Click (anywhere but the panel) | — |
-| Grab it again | Click the dark area | — |
+| Hold the clear window / make it follow again | Click (anywhere but the panel) | — |
 | Resize | Drag just outside its edge while held, or the Width/Height sliders | Scroll over a slider to fine-tune |
 | Shape | Rect, Round, Ellipse, Band buttons | ⌘1–⌘4 on Mac, Ctrl+1–4 on Windows |
 | Shade on/off | **Shade: On/Off** | ⌘S on Mac, Ctrl+S on Windows |

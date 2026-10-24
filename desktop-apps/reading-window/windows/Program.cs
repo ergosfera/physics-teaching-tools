@@ -17,8 +17,8 @@ using Microsoft.Win32;
 [assembly: AssemblyTitle("Reading Window")]
 [assembly: AssemblyProduct("Reading Window")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Mauricio Mendivelso. MIT License.")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.0.1.0")]
+[assembly: AssemblyFileVersion("1.0.1.0")]
 
 namespace ReadingWindow
 {
@@ -389,7 +389,7 @@ namespace ReadingWindow
             base.WndProc(ref m);
         }
 
-        // While held: drag just outside the clear window's edge to resize it; click anywhere else in the shade to grab it
+        // While held: drag just outside the clear window's edge to resize it; click anywhere else in the shade to make it follow
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
@@ -453,7 +453,7 @@ namespace ReadingWindow
         int pressedIndex = -1;
         readonly Font fButton, fLabel, fStatus, fHint;
 
-        const float Width_ = 380, Height_ = 228;
+        const float Width_ = 380, Height_ = 246;
 
         public PanelForm()
         {
@@ -472,7 +472,7 @@ namespace ReadingWindow
             fButton = Px("Tahoma", 12, true);
             fLabel = Px("Tahoma", 12, true);
             fStatus = Px("Tahoma", 11.5f, true);
-            fHint = Px("Tahoma", 10.5f, false);
+            fHint = Px("Tahoma", 11, false);
             ClientSize = new Size(S(Width_), S(Height_));
 
             var wa = Screen.PrimaryScreen.WorkingArea;
@@ -583,15 +583,22 @@ namespace ReadingWindow
             }
         }
 
-        // A click anywhere while following holds the window where it is (the click also reaches the page below)
+        // Each click outside the panel holds the window, or makes a held one follow again (the click also reaches
+        // the page below). A click just outside a held window's edge is left to the shade, which resizes it.
         IntPtr MouseHook(int nCode, IntPtr wParam, IntPtr lParam)
         {
             const int WM_LBUTTONDOWN = 0x0201;
-            if (nCode >= 0 && wParam.ToInt32() == WM_LBUTTONDOWN && Following && Cfg.Enabled && !MouseOverPanel)
-                BeginInvoke((Action)Hold);
+            if (nCode >= 0 && wParam.ToInt32() == WM_LBUTTONDOWN && Cfg.Enabled && !MouseOverPanel)
+            {
+                int dx, dy;
+                bool onEdge = Geometry.Edge(Control.MousePosition, Hole, Cfg.Shape == HoleShape.Band, Geometry.Grip * K, out dx, out dy);
+                if (Following) BeginInvoke((Action)Hold);
+                else if (!onEdge) BeginInvoke((Action)Grab);
+            }
             return CallNextHookEx(hook, nCode, wParam, lParam);
         }
 
+        // Hold the window where it is
         void Hold()
         {
             if (!Following || MouseOverPanel) return;
@@ -806,7 +813,7 @@ namespace ReadingWindow
             var st = Rectangle.Inflate(RcStatus, -S(2), -S(2));
             using (var b = new SolidBrush(Skin.Lcd)) g.FillRectangle(b, st);
             Skin.Sunken(g, st, t);
-            string status = !Cfg.Enabled ? "Shade is off" : Following ? "Following · click to hold" : "Held · click the shade to grab";
+            string status = !Cfg.Enabled ? "Shade is off" : Following ? "Following · click to hold" : "Held · click to follow";
             TextRenderer.DrawText(g, status, fStatus, Rectangle.Inflate(st, -S(6), 0), Skin.LcdDigit, left);
 
             for (int i = 0; i < Geometry.Shapes.Length; i++)
@@ -840,9 +847,8 @@ namespace ReadingWindow
             using (var p = new Pen(Skin.Text)) g.DrawRectangle(p, sw);
             TextRenderer.DrawText(g, "▾", fButton, new Rectangle(RcColor.Right - S(20), RcColor.Y, S(14), RcColor.Height), Skin.Text,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-            TextRenderer.DrawText(g, "Drag just outside its edge to resize while held", fHint,
-                new Rectangle(RcColor.Right + S(10), RcColor.Y, ClientSize.Width - RcColor.Right - S(18), RcColor.Height), Skin.Muted,
-                left | TextFormatFlags.WordBreak);
+            TextRenderer.DrawText(g, "Click: hold / follow  ·  Drag just outside its edge: resize", fHint,
+                new Rectangle(S(8), RcColor.Bottom + S(4), ClientSize.Width - S(16), S(20)), Skin.Muted, left);
         }
 
         public void ShowAbout()
@@ -894,7 +900,7 @@ namespace ReadingWindow
             Controls.Add(icon);
 
             Controls.Add(new Label { Text = "Reading Window", Location = new Point(76, 16), AutoSize = true, Font = new Font("Segoe UI Semibold", 12F) });
-            Controls.Add(new Label { Text = "Version 1.0  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
+            Controls.Add(new Label { Text = "Version 1.0.1  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
             Controls.Add(new Label
             {
                 Text = "Free software, provided \"as is\", without warranty of any kind.\r\n" +

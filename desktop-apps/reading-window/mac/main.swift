@@ -205,7 +205,7 @@ final class ShadeView: NSView {
         cursor(for: Geometry.edge(NSEvent.mouseLocation, app.hole, band: app.cfg.shape == .band)).set()
     }
 
-    // While held: drag just outside the clear window's edge to resize it; click anywhere else in the shade to grab it
+    // While held: drag just outside the clear window's edge to resize it; click anywhere else in the shade to make it follow
     override func mouseDown(with e: NSEvent) {
         let g = NSEvent.mouseLocation
         downAt = g
@@ -234,7 +234,7 @@ final class PanelView: NSView {
 
     weak var app: AppDelegate!
     var pressed: Hit = .none
-    static let width: CGFloat = 380, height: CGFloat = 228
+    static let width: CGFloat = 380, height: CGFloat = 246
 
     let fButton = Skin.font("Tahoma", 12, bold: true)
     let fLabel = Skin.font("Tahoma", 12, bold: true)
@@ -345,7 +345,7 @@ final class PanelView: NSView {
 
         let st = rcStatus.insetBy(dx: 2, dy: 2)
         Skin.lcd.setFill(); st.fill(); Skin.sunken(st)
-        let status = !app.cfg.enabled ? "Shade is off" : app.following ? "Following · click to hold" : "Held · click the shade to grab"
+        let status = !app.cfg.enabled ? "Shade is off" : app.following ? "Following · click to hold" : "Held · click to follow"
         Skin.draw(status, fStatus, Skin.lcdDigit, in: st.insetBy(dx: 6, dy: 0), left: true)
 
         for (i, s) in HoleShape.allCases.enumerated() {
@@ -374,8 +374,8 @@ final class PanelView: NSView {
         app.cfg.color.setFill(); sw.fill()
         Skin.text.setStroke(); NSBezierPath(rect: sw.insetBy(dx: 0.5, dy: 0.5)).stroke()
         Skin.draw("▾", fButton, Skin.text, in: NSRect(x: rcColor.maxX - 18, y: rcColor.minY, width: 12, height: rcColor.height))
-        Skin.draw("Drag just outside its edge to resize while held", Skin.font("Tahoma", 10.5), Skin.muted,
-                  in: NSRect(x: rcColor.maxX + 10, y: rcColor.minY, width: bounds.width - rcColor.maxX - 18, height: rcColor.height), left: true)
+        Skin.draw("Click: hold / follow  ·  Drag just outside its edge: resize", Skin.font("Tahoma", 11), Skin.muted,
+                  in: NSRect(x: 8, y: rcColor.maxY + 4, width: bounds.width - 16, height: 20), left: true)
     }
 }
 
@@ -500,9 +500,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         poll = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(poll!, forMode: .common)
 
-        // While following, the shade lets every click through to the page; a click in another app holds the window.
-        // (Clicks in this app's own panel don't, and need no permission to watch.)
-        clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in self?.hold() }
+        // Each click on the page (in another app) holds the window, or makes a held one follow again; the click
+        // also reaches the page. Clicks on the shade itself are handled by the shade, and the panel's are its own.
+        clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in self?.toggleFollow() }
     }
 
     // One shade window over each screen, above everything but the panel (and menus)
@@ -534,9 +534,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     var mouseOverPanel: Bool { panelWindow.isVisible && panelWindow.frame.contains(NSEvent.mouseLocation) }
 
-    // A click holds the window where it is (the click also reaches the page below)
+    func toggleFollow() {
+        guard cfg.enabled, !mouseOverPanel else { return }
+        if following { hold() } else { grab() }
+    }
+
+    // Hold the window where it is
     func hold() {
-        guard cfg.enabled, following, !mouseOverPanel else { return }
         following = false
         center = NSEvent.mouseLocation
         holeChanged()
@@ -550,7 +554,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             if !mouseOverPanel && g != center { center = g; holeChanged() }
             for w in shades where !w.ignoresMouseEvents { w.ignoresMouseEvents = true }
         } else {
-            // Held: the shade catches clicks (to grab or resize); the clear window lets them through
+            // Held: the shade catches clicks (to grab or resize); the clear window lets them through to the page
             let inHole = Geometry.path(hole, cfg.shape).contains(g) && Geometry.edge(g, hole, band: cfg.shape == .band) == nil
             for w in shades {
                 let dragging = (w.contentView as? ShadeView)?.resizing != nil
@@ -652,7 +656,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "Reading Window",
-            .applicationVersion: "1.0",
+            .applicationVersion: "1.0.1",
             .version: "",
             .credits: credits,
             NSApplication.AboutPanelOptionKey(rawValue: "Copyright"): "© 2026 Mauricio Mendivelso · MIT License",
