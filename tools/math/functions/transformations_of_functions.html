@@ -132,10 +132,10 @@ footer{font-size:.82rem;color:var(--muted)}
     <section class="stage">
       <form class="fx-row" id="fxForm" autocomplete="off">
         <label for="fx">f(x) =</label>
-        <input id="fx" type="text" spellcheck="false" value="(x^2 - x - 2)/(x^2 - 4)" aria-describedby="fxHint">
+        <input id="fx" type="text" spellcheck="false" value="x^2 - 2x - 3" aria-describedby="fxHint">
         <button class="btn primary" type="submit">Graph f</button>
       </form>
-      <p class="hint" id="fxHint">Any polynomial or rational function, e.g. <code>x^3 - 4x</code>, <code>(x+1)(x-2)^2</code>, <code>(2x^2 - 8)/(x^2 - x - 2)</code>, <code>(x^2 + 1)/(x - 1)</code>.</p>
+      <p class="hint" id="fxHint">Any polynomial or rational function, e.g. <code>x^3 - 4x</code>, <code>(x^2 - x - 2)/(x^2 - 4)</code>, <code>(x+1)(x-2)^2</code>, <code>(2x^2 - 8)/(x^2 - x - 2)</code>, <code>(x^2 + 1)/(x - 1)</code>.</p>
       <p class="msg" id="fxMsg" hidden></p>
       <div class="canvas-box">
         <canvas id="cv" aria-label="Graph of f and its transformation g"></canvas>
@@ -171,7 +171,7 @@ footer{font-size:.82rem;color:var(--muted)}
       <div class="card">
         <h2>Key points</h2>
         <div class="tbl-wrap"><table>
-          <thead><tr><th></th><th>Feature of f</th><th>On f</th><th id="colG">On g</th></tr></thead>
+          <thead><tr><th></th><th>Feature of f</th><th>On f (A<sub>o</sub>)</th><th id="colG">On g (A)</th></tr></thead>
           <tbody id="tbody"></tbody>
         </table></div>
       </div>
@@ -185,7 +185,7 @@ footer{font-size:.82rem;color:var(--muted)}
       </div>
     </aside>
   </div>
-  <footer>Hollow dots sit on f; solid dots show where those same points land on g. Open rings are holes. Drag the graph to pan; drag any slider to pause the animation.</footer>
+  <footer>Gray labels with a subscript o (A<sub>o</sub>) mark key points of f; red labels (A) mark where those same points land on g. Open rings are holes. Drag the graph to pan; drag any slider to pause the animation.</footer>
 </div>
 
 <script>
@@ -408,7 +408,8 @@ function buildKeys(F){
   }
   F.zeros.forEach(function(z){add(z.x,0,z.m%2===0?"zero (touches)":"zero");});
   if(F.yint) add(0,F.yint.y,"y-int");
-  F.crit.forEach(function(c){add(c.x,c.y,c.kind==="max"?"rel. max":"rel. min");});
+  var quad=F.dn===2&&F.dd===0;
+  F.crit.forEach(function(c){add(c.x,c.y,quad?"vertex":c.kind==="max"?"rel. max":"rel. min");});
   F.holes.forEach(function(h){add(h.x,h.y,"hole",true);});
   pts.sort(function(p,q){return p.x-q.x||p.y-q.y;});
   pts.forEach(function(p,i){p.id=String.fromCharCode(65+(i%26))+(i>=26?Math.floor(i/26):"");});
@@ -662,7 +663,7 @@ function updateText(){
     "Apply the rule to each key point of f to locate the matching point on g.";
 
   var ref= m==="ch"?st.T:p;
-  $("colG").textContent= m==="ch"?"Target":"On g";
+  $("colG").innerHTML= m==="ch"?"Target":"On g (A)";
   var rows="";
   F.keys.forEach(function(k){
     var q=T(ref,k.x,k.y);
@@ -751,7 +752,7 @@ function draw(){
   ctx.font="italic 15px "+c("--font-math"); ctx.textAlign="left"; ctx.textBaseline="middle";
   ctx.fillText("x",W-14,ay-12); ctx.fillText("y",ax+8,40);
 
-  var par=c("--parent"), acc=c("--accent"), arrow=c("--arrow"), panel=c("--panel"), tgt=c("--target");
+  var par=c("--parent"), acc=c("--accent"), panel=c("--panel"), tgt=c("--target");
   // asymptotes
   F.va.forEach(function(a){vline(a,par,1,[2,4],.8);});
   eline(F.end,par,1,[2,4],.8);
@@ -769,23 +770,25 @@ function draw(){
   F.holes.forEach(function(h){ring(h.x,h.y,4.5,par,panel,2);});
   if(st.mode==="ch"&&st.T) gHoles(st.T,F).forEach(function(h){ring(h.x,h.y,6,tgt,panel,2.5);});
   gHoles(p,F).forEach(function(h){ring(h.x,h.y,5.5,acc,panel,2.5);});
-  // key points and their images
-  ctx.font="bold 13px "+c("--font-body");
+  // key points: original Aₒ (gray, on f) and image A (red, on g); no connecting lines
+  function subLabel(id,x,y,color){
+    ctx.fillStyle=color; ctx.textBaseline="bottom"; ctx.textAlign="left";
+    ctx.font="bold 13px "+c("--font-body"); var w1=ctx.measureText(id).width;
+    ctx.font="bold 9px "+c("--font-body"); var w2=ctx.measureText("o").width;
+    var x0=x-w1-w2-1;
+    ctx.font="bold 13px "+c("--font-body"); ctx.fillText(id,x0,y);
+    ctx.font="bold 9px "+c("--font-body"); ctx.fillText("o",x0+w1+1,y+4);
+  }
   F.keys.forEach(function(k){
     var q=T(p,k.x,k.y), ox=sx(k.x), oy=sy(k.y);
-    if(isFinite(q[0])){
-      var nx=sx(q[0]), ny=sy(q[1]);
-      if(Math.hypot(nx-ox,ny-oy)>4){
-        ctx.strokeStyle=arrow; ctx.lineWidth=1.5; ctx.setLineDash([3,4]);
-        ctx.beginPath(); ctx.moveTo(ox,oy); ctx.lineTo(nx,ny); ctx.stroke(); ctx.setLineDash([]);
-      }
-    }
+    var moved=!isFinite(q[0])||Math.hypot(sx(q[0])-ox,sy(q[1])-oy)>4;
     if(!k.hole){ ctx.beginPath(); ctx.arc(ox,oy,4.5,0,7); ctx.fillStyle=panel; ctx.fill(); ctx.strokeStyle=par; ctx.lineWidth=2; ctx.stroke(); }
+    if(moved) subLabel(k.id,ox-7,oy-4,par);
     if(isFinite(q[0])){
       var mx=sx(q[0]), my=sy(q[1]);
       if(mx>-10&&mx<W+10&&my>-10&&my<H+10){
         if(!k.hole){ ctx.beginPath(); ctx.arc(mx,my,5.5,0,7); ctx.fillStyle=acc; ctx.fill(); ctx.strokeStyle=panel; ctx.lineWidth=1.5; ctx.stroke(); }
-        ctx.fillStyle=acc; ctx.textAlign="left"; ctx.textBaseline="bottom"; ctx.fillText(k.id,mx+7,my-4);
+        ctx.font="bold 13px "+c("--font-body"); ctx.fillStyle=acc; ctx.textAlign="left"; ctx.textBaseline="bottom"; ctx.fillText(k.id,mx+7,my-4);
       }
     }
   });
@@ -926,7 +929,7 @@ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(draw);
 
 var start=qs.get("f");
 if(start) $("fx").value=start;
-if(!setFunction($("fx").value)){ $("fx").value="(x^2 - x - 2)/(x^2 - 4)"; setFunction($("fx").value); }
+if(!setFunction($("fx").value)){ $("fx").value="x^2 - 2x - 3"; setFunction($("fx").value); }
 resize();
 requestAnimationFrame(loop);
 })();
