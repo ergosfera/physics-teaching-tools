@@ -5,6 +5,7 @@
 #   "sticky-notes":       StickyNotes.dmg (Mac) and StickyNotes.exe (Windows)
 #   "screen-ruler":       ScreenRuler.dmg (Mac) and ScreenRuler.exe (Windows)
 #   "screen-shapes":      ScreenShapes.dmg (Mac) and ScreenShapes.exe (Windows)
+#   "reading-window":     ReadingWindow.dmg (Mac) and ReadingWindow.exe (Windows)
 # Pull requests only build the apps, so a broken build shows up before it reaches main.
 name: Desktop apps
 
@@ -140,6 +141,26 @@ jobs:
         with:
           name: shapes-windows
           path: desktop-apps/screen-shapes/windows/ScreenShapes.exe
+
+  reading-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./desktop-apps/reading-window/mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reading-mac
+          path: desktop-apps/reading-window/mac/build/ReadingWindow.dmg
+
+  reading-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop-apps/reading-window/windows/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reading-windows
+          path: desktop-apps/reading-window/windows/ReadingWindow.exe
 
   release-timer:
     if: github.event_name != 'pull_request'
@@ -278,3 +299,26 @@ jobs:
               --notes "Lines, rectangles, circles and guide lines that float over the screen and measure. Mac: download ScreenShapes.dmg. Windows: download ScreenShapes.exe."
           gh release upload screen-shapes dist/* -R "$REPO" --clobber
           gh release edit screen-shapes -R "$REPO" --draft=false
+
+  release-reading:
+    if: github.event_name != 'pull_request'
+    needs: [reading-mac, reading-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: reading-*
+          path: dist
+          merge-multiple: true
+      - name: Publish to the reading-window release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release view reading-window -R "$REPO" > /dev/null 2>&1 || \
+            gh release create reading-window -R "$REPO" --latest=false --title "Reading Window" \
+              --notes "Shades the screen except a clear window that follows the pointer, to help focus while reading. Mac: download ReadingWindow.dmg. Windows: download ReadingWindow.exe."
+          gh release upload reading-window dist/* -R "$REPO" --clobber
+          gh release edit reading-window -R "$REPO" --draft=false

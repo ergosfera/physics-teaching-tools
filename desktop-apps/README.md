@@ -8,6 +8,7 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 - **Sticky Notes**: sticky notes on your desktop that sync between your Mac and Windows computers through Google Drive.
 - **Screen Ruler**: up to three rulers and a protractor that float over anything on the screen.
 - **Screen Shapes**: lines, rectangles, circles and guide lines that float over the screen and measure what's under them.
+- **Reading Window**: shades the screen except a clear window that follows the pointer, to help focus while reading.
 
 ## Download and install
 
@@ -17,7 +18,8 @@ Download the file for your system from the app's release page:
 [Field](https://github.com/ergosfera/physics-teaching-tools/releases/tag/field-timer) ·
 [Sticky Notes](https://github.com/ergosfera/physics-teaching-tools/releases/tag/sticky-notes) ·
 [Screen Ruler](https://github.com/ergosfera/physics-teaching-tools/releases/tag/screen-ruler) ·
-[Screen Shapes](https://github.com/ergosfera/physics-teaching-tools/releases/tag/screen-shapes).
+[Screen Shapes](https://github.com/ergosfera/physics-teaching-tools/releases/tag/screen-shapes) ·
+[Reading Window](https://github.com/ergosfera/physics-teaching-tools/releases/tag/reading-window).
 
 **Windows (10 or 11):** double-click the `.exe`. No installation is needed.
 The apps aren't signed with a paid certificate, so the first time Windows may show
@@ -152,6 +154,25 @@ The lines and shapes of the *Image Measurement Tool* web page, floating over the
 | Color, fill, units, scale, duplicate, remove | Right-click a shape | Delete removes the shape |
 | Copy the table | **Copy** in the panel | ⇧⌘C on Mac, Ctrl+Shift+C on Windows (panel) |
 
+## Reading Window
+
+A focus aid for reading, for example for people with ADHD: the whole screen is darkened except a clear window.
+
+- Shapes: rectangle, rounded rectangle, ellipse, or a full-width reading band. Width and height are set in the panel.
+- Darkness from 10% to 95%, and any shade color (a palette of dark, calm colors, or Other color…).
+- The clear window follows the pointer, and the page under it can still be scrolled. A click holds it in place
+  (the click also reaches the page). While held, the clear window works like the screen under it; click the dark area
+  to grab it again, or drag just outside its edge to resize it.
+- The panel stays above the shade, and the clear window doesn't follow the pointer onto it. Closing the panel quits.
+
+| Action | Mouse | Keyboard (panel) |
+|---|---|---|
+| Hold the clear window | Click (anywhere but the panel) | — |
+| Grab it again | Click the dark area | — |
+| Resize | Drag just outside its edge while held, or the Width/Height sliders | Scroll over a slider to fine-tune |
+| Shape | Rect, Round, Ellipse, Band buttons | ⌘1–⌘4 on Mac, Ctrl+1–4 on Windows |
+| Shade on/off | **Shade: On/Off** | ⌘S on Mac, Ctrl+S on Windows |
+
 ## Privacy
 
 These apps **collect no personal data and never connect to the internet**.
@@ -159,13 +180,14 @@ They only save their own settings on your computer (for example the last time se
 options, always-on-top and the window position).
 
 Screen Ruler and Screen Shapes don't capture or record the screen; they only remember where their tools and shapes are, their units, scales and colors, and any screen-size correction.
+Reading Window doesn't capture or record the screen either; it only follows the pointer and clicks to move and hold its clear window, and remembers its shape, size, darkness, color and panel position.
 
 Sticky Notes saves your notes as files in the folder you choose (normally your Google Drive folder).
 The app itself doesn't connect to Google; Google Drive for desktop syncs that folder, under your
 Google account's terms.
 
-- Windows: `%APPDATA%\CountdownTimer\`, `%APPDATA%\PhysicsCalculator\`, `%APPDATA%\FieldTimer\`, `%APPDATA%\StickyNotes\`, `%APPDATA%\ScreenRuler\` and `%APPDATA%\ScreenShapes\`
-- macOS: each app's standard preferences (`net.ergosfera.countdowntimer`, `net.ergosfera.physicscalculator`, `net.ergosfera.fieldtimer`, `net.ergosfera.stickynotes`, `net.ergosfera.screenruler`, `net.ergosfera.screenshapes`)
+- Windows: `%APPDATA%\CountdownTimer\`, `%APPDATA%\PhysicsCalculator\`, `%APPDATA%\FieldTimer\`, `%APPDATA%\StickyNotes\`, `%APPDATA%\ScreenRuler\`, `%APPDATA%\ScreenShapes\` and `%APPDATA%\ReadingWindow\`
+- macOS: each app's standard preferences (`net.ergosfera.countdowntimer`, `net.ergosfera.physicscalculator`, `net.ergosfera.fieldtimer`, `net.ergosfera.stickynotes`, `net.ergosfera.screenruler`, `net.ergosfera.screenshapes`, `net.ergosfera.readingwindow`)
 
 ## Disclaimer
 
@@ -177,10 +199,10 @@ liability arising from its use. See [LICENSE](LICENSE) for the full terms.
 ## Building from source
 
 - **Windows:** run `powershell -ExecutionPolicy Bypass -File <app>\build.ps1`
-  (`countdown-timer\build.ps1`, `physics-calculator\windows\build.ps1`, `field-timer\windows\build.ps1`, `sticky-notes\build.ps1`, `screen-ruler\windows\build.ps1` or `screen-shapes\windows\build.ps1`).
+  (`countdown-timer\build.ps1`, `physics-calculator\windows\build.ps1`, `field-timer\windows\build.ps1`, `sticky-notes\build.ps1`, `screen-ruler\windows\build.ps1`, `screen-shapes\windows\build.ps1` or `reading-window\windows\build.ps1`).
   It uses the C# compiler included with Windows, so nothing needs to be installed.
 - **macOS:** install the Xcode Command Line Tools (`xcode-select --install`), then run
-  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh`, `field-timer/mac/build.sh`, `sticky-notes-mac/build.sh`, `screen-ruler/mac/build.sh` or `screen-shapes/mac/build.sh`. Each creates the app and a `.dmg` in its `build/` folder.
+  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh`, `field-timer/mac/build.sh`, `sticky-notes-mac/build.sh`, `screen-ruler/mac/build.sh`, `screen-shapes/mac/build.sh` or `reading-window/mac/build.sh`. Each creates the app and a `.dmg` in its `build/` folder.
 
 ## License
 

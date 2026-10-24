@@ -18,3 +18,6 @@ desktop-apps/screen-ruler/mac/build/
 desktop-apps/screen-shapes/windows/ScreenShapes.exe
 desktop-apps/screen-shapes/windows/app.ico
 desktop-apps/screen-shapes/mac/build/
+desktop-apps/reading-window/windows/ReadingWindow.exe
+desktop-apps/reading-window/windows/app.ico
+desktop-apps/reading-window/mac/build/
