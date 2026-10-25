@@ -13,6 +13,10 @@ enum W95 {
     static let shadow = rgb(0x808080), black = rgb(0x000000), navy = rgb(0x000080), teal = rgb(0x008080)
     static let yellow = rgb(0xffff00), red = rgb(0xff0000)
 
+    /// Screen points per Windows 95 pixel. 1.5 makes the title bar as tall as a Mac one,
+    /// and on a Retina screen each Win95 pixel is exactly 3 × 3 screen pixels, so lines stay sharp.
+    static let scale: CGFloat = 1.5
+
     // MS Sans Serif 8 pt was the Windows 95 interface font; macOS ships its TrueType twin
     static let ui: NSFont = NSFont(name: "MicrosoftSansSerif", size: 11) ?? NSFont(name: "Tahoma", size: 11)
         ?? .systemFont(ofSize: 11)
@@ -261,29 +265,45 @@ final class Win95Window: NSWindow {
     override func cancelOperation(_ sender: Any?) { onEscape?() }
 }
 
-/// The window's whole content: raised gray frame, title bar, and a client area below it
+/// The window's whole content: raised gray frame, title bar, and a client area below it.
+/// Everything inside is laid out in Windows 95 pixels and magnified by W95.scale.
 final class ChromeView: FlippedView {
     static let border: CGFloat = 4, top: CGFloat = 23
     let titleBar: TitleBarView
     let client = FlippedView()
     let resizable: Bool
-    var minSize = NSSize(width: 240, height: 140)
+    var minSize = NSSize(width: 240 * W95.scale, height: 140 * W95.scale)   // in screen points
     var onResize: (() -> Void)?
 
-    static func windowSize(forClient s: NSSize) -> NSSize { NSSize(width: s.width + 2 * border, height: s.height + top + border) }
+    /// Window size in screen points for a client area given in Windows 95 pixels
+    static func windowSize(forClient s: NSSize) -> NSSize {
+        NSSize(width: (s.width + 2 * border) * W95.scale, height: (s.height + top + border) * W95.scale)
+    }
 
     init(frame: NSRect, title: String, kinds: [CaptionButton.Kind], resizable: Bool, showIcon: Bool) {
-        titleBar = TitleBarView(frame: NSRect(x: 4, y: 4, width: frame.width - 8, height: 18), title: title,
+        titleBar = TitleBarView(frame: NSRect(x: 4, y: 4, width: frame.width / W95.scale - 8, height: 18), title: title,
                                 kinds: kinds, showIcon: showIcon)
         self.resizable = resizable
         super.init(frame: frame)
-        titleBar.autoresizingMask = [.width]
-        client.frame = NSRect(x: 4, y: ChromeView.top, width: frame.width - 8, height: frame.height - ChromeView.top - 4)
-        client.autoresizingMask = [.width, .height]
+        autoresizesSubviews = false
+        setBoundsSize(NSSize(width: frame.width / W95.scale, height: frame.height / W95.scale))
         addSubview(titleBar)
         addSubview(client)
+        layoutParts()
     }
     required init?(coder: NSCoder) { fatalError() }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        setBoundsSize(NSSize(width: newSize.width / W95.scale, height: newSize.height / W95.scale))
+        layoutParts()
+    }
+
+    private func layoutParts() {
+        let w = bounds.width, h = bounds.height
+        titleBar.frame = NSRect(x: 4, y: 4, width: w - 8, height: 18)
+        client.frame = NSRect(x: 4, y: ChromeView.top, width: w - 8, height: h - ChromeView.top - 4)
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         W95.crisp()
@@ -530,10 +550,16 @@ final class PopupView: FlippedView {
 }
 
 final class PopupPanel: NSPanel {
+    /// Size on screen of a menu laid out in Windows 95 pixels
+    static func size(of view: PopupView) -> NSSize {
+        NSSize(width: view.frame.width * W95.scale, height: view.frame.height * W95.scale)
+    }
+
     init(view: PopupView, topLeft: NSPoint) {
-        super.init(contentRect: NSRect(x: topLeft.x, y: topLeft.y - view.frame.height, width: view.frame.width,
-                                       height: view.frame.height),
+        let natural = view.frame.size, size = PopupPanel.size(of: view)
+        super.init(contentRect: NSRect(x: topLeft.x, y: topLeft.y - size.height, width: size.width, height: size.height),
                    styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        defer { view.setBoundsSize(natural) }
         level = .popUpMenu
         hasShadow = false
         isOpaque = true
@@ -609,9 +635,10 @@ final class MenuTracker {
         closePopup()
         let v = PopupView(items: items)
         var tl = topLeft
+        let size = PopupPanel.size(of: v)
         if let s = (window?.screen ?? NSScreen.main)?.visibleFrame {
-            tl.x = max(s.minX, min(tl.x, s.maxX - v.frame.width))
-            tl.y = min(s.maxY, max(tl.y, s.minY + v.frame.height))
+            tl.x = max(s.minX, min(tl.x, s.maxX - size.width))
+            tl.y = min(s.maxY, max(tl.y, s.minY + size.height))
         }
         let p = PopupPanel(view: v, topLeft: tl)
         if hoverFirst { v.move(1) }
@@ -1257,7 +1284,7 @@ final class PadTextView: NSTextView {
 
     override func changeFont(_ sender: Any?) {
         guard let fm = sender as? NSFontManager else { return }
-        AppDelegate.shared.setFont(fm.convert(font ?? Doc.font))
+        AppDelegate.shared.setFont(fm.convert(Doc.font))
     }
 
     // Dropping a file opens it, as in Notepad
@@ -1469,9 +1496,11 @@ final class Doc: NSObject, NSWindowDelegate, NSTextViewDelegate {
     // MARK: Text settings
 
     func applyFont() {
-        text.font = Doc.font
-        text.typingAttributes = [.font: Doc.font, .foregroundColor: W95.black]
-        let line = ceil(text.layoutManager?.defaultLineHeight(for: Doc.font) ?? 16)
+        // The text sits inside the magnified window, so it's drawn smaller to show at the chosen size
+        let f = NSFont(descriptor: Doc.font.fontDescriptor, size: Doc.font.pointSize / W95.scale) ?? Doc.font
+        text.font = f
+        text.typingAttributes = [.font: f, .foregroundColor: W95.black]
+        let line = ceil(text.layoutManager?.defaultLineHeight(for: f) ?? 16)
         scroll.verticalLineScroll = line
         scroll.horizontalLineScroll = line
     }
@@ -1771,9 +1800,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         // A new window must have its title bar on a screen; otherwise it's centered
         let titleBar = NSRect(x: frame.minX + 40, y: frame.maxY - 22, width: max(0, frame.width - 80), height: 18)
-        if frame.width < 240 || frame.height < 140 || !NSScreen.screens.contains(where: { $0.visibleFrame.contains(titleBar) }) {
+        if frame.width < 360 || frame.height < 210 || !NSScreen.screens.contains(where: { $0.visibleFrame.contains(titleBar) }) {
             let s = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1280, height: 800)
-            frame = NSRect(x: s.midX - 320, y: s.midY - 200, width: 640, height: 440)
+            frame = NSRect(x: s.midX - 380, y: s.midY - 260, width: 760, height: 520)
         }
         let d = Doc(frame: frame)
         docs.append(d)
