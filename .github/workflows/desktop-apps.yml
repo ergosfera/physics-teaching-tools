@@ -9,7 +9,7 @@
 #   "net-leds":           NetLEDs.dmg (Mac) and NetLEDs.exe (Windows)
 #   "notepad-95":         Notepad95.dmg (Mac only)
 #   "paint-95":           Paint95.dmg (Mac only)
-#   "clock-tile":         ClockTile.exe (Windows only)
+#   "clock-bar":          ClockBar.exe (Windows only)
 # Pull requests only build the apps, so a broken build shows up before it reaches main.
 name: Desktop apps
 
@@ -186,19 +186,19 @@ jobs:
           name: netleds-windows
           path: desktop-apps/net-leds/windows/NetLEDs.exe
 
-  clocktile-windows:
+  clockbar-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop-apps/clock-tile/windows/build.ps1
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop-apps/clock-bar/windows/build.ps1
       - uses: actions/upload-artifact@v4
         with:
-          name: clocktile-windows
-          path: desktop-apps/clock-tile/windows/ClockTile.exe
+          name: clockbar-windows
+          path: desktop-apps/clock-bar/windows/ClockBar.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: clocktile-preview
-          path: desktop-apps/clock-tile/windows/tile-preview.png
+          name: clockbar-preview
+          path: desktop-apps/clock-bar/windows/bar-preview.png
 
   notepad-mac:
     runs-on: macos-latest
@@ -450,24 +450,24 @@ jobs:
           gh release upload paint-95 dist/* -R "$REPO" --clobber
           gh release edit paint-95 -R "$REPO" --draft=false
 
-  release-clocktile:
+  release-clockbar:
     if: github.event_name != 'pull_request'
-    needs: [clocktile-windows]
+    needs: [clockbar-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: clocktile-windows
+          name: clockbar-windows
           path: dist
-      - name: Publish to the clock-tile release
+      - name: Publish to the clock-bar release
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          gh release view clock-tile -R "$REPO" > /dev/null 2>&1 || \
-            gh release create clock-tile -R "$REPO" --latest=false --title "Clock Tile" \
-              --notes "A flip clock and a tear-off calendar page in a small tile for the Windows taskbar. Download ClockTile.exe."
-          gh release upload clock-tile dist/* -R "$REPO" --clobber
-          gh release edit clock-tile -R "$REPO" --draft=false
+          gh release view clock-bar -R "$REPO" > /dev/null 2>&1 || \
+            gh release create clock-bar -R "$REPO" --latest=false --title "Clock Bar" \
+              --notes "The date and time in bold, outlined letters on a see-through bar that stays on top. Download ClockBar.exe."
+          gh release upload clock-bar dist/* -R "$REPO" --clobber
+          gh release edit clock-bar -R "$REPO" --draft=false

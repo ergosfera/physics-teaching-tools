@@ -12,7 +12,7 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 - **Net LEDs**: green and red lights next to the clock that blink with download and upload traffic, with a live graph.
 - **Notepad 95** (macOS): a plain-text editor that looks and works like the Windows 95 Notepad.
 - **Paint 95** (macOS): a bitmap painter that looks and works like the Windows 95 Paint.
-- **Clock Tile** (Windows): a flip clock and a tear-off calendar page in a small tile that sits on the taskbar.
+- **Clock Bar** (Windows): the date and time in bold, outlined letters on a see-through bar that stays on top.
 
 ## Download and install
 
@@ -27,7 +27,7 @@ Download the file for your system from the app's release page:
 [Net LEDs](https://github.com/ergosfera/physics-teaching-tools/releases/tag/net-leds) ·
 [Notepad 95](https://github.com/ergosfera/physics-teaching-tools/releases/tag/notepad-95) ·
 [Paint 95](https://github.com/ergosfera/physics-teaching-tools/releases/tag/paint-95) ·
-[Clock Tile](https://github.com/ergosfera/physics-teaching-tools/releases/tag/clock-tile) (Notepad 95 and Paint 95: Mac only; Clock Tile: Windows only).
+[Clock Bar](https://github.com/ergosfera/physics-teaching-tools/releases/tag/clock-bar) (Notepad 95 and Paint 95: Mac only; Clock Bar: Windows only).
 
 **Windows (10 or 11):** double-click the `.exe`. No installation is needed.
 The apps aren't signed with a paid certificate, so the first time Windows may show
@@ -198,21 +198,20 @@ Two lamps like the activity LEDs on an old modem, in the Mac menu bar or the Win
 | Speeds, start at login, quit | Right-click (or Control-click on Mac) the lights | — |
 | Speeds next to the lights (Mac) | Right-click → Show Speeds in Menu Bar | — |
 
-## Clock Tile
+## Clock Bar
 
-A 40 × 70 tile for the Windows taskbar, easy to read at a glance: a flip clock with the hour and minute on two dark cards,
-and below it a tear-off calendar page with the month on a blue band and the day in big blue numbers.
-Made for a vertical taskbar with a free spot, but it can sit anywhere on the screen.
+The date and time, like **April 5  2:34**, on a see-through bar that stays on top of everything:
+the date in amber and the time in white, both bold with a dark outline, so they read over light and dark windows alike.
+The time is on a 12-hour clock without AM/PM.
 
-- Drag it into place once; it remembers where it goes. **Lock position** stops it moving by accident.
-- It stays on top of the taskbar, and hides itself while a full-screen window (a video, a slide show) is in front.
-- The month uses the language of Windows (OCT, ENE…). Hover over it for the full date.
+- Drag it into place once (for example at the top of the screen); it remembers where it goes. **Lock position** stops it moving by accident.
+- It stays in front of other windows and the taskbar. Hover over it for the full date.
 
 | Action | Mouse |
 |---|---|
 | Move it | Drag it |
 | Month calendar | Click it (Esc or a click elsewhere closes it) |
-| 24-hour clock, size, lock position, start with Windows, quit | Right-click it |
+| Size, lock position, start with Windows, quit | Right-click it |
 
 ## Notepad 95
 

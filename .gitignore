@@ -24,8 +24,8 @@ desktop-apps/reading-window/mac/build/
 desktop-apps/net-leds/windows/NetLEDs.exe
 desktop-apps/net-leds/windows/app.ico
 desktop-apps/net-leds/mac/build/
-desktop-apps/clock-tile/windows/ClockTile.exe
-desktop-apps/clock-tile/windows/app.ico
-desktop-apps/clock-tile/windows/tile-preview.png
+desktop-apps/clock-bar/windows/ClockBar.exe
+desktop-apps/clock-bar/windows/app.ico
+desktop-apps/clock-bar/windows/bar-preview.png
 desktop-apps/notepad-95/mac/build/
 desktop-apps/paint-95/mac/build/

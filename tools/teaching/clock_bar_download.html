@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Clock Tile — Desktop App</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+  <title>Clock Bar — Desktop App</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕑</text></svg>">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -85,8 +85,9 @@
       border-radius: var(--radius); padding: 16px; text-align: center;
     }
     .preview img, .preview svg { max-width: 100%; height: auto; }
-    .preview .tiles { display: flex; justify-content: center; align-items: flex-end; gap: 28px; }
-    .preview .bar { background: #202020; border-radius: 8px; display: inline-flex; flex-direction: column; align-items: center; }
+    .preview .bgs { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+    .preview .bg { border-radius: 8px; padding: 14px 18px; display: inline-flex; }
+    .preview .bar text { font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; paint-order: stroke; stroke: #000; stroke-linejoin: round; }
     .preview p { color: var(--muted); font-size: 0.8rem; margin-top: 8px; }
 
     section { margin-top: 30px; }
@@ -151,28 +152,6 @@
   </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <symbol id="tile" viewBox="0 0 40 70">
-      <rect x="2.5" y="3" width="16.5" height="24" rx="3" fill="#2c2c2a"/>
-      <rect x="21" y="3" width="16.5" height="24" rx="3" fill="#2c2c2a"/>
-      <rect x="2.5" y="3" width="16.5" height="12" rx="3" fill="#3a3a37"/>
-      <rect x="21" y="3" width="16.5" height="12" rx="3" fill="#3a3a37"/>
-      <text x="10.75" y="20.3" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="13" font-weight="700" fill="#fff" textLength="12.5" lengthAdjust="spacingAndGlyphs">14</text>
-      <text x="29.25" y="20.3" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="13" font-weight="700" fill="#fff" textLength="12.5" lengthAdjust="spacingAndGlyphs">37</text>
-      <line x1="2.5" y1="15" x2="19" y2="15" stroke="#111" stroke-width="0.8"/>
-      <line x1="21" y1="15" x2="37.5" y2="15" stroke="#111" stroke-width="0.8"/>
-      <rect x="2.5" y="33" width="35" height="35" rx="4" fill="#c9c7be"/>
-      <path d="M2.5 37 a4 4 0 0 1 4-4 h27 a4 4 0 0 1 4 4 v21.5 Q31 62 28.5 68 h-22 a4 4 0 0 1-4-4z" fill="#fafaf7"/>
-      <path d="M28.5 68 Q31 62 37.5 58.5 Q32.5 65 28.5 68z" fill="#e2e0d9"/>
-      <path d="M2.5 37 a4 4 0 0 1 4-4 h27 a4 4 0 0 1 4 4 v6.5 h-35z" fill="#2f6fd6"/>
-      <text x="20" y="41.6" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="7.2" font-weight="700" fill="#fff" letter-spacing="0.6">OCT</text>
-      <circle cx="11" cy="33.5" r="1.9" fill="#d3d1c7" stroke="#55554f" stroke-width="0.4"/>
-      <circle cx="29" cy="33.5" r="1.9" fill="#d3d1c7" stroke="#55554f" stroke-width="0.4"/>
-      <text x="19.5" y="62.5" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="19" font-weight="700" fill="#2f6fd6">24</text>
-    </symbol>
-  </defs>
-</svg>
 <div class="wrap">
 
   <div class="topbar">
@@ -180,8 +159,8 @@
     <button id="theme-toggle" type="button"><span id="theme-icon">☀</span><span id="theme-label">Light</span></button>
   </div>
 
-  <h1>📅 Clock Tile</h1>
-  <p class="subtitle">A small tile for the Windows taskbar that you can read from across the room: the hour and minute on a flip clock, and below it a tear-off calendar page with the month and the day.</p>
+  <h1>🕑 Clock Bar</h1>
+  <p class="subtitle">The date and time, like “April 5  2:34”, in bold outlined letters on a see-through bar that stays on top of everything. Put it at the top of the screen and it's always in view.</p>
   <div class="chips">
     <span class="chip">💻 Desktop app</span>
     <span class="chip">Windows 10 / 11</span>
@@ -190,17 +169,18 @@
 
   <div class="notice">
     <strong>This is a download, not a web page.</strong>
-    Unlike the other tools on this site, Clock Tile is a program that you download and run on your own computer.
+    Unlike the other tools on this site, Clock Bar is a program that you download and run on your own computer.
     Before downloading, please read the <a href="#about">About</a> and the <a href="#license">License</a> below.
     The download button unlocks once you have scrolled through the license and accepted it.
   </div>
 
   <div class="preview">
-    <div class="tiles">
-      <div class="bar" style="padding:12px 18px"><svg width="120" height="210" viewBox="0 0 40 70" aria-hidden="true"><use href="#tile"/></svg></div>
-      <div class="bar" style="padding:6px 4px"><svg width="40" height="70" viewBox="0 0 40 70" aria-hidden="true"><use href="#tile"/></svg></div>
+    <div class="bgs">
+      <div class="bg" style="background:#f3f3f3"><svg class="bar" width="210" height="40" viewBox="0 0 210 40" aria-label="April 5  2:34"><text x="4" y="28" font-size="20" fill="#ffc42e" stroke-width="3.6">April 5</text><text x="88" y="28" font-size="25" fill="#fff" stroke-width="4.5">2:34</text></svg></div>
+      <div class="bg" style="background:#1f1f1f"><svg class="bar" width="210" height="40" viewBox="0 0 210 40" aria-label="April 5  2:34"><text x="4" y="28" font-size="20" fill="#ffc42e" stroke-width="3.6">April 5</text><text x="88" y="28" font-size="25" fill="#fff" stroke-width="4.5">2:34</text></svg></div>
+      <div class="bg" style="background:linear-gradient(90deg,#4d8fd6,#e2a04a)"><svg class="bar" width="210" height="40" viewBox="0 0 210 40" aria-label="April 5  2:34"><text x="4" y="28" font-size="20" fill="#ffc42e" stroke-width="3.6">April 5</text><text x="88" y="28" font-size="25" fill="#fff" stroke-width="4.5">2:34</text></svg></div>
     </div>
-    <p>Enlarged three times, and at its real size of 40 × 70 pixels.</p>
+    <p>The bar has no background of its own: the outlined letters read over light, dark and busy windows.</p>
   </div>
 
   <section id="about">
@@ -208,23 +188,22 @@
     <div class="panel">
       <h3>What it does</h3>
       <ul>
-        <li>The <strong>hour and minute</strong> sit on two dark flip cards, and a <strong>calendar page</strong> below shows the month on a blue band and the day in big blue numbers.</li>
-        <li>It's made for a free spot on a <strong>vertical taskbar</strong>, but it can sit anywhere on the screen. <strong>Drag it</strong> into place once and it remembers where it goes.</li>
+        <li>Shows the <strong>date</strong> in amber (“April 5”, no year) and the <strong>time</strong> in white (“2:34”, a 12-hour clock without AM/PM), in bold letters with a dark outline.</li>
+        <li>The bar itself is see-through, and it <strong>stays in front</strong> of other windows and the taskbar.</li>
+        <li><strong>Drag it</strong> into place once, for example at the top of the screen; it remembers where it goes.</li>
         <li><strong>Click it</strong> for a month calendar. Hover over it for the full date.</li>
-        <li>It stays on top of the taskbar, and hides itself while a full-screen window (a video, a slide show) is in front.</li>
-        <li><strong>Right-click it</strong> for a 24-hour or 12-hour clock, six sizes from 40 × 70 to 100 × 175 pixels, <strong>Lock position</strong>, <strong>Start with Windows</strong> and <strong>Quit</strong>.</li>
-        <li>The month is written in the language of Windows (OCT, ENE…).</li>
+        <li><strong>Right-click it</strong> for six sizes (75 % to 250 %), <strong>Lock position</strong>, <strong>Start with Windows</strong> and <strong>Quit</strong>.</li>
       </ul>
 
       <h3>Privacy</h3>
-      <p>Clock Tile <strong>collects no personal data and never connects to the internet</strong>.
+      <p>Clock Bar <strong>collects no personal data and never connects to the internet</strong>.
          It only reads the computer's clock. Its position, size and options are kept in your Windows user settings.</p>
 
       <h3>Installing</h3>
       <ul>
-        <li><strong>Windows:</strong> double-click <code>ClockTile.exe</code>. No installation is needed.
+        <li><strong>Windows:</strong> double-click <code>ClockBar.exe</code>. No installation is needed.
             The app isn't signed with a paid certificate, so the first time Windows may show “Windows protected your PC”. Click <strong>More info</strong>, then <strong>Run anyway</strong>.
-            The tile appears on the taskbar near the clock; drag it to where you want it.</li>
+            The bar appears at the top center of the screen; drag it to where you want it.</li>
       </ul>
 
       <h3>Disclaimer</h3>
@@ -263,15 +242,15 @@ SOFTWARE.</div>
     <h2><span class="step">3</span>Accept and download</h2>
     <label class="accept disabled" id="accept-label">
       <input type="checkbox" id="accept" disabled>
-      <span>I have read the About and the License. I understand that Clock Tile is a program I download and run on my own computer,
+      <span>I have read the About and the License. I understand that Clock Bar is a program I download and run on my own computer,
             and I accept that it is provided “as is”, without warranty of any kind.</span>
     </label>
 
     <div class="downloads">
       <a class="dl" id="dl-win" aria-disabled="true" role="link"
-         data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/clock-tile/ClockTile.exe">
+         data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/clock-bar/ClockBar.exe">
         <span class="t">⬇ Download for Windows</span>
-        <span class="d">ClockTile.exe · about 40 KB · Windows 10 or 11</span>
+        <span class="d">ClockBar.exe · about 40 KB · Windows 10 or 11</span>
       </a>
     </div>
     <p class="source">The source code is public:
