@@ -8,6 +8,7 @@
 #   "reading-window":     ReadingWindow.dmg (Mac) and ReadingWindow.exe (Windows)
 #   "net-leds":           NetLEDs.dmg (Mac) and NetLEDs.exe (Windows)
 #   "notepad-95":         Notepad95.dmg (Mac only)
+#   "paint-95":           Paint95.dmg (Mac only)
 # Pull requests only build the apps, so a broken build shows up before it reaches main.
 name: Desktop apps
 
@@ -193,6 +194,16 @@ jobs:
         with:
           name: notepad-mac
           path: desktop-apps/notepad-95/mac/build/Notepad95.dmg
+
+  paint-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./desktop-apps/paint-95/mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paint-mac
+          path: desktop-apps/paint-95/mac/build/Paint95.dmg
 
   release-timer:
     if: github.event_name != 'pull_request'
@@ -400,3 +411,26 @@ jobs:
               --notes "A plain-text editor for macOS that looks and works like the Windows 95 Notepad. Download Notepad95.dmg."
           gh release upload notepad-95 dist/* -R "$REPO" --clobber
           gh release edit notepad-95 -R "$REPO" --draft=false
+
+  release-paint:
+    if: github.event_name != 'pull_request'
+    needs: [paint-mac]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: paint-*
+          path: dist
+          merge-multiple: true
+      - name: Publish to the paint-95 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release view paint-95 -R "$REPO" > /dev/null 2>&1 || \
+            gh release create paint-95 -R "$REPO" --latest=false --title "Paint 95" \
+              --notes "A bitmap painter for macOS that looks and works like the Windows 95 Paint. Download Paint95.dmg."
+          gh release upload paint-95 dist/* -R "$REPO" --clobber
+          gh release edit paint-95 -R "$REPO" --draft=false

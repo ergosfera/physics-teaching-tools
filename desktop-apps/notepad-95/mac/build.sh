@@ -10,7 +10,7 @@ OUT=build
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-if ! swiftc -O -target arm64-apple-macos11 -o "$OUT/Notepad95-arm64" main.swift 2> "$OUT/swiftc.log"; then
+if ! swiftc -O -target arm64-apple-macos11 -o "$OUT/Notepad95-arm64" main.swift ../../win95-kit/Win95Kit.swift 2> "$OUT/swiftc.log"; then
   cat "$OUT/swiftc.log"
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
     grep -E "error:" "$OUT/swiftc.log" | head -20 | while IFS= read -r line; do echo "::error::$line"; done
@@ -18,7 +18,7 @@ if ! swiftc -O -target arm64-apple-macos11 -o "$OUT/Notepad95-arm64" main.swift 
   exit 1
 fi
 # Some Command Line Tools installs can't link Intel; then build for Apple Silicon only (CI always builds both)
-if swiftc -O -target x86_64-apple-macos11 -o "$OUT/Notepad95-x86_64" main.swift 2> "$OUT/x86.log"; then
+if swiftc -O -target x86_64-apple-macos11 -o "$OUT/Notepad95-x86_64" main.swift ../../win95-kit/Win95Kit.swift 2> "$OUT/x86.log"; then
   lipo -create -output "$OUT/Notepad95" "$OUT/Notepad95-arm64" "$OUT/Notepad95-x86_64"
 elif [ -n "${GITHUB_ACTIONS:-}" ]; then
   cat "$OUT/x86.log"

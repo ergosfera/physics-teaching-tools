@@ -11,6 +11,7 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 - **Reading Window**: shades the screen except a clear window that follows the pointer, to help focus while reading.
 - **Net LEDs**: green and red lights next to the clock that blink with download and upload traffic, with a live graph.
 - **Notepad 95** (macOS): a plain-text editor that looks and works like the Windows 95 Notepad.
+- **Paint 95** (macOS): a bitmap painter that looks and works like the Windows 95 Paint.
 
 ## Download and install
 
@@ -23,7 +24,8 @@ Download the file for your system from the app's release page:
 [Screen Shapes](https://github.com/ergosfera/physics-teaching-tools/releases/tag/screen-shapes) ·
 [Reading Window](https://github.com/ergosfera/physics-teaching-tools/releases/tag/reading-window) ·
 [Net LEDs](https://github.com/ergosfera/physics-teaching-tools/releases/tag/net-leds) ·
-[Notepad 95](https://github.com/ergosfera/physics-teaching-tools/releases/tag/notepad-95) (Mac only).
+[Notepad 95](https://github.com/ergosfera/physics-teaching-tools/releases/tag/notepad-95) ·
+[Paint 95](https://github.com/ergosfera/physics-teaching-tools/releases/tag/paint-95) (Notepad 95 and Paint 95: Mac only).
 
 **Windows (10 or 11):** double-click the `.exe`. No installation is needed.
 The apps aren't signed with a paid certificate, so the first time Windows may show
@@ -216,6 +218,30 @@ The Windows 95 Notepad for the Mac: its window, menus, scroll bars and dialogs, 
 | Open a file | Drop it on the window, or Finder → Open With → Notepad 95 | — |
 | Move / resize / maximize | Drag the title bar / drag an edge or corner / double-click the title bar | ⌘M minimizes |
 
+## Paint 95
+
+The Windows 95 Paint for the Mac, with its tool box, options box, color box and status bar.
+
+- All 16 tools: free-form and rectangular select, eraser (right-drag: color eraser), fill, pick color, magnifier, pencil, brush (12 shapes),
+  airbrush (3 sizes), text, line and curve (5 widths), rectangle, polygon, ellipse and rounded rectangle (outline, outline + fill, fill).
+- Left button draws with the drawing color, right button (or Control-click) with the background color. Shift: 45° lines, squares, circles.
+- Selections: move, Option-drag to copy, opaque or transparent (the background color shows through), cut/copy/paste with other apps, Copy To / Paste From files.
+- Image: Flip/Rotate, Stretch/Skew, Invert Colors, Attributes (size in pixels), Clear Image; or drag the handles at the picture's edges. These work on the selection if there is one.
+- Opens any picture macOS can read; saves PNG, 24-bit BMP, JPEG, GIF or TIFF. Undo up to 50 steps (fewer for very large pictures).
+
+| Action | Mouse | Keyboard |
+|---|---|---|
+| Menus | **File**, **Edit**, **View**, **Image**, **Options**, **Help** in the window (or the Mac menu bar) | F10, then arrows and Enter |
+| Drawing / background color | Click / right-click a color in the color box; double-click to edit it | — |
+| Undo / Repeat | Edit menu | ⌘Z / ⇧⌘Z |
+| Cut, copy, paste, clear selection, select all | Edit menu | ⌘X, ⌘C, ⌘V, Delete, ⌘A |
+| Move a selection by one pixel | — | Arrow keys |
+| Finish a polygon | Double-click, or click its first point | Return |
+| Cancel what's in progress | — | Esc |
+| Zoom | Magnifier tool, View menu | ⌘0 normal, ⌘4 large, ⌘+ / ⌘−, ⌘G grid |
+| Tool box, color box | View menu | ⌘T, ⌘L |
+| Flip/Rotate, Stretch/Skew, Invert, Attributes, Clear | Image menu | ⌘R, ⌥⌘W, ⌘I, ⌘E, ⇧⌘N |
+
 ## Privacy
 
 These apps **collect no personal data and never connect to the internet**.
@@ -225,13 +251,14 @@ options, always-on-top and the window position).
 Screen Ruler and Screen Shapes don't capture or record the screen; they only remember where their tools and shapes are, their units, scales and colors, and any screen-size correction.
 Reading Window doesn't capture or record the screen either; it only follows the pointer and clicks to move and hold its clear window, and remembers its shape, size, darkness, color and panel position.
 Notepad 95 only opens and saves the files you choose, and remembers its font, word wrap, window position and last search.
+Paint 95 only opens and saves the pictures you choose, and remembers its window position.
 
 Sticky Notes saves your notes as files in the folder you choose (normally your Google Drive folder).
 The app itself doesn't connect to Google; Google Drive for desktop syncs that folder, under your
 Google account's terms.
 
 - Windows: `%APPDATA%\CountdownTimer\`, `%APPDATA%\PhysicsCalculator\`, `%APPDATA%\FieldTimer\`, `%APPDATA%\StickyNotes\`, `%APPDATA%\ScreenRuler\`, `%APPDATA%\ScreenShapes\` and `%APPDATA%\ReadingWindow\`
-- macOS: each app's standard preferences (`net.ergosfera.countdowntimer`, `net.ergosfera.physicscalculator`, `net.ergosfera.fieldtimer`, `net.ergosfera.stickynotes`, `net.ergosfera.screenruler`, `net.ergosfera.screenshapes`, `net.ergosfera.readingwindow`, `net.ergosfera.notepad95`)
+- macOS: each app's standard preferences (`net.ergosfera.countdowntimer`, `net.ergosfera.physicscalculator`, `net.ergosfera.fieldtimer`, `net.ergosfera.stickynotes`, `net.ergosfera.screenruler`, `net.ergosfera.screenshapes`, `net.ergosfera.readingwindow`, `net.ergosfera.notepad95`, `net.ergosfera.paint95`)
 
 ## Disclaimer
 
@@ -246,7 +273,8 @@ liability arising from its use. See [LICENSE](LICENSE) for the full terms.
   (`countdown-timer\build.ps1`, `physics-calculator\windows\build.ps1`, `field-timer\windows\build.ps1`, `sticky-notes\build.ps1`, `screen-ruler\windows\build.ps1`, `screen-shapes\windows\build.ps1` or `reading-window\windows\build.ps1`).
   It uses the C# compiler included with Windows, so nothing needs to be installed.
 - **macOS:** install the Xcode Command Line Tools (`xcode-select --install`), then run
-  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh`, `field-timer/mac/build.sh`, `sticky-notes-mac/build.sh`, `screen-ruler/mac/build.sh`, `screen-shapes/mac/build.sh`, `reading-window/mac/build.sh` or `notepad-95/mac/build.sh`. Each creates the app and a `.dmg` in its `build/` folder.
+  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh`, `field-timer/mac/build.sh`, `sticky-notes-mac/build.sh`, `screen-ruler/mac/build.sh`, `screen-shapes/mac/build.sh`, `reading-window/mac/build.sh`, `notepad-95/mac/build.sh` or `paint-95/mac/build.sh`.
+  Notepad 95 and Paint 95 share their Windows 95 look from `win95-kit/Win95Kit.swift`. Each creates the app and a `.dmg` in its `build/` folder.
 
 ## License
 
