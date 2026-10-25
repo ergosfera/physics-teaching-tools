@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Clock Tile — Desktop App</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2128;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --warn-bg: #2b2111;
+      --warn-border: #9e6a03;
+      --warn-text: #e3b341;
+      --radius: 12px;
+    }
+
+    body.light {
+      --bg: #f6f8fa;
+      --surface: #ffffff;
+      --surface2: #f0f3f6;
+      --border: #d0d7de;
+      --text: #1f2328;
+      --muted: #656d76;
+      --accent: #0969da;
+      --green: #1a7f37;
+      --warn-bg: #fff8c5;
+      --warn-border: #d4a72c;
+      --warn-text: #7d4e00;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    .wrap { max-width: 860px; margin: 0 auto; padding: 24px 40px 48px; }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      margin-bottom: 22px;
+    }
+    .back { color: var(--accent); text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+    .back:hover { text-decoration: underline; }
+
+    #theme-toggle {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 6px 14px; cursor: pointer;
+      font: inherit; font-size: 0.78rem; font-weight: 600; color: var(--muted);
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    h1 { font-size: clamp(1.4rem, 3vw, 1.9rem); font-weight: 800; letter-spacing: -0.4px; }
+    .subtitle { color: var(--muted); margin-top: 4px; font-size: 0.92rem; }
+    .subtitle a { color: var(--accent); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .chip {
+      font-size: 0.72rem; font-weight: 700; color: var(--muted);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 2px 10px;
+    }
+
+    .notice {
+      margin-top: 22px;
+      background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--text);
+      border-radius: var(--radius); padding: 14px 16px; font-size: 0.9rem;
+    }
+    .notice strong { color: var(--warn-text); }
+    .notice a { color: var(--accent); font-weight: 600; }
+
+    .preview {
+      margin-top: 22px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px; text-align: center;
+    }
+    .preview img, .preview svg { max-width: 100%; height: auto; }
+    .preview .tiles { display: flex; justify-content: center; align-items: flex-end; gap: 28px; }
+    .preview .bar { background: #202020; border-radius: 8px; display: inline-flex; flex-direction: column; align-items: center; }
+    .preview p { color: var(--muted); font-size: 0.8rem; margin-top: 8px; }
+
+    section { margin-top: 30px; }
+    h2 {
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 10px;
+    }
+    .step {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--accent); color: var(--bg); font-size: 0.72rem; margin-right: 6px;
+      letter-spacing: 0;
+    }
+    .panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 18px; font-size: 0.9rem;
+    }
+    .panel h3 { font-size: 0.92rem; margin: 14px 0 4px; }
+    .panel h3:first-child { margin-top: 0; }
+    .panel ul { padding-left: 20px; }
+    .panel li + li { margin-top: 3px; }
+    .panel p + p { margin-top: 8px; }
+    kbd {
+      font-family: inherit; font-size: 0.8em; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 4px; padding: 0 5px;
+    }
+
+    .license {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px 18px; max-height: 260px; overflow-y: auto;
+      font-family: Consolas, 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap;
+    }
+    .license:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .hint { color: var(--muted); font-size: 0.8rem; margin-top: 6px; }
+    .hint.done { color: var(--green); }
+
+    .accept {
+      display: flex; gap: 10px; align-items: flex-start;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; font-size: 0.9rem; cursor: pointer;
+    }
+    .accept input { margin-top: 4px; width: 16px; height: 16px; flex: none; accent-color: var(--accent); }
+    .accept.disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .downloads { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+    .dl {
+      display: flex; flex-direction: column; gap: 4px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; text-decoration: none; color: inherit;
+      transition: border-color .2s, transform .15s;
+    }
+    .dl .t { font-weight: 700; color: var(--accent); }
+    .dl .d { font-size: 0.8rem; color: var(--muted); }
+    .dl[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+    .dl[aria-disabled="true"] .t { color: var(--muted); }
+    .dl:not([aria-disabled="true"]):hover { border-color: var(--accent); transform: translateY(-2px); }
+
+    .source { margin-top: 14px; font-size: 0.82rem; color: var(--muted); }
+    .source a { color: var(--accent); }
+
+    @media (max-width: 600px) { .wrap { padding: 18px 16px 40px; } }
+  </style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="tile" viewBox="0 0 40 70">
+      <rect x="2.5" y="3" width="16.5" height="24" rx="3" fill="#2c2c2a"/>
+      <rect x="21" y="3" width="16.5" height="24" rx="3" fill="#2c2c2a"/>
+      <rect x="2.5" y="3" width="16.5" height="12" rx="3" fill="#3a3a37"/>
+      <rect x="21" y="3" width="16.5" height="12" rx="3" fill="#3a3a37"/>
+      <text x="10.75" y="20.3" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="13" font-weight="700" fill="#fff" textLength="12.5" lengthAdjust="spacingAndGlyphs">14</text>
+      <text x="29.25" y="20.3" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="13" font-weight="700" fill="#fff" textLength="12.5" lengthAdjust="spacingAndGlyphs">37</text>
+      <line x1="2.5" y1="15" x2="19" y2="15" stroke="#111" stroke-width="0.8"/>
+      <line x1="21" y1="15" x2="37.5" y2="15" stroke="#111" stroke-width="0.8"/>
+      <rect x="2.5" y="33" width="35" height="35" rx="4" fill="#c9c7be"/>
+      <path d="M2.5 37 a4 4 0 0 1 4-4 h27 a4 4 0 0 1 4 4 v21.5 Q31 62 28.5 68 h-22 a4 4 0 0 1-4-4z" fill="#fafaf7"/>
+      <path d="M28.5 68 Q31 62 37.5 58.5 Q32.5 65 28.5 68z" fill="#e2e0d9"/>
+      <path d="M2.5 37 a4 4 0 0 1 4-4 h27 a4 4 0 0 1 4 4 v6.5 h-35z" fill="#2f6fd6"/>
+      <text x="20" y="41.6" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="7.2" font-weight="700" fill="#fff" letter-spacing="0.6">OCT</text>
+      <circle cx="11" cy="33.5" r="1.9" fill="#d3d1c7" stroke="#55554f" stroke-width="0.4"/>
+      <circle cx="29" cy="33.5" r="1.9" fill="#d3d1c7" stroke="#55554f" stroke-width="0.4"/>
+      <text x="19.5" y="62.5" text-anchor="middle" font-family="Segoe UI,system-ui,sans-serif" font-size="19" font-weight="700" fill="#2f6fd6">24</text>
+    </symbol>
+  </defs>
+</svg>
+<div class="wrap">
+
+  <div class="topbar">
+    <a class="back" href="../../index.html#teaching">← Teaching tools</a>
+    <button id="theme-toggle" type="button"><span id="theme-icon">☀</span><span id="theme-label">Light</span></button>
+  </div>
+
+  <h1>📅 Clock Tile</h1>
+  <p class="subtitle">A small tile for the Windows taskbar that you can read from across the room: the hour and minute on a flip clock, and below it a tear-off calendar page with the month and the day.</p>
+  <div class="chips">
+    <span class="chip">💻 Desktop app</span>
+    <span class="chip">Windows 10 / 11</span>
+    <span class="chip">Free · MIT License</span>
+  </div>
+
+  <div class="notice">
+    <strong>This is a download, not a web page.</strong>
+    Unlike the other tools on this site, Clock Tile is a program that you download and run on your own computer.
+    Before downloading, please read the <a href="#about">About</a> and the <a href="#license">License</a> below.
+    The download button unlocks once you have scrolled through the license and accepted it.
+  </div>
+
+  <div class="preview">
+    <div class="tiles">
+      <div class="bar" style="padding:12px 18px"><svg width="120" height="210" viewBox="0 0 40 70" aria-hidden="true"><use href="#tile"/></svg></div>
+      <div class="bar" style="padding:6px 4px"><svg width="40" height="70" viewBox="0 0 40 70" aria-hidden="true"><use href="#tile"/></svg></div>
+    </div>
+    <p>Enlarged three times, and at its real size of 40 × 70 pixels.</p>
+  </div>
+
+  <section id="about">
+    <h2><span class="step">1</span>About</h2>
+    <div class="panel">
+      <h3>What it does</h3>
+      <ul>
+        <li>The <strong>hour and minute</strong> sit on two dark flip cards, and a <strong>calendar page</strong> below shows the month on a blue band and the day in big blue numbers.</li>
+        <li>It's made for a free spot on a <strong>vertical taskbar</strong>, but it can sit anywhere on the screen. <strong>Drag it</strong> into place once and it remembers where it goes.</li>
+        <li><strong>Click it</strong> for a month calendar. Hover over it for the full date.</li>
+        <li>It stays on top of the taskbar, and hides itself while a full-screen window (a video, a slide show) is in front.</li>
+        <li><strong>Right-click it</strong> for a 24-hour or 12-hour clock, six sizes from 40 × 70 to 100 × 175 pixels, <strong>Lock position</strong>, <strong>Start with Windows</strong> and <strong>Quit</strong>.</li>
+        <li>The month is written in the language of Windows (OCT, ENE…).</li>
+      </ul>
+
+      <h3>Privacy</h3>
+      <p>Clock Tile <strong>collects no personal data and never connects to the internet</strong>.
+         It only reads the computer's clock. Its position, size and options are kept in your Windows user settings.</p>
+
+      <h3>Installing</h3>
+      <ul>
+        <li><strong>Windows:</strong> double-click <code>ClockTile.exe</code>. No installation is needed.
+            The app isn't signed with a paid certificate, so the first time Windows may show “Windows protected your PC”. Click <strong>More info</strong>, then <strong>Run anyway</strong>.
+            The tile appears on the taskbar near the clock; drag it to where you want it.</li>
+      </ul>
+
+      <h3>Disclaimer</h3>
+      <p>This software is free and is provided <strong>“as is”, without warranty of any kind</strong>.
+         The author is not liable for any claim, damages or other liability arising from its use.</p>
+    </div>
+  </section>
+
+  <section id="license">
+    <h2><span class="step">2</span>License</h2>
+    <div class="license" id="license-text" tabindex="0">MIT License
+
+Copyright (c) 2026 Mauricio Mendivelso
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</div>
+    <p class="hint" id="license-hint">Scroll to the end of the license to continue.</p>
+  </section>
+
+  <section id="download">
+    <h2><span class="step">3</span>Accept and download</h2>
+    <label class="accept disabled" id="accept-label">
+      <input type="checkbox" id="accept" disabled>
+      <span>I have read the About and the License. I understand that Clock Tile is a program I download and run on my own computer,
+            and I accept that it is provided “as is”, without warranty of any kind.</span>
+    </label>
+
+    <div class="downloads">
+      <a class="dl" id="dl-win" aria-disabled="true" role="link"
+         data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/clock-tile/ClockTile.exe">
+        <span class="t">⬇ Download for Windows</span>
+        <span class="d">ClockTile.exe · about 40 KB · Windows 10 or 11</span>
+      </a>
+    </div>
+    <p class="source">The source code is public:
+      <a href="https://github.com/ergosfera/physics-teaching-tools/tree/main/desktop-apps" target="_blank" rel="noopener">desktop-apps on GitHub</a>.</p>
+  </section>
+
+</div>
+
+<script>
+  function applyTheme(light) {
+    document.body.classList.toggle('light', light);
+    document.getElementById('theme-icon').textContent = light ? '☽' : '☀';
+    document.getElementById('theme-label').textContent = light ? 'Dark' : 'Light';
+    try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+  }
+  let savedTheme = null;
+  try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+  applyTheme(savedTheme === 'light');
+  document.getElementById('theme-toggle').addEventListener('click', () =>
+    applyTheme(!document.body.classList.contains('light')));
+
+  // Download gate: scroll through the license, then accept, then the buttons unlock.
+  const box = document.getElementById('license-text');
+  const hint = document.getElementById('license-hint');
+  const accept = document.getElementById('accept');
+  const acceptLabel = document.getElementById('accept-label');
+  const links = [document.getElementById('dl-win')];
+
+  function licenseRead() {
+    if (box.scrollTop + box.clientHeight < box.scrollHeight - 4) return;
+    accept.disabled = false;
+    acceptLabel.classList.remove('disabled');
+    hint.textContent = '✓ License read. Tick the box below to unlock the downloads.';
+    hint.classList.add('done');
+    box.removeEventListener('scroll', licenseRead);
+  }
+  box.addEventListener('scroll', licenseRead);
+  window.addEventListener('load', licenseRead);   // license may fit without scrolling
+
+  accept.addEventListener('change', () => {
+    for (const a of links) {
+      if (accept.checked) {
+        a.href = a.dataset.href;
+        a.removeAttribute('aria-disabled');
+      } else {
+        a.removeAttribute('href');
+        a.setAttribute('aria-disabled', 'true');
+      }
+    }
+  });
+</script>
+</body>
+</html>
