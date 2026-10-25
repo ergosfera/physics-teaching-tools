@@ -7,6 +7,7 @@
 #   "screen-shapes":      ScreenShapes.dmg (Mac) and ScreenShapes.exe (Windows)
 #   "reading-window":     ReadingWindow.dmg (Mac) and ReadingWindow.exe (Windows)
 #   "net-leds":           NetLEDs.dmg (Mac) and NetLEDs.exe (Windows)
+#   "notepad-95":         Notepad95.dmg (Mac only)
 # Pull requests only build the apps, so a broken build shows up before it reaches main.
 name: Desktop apps
 
@@ -182,6 +183,16 @@ jobs:
         with:
           name: netleds-windows
           path: desktop-apps/net-leds/windows/NetLEDs.exe
+
+  notepad-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./desktop-apps/notepad-95/mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notepad-mac
+          path: desktop-apps/notepad-95/mac/build/Notepad95.dmg
 
   release-timer:
     if: github.event_name != 'pull_request'
@@ -366,3 +377,26 @@ jobs:
               --notes "Green and red lights that blink with download and upload traffic, with a live graph. Mac: download NetLEDs.dmg. Windows: download NetLEDs.exe."
           gh release upload net-leds dist/* -R "$REPO" --clobber
           gh release edit net-leds -R "$REPO" --draft=false
+
+  release-notepad:
+    if: github.event_name != 'pull_request'
+    needs: [notepad-mac]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: notepad-*
+          path: dist
+          merge-multiple: true
+      - name: Publish to the notepad-95 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release view notepad-95 -R "$REPO" > /dev/null 2>&1 || \
+            gh release create notepad-95 -R "$REPO" --latest=false --title "Notepad 95" \
+              --notes "A plain-text editor for macOS that looks and works like the Windows 95 Notepad. Download Notepad95.dmg."
+          gh release upload notepad-95 dist/* -R "$REPO" --clobber
+          gh release edit notepad-95 -R "$REPO" --draft=false

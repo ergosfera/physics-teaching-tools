@@ -10,6 +10,7 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 - **Screen Shapes**: lines, rectangles, circles and guide lines that float over the screen and measure what's under them.
 - **Reading Window**: shades the screen except a clear window that follows the pointer, to help focus while reading.
 - **Net LEDs**: green and red lights next to the clock that blink with download and upload traffic, with a live graph.
+- **Notepad 95** (macOS): a plain-text editor that looks and works like the Windows 95 Notepad.
 
 ## Download and install
 
@@ -21,7 +22,8 @@ Download the file for your system from the app's release page:
 [Screen Ruler](https://github.com/ergosfera/physics-teaching-tools/releases/tag/screen-ruler) ·
 [Screen Shapes](https://github.com/ergosfera/physics-teaching-tools/releases/tag/screen-shapes) ·
 [Reading Window](https://github.com/ergosfera/physics-teaching-tools/releases/tag/reading-window) ·
-[Net LEDs](https://github.com/ergosfera/physics-teaching-tools/releases/tag/net-leds).
+[Net LEDs](https://github.com/ergosfera/physics-teaching-tools/releases/tag/net-leds) ·
+[Notepad 95](https://github.com/ergosfera/physics-teaching-tools/releases/tag/notepad-95) (Mac only).
 
 **Windows (10 or 11):** double-click the `.exe`. No installation is needed.
 The apps aren't signed with a paid certificate, so the first time Windows may show
@@ -192,6 +194,28 @@ Two lamps like the activity LEDs on an old modem, in the Mac menu bar or the Win
 | Speeds, start at login, quit | Right-click (or Control-click on Mac) the lights | — |
 | Speeds next to the lights (Mac) | Right-click → Show Speeds in Menu Bar | — |
 
+## Notepad 95
+
+The Windows 95 Notepad for the Mac: its window, menus, scroll bars and dialogs, drawn the Windows 95 way. Plain text only.
+
+- Files are saved back the way they were read: UTF-8 (with or without BOM), UTF-16, or Windows-1252 (ANSI) text, and CRLF, LF or CR line endings. New files are UTF-8 with LF.
+  If the text gains characters the file's encoding can't hold, it asks before saving as UTF-8 instead.
+- No rich text, smart quotes, autocorrect or spell-check underlines.
+- **Find** (up/down, match case), **Find Next**, **Replace**, **Replace All**, **Word Wrap**, **Set Font**, **Time/Date**, Page Setup and Print.
+- A file whose first line is `.LOG` gets the time and date added at the end each time it's opened.
+- Like the original it doesn't save by itself; it asks before closing or quitting with unsaved changes. Closing the last window quits.
+
+| Action | Mouse | Keyboard |
+|---|---|---|
+| Menus | **File**, **Edit**, **Search**, **Help** in the window (or the Mac menu bar) | F10, then arrows and Enter; the underlined letter picks an item |
+| New / New window / Open / Save / Save As | File menu | ⌘N / ⇧⌘N / ⌘O / ⌘S / ⇧⌘S |
+| Find / Find next / Find previous / Replace | Search menu | ⌘F / F3 or ⌘G / ⇧F3 or ⇧⌘G / ⌥⌘F |
+| Time/Date | Edit menu | F5 |
+| Word wrap, font | Edit menu | ⌘T for the font |
+| Cut, copy, paste, delete, select all | Edit menu or right-click | ⌘X, ⌘C, ⌘V, Delete, ⌘A |
+| Open a file | Drop it on the window, or Finder → Open With → Notepad 95 | — |
+| Move / resize / maximize | Drag the title bar / drag an edge or corner / double-click the title bar | ⌘M minimizes |
+
 ## Privacy
 
 These apps **collect no personal data and never connect to the internet**.
@@ -200,13 +224,14 @@ options, always-on-top and the window position).
 
 Screen Ruler and Screen Shapes don't capture or record the screen; they only remember where their tools and shapes are, their units, scales and colors, and any screen-size correction.
 Reading Window doesn't capture or record the screen either; it only follows the pointer and clicks to move and hold its clear window, and remembers its shape, size, darkness, color and panel position.
+Notepad 95 only opens and saves the files you choose, and remembers its font, word wrap, window position and last search.
 
 Sticky Notes saves your notes as files in the folder you choose (normally your Google Drive folder).
 The app itself doesn't connect to Google; Google Drive for desktop syncs that folder, under your
 Google account's terms.
 
 - Windows: `%APPDATA%\CountdownTimer\`, `%APPDATA%\PhysicsCalculator\`, `%APPDATA%\FieldTimer\`, `%APPDATA%\StickyNotes\`, `%APPDATA%\ScreenRuler\`, `%APPDATA%\ScreenShapes\` and `%APPDATA%\ReadingWindow\`
-- macOS: each app's standard preferences (`net.ergosfera.countdowntimer`, `net.ergosfera.physicscalculator`, `net.ergosfera.fieldtimer`, `net.ergosfera.stickynotes`, `net.ergosfera.screenruler`, `net.ergosfera.screenshapes`, `net.ergosfera.readingwindow`)
+- macOS: each app's standard preferences (`net.ergosfera.countdowntimer`, `net.ergosfera.physicscalculator`, `net.ergosfera.fieldtimer`, `net.ergosfera.stickynotes`, `net.ergosfera.screenruler`, `net.ergosfera.screenshapes`, `net.ergosfera.readingwindow`, `net.ergosfera.notepad95`)
 
 ## Disclaimer
 
@@ -221,7 +246,7 @@ liability arising from its use. See [LICENSE](LICENSE) for the full terms.
   (`countdown-timer\build.ps1`, `physics-calculator\windows\build.ps1`, `field-timer\windows\build.ps1`, `sticky-notes\build.ps1`, `screen-ruler\windows\build.ps1`, `screen-shapes\windows\build.ps1` or `reading-window\windows\build.ps1`).
   It uses the C# compiler included with Windows, so nothing needs to be installed.
 - **macOS:** install the Xcode Command Line Tools (`xcode-select --install`), then run
-  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh`, `field-timer/mac/build.sh`, `sticky-notes-mac/build.sh`, `screen-ruler/mac/build.sh`, `screen-shapes/mac/build.sh` or `reading-window/mac/build.sh`. Each creates the app and a `.dmg` in its `build/` folder.
+  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh`, `field-timer/mac/build.sh`, `sticky-notes-mac/build.sh`, `screen-ruler/mac/build.sh`, `screen-shapes/mac/build.sh`, `reading-window/mac/build.sh` or `notepad-95/mac/build.sh`. Each creates the app and a `.dmg` in its `build/` folder.
 
 ## License
 
