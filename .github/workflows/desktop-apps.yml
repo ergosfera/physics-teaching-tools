@@ -9,7 +9,7 @@
 #   "net-leds":           NetLEDs.dmg (Mac) and NetLEDs.exe (Windows)
 #   "notepad-95":         Notepad95.dmg (Mac only)
 #   "paint-95":           Paint95.dmg (Mac only)
-#   "clock-bar":          ClockBar.exe (Windows only)
+#   "clock-bar":          ClockBar.dmg (Mac) and ClockBar.exe (Windows)
 # Pull requests only build the apps, so a broken build shows up before it reaches main.
 name: Desktop apps
 
@@ -199,6 +199,20 @@ jobs:
         with:
           name: clockbar-preview
           path: desktop-apps/clock-bar/windows/bar-preview.png
+
+  clockbar-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./desktop-apps/clock-bar/mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clockbar-mac
+          path: desktop-apps/clock-bar/mac/build/ClockBar.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clockbar-mac-preview
+          path: desktop-apps/clock-bar/mac/build/bar-preview.png
 
   notepad-mac:
     runs-on: macos-latest
@@ -452,7 +466,7 @@ jobs:
 
   release-clockbar:
     if: github.event_name != 'pull_request'
-    needs: [clockbar-windows]
+    needs: [clockbar-mac, clockbar-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -461,6 +475,10 @@ jobs:
         with:
           name: clockbar-windows
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: clockbar-mac
+          path: dist
       - name: Publish to the clock-bar release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -468,6 +486,7 @@ jobs:
         run: |
           gh release view clock-bar -R "$REPO" > /dev/null 2>&1 || \
             gh release create clock-bar -R "$REPO" --latest=false --title "Clock Bar" \
-              --notes "The date and time in bold, outlined letters on a see-through bar that stays on top. Download ClockBar.exe."
+              --notes "The date and time in bold, outlined letters on a see-through bar that stays on top. Mac: download ClockBar.dmg. Windows: download ClockBar.exe."
           gh release upload clock-bar dist/* -R "$REPO" --clobber
-          gh release edit clock-bar -R "$REPO" --draft=false
+          gh release edit clock-bar -R "$REPO" --draft=false \
+            --notes "The date and time in bold, outlined letters on a see-through bar that stays on top. Mac: download ClockBar.dmg. Windows: download ClockBar.exe."

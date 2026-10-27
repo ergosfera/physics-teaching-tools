@@ -164,6 +164,7 @@
   <div class="chips">
     <span class="chip">💻 Desktop app</span>
     <span class="chip">Windows 10 / 11</span>
+    <span class="chip">macOS 11 or later</span>
     <span class="chip">Free · MIT License</span>
   </div>
 
@@ -189,21 +190,24 @@
       <h3>What it does</h3>
       <ul>
         <li>Shows the <strong>date</strong> in amber (“April 5”, no year) and the <strong>time</strong> in white (“2:34”, a 12-hour clock without AM/PM), in bold letters with a dark outline.</li>
-        <li>The bar itself is see-through, and it <strong>stays in front</strong> of other windows and the taskbar.</li>
+        <li>The bar itself is see-through, and it <strong>stays in front</strong> of other windows, the taskbar and the Mac menu bar.</li>
         <li><strong>Drag it</strong> into place once, for example at the top of the screen; it remembers where it goes.</li>
         <li><strong>Click it</strong> for a month calendar. Hover over it for the full date.</li>
-        <li><strong>Right-click it</strong> for six sizes (75 % to 250 %), <strong>Lock position</strong>, <strong>Start with Windows</strong> and <strong>Quit</strong>.</li>
+        <li><strong>Right-click it</strong> for six sizes (75 % to 250 %), <strong>Lock position</strong>, <strong>Start with Windows</strong> (<strong>Open at Login</strong> on a Mac) and <strong>Quit</strong>.</li>
       </ul>
 
       <h3>Privacy</h3>
       <p>Clock Bar <strong>collects no personal data and never connects to the internet</strong>.
-         It only reads the computer's clock. Its position, size and options are kept in your Windows user settings.</p>
+         It only reads the computer's clock. Its position, size and options are kept in your user settings on your computer.</p>
 
       <h3>Installing</h3>
       <ul>
         <li><strong>Windows:</strong> double-click <code>ClockBar.exe</code>. No installation is needed.
             The app isn't signed with a paid certificate, so the first time Windows may show “Windows protected your PC”. Click <strong>More info</strong>, then <strong>Run anyway</strong>.
             The bar appears at the top center of the screen; drag it to where you want it.</li>
+        <li><strong>macOS:</strong> open <code>ClockBar.dmg</code> and drag <strong>Clock Bar</strong> into <strong>Applications</strong>.
+            The app isn't signed with a paid Apple Developer ID, so the first time macOS may block it. Open <strong>System Settings → Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>.
+            The bar appears just under the menu bar, in the middle; it has no Dock icon, so right-click it to quit.</li>
       </ul>
 
       <h3>Disclaimer</h3>
@@ -252,6 +256,11 @@ SOFTWARE.</div>
         <span class="t">⬇ Download for Windows</span>
         <span class="d">ClockBar.exe · about 40 KB · Windows 10 or 11</span>
       </a>
+      <a class="dl" id="dl-mac" aria-disabled="true" role="link"
+         data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/clock-bar/ClockBar.dmg">
+        <span class="t">⬇ Download for macOS</span>
+        <span class="d">ClockBar.dmg · about 0.3 MB · macOS 11 or later (Apple Silicon and Intel)</span>
+      </a>
     </div>
     <p class="source">The source code is public:
       <a href="https://github.com/ergosfera/physics-teaching-tools/tree/main/desktop-apps" target="_blank" rel="noopener">desktop-apps on GitHub</a>.</p>
@@ -277,7 +286,7 @@ SOFTWARE.</div>
   const hint = document.getElementById('license-hint');
   const accept = document.getElementById('accept');
   const acceptLabel = document.getElementById('accept-label');
-  const links = [document.getElementById('dl-win')];
+  const links = [document.getElementById('dl-win'), document.getElementById('dl-mac')];
 
   function licenseRead() {
     if (box.scrollTop + box.clientHeight < box.scrollHeight - 4) return;

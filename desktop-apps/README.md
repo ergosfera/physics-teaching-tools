@@ -12,7 +12,7 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 - **Net LEDs**: green and red lights next to the clock that blink with download and upload traffic, with a live graph.
 - **Notepad 95** (macOS): a plain-text editor that looks and works like the Windows 95 Notepad.
 - **Paint 95** (macOS): a bitmap painter that looks and works like the Windows 95 Paint.
-- **Clock Bar** (Windows): the date and time in bold, outlined letters on a see-through bar that stays on top.
+- **Clock Bar**: the date and time in bold, outlined letters on a see-through bar that stays on top.
 
 ## Download and install
 
@@ -27,7 +27,7 @@ Download the file for your system from the app's release page:
 [Net LEDs](https://github.com/ergosfera/physics-teaching-tools/releases/tag/net-leds) ·
 [Notepad 95](https://github.com/ergosfera/physics-teaching-tools/releases/tag/notepad-95) ·
 [Paint 95](https://github.com/ergosfera/physics-teaching-tools/releases/tag/paint-95) ·
-[Clock Bar](https://github.com/ergosfera/physics-teaching-tools/releases/tag/clock-bar) (Notepad 95 and Paint 95: Mac only; Clock Bar: Windows only).
+[Clock Bar](https://github.com/ergosfera/physics-teaching-tools/releases/tag/clock-bar) (Notepad 95 and Paint 95: Mac only).
 
 **Windows (10 or 11):** double-click the `.exe`. No installation is needed.
 The apps aren't signed with a paid certificate, so the first time Windows may show
@@ -205,13 +205,14 @@ the date in amber and the time in white, both bold with a dark outline, so they 
 The time is on a 12-hour clock without AM/PM.
 
 - Drag it into place once (for example at the top of the screen); it remembers where it goes. **Lock position** stops it moving by accident.
-- It stays in front of other windows and the taskbar. Hover over it for the full date.
+- It stays in front of other windows, the taskbar and the Mac menu bar. Hover over it for the full date.
+- On a Mac it has no Dock icon; right-click it to quit.
 
 | Action | Mouse |
 |---|---|
 | Move it | Drag it |
 | Month calendar | Click it (Esc or a click elsewhere closes it) |
-| Size, lock position, start with Windows, quit | Right-click it |
+| Size, lock position, start at login, quit | Right-click (or Control-click on Mac) it |
 
 ## Notepad 95
 
