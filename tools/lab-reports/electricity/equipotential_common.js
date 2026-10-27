@@ -91,7 +91,7 @@ function eqArrows(F, pts, color, size = 11) {
 
 // Draws one arrangement (or 'ALL') into an <svg>.
 // data: { points: [{p, v, x, y, color?}], equi: [{v, pts}], field: [pts], field2: [pts] }
-// o: { paths, numbers, selected: {p, v}, fieldFaint, model, small, dim, letters, coords }
+// o: { paths, fine (small marks to place points precisely), selected: {p, v}, fieldFaint, model, small, dim, letters, coords }
 function eqDraw(svg, key, data = {}, o = {}) {
   const F = eqFrame(key), A = F.A, S = F.S;
   svg.setAttribute('viewBox', `0 0 ${F.W} ${F.H}`);
@@ -156,10 +156,9 @@ function eqDraw(svg, key, data = {}, o = {}) {
   }
   pts.forEach(q => {
     const sel = o.selected && o.selected.p === q.p && o.selected.v === q.v;
-    const r = o.small ? 6 : o.numbers ? 8 : 5.5, X = r2(F.X(q.x)), Y = r2(F.Y(q.y));
-    if (sel) s += `<circle cx="${X}" cy="${Y}" r="${r + 5}" fill="none" stroke="#fff" stroke-width="2"/>`;
+    const r = o.small ? 6 : o.fine ? 2 : 5.5, X = r2(F.X(q.x)), Y = r2(F.Y(q.y));
+    if (sel) s += `<circle cx="${X}" cy="${Y}" r="${r + 4}" fill="none" stroke="#fff" stroke-width="2"/>`;
     s += `<circle cx="${X}" cy="${Y}" r="${r}" fill="${q.color || eqColor(q.v)}" stroke="#111" stroke-width="1.2"${o.dim && !sel ? ' opacity=".55"' : ''}/>`;
-    if (o.numbers) s += `<text x="${X}" y="${Y + 3.6}" text-anchor="middle" font-size="10" font-weight="800" fill="#111">${q.v}</text>`;
   });
   svg.innerHTML = s + '<g class="live"></g>';
   return F;

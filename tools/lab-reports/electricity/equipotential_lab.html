@@ -901,7 +901,7 @@ function makeMapper(root) {
     } else if (M.hover && F.inside(...M.hover)) {
       const [x, y] = M.hover.map(round1);
       s = `<path d="M${F.X(F.A.x0)} ${F.Y(y)}H${F.X(F.A.x1)}M${F.X(x)} ${F.Y(F.A.y0)}V${F.Y(F.A.y1)}" stroke="#fff" stroke-opacity=".22" stroke-width="1"/>`;
-      if (mode === 'points' && !M.drag) s += `<circle cx="${F.X(x)}" cy="${F.Y(y)}" r="8" fill="${eqColor(M.v)}" fill-opacity=".45" stroke="#fff" stroke-width="1"/>`;
+      if (mode === 'points' && !M.drag) s += `<circle cx="${F.X(x)}" cy="${F.Y(y)}" r="2" fill="${eqColor(M.v)}" fill-opacity=".45" stroke="#fff" stroke-width="1"/>`;
     }
     g.innerHTML = s;
   }
@@ -1000,8 +1000,8 @@ function makeMapper(root) {
   function renderMap() {
     const d = D(), o = { selected: M.sel };
     const data = { points: d.points };
-    if (mode === 'points') { o.paths = true; o.numbers = true; }
-    if (mode === 'equi') { data.equi = d.equi; o.numbers = true; }
+    if (mode === 'points') { o.paths = true; o.fine = true; }
+    if (mode === 'equi') { data.equi = d.equi; o.fine = true; }
     if (mode === 'field') { data.equi = d.equi; data.field = d.field; o.dim = true; }
     if (mode === 'field2') { data.equi = d.equi; data.field = d.field; data.field2 = d.field2; o.dim = true; o.fieldFaint = true; }
     M.frame = eqDraw(svg, M.key, data, o);
