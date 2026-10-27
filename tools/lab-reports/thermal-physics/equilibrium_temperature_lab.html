@@ -510,6 +510,7 @@
 </footer>
 
 <script src="../lab-closing.js"></script>
+<script src="../lab-privacy.js"></script>
 <script>
 // ── Config from the link the teacher shares ─────────────────
 const LAB_ID = 'equilibrium-temperature';
@@ -990,6 +991,7 @@ renderArchive();
 
 renderTrials();
 refresh();
+labPrivacy.init({ api: API, live: false });
 labClosing.watch(API, LAB_ID, S.session);
 </script>
 </body>

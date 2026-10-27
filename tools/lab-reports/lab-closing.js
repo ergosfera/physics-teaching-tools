@@ -6,12 +6,14 @@
 //                                         activity takes reports, or that it is closed
 //   labClosing.refused(j) → html          the message for a report the sheet refused (j: its answer)
 //
-// "Closed" is drawn in solid red with white text, the same in light and dark themes, so nobody misses it.
+// "Closed" is drawn in solid red and "open until…" in solid green, both with white text and the same in
+// light and dark themes, so nobody misses them.
 //
 // An older Apps Script answers the status question with an error, and then the page shows nothing.
 const labClosing = {
   timer: null,
   RED: 'background:#c62828;color:#fff;border:none;border-radius:8px;padding:14px 18px;font-size:1rem;line-height:1.45',
+  GREEN: 'background:#2e7d32;color:#fff;border:none;border-radius:8px;padding:14px 18px;font-size:1rem;line-height:1.45',
   async watch(api, lab, session) {
     if (!api) return;
     try {
@@ -38,8 +40,8 @@ const labClosing = {
       el.style.cssText = this.RED + ';margin-bottom:16px';
       el.innerHTML = '🔒 <b>Your teacher has closed this activity.</b> It no longer takes reports, so <b>Send</b> won\'t work. Your work is still saved on this computer, and you can download it as a file.';
     } else {
-      el.className = 'note';
-      el.style.cssText = 'margin-bottom:16px';
+      el.className = '';
+      el.style.cssText = this.GREEN + ';margin-bottom:16px';
       el.innerHTML = `⏰ Your teacher takes reports until <b>${this.when(closesAt)}</b>. Send yours before then.`;
       const ms = new Date(closesAt).getTime() - Date.now();
       if (ms < 2147483647) this.timer = setTimeout(() => this.show(true, closesAt), Math.max(0, ms));

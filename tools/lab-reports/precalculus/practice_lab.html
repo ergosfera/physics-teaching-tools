@@ -385,6 +385,7 @@
 <script src="rational_questions.js"></script>
 <script src="practice_sets.js"></script>
 <script src="../lab-closing.js"></script>
+<script src="../lab-privacy.js"></script>
 <script>
 // ── Which practice set: from the link (?set=1.7) ────────────
 const params = new URLSearchParams(location.search);
@@ -704,6 +705,7 @@ document.getElementById('arch-list').addEventListener('click', e => {
 renderArchive();
 
 refresh();
+labPrivacy.init({ api: API, live: false });
 labClosing.watch(API, LAB_ID, S.session);
 </script>
 </body>

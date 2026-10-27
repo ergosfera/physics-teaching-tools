@@ -256,6 +256,7 @@
 
 <script src="equilibrium_temperature_prelab.js"></script>
 <script src="../lab-closing.js"></script>
+<script src="../lab-privacy.js"></script>
 <script>
 // ── Config from the link the teacher shares ─────────────────
 const LAB_ID = PRELAB.id;
@@ -549,6 +550,7 @@ document.getElementById('arch-list').addEventListener('click', e => {
 renderArchive();
 
 refresh();
+labPrivacy.init({ api: API, live: false });
 labClosing.watch(API, LAB_ID, S.session);
 </script>
 </body>

@@ -515,6 +515,7 @@
 <script src="rational.js"></script>
 <script src="rational_questions.js"></script>
 <script src="../lab-closing.js"></script>
+<script src="../lab-privacy.js"></script>
 <script>
 // ── Config from the link the teacher shares ─────────────────
 const LAB_ID = 'rational-functions';
@@ -909,6 +910,7 @@ document.getElementById('arch-list').addEventListener('click', e => {
 renderArchive();
 
 refresh();
+labPrivacy.init({ api: API, live: false });
 labClosing.watch(API, LAB_ID, S.session);
 </script>
 </body>
