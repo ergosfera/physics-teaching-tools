@@ -365,7 +365,9 @@ async function test() {
 document.getElementById('api').value = CONN.api;
 document.getElementById('key').value = CONN.key;
 document.getElementById('save').addEventListener('click', () => {
-  CONN.api = document.getElementById('api').value.trim();
+  // Only the URL up to /exec: anything after it (like ?status=1 from a test) would change every request
+  CONN.api = document.getElementById('api').value.trim().replace(/[?#].*$/, '');
+  document.getElementById('api').value = CONN.api;
   CONN.key = document.getElementById('key').value.trim();
   try { localStorage.setItem(CKEY, JSON.stringify(CONN)); } catch (e) {}
   document.getElementById('save-msg').textContent = 'Saved';
