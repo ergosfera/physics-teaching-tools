@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Equipotential Lines Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="../lab-teacher.css">
+<style>
+  svg.eqmap { width: 100%; height: auto; display: block; }
+  svg.eqmap text { font-family: 'Segoe UI', system-ui, sans-serif; }
+  .eq4 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .eq4 .cap { font-size: .78rem; font-weight: 700; color: var(--muted); margin-bottom: 2px; }
+  .eqcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .eqcard { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px; display: grid; gap: 8px; }
+  .eqcard .who { font-weight: 700; font-size: .85rem; cursor: pointer; display: flex; gap: 6px; align-items: center; }
+  .eqlegend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .78rem; color: var(--muted); align-items: center; }
+  .eqlegend i { display: inline-block; width: 20px; border-top: 3px solid; vertical-align: 3px; margin-right: 4px; }
+  .eqlegend i.dash { border-top-style: dashed; }
+  .eqlegend b.v { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; margin-right: 3px; }
+  .slide .eq4 { flex: 1; min-height: 0; }
+  .slide .eqcards { grid-template-columns: repeat(3, 1fr); }
+</style>
+</head>
+<body>
+<script src="../lab-teacher.js"></script>
+<script src="equipotential_common.js"></script>
+<script>
+// Equipotential Lines: the parts specific to this lab. Everything else comes from ../lab-teacher.js.
+// The maps, the crossing angles and the model of the paper come from equipotential_common.js.
+const MIN_PTS = 6;
+let MODEL_ON = false;
+const blankArr = () => ({ points: [], equi: [], field: [], field2: [] });
+const typical = st => st.n ? 90 - st.medDev : NaN;   // typical crossing angle, 90° = perpendicular
+const angleText = st => st.n ? fmt(typical(st), 2) + '°' : '—';
+
+// ── One map ─────────────────────────────────────────────────
+// layers: 'class' (points of many groups), 'final' (lines and field after the rule), 'all' (everything)
+function drawMap(svg, k, d, layers, o = {}) {
+  if (!svg) return;
+  if (layers === 'class') eqDraw(svg, k, { points: d.points }, { model: MODEL_ON, ...o });
+  else if (layers === 'final') eqDraw(svg, k, { points: d.points, equi: d.equi, field2: d.field2 }, { dim: true, ...o });
+  else eqDraw(svg, k, d, { dim: true, fieldFaint: true, model: MODEL_ON, ...o });
+}
+const fourMaps = (id, captions = true) => `<div class="eq4">${EQ_KEYS.map(k => `<div>${captions ? `<div class="cap">${k} · ${esc(EQ_ARR[k].name)}</div>` : ''}<svg class="eqmap" id="${id}-${k}"></svg></div>`).join('')}</div>`;
+const mapLegend = (field = true) => `<div class="eqlegend">${EQ_VOLTS.map(v => `<span><b class="v" style="background:${eqColor(v)}"></b>${v} V</span>`).join('')}
+  ${field ? `<span><i class="dash" style="border-color:${EQ_PRED}"></i>predicted field</span><span><i style="border-color:var(--text)"></i>field after the rule</span>` : ''}
+  ${MODEL_ON ? '<span><i class="dash" style="border-color:var(--muted)"></i>model (computed)</span>' : ''}</div>`;
+const classPoints = (on, k) => on.flatMap(G => G.arr[k].d.points);
+
+// ── Plots ───────────────────────────────────────────────────
+// One column per group: their field between the strips, from the slope of their points (●) and from their own calculation (○)
+function plotE(svg, groups, W = 720, H = 360) {
+  const M = { l: 62, r: 20, t: 20, b: 46 };
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const gs = groups.filter(G => isFinite(G.Efit) || isFinite(G.theirE));
+  if (!gs.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No values yet</text>`; return; }
+  const ref = median(gs.map(G => G.Eunif).filter(isFinite)), mod = median(gs.map(G => G.Emodel).filter(isFinite));
+  const vals = gs.flatMap(G => [G.Efit, G.theirE]).concat([ref, mod]).filter(isFinite);
+  const step = niceStep(Math.max(...vals) || 1, 5), top = Math.ceil(Math.max(...vals) * 1.1 / step) * step;
+  const X = i => M.l + (i + 0.5) * (W - M.l - M.r) / gs.length, Y = v => H - M.b - v / top * (H - M.t - M.b);
+  let s = '';
+  for (let v = 0; v <= top + 1e-9; v += step) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">E (V/m)</text>`;
+  if (isFinite(ref)) s += `<line x1="${M.l}" x2="${W - M.r}" y1="${Y(ref)}" y2="${Y(ref)}" stroke="var(--amber)" stroke-width="2" stroke-dasharray="6 4"/><text x="${W - M.r - 4}" y="${Y(ref) - 6}" text-anchor="end" style="fill:var(--amber)">source voltage / 4.5 cm: ${fmt(ref)} V/m</text>`;
+  if (isFinite(mod)) s += `<line x1="${M.l}" x2="${W - M.r}" y1="${Y(mod)}" y2="${Y(mod)}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="2 4"/><text x="${M.l + 6}" y="${Y(mod) + 14}" style="fill:var(--muted)">model, middle of the gap: ${fmt(mod)} V/m</text>`;
+  gs.forEach((G, i) => {
+    if (isFinite(G.Efit)) s += `<circle cx="${X(i)}" cy="${Y(G.Efit)}" r="7" fill="${G.color}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(label(G))}: ${fmt(G.Efit)} V/m from the slope of their points</title></circle>`;
+    if (isFinite(G.theirE)) s += `<circle cx="${X(i)}" cy="${Y(Math.min(G.theirE, top))}" r="9" fill="none" stroke="${G.color}" stroke-width="2.5"><title>${esc(label(G))}: they calculated ${fmt(G.theirE)} V/m</title></circle>`;
+    s += `<text x="${X(i)}" y="${H - M.b + 18}" text-anchor="middle">G${esc(G.s.group || '?')}</text>`;
+  });
+  svg.innerHTML = s;
+}
+// One column per group: the typical angle at which their field lines cross their equipotential lines, before (○) and after (●) the rule
+function plotAngles(svg, groups, W = 720, H = 320) {
+  const M = { l: 56, r: 20, t: 20, b: 46 };
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  if (!groups.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No values yet</text>`; return; }
+  const X = i => M.l + (i + 0.5) * (W - M.l - M.r) / groups.length, Y = a => H - M.b - a / 90 * (H - M.t - M.b);
+  let s = '';
+  [0, 30, 60, 90].forEach(a => { s += `<line class="${a === 90 ? 'axis' : 'grid'}" x1="${M.l}" x2="${W - M.r}" y1="${Y(a)}" y2="${Y(a)}"/><text x="${M.l - 8}" y="${Y(a) + 4}" text-anchor="end">${a}°</text>`; });
+  s += `<text class="lbl" transform="translate(14 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">Crossing angle</text>`;
+  groups.forEach((G, i) => {
+    const a = typical(G.pred), b = typical(G.corr);
+    if (isFinite(a) && isFinite(b)) s += `<line x1="${X(i)}" x2="${X(i)}" y1="${Y(a)}" y2="${Y(b)}" stroke="${G.color}" stroke-width="1.5" stroke-dasharray="3 3"/>`;
+    if (isFinite(a)) s += `<circle cx="${X(i)}" cy="${Y(a)}" r="8" fill="none" stroke="${G.color}" stroke-width="2.5"><title>${esc(label(G))}: predicted field lines cross at about ${fmt(a, 2)}°</title></circle>`;
+    if (isFinite(b)) s += `<circle cx="${X(i)}" cy="${Y(b)}" r="7" fill="${G.color}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(label(G))}: after the rule, about ${fmt(b, 2)}°${G.corr.up ? ` · ${G.corr.up} line(s) pointing uphill` : ''}</title></circle>`;
+    if (G.corr.up) s += `<text x="${X(i)}" y="${Y(isFinite(b) ? b : 0) + 22}" text-anchor="middle" style="fill:var(--red);font-weight:700">↑${G.corr.up}</text>`;
+    s += `<text x="${X(i)}" y="${H - M.b + 18}" text-anchor="middle">G${esc(G.s.group || '?')}</text>`;
+  });
+  svg.innerHTML = s;
+}
+
+function tilesHtml() {
+  const pts = GROUPS.map(G => G.nPts), fits = GROUPS.map(G => G.Efit).filter(isFinite), corr = GROUPS.map(G => typical(G.corr)).filter(isFinite);
+  const up = GROUPS.filter(G => G.corr.up).length;
+  return `
+    <div class="tile"><div class="k">Points per report</div><div class="v">${pts.length ? fmt(median(pts)) : '—'}</div><div class="s">median · 160 = 8 voltages × 5 paths × 4 arrangements</div></div>
+    <div class="tile"><div class="k">Field lines after the rule</div><div class="v">${corr.length ? fmt(median(corr), 2) : '—'}<small>°</small></div><div class="s">median crossing angle · ${up ? `<b style="color:var(--red)">${up}</b> report${up === 1 ? '' : 's'} with lines uphill` : 'none pointing uphill'}</div></div>
+    <div class="tile"><div class="k">Field between the strips</div><div class="v">${fits.length ? fmt(median(fits)) : '—'} <small>V/m</small></div><div class="s">median, from the slope of the points in D</div></div>`;
+}
+
+const ROWS = [['points', 'Points'], ['paths', 'Paths with 6+ points'], ['levels', 'Equipotential lines (voltages)'], ['pred', 'Predicted field: crossing angle'], ['corr', 'After the rule: crossing angle'], ['up', 'After the rule: lines uphill'], ['model', 'Points vs model (median |ΔV|)']];
+function arrTable(G) {
+  const cell = (a, key) => key === 'points' ? a.n : key === 'paths' ? `${a.paths}/5` : key === 'levels' ? a.levels
+    : key === 'pred' ? angleText(a.pred) : key === 'corr' ? angleText(a.corr) : key === 'up' ? (a.corr.lines ? `${a.corr.up} of ${a.corr.lines}` : '—') : isFinite(a.dvModel) ? fmt(a.dvModel, 2) + ' V' : '—';
+  return `<div class="table-wrap"><table class="t"><thead><tr><th></th>${EQ_KEYS.map(k => `<th>${k} · ${esc(EQ_ARR[k].short)}</th>`).join('')}</tr></thead><tbody>
+    ${ROWS.map(([key, name]) => `<tr><td>${name}</td>${EQ_KEYS.map(k => `<td>${cell(G.arr[k], key)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+
+// The group's maps: four small maps after the rule
+const groupCard = (G, i) => `<div class="eqcard"><div class="who" data-i="${i}" title="Open full report"><span class="dot" style="background:${G.color}"></span>${esc(label(G))}${CFG.names ? ' · ' + esc(who(G)) : ''}</div>
+  ${fourMaps('gm' + i, false)}<div class="muted" style="font-size:.74rem">${G.nPts} points · after the rule ${angleText(G.corr)}${G.corr.up ? ` · ${G.corr.up} uphill` : ''}</div></div>`;
+const drawGroupCards = list => list.forEach(([G, i]) => EQ_KEYS.forEach(k => drawMap(document.getElementById(`gm${i}-${k}`), k, G.arr[k].d, 'final', { small: true })));
+
+// ── Demo class, from the model of the paper ─────────────────
+// Field line from a point, downhill (dir = 1) until it reaches the 0 V electrode or the edge
+function streamline(k, x, y) {
+  const A = EQ_ARR[k], h = 0.06, e = 0.05, out = [[x, y]];
+  for (let i = 0; i < 700; i++) {
+    const gx = eqPotential(k, x + e, y) - eqPotential(k, x - e, y), gy = eqPotential(k, x, y + e) - eqPotential(k, x, y - e), g = Math.hypot(gx, gy);
+    if (g < 1e-6) break;
+    x -= h * gx / g; y -= h * gy / g;
+    if (x < A.x0 || x > A.x1 || y < A.y0 || y > A.y1) break;
+    const end = A.el.some(el => el.pole === 0 && eqInside(el, x, y));
+    const last = out[out.length - 1];
+    if (end || Math.hypot(x - last[0], y - last[1]) >= 0.3) out.push([+x.toFixed(2), +y.toFixed(2)]);
+    if (end) break;
+  }
+  return out;
+}
+const SEEDS = {
+  A: [0, 1, 2, 3, 4, 5].map(i => [6.5 + 0.65 * Math.cos(i * Math.PI / 3 + .3), 14.5 + 0.65 * Math.sin(i * Math.PI / 3 + .3)]),
+  B: [-60, -25, 0, 25, 60].map(a => [23 - 0.65 * Math.cos(a * Math.PI / 180), 15 + 0.65 * Math.sin(a * Math.PI / 180)]),
+  C: [-50, -20, 0, 20, 50].map(a => [4.5 + 0.65 * Math.cos(a * Math.PI / 180), 5.5 + 0.65 * Math.sin(a * Math.PI / 180)]),
+  D: [18.6, 20, 21, 22, 23.4].map(x => [x, 6.85]),
+};
+// Routes the demo groups follow with the probe, from the 0 V electrode to the 9 V one: [start, end, bend]
+const ROUTES = {
+  A: [90, 162, 234, 306, 18].map(a => { const u = [Math.cos(a * Math.PI / 180), Math.sin(a * Math.PI / 180)]; return [[6.5 + 3.7 * u[0], 14.5 + 3.7 * u[1]], [6.5 + 0.6 * u[0], 14.5 + 0.6 * u[1]], null]; }),
+  B: [-3, -1.5, 0, 1.5, 3].map(o => [[17.5, 15 + o * 0.15], [22.5, 15 + o * 0.15], [20, 15 + 2 * o]]),
+  C: [2.5, 4, 5.75, 7.5, 9].map(y => [[10.7, y], [5.05, 5.5 + (y - 5.75) * 0.08], null]),
+  D: [18.5, 19.75, 21, 22.25, 23.5].map(x => [[x, 3.05], [x, 6.95], null]),
+};
+function demoMap(rnd, vbat, kind) {
+  const map = {}, jit = (pts, a) => pts.map(([x, y], i) => i && i < pts.length - 1 ? [+(x + rnd(-a, a)).toFixed(2), +(y + rnd(-a, a)).toFixed(2)] : [x, y]);
+  EQ_KEYS.forEach(k => {
+    const points = [];
+    ROUTES[k].forEach(([P0, P1, C], pi) => {
+      C = C || [(P0[0] + P1[0]) / 2, (P0[1] + P1[1]) / 2];
+      let prev = eqPotential(k, ...P0) * vbat / EQ_HIGH;
+      for (let t = 0.002; t <= 1; t += 0.002) {
+        const x = (1 - t) ** 2 * P0[0] + 2 * (1 - t) * t * C[0] + t * t * P1[0], y = (1 - t) ** 2 * P0[1] + 2 * (1 - t) * t * C[1] + t * t * P1[1];
+        const v = eqPotential(k, x, y) * vbat / EQ_HIGH;
+        EQ_VOLTS.forEach(L => {
+          if ((prev - L) * (v - L) <= 0 && prev !== v && !points.some(q => q.p === pi + 1 && q.v === L) && !(kind.sparse && rnd(0, 1) < 0.25))
+            points.push({ p: pi + 1, v: L, x: +(x + rnd(-0.15, 0.15)).toFixed(1), y: +(y + rnd(-0.15, 0.15)).toFixed(1) });
+        });
+        prev = v;
+      }
+    });
+    const equi = EQ_VOLTS.map(v => ({ v, pts: points.filter(q => q.v === v).sort((a, b) => a.p - b.p).map(q => [q.x, q.y]) })).filter(q => q.pts.length > 1);
+    if (k === 'A') equi.forEach(q => q.pts.push(q.pts[0]));
+    const lines = SEEDS[k].map(([x, y]) => streamline(k, x, y)).filter(l => l.length > 3);
+    const straight = ROUTES[k].slice(0, 4).map(([P0, P1]) => [P1, P0]);
+    const field = kind.pred === 'good' ? lines.map(l => jit(l, 0.12)) : kind.pred === 'straight' ? straight : lines.map(l => [...l].reverse());
+    const field2 = (kind.corr === 'good' ? lines.map(l => jit(l, 0.08)) : kind.corr === 'sloppy' ? lines.map(l => jit(l, 0.45)) : lines.map(l => [...l].reverse())).slice(0, kind.few ? 2 : 6);
+    map[k] = { points, equi, field, field2 };
+  });
+  return map;
+}
+
+LabTeacher({
+  id: 'equipotential',
+  title: 'Equipotential Lines',
+  icon: '⚡',
+  studentPage: 'equipotential_lab.html',
+  tagline: 'Four arrangements of copper electrodes on conductive paper · points of equal potential · equipotential lines and the electric field',
+
+  errors: {
+    tape: 'Electrodes not where the map shows', contact: 'Poor contact (tape or clips)', probe: 'Probe pressure or position',
+    reading: 'Voltmeter reading not stable', position: 'Reading the position on the grid', marking: 'Marking the points on the screen',
+    battery: 'Battery voltage changing', drawing: 'Drawing the lines by hand',
+  },
+  questions: [
+    { id: 'shapes', title: 'The shape of the equipotential lines in each arrangement: where are they close, where far apart?', get: s => s.answers?.shapes },
+    { id: 'direction', title: 'Prediction: which way do the field lines point, and how are they related to the equipotential lines?', get: s => s.answers?.direction },
+    { id: 'strongest', title: 'Prediction: where is the field strongest in each arrangement?', get: s => s.answers?.strongest },
+    { id: 'changed', title: 'After the rule: what was right in the prediction, and what changed?', get: s => s.answers?.changed },
+    { id: 'uniform', title: 'Is the field between the two strips the same everywhere?', get: s => s.answers?.uniform },
+    { id: 'ring', title: 'Outside the ring: the reading, and the field there', get: s => s.answers?.ring },
+    { id: 'where', title: 'Where is the field strongest and weakest, and how can you tell from the lines?', get: s => s.answers?.where },
+    { id: 'howfield', title: 'How did a voltmeter, which measures potential, let you find the field?', get: s => s.answers?.howfield },
+    { id: 'errors', title: 'Sources of error', get: s => s.conclusion?.errtext, chart: 'errors' },
+    { id: 'conclusion', title: 'Conclusion', get: s => s.conclusion?.text },
+    { id: 'roles', title: 'How did the group share the work?', get: s => s.conclusion?.roles },
+  ],
+  answerPrefix: (q, s) => q.id === 'ring' && String(s.answers?.outside ?? '').trim() ? `Reading outside: ${s.answers.outside} V.` : '',
+  jump: () => [['shapes', 'Shapes'], ['direction', 'Prediction'], ['changed', 'After the rule'], ['uniform', 'Strips'], ['ring', 'Ring'], ['where', 'Strongest'], ['howfield', 'Voltmeter → field'], ['errors', 'Errors'], ['conclusion', 'Conclusion']],
+
+  // Everything recomputed from the raw map: points, lines and crossing angles
+  analyze(s) {
+    const vbat = num(s.setup?.vbat), scale = (isFinite(vbat) && vbat > 0 ? vbat : EQ_HIGH) / EQ_HIGH;
+    const arr = {};
+    EQ_KEYS.forEach(k => {
+      const d = Object.assign(blankArr(), s.map?.[k]);
+      const dv = d.points.map(q => Math.abs(eqPotential(k, q.x, q.y) * scale - q.v));
+      arr[k] = {
+        d, n: d.points.length,
+        paths: [1, 2, 3, 4, 5].filter(p => d.points.filter(q => q.p === p).length >= MIN_PTS).length,
+        levels: new Set(d.equi.map(q => q.v)).size,
+        pred: eqCrossStats(d.field, d.equi), corr: eqCrossStats(d.field2, d.equi),
+        dvModel: dv.length ? median(dv) : NaN,
+      };
+    });
+    const all = key => { const a = EQ_KEYS.flatMap(k => arr[k][key].angles), st = { n: a.length, medDev: a.length ? median(a.map(x => 90 - x)) : NaN };
+      EQ_KEYS.forEach(k => ['lines', 'down', 'up'].forEach(f => { st[f] = (st[f] || 0) + arr[k][key][f]; })); return st; };
+    // Field between the strips from the points: the slope of V against y, between the strips and away from their ends
+    const inGap = arr.D.d.points.filter(q => q.x >= 18.5 && q.x <= 23.5 && q.y > 3 && q.y < 7);
+    const fit = linfit(inGap.map(q => ({ x: q.y, y: q.v })));
+    const va = num(s.efield?.va), vb = num(s.efield?.vb), dcm = num(s.efield?.d), theirE = num(s.efield?.E), expectE = Math.abs(va - vb) / (dcm / 100);
+    const eVerdict = !isFinite(theirE) || !isFinite(expectE) ? '' : Math.abs(theirE - expectE) <= Math.max(0.03 * expectE, 0.5) ? 'ok'
+      : Math.abs(theirE * 100 - expectE) <= 0.03 * expectE ? 'units' : 'bad';
+    const Emodel = (eqPotential('D', 21, 5.5) - eqPotential('D', 21, 4.5)) * 100 * scale;
+    return {
+      arr, vbat, nPts: EQ_KEYS.reduce((a, k) => a + arr[k].n, 0), paths: EQ_KEYS.reduce((a, k) => a + arr[k].paths, 0),
+      pred: all('pred'), corr: all('corr'),
+      Efit: fit && inGap.length >= 4 ? Math.abs(fit.k) * 100 : NaN, Eunif: vbat / (EQ_PLATE_GAP / 100), Emodel,
+      va, vb, dcm, theirE, expectE, eVerdict, outside: num(s.answers?.outside),
+    };
+  },
+  checks(G) {
+    const out = [];
+    if (!G.nPts) out.push(['No points', 'red']);
+    else {
+      const few = EQ_KEYS.filter(k => G.arr[k].paths < 5);
+      if (few.length) out.push(['Fewer than 5 paths in ' + few.join(', '), '']);
+    }
+    if (!isFinite(G.vbat)) out.push(['Source voltage missing', '']);
+    const lines = EQ_KEYS.filter(k => G.arr[k].n && G.arr[k].levels < 5);
+    if (lines.length) out.push(['Few equipotential lines in ' + lines.join(', '), '']);
+    if (G.corr.n && G.corr.medDev > 20) out.push(['Field lines not perpendicular (' + fmt(typical(G.corr), 2) + '°)', '']);
+    if (G.corr.up) out.push([G.corr.up + ' field line' + (G.corr.up === 1 ? '' : 's') + ' pointing uphill', '']);
+    const off = EQ_KEYS.filter(k => G.arr[k].dvModel > 1);
+    if (off.length) out.push(['Points far from the model in ' + off.join(', '), '']);
+    if (G.eVerdict === 'units') out.push(['E: Δd in cm, not m?', '']);
+    if (G.eVerdict === 'bad') out.push(['E = ΔV / Δd?', '']);
+    if (isFinite(G.outside) && Math.abs(G.outside) > 0.5) out.push(['Reading outside the ring: ' + fmt(G.outside) + ' V', '']);
+    return out;
+  },
+
+  summaryHtml: `
+    <div class="card">
+      <h3>Class map: every group's points</h3>
+      <label class="muted" style="font-size:.84rem;display:flex;gap:8px;align-items:center"><input type="checkbox" id="model-toggle"> Show the computed equipotential lines (a model of the paper with these electrodes)</label>
+      <div id="class-maps"></div>
+      <div id="class-legend"></div>
+      <div class="legend" id="legend"></div>
+      <div class="muted" style="font-size:.78rem">Each dot is a point one group found, colored by its voltage. Click a group in the legend to hide or show its points.</div>
+    </div>
+    <div class="two">
+      <div class="card">
+        <h3>Do the field lines cross the equipotential lines at 90°?</h3>
+        <svg class="plot" id="angle-plot" viewBox="0 0 720 320"></svg>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">The typical angle at which each group's field lines cross their own equipotential lines: ○ predicted (step 5), ● after the rule (step 6). ↑ field lines drawn from lower to higher voltage.</div>
+      </div>
+      <div class="card">
+        <h3>Field between the strips (D)</h3>
+        <svg class="plot" id="e-plot" viewBox="0 0 720 360"></svg>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">● from the slope of each group's points between the strips · ○ their own E = ΔV / Δd.</div>
+      </div>
+    </div>`,
+  renderSummary(on) {
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Reports</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'}</div></div>
+      ${tilesHtml()}`;
+    const toggle = document.getElementById('model-toggle');
+    toggle.checked = MODEL_ON;
+    toggle.onchange = () => { MODEL_ON = toggle.checked; render(); };
+    document.getElementById('class-maps').innerHTML = fourMaps('cm');
+    document.getElementById('class-legend').innerHTML = mapLegend(false);
+    EQ_KEYS.forEach(k => drawMap(document.getElementById('cm-' + k), k, { points: classPoints(on, k) }, 'class'));
+    plotAngles(document.getElementById('angle-plot'), on);
+    plotE(document.getElementById('e-plot'), on);
+  },
+
+  resultsHead: '<th>Source (V)</th><th>Points</th><th>Paths</th><th>Predicted ∠</th><th>After the rule ∠</th><th>Uphill</th><th>E from points (V/m)</th><th>Their E (V/m)</th><th>Outside ring (V)</th>',
+  resultsRow: G => `
+    <td>${fmt(G.vbat)}</td><td>${G.nPts}</td><td>${G.paths}/20</td><td>${angleText(G.pred)}</td><td><b>${angleText(G.corr)}</b></td>
+    <td>${G.corr.lines ? `${G.corr.up} of ${G.corr.lines}` : '—'}</td><td>${fmt(G.Efit)}</td><td>${fmt(G.theirE)}${G.eVerdict === 'ok' ? ' <span style="color:var(--green)">✓</span>' : ''}</td><td>${fmt(G.outside)}</td>`,
+
+  sections: [{
+    id: 'maps', title: 'Maps by group',
+    render(el) {
+      el.innerHTML = `${mapLegend()}<div class="eqcards" style="margin-top:8px">${GROUPS.map(groupCard).join('')}</div><p class="muted" style="font-size:.78rem;margin-top:8px">Points, equipotential lines and the field lines drawn after the rule. Click a group to see all its layers, including the prediction.</p>`;
+      drawGroupCards(GROUPS.map((G, i) => [G, i]));
+    },
+  }],
+
+  slides(on) {
+    const slides = EQ_KEYS.map(k => ({
+      html: `<h2>${k} · ${esc(EQ_ARR[k].name)}: every group's points</h2>
+        <div class="plot-wrap"><svg class="eqmap" id="show-${k}"></svg></div>${mapLegend(false)}`,
+      draw: () => drawMap(document.getElementById('show-' + k), k, { points: classPoints(on, k) }, 'class'),
+    }));
+    slides.push(
+      { html: `<h2>Do the field lines cross the equipotential lines at 90°?</h2><div class="tiles">${tilesHtml()}</div>
+        <div class="plot-wrap"><svg class="plot" id="show-angles"></svg></div><div class="sub">○ predicted · ● after the rule · ↑ lines drawn from lower to higher voltage</div>`,
+        draw: () => plotAngles(document.getElementById('show-angles'), on, 900, 380) },
+      { html: `<h2>How strong is the field between the strips?</h2>
+        <div class="plot-wrap"><svg class="plot" id="show-e"></svg></div><div class="sub">● from the slope of each group's points · ○ their own E = ΔV / Δd</div>`,
+        draw: () => plotE(document.getElementById('show-e'), on, 900, 420) });
+    const per = 3, idx = GROUPS.map((G, i) => [G, i]);
+    for (let p = 0; p < idx.length; p += per) {
+      const part = idx.slice(p, p + per), pages = Math.ceil(idx.length / per);
+      slides.push({ html: `<h2>Maps by group${pages > 1 ? `<span class="page">${p / per + 1}/${pages}</span>` : ''}</h2><div class="eqcards">${part.map(([G, i]) => groupCard(G, i)).join('')}</div>${mapLegend()}`,
+        draw: () => drawGroupCards(part) });
+    }
+    return slides;
+  },
+
+  detail(G) {
+    const s = G.s, c = s.conclusion || {}, a = s.answers || {};
+    const eLine = isFinite(G.theirE) ? `|${fmt(G.va)} − ${fmt(G.vb)}| V / ${fmt(G.dcm / 100)} m = ${fmt(G.expectE)} V/m · they wrote ${fmt(G.theirE)} V/m` : 'not calculated';
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">Points</div><div class="v">${G.nPts}</div><div class="s">${G.paths}/20 paths with 6+ points · source ${fmt(G.vbat)} V</div></div>
+        <div class="tile"><div class="k">Crossing angle</div><div class="v" style="font-size:1.2rem">${angleText(G.pred)} → ${angleText(G.corr)}</div><div class="s">predicted → after the rule${G.corr.up ? ` · ${G.corr.up} uphill` : ''}</div></div>
+        <div class="tile"><div class="k">Field between the strips</div><div class="v">${fmt(G.Efit)} <small>V/m</small></div><div class="s">from their points · ${esc(eLine)}</div></div>
+        ${sentTile(G)}
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="card"><h3>Their maps: points, equipotential lines, predicted field (dashed) and field after the rule</h3>${mapLegend()}${fourMaps('dm')}</div>
+      <div class="card"><h3>By arrangement</h3>${arrTable(G)}</div>
+      <div class="answers">
+        ${detailAnswer('Shapes of the equipotential lines', a.shapes)}
+        ${detailAnswer('Prediction: direction of the field', a.direction)}
+        ${detailAnswer('Prediction: where the field is strongest', a.strongest)}
+        ${detailAnswer('After the rule: what changed', a.changed)}
+        ${detailAnswer('Field between the strips: the same everywhere?', a.uniform)}
+        ${detailAnswer(`Outside the ring (reading ${String(a.outside ?? '').trim() || '—'} V)`, a.ring)}
+        ${detailAnswer('Strongest and weakest field', a.where)}
+        ${detailAnswer('From a voltmeter to the field', a.howfield)}
+        ${detailAnswer(errorsTitle(c), c.errtext)}
+        ${detailAnswer('Conclusion', c.text)}
+        ${detailAnswer('How they shared the work', c.roles)}
+      </div>`;
+  },
+  drawDetail: G => EQ_KEYS.forEach(k => drawMap(document.getElementById('dm-' + k), k, G.arr[k].d, 'all')),
+
+  computed: G => ({
+    points: G.nPts, paths_with_6_points: G.paths,
+    crossing_angle_predicted_deg: typical(G.pred), crossing_angle_after_rule_deg: typical(G.corr), field_lines_uphill: G.corr.up,
+    E_from_points_V_per_m: G.Efit, E_they_found_V_per_m: G.theirE, E_from_their_numbers_V_per_m: G.expectE, E_check: G.eVerdict || null,
+    by_arrangement: Object.fromEntries(EQ_KEYS.map(k => [k, { points: G.arr[k].n, paths: G.arr[k].paths, lines: G.arr[k].levels,
+      crossing_predicted_deg: typical(G.arr[k].pred), crossing_after_rule_deg: typical(G.arr[k].corr), median_dV_from_model: G.arr[k].dvModel }])),
+  }),
+  csv: {
+    head: ['session', 'group', 'students', 'source_V', 'points', 'paths', ...EQ_KEYS.map(k => 'points_' + k), 'crossing_predicted_deg', 'crossing_after_rule_deg',
+      'field_lines_uphill', 'E_from_points_V_per_m', 'E_line1_V', 'E_line2_V', 'E_distance_cm', 'E_they_found_V_per_m', 'outside_ring_V'],
+    rows: G => [[G.s.session, G.s.group, who(G), G.vbat, G.nPts, G.paths, ...EQ_KEYS.map(k => G.arr[k].n), typical(G.pred), typical(G.corr),
+      G.corr.up, G.Efit, G.va, G.vb, G.dcm, G.theirE, G.outside]],
+  },
+
+  demo() {
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz',
+      'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva', 'Camila Torres', 'Daniel Ramírez', 'Sara Medina', 'Felipe Ríos'];
+    const texts = {
+      shapes: ['In A the lines are circles around the center dot, very close together near the dot and farther apart near the ring. In B they curve around each dot and the 4 V and 5 V lines are almost straight in the middle. In C they are circles near the dot and become straight near the strip. In D they are straight lines parallel to the strips and equally spaced, except near the ends where they bend.',
+        'They are circles and lines. Some are close.'],
+      direction: ['From the red electrode to the black one, because a positive charge is pushed away from high voltage. They should cross the equipotential lines, not follow them.',
+        'From black to red because black is negative.'],
+      strongest: ['Near the small dots, because the voltage changes a lot in a short distance there: the equipotential lines are squeezed together. In D it is about the same everywhere between the strips.',
+        'Near the red electrode because it has more voltage.'],
+      changed: ['We had the direction right, but in B our lines were straight and now they curve so they cross every equipotential at 90°. Near the dots they leave in all directions.',
+        'We made them cross at 90 degrees.'],
+      uniform: ['Yes in the middle: our lines are about 0.5 cm apart all the way, so E is the same there. Near the ends of the strips the lines spread out and bend, so the field is weaker.',
+        'It is uniform.'],
+      ring: ['It reads 0.00 V everywhere outside: all of it is at the same potential as the ring, so there are no equipotential lines and no field lines outside. The field is zero there.',
+        'It was zero because there is no voltage.'],
+      where: ['Strongest next to the small dots in A, B and C, where the lines are closest. Weakest near the ring in A and far from the electrodes in B, where the lines are far apart.',
+        'Strongest near the dots.'],
+      howfield: ['The field is how fast the potential changes with distance. By mapping where the potential is 1 V, 2 V … we could see where it changes quickly (close lines) and the field is perpendicular to the lines, from high to low.',
+        'We drew lines perpendicular.'],
+      conclusion: ['Equipotential lines join points with the same potential and field lines always cross them at 90°, pointing from 9 V to 0 V. The closer the lines, the stronger the field: between the parallel strips the lines were evenly spaced and the field was about 190 V/m, almost uniform, and inside a ring the field is radial while outside it there is no field.',
+        'Field lines are perpendicular to equipotential lines.'],
+      roles: ['Laura built the electrodes and connected the source, Andrés measured with the voltmeter, and we marked the points and wrote together.', 'We did it together.'],
+    };
+    // Each demo group: how carefully it measured, and how it drew the field before and after the rule
+    const KIND = [
+      { pred: 'good', corr: 'good' }, { pred: 'straight', corr: 'good' }, { pred: 'reversed', corr: 'good', sparse: true }, { pred: 'straight', corr: 'sloppy' },
+      { pred: 'good', corr: 'good' }, { pred: 'reversed', corr: 'reversed', few: true }, { pred: 'straight', corr: 'good' }, { pred: 'good', corr: 'good', sparse: true },
+    ];
+    const reports = [];
+    for (let gi = 1; gi <= 8; gi++) {
+      const kind = KIND[gi - 1], vbat = +rnd(8.6, 9.5).toFixed(2), good = ![4, 6].includes(gi);
+      const map = demoMap(rnd, vbat, kind);
+      // their Δd between the 2 V and 7 V lines in the middle of D, and E (group 3 forgets to change cm to m)
+      const yAt = L => { let a = 3, b = 7; for (let i = 0; i < 30; i++) { const m = (a + b) / 2; if (eqPotential('D', 21, m) * vbat / EQ_HIGH < L) a = m; else b = m; } return (a + b) / 2; };
+      const d = +(yAt(7) - yAt(2) + rnd(-0.15, 0.15)).toFixed(1), E = gi === 3 ? 5 / d : 5 / (d / 100);
+      const pick = k => good ? texts[k][0] : texts[k][1];
+      reports.push({
+        schema: 1, lab: 'equipotential', id: 'demo' + gi, session: 'DEMO', group: String(gi), students: [names[gi * 2 - 2], names[gi * 2 - 1]],
+        built: { A: true, B: true, C: true, D: true }, setup: { vbat: String(vbat) }, map,
+        efield: { va: '2', vb: '7', d: String(d), E: E.toFixed(gi === 3 ? 2 : 0) },
+        answers: { shapes: pick('shapes'), direction: pick('direction'), strongest: pick('strongest'), changed: pick('changed'), uniform: pick('uniform'),
+          outside: gi === 7 ? '0.35' : (Math.random() < .5 ? '0.00' : '0.01'), ring: pick('ring'), where: pick('where'), howfield: pick('howfield') },
+        conclusion: { errors: Object.keys({ tape: 1, contact: 1, probe: 1, reading: 1, position: 1, marking: 1, battery: 1, drawing: 1 }).filter(() => Math.random() < 0.4),
+          errtext: gi === 1 ? 'The ring was hard to make round with straight pieces of tape.' : '', text: pick('conclusion'), roles: pick('roles') },
+        startedAt: new Date().toISOString(), submittedAt: new Date(Date.now() - (9 - gi) * 60000).toISOString(),
+      });
+    }
+    return reports;
+  },
+});
+</script>
+</body>
+</html>

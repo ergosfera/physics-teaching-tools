@@ -57,6 +57,17 @@ const LAB_TOPICS = [
       },
     ],
   },
+  {
+    name: 'Electricity', icon: '⚡',
+    labs: [
+      {
+        id: 'equipotential', icon: '🗺️', title: 'Equipotential Lines',
+        desc: 'Build four arrangements of copper electrodes on conductive paper, find the points at 1 V, 2 V … 8 V with a voltmeter and map them. Join them into equipotential lines, predict the electric field, then draw it with the rule.',
+        student: 'electricity/equipotential_lab.html',
+        teacher: 'electricity/equipotential_teacher.html',
+      },
+    ],
+  },
 ];
 
 const MATH_TOPICS = [

@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Equipotential Lines Lab</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950;
+    --green-soft: rgba(63,185,80,.12);
+    --amber: #d29922;
+    --amber-soft: rgba(210,153,34,.14);
+    --red: #f85149;
+    --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #0969da;
+    --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37;
+    --green-soft: rgba(26,127,55,.09);
+    --amber: #9a6700;
+    --amber-soft: rgba(154,103,0,.10);
+    --red: #cf222e;
+  }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.5; min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.3px; }
+  header h1 span { color: var(--accent); }
+  .progress { flex: 1; min-width: 140px; display: flex; gap: 4px; }
+  .progress i { flex: 1; height: 6px; border-radius: 3px; background: var(--surface2); border: 1px solid var(--border); }
+  .progress i.done { background: var(--green); border-color: var(--green); }
+  .progress i.current { background: var(--accent); border-color: var(--accent); }
+  .save-state { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .pill-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 20px; padding: 5px 12px; font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer;
+  }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  .intro { color: var(--muted); font-size: .92rem; margin-bottom: 20px; }
+  .intro b { color: var(--text); }
+
+  /* ── STEPS ── */
+  .step {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .step-head {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-head .num {
+    width: 30px; height: 30px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; font-weight: 800; font-size: .9rem;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .step.done .num { background: var(--green); border-color: var(--green); color: #fff; }
+  .step.active .num { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step-head h2 { font-size: 1.02rem; font-weight: 700; flex: 1; }
+  .step-head .status { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .step.done .status { color: var(--green); }
+  .step-body { padding: 18px; display: grid; gap: 16px; }
+  .step-lock { display: none; padding: 14px 18px; color: var(--muted); font-size: .88rem; }
+  .step.locked .step-body { display: none; }
+  .step.locked .step-lock { display: block; }
+  .step.locked .step-head { border-bottom: none; opacity: .6; }
+
+  p.lead { font-size: .93rem; }
+  ul.tips, ol.tips { font-size: .86rem; color: var(--muted); padding-left: 20px; display: grid; gap: 3px; }
+  ul.tips b, ol.tips b { color: var(--text); }
+  h3.sub { font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+
+  /* ── FORM ── */
+  label.f { display: grid; gap: 5px; font-size: .82rem; font-weight: 600; color: var(--muted); align-content: end; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .grid4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; font: inherit; font-size: .95rem; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  .q { display: grid; gap: 6px; }
+  .q .qt { font-size: .93rem; font-weight: 600; }
+  .q .qt em { font-style: normal; color: var(--accent); }
+  .wc { font-size: .72rem; color: var(--muted); text-align: right; }
+  .wc.ok { color: var(--green); }
+
+  .choices { display: grid; gap: 6px; }
+  .choices label {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: .92rem;
+  }
+  .choices label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px; }
+  .checks label { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; cursor: pointer; }
+  .checks input { margin-top: 4px; }
+
+  .btn {
+    font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;
+    border-radius: 8px; padding: 9px 16px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); text-decoration: none; display: inline-block;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .row-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .note {
+    border-radius: 8px; padding: 10px 14px; font-size: .88rem;
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+  }
+  .note.warn { background: var(--amber-soft); border-left-color: var(--amber); }
+  .note.good { background: var(--green-soft); border-left-color: var(--green); }
+  .discuss {
+    border: 1px dashed var(--accent); border-radius: 10px; padding: 14px; display: grid; gap: 8px;
+    background: var(--accent-soft);
+  }
+  .discuss .tag { font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  .box { border: 1px solid var(--border); border-radius: 10px; padding: 14px; display: grid; gap: 12px; background: var(--bg); }
+
+  .caption { font-size: .82rem; color: var(--muted); }
+  .eq { font-family: Consolas, 'Courier New', monospace; font-size: .95rem; }
+  .table-wrap { overflow-x: auto; }
+  table.data { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  table.data th { text-align: left; font-size: .74rem; color: var(--muted); font-weight: 700; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.data td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+
+  .summary { display: grid; gap: 4px; font-size: .9rem; }
+  .summary div::before { content: '○ '; color: var(--muted); }
+  .summary div.ok::before { content: '✓ '; color: var(--green); font-weight: 800; }
+
+  /* ── LAB GUIDE ── */
+  dialog.guide {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+    width: min(820px, 94vw); max-height: 90vh; margin: auto; padding: 0;
+  }
+  dialog.guide::backdrop { background: rgba(0,0,0,.55); }
+  .guide-head { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .guide-head h2 { font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .guide-body { padding: 18px; display: grid; gap: 18px; font-size: .92rem; }
+  .guide-body h3 { font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .guide-body ol, .guide-body ul { padding-left: 22px; display: grid; gap: 6px; }
+  .guide-body li b { color: var(--text); }
+  .guide-materials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .guide-materials { grid-template-columns: 1fr; } }
+  .guide-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .guide-box .bt { font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  .guide-fig { width: 100%; height: auto; display: block; }
+  .guide-fig text { font-family: 'Segoe UI', system-ui, sans-serif; }
+  .guide-foot { padding: 0 18px 18px; display: flex; justify-content: flex-end; }
+  kbd { font-family: Consolas, 'Courier New', monospace; font-size: .82rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
+
+  ol.howto { padding-left: 22px; display: grid; gap: 6px; font-size: .9rem; }
+  ol.howto li::marker { color: var(--accent); font-weight: 800; }
+  ol.howto b { color: var(--text); }
+
+  footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
+  footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+
+  .chk { font-weight: 800; margin-left: 6px; }
+  .chk.ok { color: var(--green); }
+  .chk.bad { color: var(--amber); }
+  .formula { font-family: Consolas, 'Courier New', monospace; font-size: .9rem; color: var(--muted); }
+  .formula b { color: var(--text); }
+
+  /* ── THE MAP ── */
+  .mapper { display: grid; gap: 10px; }
+  .arr-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .arr-tabs button {
+    font: inherit; font-size: .84rem; font-weight: 700; cursor: pointer; border-radius: 8px; padding: 7px 12px;
+    background: var(--surface2); color: var(--muted); border: 1px solid var(--border); display: flex; gap: 6px; align-items: center;
+  }
+  .arr-tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .arr-tabs button .st { font-weight: 600; font-size: .74rem; opacity: .85; }
+  .arr-tabs button.ok .st { color: var(--green); opacity: 1; }
+  .arr-tabs button.on.ok .st { color: #fff; }
+  .map-tools { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: .82rem; }
+  .map-tools .grp { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  .map-tools .lbl { font-weight: 700; color: var(--muted); margin-right: 2px; }
+  .tb {
+    font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; border-radius: 6px; padding: 4px 9px; min-width: 34px;
+    background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+  }
+  .tb:hover:not(:disabled) { border-color: var(--accent); }
+  .tb.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tb.v { border-width: 2px; }
+  .tb.v.on { color: #111; }
+  .tb:disabled { opacity: .45; cursor: not-allowed; }
+  .tb small { font-weight: 600; opacity: .8; }
+  .map-wrap { position: relative; }
+  svg.map { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; touch-action: none; cursor: crosshair; user-select: none; }
+  svg.map:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  svg.map text { font-family: 'Segoe UI', system-ui, sans-serif; }
+  .map-coord { position: absolute; top: 8px; right: 10px; font: 700 .8rem Consolas, 'Courier New', monospace; color: #fff; background: rgba(0,0,0,.6); border-radius: 6px; padding: 2px 8px; pointer-events: none; white-space: nowrap; }
+  .map-coord:empty { display: none; }
+  .selbox { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: .85rem; }
+  .selbox input { width: 80px; padding: 5px 8px; font-size: .9rem; }
+  .dotv { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid #111; vertical-align: -1px; }
+  table.pts { border-collapse: collapse; font-size: .8rem; width: 100%; }
+  table.pts th { font-size: .72rem; color: var(--muted); font-weight: 700; padding: 4px; text-align: center; }
+  table.pts td { padding: 3px; text-align: center; border-top: 1px solid var(--border); }
+  table.pts td.c { cursor: pointer; font-variant-numeric: tabular-nums; color: var(--muted); border-radius: 4px; white-space: nowrap; }
+  table.pts td.c:hover { background: var(--accent-soft); }
+  table.pts td.c.has { color: var(--text); }
+  table.pts td.c.cur { outline: 2px solid var(--accent); outline-offset: -2px; }
+  table.pts td.pl { font-weight: 700; text-align: left; white-space: nowrap; }
+  table.pts td.pl.ok { color: var(--green); }
+  .legend-row { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); align-items: center; }
+  .legend-row i { display: inline-block; width: 22px; height: 0; border-top: 3px solid; vertical-align: 3px; margin-right: 4px; }
+  .legend-row i.dash { border-top-style: dashed; }
+  .rule { display: grid; grid-template-columns: 1fr 240px; gap: 16px; align-items: center; }
+  @media (max-width: 640px) { .rule { grid-template-columns: 1fr; } }
+  .rule h4 { font-size: .95rem; margin-bottom: 4px; }
+  .rule p { font-size: .9rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="pill-btn" href="../../../index.html#lab-reports" style="text-decoration:none">← Lab Reports</a>
+  <h1>⚡ <span>Equipotential Lines</span> Lab</h1>
+  <div class="progress" id="progress"></div>
+  <span class="save-state" id="save-state">Saved on this computer</span>
+  <button class="pill-btn" data-guide>📋 Lab guide</button>
+  <button class="pill-btn" id="theme-toggle">☀ Light</button>
+</header>
+
+<main>
+  <p class="intro"><span data-team>Work <b>with your partner</b> through the steps in order.</span><span data-solo hidden>Measure with your group, but <b>write this report on your own</b>, in your own words. Go through the steps in order.</span> Each step unlocks the next one. Your work is saved on this computer as you go, so a reload won't lose it. When you finish, send the report to your teacher.</p>
+
+  <!-- 1 TEAM -->
+  <section class="step" data-step="1">
+    <div class="step-head"><span class="num">1</span><h2>Your team</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="q">
+        <div class="qt">Who writes this report? Do what your teacher told you.</div>
+        <div class="choices">
+          <label><input type="radio" name="mode" value="group"> Our group: one report for the whole group</label>
+          <label><input type="radio" name="mode" value="individual"> Just me: my own report, in my own words</label>
+        </div>
+      </div>
+      <div class="grid2">
+        <label class="f"><span>Class / session code</span><input type="text" data-bind="session" id="session-input" placeholder="e.g. 11A"></label>
+        <label class="f"><span>Group number</span><input type="text" inputmode="numeric" data-bind="group" placeholder="e.g. 4"></label>
+      </div>
+      <div class="grid2">
+        <label class="f"><span data-team>Student 1</span><span data-solo hidden>Your name</span><input type="text" data-bind="students.0" placeholder="Full name"></label>
+        <label class="f" data-team><span>Student 2</span><input type="text" data-bind="students.1" placeholder="Full name"></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 BUILD -->
+  <section class="step" data-step="2">
+    <div class="step-head"><span class="num">2</span><h2>Build the four arrangements</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">Your conductive paper has a <b>centimeter grid</b> and is divided into <b>four regions</b>. With the copper tape, build one arrangement of electrodes in each region, <b>exactly where this map shows it</b>. Use the numbers on the edges of the paper to find each position.</p>
+      <svg class="map" id="build-map" style="cursor:default"></svg>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Region</th><th>Arrangement</th><th>Copper tape (positions in cm, x across and y up)</th></tr></thead>
+          <tbody>
+            <tr><td><b>A</b></td><td>Dot inside a ring</td><td>A <b>ring</b> centered at (6.5, 14.5) with a <b>radius of 4 cm</b> (it goes from x = 2.5 to 10.5 and from y = 10.5 to 18.5), made of short straight pieces. A <b>dot</b> about 1 cm wide at its center.</td></tr>
+            <tr><td><b>B</b></td><td>Two dots</td><td>Two <b>dots</b> about 1 cm wide, centered at (17, 15) and (23, 15).</td></tr>
+            <tr><td><b>C</b></td><td>Dot and a strip</td><td>A <b>dot</b> centered at (4.5, 5.5). A vertical <b>strip</b> at x = 11, from y = 2 to y = 9.5.</td></tr>
+            <tr><td><b>D</b></td><td>Two parallel strips</td><td>Two horizontal <b>strips</b> from x = 18 to x = 24: one along y = 7.25 and one along y = 2.75 (4.5 cm apart).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul class="tips">
+        <li>Where two pieces of tape meet, <b>overlap them</b> by a few millimeters and press hard: the tape conducts on both sides, so overlapped pieces are connected.</li>
+        <li>Press every piece flat with your fingernail. A piece that doesn't touch the paper well gives strange readings.</li>
+        <li>The badges on the map tell you where each lead goes: <b style="color:#ff6b6b">9 V</b> = the <b>red</b> lead, <b>0 V</b> = the <b>black</b> lead.</li>
+      </ul>
+      <div class="q">
+        <div class="qt">Tick each arrangement when it is built and pressed down.</div>
+        <div class="checks" id="built-checks"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 MEASURE -->
+  <section class="step" data-step="3">
+    <div class="step-head"><span class="num">3</span><h2>Find the points with 1 V, 2 V, 3 V …</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <h3 class="sub">a · Connect (student 1)</h3>
+      <ol class="howto">
+        <li>Choose the arrangement you'll measure first (the tabs on the map below).</li>
+        <li>Connect the <b>black</b> lead of the 9 V source to the electrode marked <b>0 V</b>, and the <b>red</b> lead to the electrode marked <b>9 V</b>. Clip firmly onto the copper tape.</li>
+        <li>Never let the two leads touch each other.</li>
+      </ol>
+      <h3 class="sub">b · Check the source (student 2)</h3>
+      <ol class="howto">
+        <li>Set the voltmeter (multimeter) to <b>DC volts</b>, on the 20 V range.</li>
+        <li>Touch the <b>black probe</b> to the 0 V electrode and the <b>red probe</b> to the 9 V electrode. Write the reading.</li>
+      </ol>
+      <label class="f" style="max-width:280px"><span>Voltage between the electrodes (V)</span><input type="text" inputmode="decimal" data-bind="setup.vbat" placeholder="e.g. 9.2"></label>
+      <div id="vbat-warn"></div>
+      <h3 class="sub">c · Find the points, path by path (student 2)</h3>
+      <ol class="howto">
+        <li>Keep the <b>black probe</b> pressed on the <b>0 V electrode</b> the whole time.</li>
+        <li>Put the tip of the <b>red probe</b> on the paper next to the 0 V electrode, and slide it slowly <b>toward the 9 V electrode</b>.</li>
+        <li>Stop where the voltmeter reads <b>1.00 V</b>. Look at the paper's grid and <b>read the position</b> of the probe tip (x across, y up).</li>
+        <li>Mark that point on the map below (student 1): choose the <b>path</b> and the <b>voltage</b>, then click the same spot. The box in the corner of the map shows where you are; zoom the page if you need more precision, or type x and y.</li>
+        <li>Keep sliding toward the 9 V electrode and mark <b>2 V, 3 V … 8 V</b> the same way. That is <b>one path</b>.</li>
+        <li>Do <b>5 different paths</b> in this arrangement. <b>Spread them out</b>: go straight, go around the sides, go above and below. Then move the leads to the next arrangement.</li>
+      </ol>
+      <div class="note">Each arrangement needs <b>5 paths</b> with at least <b>6</b> of the 8 voltages (1 V to 8 V). Points very close to a small electrode can be hard to find: if you can't find one, skip it.</div>
+      <div class="mapper" data-mode="points"></div>
+    </div>
+  </section>
+
+  <!-- 4 EQUIPOTENTIAL LINES -->
+  <section class="step" data-step="4">
+    <div class="step-head"><span class="num">4</span><h2>Join the points with the same voltage</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">All the points marked 3 V, for example, have the <b>same potential</b>. A line through them is an <b>equipotential line</b>: anywhere along it, the voltmeter reads 3 V.</p>
+      <ol class="howto">
+        <li>Choose a voltage, then <b>draw a smooth line</b> through all the points of that voltage: press, drag and release.</li>
+        <li>Join points of the <b>same voltage only</b>. Don't zigzag to hit every point exactly: draw the smooth curve that passes closest to them.</li>
+        <li>You may continue a line past your last point if you think it goes on. A line that comes out wrong: <b>Erase</b> it and draw it again.</li>
+        <li>Draw the lines in <b>all four</b> arrangements, for at least 5 voltages in each.</li>
+      </ol>
+      <div class="mapper" data-mode="equi"></div>
+      <div class="q">
+        <div class="qt">Describe the <em>shape</em> of the equipotential lines in each arrangement (A, B, C and D). Where are they <em>close together</em>, and where are they <em>far apart</em>?</div>
+        <textarea data-bind="answers.shapes" data-min="30" style="min-height:110px"></textarea>
+        <div class="wc" data-wc="answers.shapes"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 PREDICT THE FIELD -->
+  <section class="step" data-step="5">
+    <div class="step-head"><span class="num">5</span><h2>Predict the electric field</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">The electric field pushes a positive charge from one electrode toward the other. <b>Discuss with your partner</b>, then draw how you think the <b>electric field lines</b> go in each arrangement.</p>
+      <ol class="howto">
+        <li>Draw each field line <b>in the direction the field points</b>: start where you think the field comes from and end where it goes. Arrows appear in the direction you drew.</li>
+        <li>Draw <b>at least 3 field lines</b> in each of the four arrangements.</li>
+      </ol>
+      <div class="mapper" data-mode="field"></div>
+      <div class="q">
+        <div class="qt">Which way do your field lines point, and how did you decide? How are they related to the equipotential lines you drew?</div>
+        <textarea data-bind="answers.direction" data-min="15"></textarea>
+        <div class="wc" data-wc="answers.direction"></div>
+      </div>
+      <div class="q">
+        <div class="qt">In each arrangement, where do you think the field is <em>strongest</em>? Why?</div>
+        <textarea data-bind="answers.strongest" data-min="15"></textarea>
+        <div class="wc" data-wc="answers.strongest"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 THE RULE -->
+  <section class="step" data-step="6">
+    <div class="step-head"><span class="num">6</span><h2>How field lines and equipotential lines meet</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">Read this together. It is how physicists draw electric fields from equipotential lines.</p>
+      <div class="box rule">
+        <div style="display:grid;gap:12px">
+          <div><h4>1 · They always cross at right angles</h4><p>A field line crosses every equipotential line at <b>90°</b>. Moving a charge along an equipotential line doesn't change its potential, so the field does no work on it there: the field has no part along the line, only across it.</p></div>
+          <div><h4>2 · The field points downhill</h4><p>Field lines go from <b>higher potential to lower potential</b>: they leave the 9 V electrode and arrive at the 0 V electrode.</p></div>
+          <div><h4>3 · Close lines, strong field</h4><p>Where the equipotential lines are <b>close together</b>, the potential changes quickly and the field is <b>strong</b>. Its size is about <span class="eq">E = ΔV / Δd</span>: the voltage difference between two lines divided by the distance between them.</p></div>
+          <div><h4>4 · Electrodes are equipotentials too</h4><p>All the copper of one electrode has the same potential, so field lines leave and reach an electrode <b>perpendicular to its edge</b>.</p></div>
+        </div>
+        <svg class="guide-fig" viewBox="0 0 240 240" aria-label="Circular equipotential lines around a dot, with straight field lines going out from the center and crossing every circle at a right angle">
+          <rect width="240" height="240" rx="10" fill="#1c1d20"/>
+          <circle cx="120" cy="120" r="34" fill="none" stroke="#ff6b4a" stroke-width="2.5"/>
+          <circle cx="120" cy="120" r="62" fill="none" stroke="#f2d53c" stroke-width="2.5"/>
+          <circle cx="120" cy="120" r="96" fill="none" stroke="#22c3e6" stroke-width="2.5"/>
+          <g stroke="#fff" stroke-width="2">
+            <line x1="120" y1="108" x2="120" y2="14"/><line x1="120" y1="132" x2="120" y2="226"/>
+            <line x1="108" y1="120" x2="14" y2="120"/><line x1="132" y1="120" x2="226" y2="120"/>
+            <line x1="128.5" y1="111.5" x2="191" y2="49"/><line x1="111.5" y1="128.5" x2="49" y2="191"/>
+            <line x1="111.5" y1="111.5" x2="49" y2="49"/><line x1="128.5" y1="128.5" x2="191" y2="191"/>
+          </g>
+          <g fill="#fff">
+            <polygon points="120,20 115,30 125,30"/><polygon points="120,220 115,210 125,210"/>
+            <polygon points="20,120 30,115 30,125"/><polygon points="220,120 210,115 210,125"/>
+            <polygon points="187,53 176,57 183,64"/><polygon points="53,187 57,176 64,183"/>
+            <polygon points="53,53 64,57 57,64"/><polygon points="187,187 176,183 183,176"/>
+          </g>
+          <circle cx="120" cy="120" r="12" fill="#c9875b" stroke="#f0b48a"/>
+          <text x="120" y="124" text-anchor="middle" font-size="10" font-weight="800" fill="#111">9 V</text>
+          <path d="M 162 120 v -9 h 9" fill="none" stroke="#fff" stroke-width="1.5"/>
+          <text x="176" y="106" font-size="11" fill="#fff">90°</text>
+          <text x="8" y="232" font-size="11" fill="#22c3e6">far apart: weak</text>
+          <text x="150" y="232" font-size="11" fill="#ff6b4a">close: strong</text>
+        </svg>
+      </div>
+      <h3 class="sub">Now draw the field again, following the rules</h3>
+      <p class="lead">Your prediction stays on the map as a dashed purple line. Draw new field lines in <b>white</b>: from the 9 V electrode to the 0 V electrode, crossing every equipotential line at 90°. At least 3 in each arrangement.</p>
+      <div class="mapper" data-mode="field2"></div>
+      <div class="q">
+        <div class="qt">Compare your new field lines with your prediction. What was right, and what did you change?</div>
+        <textarea data-bind="answers.changed" data-min="15"></textarea>
+        <div class="wc" data-wc="answers.changed"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 REFLECT -->
+  <section class="step" data-step="7">
+    <div class="step-head"><span class="num">7</span><h2>Reflect</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <h3 class="sub">a · How strong is the field between the strips?</h3>
+      <p class="lead">In arrangement <b>D</b>, choose two of your equipotential lines between the strips, and measure the distance between them <b>along a field line</b> (straight across, near the middle). Use the coordinates on the map or the grid on your paper.</p>
+      <div class="grid4">
+        <label class="f"><span>Line 1 (V)</span><select data-bind="efield.va"></select></label>
+        <label class="f"><span>Line 2 (V)</span><select data-bind="efield.vb"></select></label>
+        <label class="f"><span>Distance Δd (cm)</span><input type="text" inputmode="decimal" data-bind="efield.d" placeholder="e.g. 2.4"></label>
+      </div>
+      <p class="lead">Then <span class="eq">E = ΔV / Δd</span> with Δd in <b>meters</b>. <span class="formula" id="f-e"></span></p>
+      <label class="f" style="max-width:260px"><span>E (V/m) <b class="chk" data-chk="efield.E"></b></span><input type="text" inputmode="decimal" data-bind="efield.E"></label>
+      <div id="e-note" class="note" hidden></div>
+      <div class="q">
+        <div class="qt">Is the field between the two strips the <em>same everywhere</em>? Use the spacing of your equipotential lines as evidence. What happens near the ends of the strips?</div>
+        <textarea data-bind="answers.uniform" data-min="15"></textarea>
+        <div class="wc" data-wc="answers.uniform"></div>
+      </div>
+      <h3 class="sub">b · Outside the ring</h3>
+      <p class="lead">Connect arrangement <b>A</b> again. Keep the black probe on the ring and touch the red probe on the paper <b>outside the ring</b>, at two or three places.</p>
+      <label class="f" style="max-width:280px"><span>Voltmeter reading outside the ring (V)</span><input type="text" inputmode="decimal" data-bind="answers.outside" placeholder="e.g. 0.00"></label>
+      <div class="q">
+        <div class="qt">Explain that reading. What is the electric field <em>outside</em> the ring? Use equipotential lines and field lines in your answer.</div>
+        <textarea data-bind="answers.ring" data-min="15"></textarea>
+        <div class="wc" data-wc="answers.ring"></div>
+      </div>
+      <h3 class="sub">c · Looking back</h3>
+      <div class="q">
+        <div class="qt">Where on your four maps is the field <em>strongest</em>, and where is it <em>weakest</em>? How can you tell just by looking at the equipotential lines?</div>
+        <textarea data-bind="answers.where" data-min="15"></textarea>
+        <div class="wc" data-wc="answers.where"></div>
+      </div>
+      <div class="q">
+        <div class="qt">The voltmeter measures <em>potential</em>, not field. Explain how, with only a voltmeter, you were able to find the electric field.</div>
+        <textarea data-bind="answers.howfield" data-min="15"></textarea>
+        <div class="wc" data-wc="answers.howfield"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 CONCLUDE -->
+  <section class="step" data-step="8">
+    <div class="step-head"><span class="num">8</span><h2>Conclude</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="q">
+        <div class="qt">Which sources of error affected your maps most? Discuss and choose.</div>
+        <div class="checks" id="err-checks"></div>
+        <textarea data-bind="conclusion.errtext" placeholder="Other sources of error, or how you could reduce them (optional)" style="min-height:60px"></textarea>
+      </div>
+      <div class="q">
+        <div class="qt">Conclusion: what did you learn about equipotential lines and electric field lines? Use what you saw in your four maps.</div>
+        <textarea data-bind="conclusion.text" data-min="25" style="min-height:120px"></textarea>
+        <div class="wc" data-wc="conclusion.text"></div>
+      </div>
+      <div class="q">
+        <div class="qt"><span data-team>How did you share the work?</span><span data-solo hidden>How did your group share the work, and what did you do yourself?</span> (Who built the electrodes, who connected the source, who measured, who marked the points, who wrote…)</div>
+        <textarea data-bind="conclusion.roles" data-min="5" style="min-height:60px"></textarea>
+        <div class="wc" data-wc="conclusion.roles"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 SUBMIT -->
+  <section class="step" data-step="9">
+    <div class="step-head"><span class="num">9</span><h2>Send your report</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="summary" id="summary"></div>
+      <div class="row-btns">
+        <button class="btn primary" id="send">📤 Send to teacher</button>
+        <button class="btn" id="download">⬇ Download backup file</button>
+        <button class="btn" id="next-group">👥 New report for the next group</button>
+      </div>
+      <div id="send-status"></div>
+    </div>
+  </section>
+</main>
+
+<dialog class="guide" id="guide">
+  <div class="guide-head"><h2>📋 Lab guide: Equipotential Lines</h2><button class="pill-btn" data-guide-close>Close</button></div>
+  <div class="guide-body">
+    <p class="note">Read this together before you start. It tells you what you'll do in this lab; the detailed instructions are inside each step of the report. You can open it again at any moment with the <b>📋 Lab guide</b> button at the top.</p>
+
+    <section>
+      <h3>Goal</h3>
+      <p>Map the <b>potential</b> on a sheet of conductive paper between two electrodes, for four different arrangements. Join the points with the same voltage into <b>equipotential lines</b>, and use them to find the <b>electric field</b>.</p>
+    </section>
+
+    <section>
+      <h3>The four arrangements</h3>
+      <svg class="guide-fig" id="guide-map" aria-label="The conductive paper with its four regions: A, a dot inside a ring; B, two dots; C, a dot and a strip; D, two parallel strips"></svg>
+    </section>
+
+    <section>
+      <h3>What you'll do</h3>
+      <ol>
+        <li><b>Build</b> (step 2): copy the four arrangements onto your paper with copper tape.</li>
+        <li><b>Measure</b> (step 3): one of you connects the 9 V source, the other finds the points where the voltmeter reads 1 V, 2 V … 8 V. Mark them on the map in this report: 5 paths in each arrangement.</li>
+        <li><b>Join</b> (step 4): draw the equipotential lines through the points with the same voltage.</li>
+        <li><b>Predict</b> (step 5): draw how you think the electric field goes.</li>
+        <li><b>Learn the rule</b> (step 6): how field lines and equipotential lines meet, and draw the field again.</li>
+        <li><b>Reflect, conclude and send</b> (steps 7 to 9).</li>
+      </ol>
+    </section>
+
+    <section>
+      <h3>Materials</h3>
+      <div class="guide-materials">
+        <div class="guide-box"><div class="bt">Each group</div>
+          <ul>
+            <li>A sheet of conductive paper with a centimeter grid</li>
+            <li>Copper tape (conductive on both sides) and scissors</li>
+            <li>A 9 V source (battery or power supply) with a red and a black lead with clips</li>
+            <li>A voltmeter or multimeter with two probes</li>
+            <li>A computer with this page</li>
+          </ul>
+        </div>
+        <div class="guide-box"><div class="bt">Tips</div>
+          <ul>
+            <li>Press the probe tip gently on the paper: don't scratch or pierce it.</li>
+            <li>Wait a second for the reading to settle before you mark a point.</li>
+            <li>Read positions from the grid on the paper, with your eyes straight above the probe tip.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="note warn"><b>Take care:</b> 9 V is safe to touch, but never connect the red and black leads directly to each other: the battery heats up and runs down. Disconnect the source when you finish.</div>
+  </div>
+  <div class="guide-foot"><button class="btn primary" data-guide-close>Got it, let's start</button></div>
+</dialog>
+
+<dialog class="guide" id="who-dlg">
+  <div class="guide-head"><h2>👋 Whose report is this?</h2></div>
+  <div class="guide-body">
+    <p>This computer already has a report for this lab:</p>
+    <div class="note" id="who-cur"></div>
+    <p>Is it yours? If not, start a new report. The one already here is <b>kept on this computer</b>, so it is not lost.</p>
+    <div class="row-btns">
+      <button class="btn primary" id="who-continue">Yes, it's ours: continue</button>
+      <button class="btn" id="who-new">No, start a new report</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="guide" id="arch-dlg">
+  <div class="guide-head"><h2>🗂 Earlier reports on this computer</h2><button class="pill-btn" id="arch-close">Close</button></div>
+  <div class="guide-body">
+    <p class="note">Reports that earlier groups left on this computer. If one was not sent, download it and give the file to your teacher.</p>
+    <div id="arch-list" style="display:grid;gap:8px"></div>
+  </div>
+</dialog>
+
+<footer>
+  Equipotential Lines Lab · Ergosfera Teaching Tools · <button id="reset">Start a new report</button> · <button id="arch-open" hidden>Earlier reports on this computer</button>
+</footer>
+
+<script src="equipotential_common.js"></script>
+<script>
+// ── Config from the link the teacher shares ─────────────────
+const LAB_ID = 'equipotential';
+const params = new URLSearchParams(location.search);
+const API = params.get('api') || '';
+const LINK_SESSION = params.get('session') || '';
+const LINK_MODE = ['group', 'individual'].includes(params.get('mode')) ? params.get('mode') : '';
+const STORE = 'lab_' + LAB_ID + '_' + (LINK_SESSION || 'default');
+
+const NPATHS = 5;     // paths in each arrangement
+const MIN_PTS = 6;    // points (of the 8 voltages) for a path to count
+const MIN_LEVELS = 5; // equipotential lines (different voltages) in each arrangement
+const MIN_FIELD = 3;  // field lines in each arrangement
+const ERRORS = [
+  ['tape', 'Electrodes not exactly where the map shows them'],
+  ['contact', 'Poor contact: tape not pressed down, or clips loose'],
+  ['probe', 'Probe pressure or position on the paper'],
+  ['reading', 'Voltmeter reading not stable'],
+  ['position', 'Reading the position on the grid'],
+  ['marking', 'Marking the points on the screen'],
+  ['battery', 'Battery voltage changing during the lab'],
+  ['drawing', 'Drawing the lines by hand'],
+];
+
+// ── State ───────────────────────────────────────────────────
+function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+const blankMap = () => Object.fromEntries(EQ_KEYS.map(k => [k, { points: [], equi: [], field: [], field2: [] }]));
+function blank() {
+  return {
+    schema: 1, lab: LAB_ID, id: rid(), session: LINK_SESSION, mode: LINK_MODE, group: '', students: ['', ''],
+    built: { A: false, B: false, C: false, D: false },
+    setup: { vbat: '' },
+    map: blankMap(),
+    efield: { va: '2', vb: '7', d: '', E: '' },
+    answers: { shapes: '', direction: '', strongest: '', changed: '', uniform: '', outside: '', ring: '', where: '', howfield: '' },
+    conclusion: { errors: [], errtext: '', text: '', roles: '' },
+    startedAt: new Date().toISOString(), unlocked: 1, sent: null,
+  };
+}
+let S = blank();
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+  if (saved && saved.lab === LAB_ID) S = Object.assign(blank(), saved);
+} catch (e) {}
+EQ_KEYS.forEach(k => { S.map[k] = Object.assign({ points: [], equi: [], field: [], field2: [] }, S.map[k]); });
+if (LINK_SESSION) S.session = LINK_SESSION;
+if (LINK_MODE) S.mode = LINK_MODE;
+
+let saveTimer;
+function save() {
+  S.savedAt = new Date().toISOString();
+  let ok = true;
+  try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { ok = false; }
+  const el = document.getElementById('save-state');
+  el.textContent = 'Saving…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { el.textContent = ok ? 'Saved on this computer ✓' : '⚠ Could not save on this computer'; }, 400);
+}
+
+function getPath(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), S); }
+function setPath(path, v) {
+  const keys = path.split('.'); let o = S;
+  keys.slice(0, -1).forEach(k => { o = o[k]; });
+  o[keys[keys.length - 1]] = v;
+}
+
+// ── Helpers ─────────────────────────────────────────────────
+const num = s => { const v = parseFloat(String(s ?? '').trim().replace(',', '.')); return isFinite(v) ? v : NaN; };
+const words = s => String(s || '').trim().split(/\s+/).filter(Boolean).length;
+function fmt(v, sig = 3) {
+  if (!isFinite(v)) return '—';
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e5 || a < 1e-3) return v.toExponential(sig - 1);
+  return String(parseFloat(v.toPrecision(sig)));
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const V = path => num(getPath(path));
+const shown = v => isFinite(v) ? `<b>${fmt(v, 4)}</b>` : '<b>?</b>';
+
+// What the map holds in each arrangement
+const pathsDone = k => [1, 2, 3, 4, 5].filter(p => S.map[k].points.filter(q => q.p === p).length >= MIN_PTS).length;
+const levels = k => new Set(S.map[k].equi.map(q => q.v)).size;
+const ARR_DONE = {
+  points: k => pathsDone(k) >= NPATHS,
+  equi: k => levels(k) >= MIN_LEVELS,
+  field: k => S.map[k].field.length >= MIN_FIELD,
+  field2: k => S.map[k].field2.length >= MIN_FIELD,
+};
+const allArr = mode => EQ_KEYS.every(ARR_DONE[mode]);
+
+// ── Calculations ────────────────────────────────────────────
+const EXPECT = { 'efield.E': () => Math.abs(V('efield.va') - V('efield.vb')) / (V('efield.d') / 100) };
+function verdict(k) {
+  const v = V(k), e = EXPECT[k]();
+  if (!isFinite(v) || !isFinite(e)) return '';
+  return Math.abs(v - e) <= Math.max(0.03 * Math.abs(e), 0.5) ? 'ok' : 'bad';
+}
+
+// ── Steps: completion rules ─────────────────────────────────
+const DONE = {
+  1: () => S.mode && S.group.trim() && S.students[0].trim() && (S.mode === 'individual' || S.students[1].trim()) && S.session.trim(),
+  2: () => EQ_KEYS.every(k => S.built[k]),
+  3: () => V('setup.vbat') > 0 && allArr('points'),
+  4: () => allArr('equi') && words(S.answers.shapes) >= 30,
+  5: () => allArr('field') && words(S.answers.direction) >= 15 && words(S.answers.strongest) >= 15,
+  6: () => allArr('field2') && words(S.answers.changed) >= 15,
+  7: () => isFinite(V('efield.d')) && isFinite(V('efield.E')) && V('efield.va') !== V('efield.vb') && String(S.answers.outside).trim() &&
+    ['uniform', 'ring', 'where', 'howfield'].every(k => words(S.answers[k]) >= 15),
+  8: () => words(S.conclusion.text) >= 25 && words(S.conclusion.roles) >= 5,
+  9: () => !!S.sent,
+};
+const NSTEPS = 9;
+
+function refresh() {
+  // unlock progressively; once unlocked, a step stays open
+  let firstOpen = 1;
+  while (firstOpen < NSTEPS && DONE[firstOpen]()) firstOpen++;
+  S.unlocked = Math.max(S.unlocked || 1, firstOpen);
+
+  const prog = document.getElementById('progress');
+  prog.innerHTML = '';
+  document.querySelectorAll('.step').forEach(sec => {
+    const i = +sec.dataset.step;
+    const done = !!DONE[i]();
+    const locked = i > S.unlocked;
+    sec.classList.toggle('done', done);
+    sec.classList.toggle('locked', locked);
+    sec.classList.toggle('active', !done && !locked);
+    sec.querySelector('.status').textContent = done ? '✓ Done' : locked ? '🔒' : 'In progress';
+    sec.querySelector('.step-lock').textContent = '🔒 Finish step ' + (i - 1) + ' to unlock this one.';
+    const dot = document.createElement('i');
+    if (done) dot.className = 'done'; else if (!locked) dot.className = 'current';
+    prog.appendChild(dot);
+  });
+
+  document.querySelectorAll('[data-wc]').forEach(el => {
+    const path = el.dataset.wc;
+    const min = +document.querySelector(`[data-bind="${path}"]`).dataset.min;
+    const w = words(getPath(path));
+    el.textContent = w + (w === 1 ? ' word' : ' words') + ' · at least ' + min;
+    el.classList.toggle('ok', w >= min);
+  });
+
+  refreshSetup();
+  MAPPERS.forEach(m => m.render());
+  refreshField();
+  refreshSummary();
+}
+
+// ── Generic bindings ────────────────────────────────────────
+// Voltage choices for the field calculation
+document.querySelectorAll('select[data-bind^="efield.v"]').forEach(sel => {
+  sel.innerHTML = EQ_VOLTS.map(v => `<option value="${v}">${v} V</option>`).join('');
+});
+function bindInputs(root) {
+  root.querySelectorAll('[data-bind]').forEach(el => {
+    const path = el.dataset.bind;
+    el.value = getPath(path) ?? '';
+    el.addEventListener('input', () => { setPath(path, el.value); save(); refresh(); });
+  });
+}
+bindInputs(document);
+if (LINK_SESSION) document.getElementById('session-input').readOnly = true;
+
+// Report mode: one report per group, or one per student. The class link can fix it (&mode=…).
+function applyMode() {
+  const solo = S.mode === 'individual';
+  document.querySelectorAll('[data-solo]').forEach(el => { el.hidden = !solo; });
+  document.querySelectorAll('[data-team]').forEach(el => { el.hidden = solo; });
+}
+document.querySelectorAll('input[name=mode]').forEach(r => {
+  r.checked = r.value === S.mode;
+  r.disabled = !!LINK_MODE;
+  r.addEventListener('change', () => { S.mode = r.value; applyMode(); save(); refresh(); });
+});
+applyMode();
+
+const builtBox = document.getElementById('built-checks');
+EQ_KEYS.forEach(k => {
+  const lab = document.createElement('label');
+  lab.innerHTML = `<input type="checkbox"> <span><b>${k}</b> · ${esc(EQ_ARR[k].name)}</span>`;
+  const cb = lab.querySelector('input');
+  cb.checked = !!S.built[k];
+  cb.addEventListener('change', () => { S.built[k] = cb.checked; save(); refresh(); });
+  builtBox.appendChild(lab);
+});
+
+const errBox = document.getElementById('err-checks');
+ERRORS.forEach(([id, text]) => {
+  const lab = document.createElement('label');
+  lab.innerHTML = `<input type="checkbox" value="${id}"> <span>${esc(text)}</span>`;
+  const cb = lab.querySelector('input');
+  cb.checked = S.conclusion.errors.includes(id);
+  cb.addEventListener('change', () => {
+    S.conclusion.errors = ERRORS.map(e => e[0]).filter(k => errBox.querySelector(`input[value=${k}]`).checked);
+    save(); refresh();
+  });
+  errBox.appendChild(lab);
+});
+
+eqDraw(document.getElementById('build-map'), 'ALL', {}, { letters: true });
+eqDraw(document.getElementById('guide-map'), 'ALL', {}, { letters: true });
+
+// ── Step 3: the source ──────────────────────────────────────
+function refreshSetup() {
+  const v = V('setup.vbat');
+  document.getElementById('vbat-warn').innerHTML = isFinite(v) && (v < 5 || v > 12)
+    ? '<div class="note warn">A 9 V source should read about 8 to 10 V. Check that the voltmeter is on DC volts and that both probes touch the copper.</div>' : '';
+}
+
+// ── The maps: one per step, each draws on its own layer ─────
+//   points: the measured points (step 3) · equi: equipotential lines (step 4)
+//   field: predicted field lines (step 5) · field2: field lines after the rule (step 6)
+const MAPPERS = [];
+const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+const round1 = v => Math.round(v * 10) / 10;
+// Distance from a point to a drawn line
+function distToStroke(p, pts) {
+  let best = Infinity;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1], [bx, by] = pts[i], dx = bx - ax, dy = by - ay;
+    const t = Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - ay) * dy) / (dx * dx + dy * dy || 1)));
+    best = Math.min(best, Math.hypot(p[0] - ax - t * dx, p[1] - ay - t * dy));
+  }
+  return pts.length === 1 ? near(p, pts[0]) : best;
+}
+
+function makeMapper(root) {
+  const mode = root.dataset.mode;
+  const M = { mode, key: 'A', path: 1, v: 1, tool: 'draw', sel: null, drag: null, live: null, frame: null, hover: null, history: [] };
+  const vBtns = EQ_VOLTS.map(v => `<button class="tb v" data-v="${v}" style="border-color:${eqColor(v)}">${v} V</button>`).join('');
+  const drawTools = `<div class="grp"><button class="tb" data-tool="draw">✏ Draw</button><button class="tb" data-tool="erase">⌫ Erase</button><button class="tb" data-undo>↶ Undo</button></div>`;
+  const tools = {
+    points: `<div class="grp"><span class="lbl">Path</span>${[1, 2, 3, 4, 5].map(p => `<button class="tb" data-p="${p}">${p}</button>`).join('')}</div>
+      <div class="grp"><span class="lbl">Voltage</span>${vBtns}</div>`,
+    equi: `<div class="grp"><span class="lbl">Voltage</span>${vBtns}</div>${drawTools}`,
+    field: drawTools,
+    field2: drawTools,
+  }[mode];
+  const legend = {
+    points: '',
+    equi: '',
+    field: `<div class="legend-row"><span><i class="dash" style="border-color:${EQ_PRED}"></i>your predicted field lines</span></div>`,
+    field2: `<div class="legend-row"><span><i class="dash" style="border-color:${EQ_PRED}"></i>your prediction</span><span><i style="border-color:#fff;background:#fff"></i>field lines following the rule</span></div>`,
+  }[mode];
+  root.innerHTML = `
+    <div class="arr-tabs"></div>
+    <div class="map-tools">${tools}</div>
+    <div class="map-wrap"><svg class="map" tabindex="0" aria-label="Map of the conductive paper"></svg><div class="map-coord"></div></div>
+    ${legend}
+    ${mode === 'points' ? `<div class="selbox" id="sel-${mode}"></div><div class="table-wrap"><table class="pts"></table></div>` : ''}
+    <div class="map-extra"></div>`;
+  const svg = root.querySelector('svg'), coord = root.querySelector('.map-coord');
+  const D = () => S.map[M.key];
+
+  root.querySelector('.arr-tabs').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    M.key = b.dataset.k; M.sel = null; M.history = []; render();
+  });
+  root.querySelector('.map-tools').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.p) { M.path = +b.dataset.p; M.v = nextV(M.path) || 1; M.sel = null; }
+    if (b.dataset.v) { M.v = +b.dataset.v; M.sel = null; if (mode === 'equi') M.tool = 'draw'; }
+    if (b.dataset.tool) M.tool = b.dataset.tool;
+    if (b.dataset.undo != null) undo();
+    render();
+  });
+
+  // The first voltage of a path that has no point yet
+  const nextV = p => EQ_VOLTS.find(v => !D().points.some(q => q.p === p && q.v === v));
+  const findPt = (p, v) => D().points.find(q => q.p === p && q.v === v);
+  const layer = () => D()[mode];
+  function remember() { M.history.push(JSON.stringify(layer())); if (M.history.length > 40) M.history.shift(); }
+  function undo() {
+    if (!M.history.length) return;
+    D()[mode] = JSON.parse(M.history.pop());
+    M.sel = null; save(); refresh();
+  }
+
+  function toCm(e) {
+    const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const u = pt.matrixTransform(svg.getScreenCTM().inverse());
+    return M.frame.cm(u.x, u.y);
+  }
+  function showCoord(p) {
+    coord.textContent = p && M.frame.inside(...p) ? `x = ${round1(p[0]).toFixed(1)} cm · y = ${round1(p[1]).toFixed(1)} cm` : '';
+  }
+  // Live layer: the line being drawn, or a preview of the point under the pointer
+  function drawLive() {
+    const g = svg.querySelector('.live'), F = M.frame;
+    if (!g) return;
+    let s = '';
+    if (M.live) {
+      const color = mode === 'equi' ? eqColor(M.v) : mode === 'field' ? EQ_PRED : EQ_FIELD;
+      s = `<path d="${eqPathD(F, M.live)}" stroke="${color}" stroke-width="3" fill="none" stroke-linecap="round"${mode === 'field' ? ' stroke-dasharray="7 5"' : ''}/>`;
+    } else if (M.hover && F.inside(...M.hover)) {
+      const [x, y] = M.hover.map(round1);
+      s = `<path d="M${F.X(F.A.x0)} ${F.Y(y)}H${F.X(F.A.x1)}M${F.X(x)} ${F.Y(F.A.y0)}V${F.Y(F.A.y1)}" stroke="#fff" stroke-opacity=".22" stroke-width="1"/>`;
+      if (mode === 'points' && !M.drag) s += `<circle cx="${F.X(x)}" cy="${F.Y(y)}" r="8" fill="${eqColor(M.v)}" fill-opacity=".45" stroke="#fff" stroke-width="1"/>`;
+    }
+    g.innerHTML = s;
+  }
+
+  svg.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const p = toCm(e);
+    if (!M.frame.inside(...p)) return;
+    e.preventDefault(); svg.focus();
+    svg.setPointerCapture(e.pointerId);
+    if (mode === 'points') {
+      const hit = D().points.filter(q => near([q.x, q.y], p) < 0.35).sort((a, b) => near([a.x, a.y], p) - near([b.x, b.y], p))[0];
+      remember();
+      if (hit) { M.path = hit.p; M.v = hit.v; M.sel = { p: hit.p, v: hit.v }; M.drag = { q: hit, added: false }; }
+      else {
+        let q = findPt(M.path, M.v);
+        if (q) { q.x = round1(p[0]); q.y = round1(p[1]); }
+        else { q = { p: M.path, v: M.v, x: round1(p[0]), y: round1(p[1]) }; D().points.push(q); }
+        M.sel = { p: q.p, v: q.v }; M.drag = { q, added: true };
+      }
+      renderMap();
+    } else if (M.tool === 'erase') {
+      const list = layer(), i = list.map(s => distToStroke(p, s.pts || s)).reduce((b, d, i, a) => d < a[b] ? i : b, 0);
+      if (list.length && distToStroke(p, list[i].pts || list[i]) < 0.4) { remember(); list.splice(i, 1); save(); refresh(); }
+    } else {
+      M.live = [p];
+      drawLive();
+    }
+  });
+  svg.addEventListener('pointermove', e => {
+    const p = toCm(e);
+    M.hover = p; showCoord(p);
+    if (M.drag) {
+      const F = M.frame, x = Math.max(F.A.x0, Math.min(F.A.x1, p[0])), y = Math.max(F.A.y0, Math.min(F.A.y1, p[1]));
+      M.drag.q.x = round1(x); M.drag.q.y = round1(y);
+      renderMap();
+    } else if (M.live) {
+      if (near(M.live[M.live.length - 1], p) >= 0.15 && M.frame.inside(...p)) M.live.push([Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]);
+    }
+    drawLive();
+  });
+  svg.addEventListener('pointerleave', () => { M.hover = null; if (!M.drag && !M.live) { showCoord(null); drawLive(); } });
+  const finish = () => {
+    if (M.drag) {
+      const added = M.drag.added;
+      M.drag = null;
+      if (added) M.v = nextV(M.path) || M.v;   // ready for the next voltage on this path
+      save(); refresh();
+    }
+    if (M.live) {
+      const pts = M.live.map(([x, y]) => [Math.round(x * 100) / 100, Math.round(y * 100) / 100]);
+      M.live = null;
+      const len = pts.reduce((a, q, i) => i ? a + near(q, pts[i - 1]) : 0, 0);
+      if (len >= 0.6) { remember(); layer().push(mode === 'equi' ? { v: M.v, pts } : pts); save(); refresh(); }
+      else drawLive();
+    }
+  };
+  svg.addEventListener('pointerup', finish);
+  svg.addEventListener('pointercancel', finish);
+  // Keyboard: arrows nudge the selected point by 1 mm, Delete removes it
+  svg.addEventListener('keydown', e => {
+    if (mode !== 'points' || !M.sel) return;
+    const q = findPt(M.sel.p, M.sel.v);
+    if (!q) return;
+    const d = { ArrowLeft: [-0.1, 0], ArrowRight: [0.1, 0], ArrowUp: [0, 0.1], ArrowDown: [0, -0.1] }[e.key];
+    if (d) { e.preventDefault(); remember(); q.x = round1(q.x + d[0]); q.y = round1(q.y + d[1]); save(); refresh(); }
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); delSel(); }
+  });
+  function delSel() {
+    const i = D().points.findIndex(q => M.sel && q.p === M.sel.p && q.v === M.sel.v);
+    if (i < 0) return;
+    remember(); D().points.splice(i, 1); M.v = M.sel.v; M.sel = null; save(); refresh();
+  }
+
+  // Selected point: exact coordinates
+  if (mode === 'points') {
+    const box = root.querySelector('.selbox');
+    box.addEventListener('input', e => {
+      const q = M.sel && findPt(M.sel.p, M.sel.v), f = e.target.dataset.xy;
+      if (!q || !f) return;
+      const v = num(e.target.value);
+      if (!isFinite(v)) return;
+      const A = EQ_ARR[M.key];
+      q[f] = f === 'x' ? Math.max(A.x0, Math.min(A.x1, v)) : Math.max(A.y0, Math.min(A.y1, v));
+      save(); refresh();
+    });
+    box.addEventListener('click', e => { if (e.target.dataset.del != null) delSel(); });
+    root.querySelector('table.pts').addEventListener('click', e => {
+      const td = e.target.closest('td.c'); if (!td) return;
+      M.path = +td.dataset.p; M.v = +td.dataset.v;
+      M.sel = findPt(M.path, M.v) ? { p: M.path, v: M.v } : null;
+      render(); svg.focus();
+    });
+  }
+
+  function renderMap() {
+    const d = D(), o = { selected: M.sel };
+    const data = { points: d.points };
+    if (mode === 'points') { o.paths = true; o.numbers = true; }
+    if (mode === 'equi') { data.equi = d.equi; o.numbers = true; }
+    if (mode === 'field') { data.equi = d.equi; data.field = d.field; o.dim = true; }
+    if (mode === 'field2') { data.equi = d.equi; data.field = d.field; data.field2 = d.field2; o.dim = true; o.fieldFaint = true; }
+    M.frame = eqDraw(svg, M.key, data, o);
+    drawLive();
+  }
+  function render() {
+    const status = k => mode === 'points' ? `${pathsDone(k)}/${NPATHS} paths` : mode === 'equi' ? `${levels(k)} lines` : `${S.map[k][mode].length} lines`;
+    root.querySelector('.arr-tabs').innerHTML = EQ_KEYS.map(k =>
+      `<button data-k="${k}" class="${k === M.key ? 'on' : ''} ${ARR_DONE[mode](k) ? 'ok' : ''}">${k} · ${esc(EQ_ARR[k].short)} <span class="st">${ARR_DONE[mode](k) ? '✓' : status(k)}</span></button>`).join('');
+    root.querySelectorAll('[data-p]').forEach(b => {
+      const n = D().points.filter(q => q.p === +b.dataset.p).length;
+      b.classList.toggle('on', +b.dataset.p === M.path);
+      b.innerHTML = `${b.dataset.p} <small>${n >= MIN_PTS ? '✓' : n + '/8'}</small>`;
+    });
+    root.querySelectorAll('[data-v]').forEach(b => {
+      b.classList.toggle('on', +b.dataset.v === M.v && (mode !== 'equi' || M.tool === 'draw'));
+      b.style.background = b.classList.contains('on') ? eqColor(+b.dataset.v) : '';
+    });
+    root.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === M.tool));
+    const undoBtn = root.querySelector('[data-undo]'); if (undoBtn) undoBtn.disabled = !M.history.length;
+    svg.style.cursor = M.tool === 'erase' && mode !== 'points' ? 'not-allowed' : 'crosshair';
+    renderMap();
+
+    if (mode === 'points') {
+      const q = M.sel && findPt(M.sel.p, M.sel.v), box = root.querySelector('.selbox');
+      const active = document.activeElement && box.contains(document.activeElement);
+      if (!active) box.innerHTML = q
+        ? `<span><b>Selected:</b> path ${q.p} · <span class="dotv" style="background:${eqColor(q.v)}"></span> ${q.v} V</span>
+           <label>x <input type="text" inputmode="decimal" data-xy="x" value="${q.x}"> cm</label>
+           <label>y <input type="text" inputmode="decimal" data-xy="y" value="${q.y}"> cm</label>
+           <button class="tb" data-del>🗑 Delete point</button><span class="caption">Drag it, or use the arrow keys to move it 1 mm.</span>`
+        : `<span class="caption">Next point: <b>path ${M.path}</b>, <span class="dotv" style="background:${eqColor(M.v)}"></span> <b>${M.v} V</b>. Click the map where you found it. Click a point to select it.</span>`;
+      root.querySelector('table.pts').innerHTML = `<thead><tr><th></th>${EQ_VOLTS.map(v => `<th><span class="dotv" style="background:${eqColor(v)}"></span> ${v} V</th>`).join('')}</tr></thead><tbody>` +
+        [1, 2, 3, 4, 5].map(p => {
+          const n = D().points.filter(q => q.p === p).length;
+          return `<tr><td class="pl ${n >= MIN_PTS ? 'ok' : ''}">Path ${p} ${n >= MIN_PTS ? '✓' : ''}</td>` + EQ_VOLTS.map(v => {
+            const q = findPt(p, v);
+            return `<td class="c ${q ? 'has' : ''} ${p === M.path && v === M.v ? 'cur' : ''}" data-p="${p}" data-v="${v}" title="Path ${p}, ${v} V">${q ? `${q.x}, ${q.y}` : '·'}</td>`;
+          }).join('') + '</tr>';
+        }).join('') + '</tbody>';
+    }
+    if (mode === 'field2') {
+      const d = D(), st = eqCrossStats(d.field2, d.equi), extra = root.querySelector('.map-extra');
+      extra.innerHTML = !d.field2.length ? '' : !st.n
+        ? '<div class="note">Your white lines don\'t cross any of your equipotential lines yet in this arrangement.</div>'
+        : `<div class="note ${Math.abs(st.medDev) <= 15 && !st.up ? 'good' : 'warn'}">In arrangement ${M.key}, your white field lines cross your equipotential lines <b>${st.n}</b> time${st.n === 1 ? '' : 's'}, typically at <b>${fmt(90 - Math.abs(st.medDev), 2)}°</b> (90° is perpendicular).` +
+          (st.up ? ` <b>${st.up}</b> of them go${st.up === 1 ? 'es' : ''} from a lower voltage to a higher one: field lines point from 9 V toward 0 V.` : st.lines ? ' They all point from higher to lower voltage ✓' : '') + '</div>';
+    }
+  }
+  M.render = render;
+  MAPPERS.push(M);
+  return M;
+}
+document.querySelectorAll('.mapper').forEach(makeMapper);
+
+// ── Step 7: the field between the strips ────────────────────
+function refreshField() {
+  const va = V('efield.va'), vb = V('efield.vb'), d = V('efield.d');
+  document.getElementById('f-e').innerHTML = `With your numbers: E = |${shown(va)} V − ${shown(vb)} V| / ${shown(d / 100)} m`;
+  document.querySelectorAll('[data-chk]').forEach(el => {
+    const v = verdict(el.dataset.chk);
+    el.textContent = v === 'ok' ? '✓' : v === 'bad' ? '⚠ check' : '';
+    el.className = 'chk ' + (v === 'ok' ? 'ok' : v ? 'bad' : '');
+  });
+  const E = V('efield.E'), vbat = V('setup.vbat'), note = document.getElementById('e-note');
+  note.hidden = !(isFinite(E) && vbat > 0);
+  if (!note.hidden) {
+    const Eu = vbat / (EQ_PLATE_GAP / 100);
+    note.innerHTML = `Compare: if the whole ${fmt(vbat)} V of your source were spread evenly over the ${EQ_PLATE_GAP} cm between the strips, the field would be ${fmt(vbat)} V / ${EQ_PLATE_GAP / 100} m = <b>${fmt(Eu)} V/m</b>. Yours is <b>${fmt(E / Eu * 100, 2)}%</b> of that.`;
+  }
+}
+
+// ── Step 9: submit ──────────────────────────────────────────
+function payload() {
+  const { unlocked, sent, guideSeen, ...data } = S;
+  return { ...data, submittedAt: new Date().toISOString(), client: 'equipotential_lab/1' };
+}
+function refreshSummary() {
+  const names = ['Team', 'Arrangements built', 'Points measured', 'Equipotential lines', 'Predicted field', 'Field lines following the rule', 'Reflection', 'Conclusion'];
+  document.getElementById('summary').innerHTML = names.map((n, i) => `<div class="${DONE[i + 1]() ? 'ok' : ''}">${n}</div>`).join('');
+  document.getElementById('send').disabled = !API;
+  const st = document.getElementById('send-status');
+  if (!API && !st.dataset.msg) st.innerHTML = '<div class="note warn">This link has no connection to your teacher. Use <b>Download backup file</b> and hand the file in, or ask your teacher for the class link.</div>';
+  else if (S.sent && !st.dataset.msg) st.innerHTML = `<div class="note good">Sent at ${new Date(S.sent).toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`;
+}
+function setStatus(html) { const st = document.getElementById('send-status'); st.dataset.msg = '1'; st.innerHTML = html; }
+
+document.getElementById('send').addEventListener('click', async () => {
+  const missing = [1, 2, 3, 4, 5, 6, 7, 8].filter(i => !DONE[i]());
+  if (missing.length && !confirm('Steps ' + missing.join(', ') + ' are not complete. Send anyway?')) return;
+  const btn = document.getElementById('send');
+  btn.disabled = true; setStatus('<div class="note">Sending…</div>');
+  const body = JSON.stringify(payload());
+  let ok = false, unconfirmed = false, error = '';
+  try {
+    const r = await fetch(API, { method: 'POST', body });
+    const j = await r.json();
+    if (!j.ok) { error = j.error || 'server error'; throw new Error(error); }
+    ok = true;
+  } catch (e) {
+    if (!error) {
+      try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; unconfirmed = true; } catch (e2) {}
+    }
+  }
+  btn.disabled = false;
+  if (ok) {
+    S.sent = new Date().toISOString(); save();
+    setStatus(`<div class="note good">✓ Sent${unconfirmed ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+  } else if (error) {
+    setStatus(`<div class="note warn">Your teacher's sheet could not save this report (${esc(error)}). Use <b>Download backup file</b> and give the file to your teacher.</div>`);
+  } else {
+    setStatus('<div class="note warn">Could not send: check the internet connection and try again. If it keeps failing, use <b>Download backup file</b> and give the file to your teacher.</div>');
+  }
+  refresh();
+});
+
+document.getElementById('download').addEventListener('click', () => downloadReport(S));
+
+
+// ── Theme (shared with the tools index) ─────────────────────
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  document.getElementById('theme-toggle').textContent = light ? '☽ Dark' : '☀ Light';
+  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+applyTheme(savedTheme === 'light');
+document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
+
+// ── Lab guide: opens by itself the first time, and from the header anytime ──
+const guide = document.getElementById('guide');
+function openGuide() { if (!guide.open) guide.showModal(); }
+document.querySelectorAll('[data-guide]').forEach(b => b.addEventListener('click', openGuide));
+document.querySelectorAll('[data-guide-close]').forEach(b => b.addEventListener('click', () => guide.close()));
+guide.addEventListener('click', e => { if (e.target === guide) guide.close(); });
+guide.addEventListener('close', () => { if (!S.guideSeen) { S.guideSeen = true; save(); } });
+if (!S.guideSeen) openGuide();
+
+
+// ── Several groups on one computer: a report already here is kept, never overwritten ──
+const ARCHIVE = STORE + '_archive', ACK = 'ack_' + STORE;
+function readArchive() { try { return JSON.parse(localStorage.getItem(ARCHIVE) || '[]'); } catch (e) { return []; } }
+const hasWork = r => !!(String(r.group || '').trim() || String((r.students || [])[0] || '').trim());
+const reportWho = r => ['Group ' + (String(r.group || '').trim() || '?'),
+  (r.mode === 'individual' ? [(r.students || [])[0]] : r.students || []).filter(s => s && s.trim()).join(' & ')].filter(Boolean).join(' · ');
+const reportWhen = r => (r.savedAt ? 'last saved ' + new Date(r.savedAt).toLocaleString() : '') ;
+function ack() { try { sessionStorage.setItem(ACK, S.id); } catch (e) {} }
+// Download any report (this one or an earlier one) as the same file the Download button makes
+function downloadReport(r) {
+  const keep = S;
+  let body;
+  S = Object.assign(blank(), r);
+  try { body = JSON.stringify(payload(), null, 2); } finally { S = keep; }
+  const tag = [r.session, 'group' + (r.group || 'X'), r.mode === 'individual' ? (r.students || [])[0] : ''].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
+  a.download = `${LAB_ID}_${tag}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+// Keep the current report in the archive (or download it if there is no room), then open an empty one
+function newReport() {
+  let wait = 0;
+  if (hasWork(S)) {
+    const list = readArchive();
+    list.unshift({ ...S, archivedAt: new Date().toISOString() });
+    try { localStorage.setItem(ARCHIVE, JSON.stringify(list.slice(0, 12))); }
+    catch (e) {
+      alert('This computer has no room to keep a copy, so the report will be downloaded as a file. Give that file to your teacher.');
+      downloadReport(S); wait = 1500;
+    }
+  }
+  try { localStorage.removeItem(STORE); sessionStorage.removeItem(ACK); } catch (e) {}
+  setTimeout(() => location.reload(), wait);
+}
+function confirmNew() {
+  if (hasWork(S) && !S.sent && !confirm('This report was not sent yet. It will be kept on this computer, so it is not lost. Start a new report?')) return;
+  newReport();
+}
+
+const whoDlg = document.getElementById('who-dlg');
+whoDlg.addEventListener('cancel', e => e.preventDefault());
+document.getElementById('who-continue').addEventListener('click', () => { ack(); whoDlg.close(); });
+document.getElementById('who-new').addEventListener('click', confirmNew);
+document.getElementById('next-group').addEventListener('click', confirmNew);
+document.getElementById('reset').addEventListener('click', confirmNew);
+let acked = null; try { acked = sessionStorage.getItem(ACK); } catch (e) {}
+if (hasWork(S) && acked !== S.id) {
+  document.getElementById('who-cur').innerHTML = `<b>${esc(reportWho(S))}</b>` +
+    (reportWhen(S) ? ' · ' + reportWhen(S) : '') + (S.sent ? ' · sent to the teacher ✓' : ' · <b>not sent yet</b>');
+  if (guide.open) guide.close();
+  whoDlg.showModal();
+} else ack();
+
+const archDlg = document.getElementById('arch-dlg');
+function renderArchive() {
+  const list = readArchive();
+  document.getElementById('arch-open').hidden = !list.length;
+  document.getElementById('arch-open').textContent = `Earlier reports on this computer (${list.length})`;
+  document.getElementById('arch-list').innerHTML = list.map((r, i) => `
+    <div class="note${r.sent ? ' good' : ' warn'}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <span style="flex:1;min-width:200px"><b>${esc(reportWho(r))}</b>${r.session ? ' · session ' + esc(r.session) : ''}<br>
+      <span style="font-size:.8rem">${esc(reportWhen(r))}${r.sent ? ' · sent ✓' : ' · not sent'}</span></span>
+      <button class="btn" data-arch="${i}">⬇ Download</button>
+    </div>`).join('');
+}
+document.getElementById('arch-open').addEventListener('click', () => { renderArchive(); archDlg.showModal(); });
+document.getElementById('arch-close').addEventListener('click', () => archDlg.close());
+document.getElementById('arch-list').addEventListener('click', e => {
+  const i = e.target.dataset.arch;
+  if (i != null) downloadReport(readArchive()[+i]);
+});
+renderArchive();
+
+refresh();
+</script>
+</body>
+</html>
