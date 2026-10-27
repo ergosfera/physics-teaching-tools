@@ -71,7 +71,7 @@ h2.sec { font-size: 1.15rem; font-weight: 800; margin: 14px 0 -6px; scroll-margi
 .tile .v small { font-size: .85rem; color: var(--muted); font-weight: 600; }
 .tile .s { font-size: .78rem; color: var(--muted); }
 
-input[type=text], input[type=password], textarea, select {
+input[type=text], input[type=password], input[type=datetime-local], textarea, select {
   font: inherit; font-size: .88rem; color: var(--text); background: var(--bg);
   border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px;
 }

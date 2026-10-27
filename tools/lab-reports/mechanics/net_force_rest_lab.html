@@ -629,6 +629,7 @@
   Net Force at Rest Lab · Ergosfera Teaching Tools · <button id="reset">Start a new report</button> · <button id="arch-open" hidden>Earlier reports on this computer</button>
 </footer>
 
+<script src="../lab-closing.js"></script>
 <script>
 // ── Config from the link the teacher shares ─────────────────
 const LAB_ID = 'net-force-rest';
@@ -1008,10 +1009,11 @@ document.getElementById('send').addEventListener('click', async () => {
   const btn = document.getElementById('send');
   btn.disabled = true; setStatus('<div class="note">Sending…</div>');
   const body = JSON.stringify(payload());
-  let ok = false, unconfirmed = false, error = '';
+  let ok = false, unconfirmed = false, error = '', closed = null;
   try {
     const r = await fetch(API, { method: 'POST', body });
     const j = await r.json();
+    if (j.closed) closed = j;   // the teacher has closed this activity
     if (!j.ok) { error = j.error || 'server error'; throw new Error(error); }
     ok = true;
   } catch (e) {
@@ -1023,6 +1025,8 @@ document.getElementById('send').addEventListener('click', async () => {
   if (ok) {
     S.sent = new Date().toISOString(); save();
     setStatus(`<div class="note good">✓ Sent${unconfirmed ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+  } else if (closed) {
+    setStatus(labClosing.refused(closed));
   } else if (error) {
     setStatus(`<div class="note warn">Your teacher's sheet could not save this report (${esc(error)}). Use <b>Download backup file</b> and give the file to your teacher.</div>`);
   } else {
@@ -1138,6 +1142,7 @@ document.getElementById('arch-list').addEventListener('click', e => {
 renderArchive();
 
 refresh();
+labClosing.watch(API, LAB_ID, S.session);
 </script>
 </body>
 </html>

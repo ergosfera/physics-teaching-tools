@@ -3,7 +3,8 @@
 // A teacher page loads lab-teacher.css and this file, then calls LabTeacher({...}) with only the
 // parts that are specific to its experiment. The engine does the rest: Google Sheet connection,
 // one row per report (latest version), consolidated page, answers side by side, group detail,
-// Projector slides, student link, import (with upload to the sheet), JSON/CSV export and demo.
+// Projector slides, student link, closing (Apps Script 5: the sheet stops taking reports),
+// import (with upload to the sheet), JSON/CSV export and demo.
 //
 // The lab object:
 //   id, title, icon, studentPage, tagline        identity; studentPage is relative to the teacher page
@@ -64,6 +65,7 @@ let CFG = { session: '', names: false };
 const CONN = { api: '', key: '' };   // shared by all labs, set on ../teacher.html
 const RAW = new Map();               // reports from any source, keyed by id + submittedAt
 let IN_SHEET = null;                 // keys seen in the sheet on the last successful load
+let CLOSING = null, BACKEND = 0;     // closing rules { 'lab|session': closesAt } and Apps Script version, from the last load
 let GROUPS = [];
 const ON_STATE = {};
 
@@ -107,6 +109,7 @@ function buildPage() {
   <button class="pill-btn" id="names">Names: hidden</button>
   <button class="pill-btn" id="present" title="Present the results as full-screen slides">▶ Projector</button>
   <button class="pill-btn" id="theme-toggle">☀ Light</button>
+  <button class="pill-btn" id="closing-pill" title="Whether students can still send reports" hidden></button>
   <button class="pill-btn" id="setup-toggle">⚙ Setup &amp; data</button>
   <span id="fetch-state"></span>
 </header>
@@ -148,6 +151,16 @@ function buildPage() {
       </div>
       <p class="muted" style="font-size:.8rem">Imported files are also uploaded to your Google Sheet (if it doesn't have them yet), so the sheet keeps every report. "Download all reports" saves the complete reports for the current session, with every answer, in one file you can hand over for evaluation.</p>
       <span class="muted" id="data-msg"></span>
+    </div>
+    <div class="card setup" id="closing-card">
+      <h3>4 · Accepting reports</h3>
+      <div id="closing-state"></div>
+      <div id="closing-form" style="display:grid;gap:10px">
+        <div class="form-row"><label for="close-session">Session</label><input type="text" id="close-session" placeholder="empty = every session"></div>
+        <div class="form-row"><label for="close-at">Closing time (optional)</label><input type="datetime-local" id="close-at"></div>
+        <div class="btns"><button class="btn" id="close-now">🔒 Close now</button><button class="btn" id="close-later">⏰ Close at that time</button><button class="btn" id="reopen">🔓 Open</button><span class="muted" id="closing-msg"></span></div>
+      </div>
+      <p class="muted" style="font-size:.8rem">A closed lab takes no more reports: the sheet refuses them and the student page says your teacher has closed it. Students keep their work and can still download their file. Files you import here are saved even when the lab is closed. A session can stay open while every other session is closed.</p>
     </div>
   </section>
 
@@ -379,12 +392,14 @@ async function load() {
     j.submissions.forEach(addRaw);
     IN_SHEET = new Set(j.submissions.map(rawKey));
     cacheRaw();
+    CLOSING = j.closing || null; BACKEND = j.version || 1;
     fstate.textContent = 'Updated ' + new Date().toLocaleTimeString();
     if (LAB.backendVersion && (j.version || 1) < LAB.backendVersion)
       fstate.textContent += ' · ⚠ Update your Apps Script (see the Lab Reports teacher page) ' + (LAB.backendWhy || 'so reports with screenshots can be saved');
   } catch (e) {
     fstate.textContent = '⚠ ' + (e.message || 'Could not load') + (RAW.size ? ' (showing saved reports)' : '');
   }
+  renderClosing();
   render();
 }
 function addRaw(s) { if (s && s.lab === LAB.id) RAW.set(rawKey(s), s); }
@@ -407,6 +422,52 @@ function renderLink() {
   $('student-link').value = link;
   $('open-link').href = link;
 }
+// ── Closing: when the sheet stops taking this lab's reports ──
+// The same rule as the Apps Script: a session's own rule, else the rule for every session ('' = open)
+function closesAt(session) {
+  const r = CLOSING || {}, s = norm(session), one = LAB.id + '|' + s, all = LAB.id + '|';
+  return s && one in r ? r[one] : all in r ? r[all] : '';
+}
+const isClosed = at => !!at && new Date(at).getTime() <= Date.now();
+const whenText = at => new Date(at).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+const closingText = at => !at ? '🔓 Open' : isClosed(at) ? '🔒 Closed since ' + whenText(at) : '⏰ Open until ' + whenText(at);
+
+function renderClosing() {
+  const pill = $('closing-pill'), state = $('closing-state'), ready = !!(CONN.api && CONN.key && BACKEND >= 5);
+  $('closing-form').hidden = !ready;
+  pill.hidden = !ready;
+  if (!CONN.api || !CONN.key) { state.innerHTML = '<div class="note">Connect your Google Sheet first (on the <a href="../teacher.html" style="color:var(--accent)">Lab Reports teacher page</a>).</div>'; return; }
+  if (!BACKEND) { state.innerHTML = '<div class="note">Reading the closing settings from your Google Sheet… If this stays, press ⟳ Refresh.</div>'; return; }
+  if (BACKEND < 5) { state.innerHTML = `<div class="note warn">Your Apps Script is version ${BACKEND}. To close labs, update it to version 5: the new code and the steps are on the <a href="../teacher.html" style="color:var(--accent)">Lab Reports teacher page</a>.</div>`; return; }
+  // The pill: the session the page shows, or every session
+  const at = closesAt(CFG.session);
+  pill.textContent = (!at ? '🔓 Open' : isClosed(at) ? '🔒 Closed' : '⏰ Until ' + whenText(at)) + (CFG.session ? ' · ' + CFG.session : '');
+  pill.classList.toggle('on', isClosed(at));
+  // One row for every session, then one per session with its own rule
+  const r = CLOSING || {}, prefix = LAB.id + '|';
+  const own = Object.keys(r).filter(k => k.startsWith(prefix) && k !== prefix).map(k => k.slice(prefix.length)).sort();
+  state.innerHTML = `<table class="t"><tbody>
+    <tr><td><b>Every session</b></td><td>${closingText(r[prefix] || '')}</td><td></td></tr>
+    ${own.map(s => `<tr><td><b>${esc(s)}</b></td><td>${closingText(r[prefix + s])}</td>
+      <td><button class="pill-btn" data-unrule="${esc(s)}" title="Remove this session's rule: it then follows the row for every session">Follow every session</button></td></tr>`).join('')}
+  </tbody></table>`;
+}
+// Saves a rule for one session ('' = every session); closesAt: a date, '' for open, null to remove the rule
+async function setClosing(session, closesAt) {
+  const msg = $('closing-msg');
+  msg.textContent = 'Saving…';
+  try {
+    const body = JSON.stringify({ action: 'closing', key: CONN.key, lab: LAB.id, session, closesAt });
+    const j = await (await fetch(CONN.api, { method: 'POST', body })).json();
+    if (!j.ok) throw new Error(j.error || 'server error');
+    CLOSING = j.closing;
+    msg.textContent = 'Saved ✓';
+  } catch (e) {
+    msg.textContent = '⚠ ' + (e.message || 'Could not save') + '. Try again.';
+  }
+  renderClosing();
+}
+
 const tag = () => CFG.session ? '_' + CFG.session.replace(/[^\w-]+/g, '-') : '';
 
 // Imported files (e.g. a group that couldn't send) are also uploaded to the Google Sheet,
@@ -446,7 +507,8 @@ async function importFiles(files) {
   let sent = 0;
   for (const r of missing) {
     try {
-      const j = await (await fetch(CONN.api, { method: 'POST', body: JSON.stringify(r) })).json();
+      // With the teacher key, the sheet saves it even if the lab is closed
+      const j = await (await fetch(CONN.api, { method: 'POST', body: JSON.stringify({ ...r, teacherKey: CONN.key }) })).json();
       if (j.ok) sent++;
     } catch (err) {}
   }
@@ -563,7 +625,7 @@ function LabTeacher(lab) {
   });
   const sessEl = $('session');
   sessEl.value = CFG.session;
-  sessEl.addEventListener('input', () => { CFG.session = sessEl.value.trim(); saveCfg(); render(); });
+  sessEl.addEventListener('input', () => { CFG.session = sessEl.value.trim(); saveCfg(); $('close-session').value = CFG.session; renderClosing(); render(); });
   const applyNames = () => { $('names').textContent = 'Names: ' + (CFG.names ? 'shown' : 'hidden'); $('names').classList.toggle('on', CFG.names); };
   $('names').addEventListener('click', () => { CFG.names = !CFG.names; saveCfg(); applyNames(); render(); });
   applyNames();
@@ -581,6 +643,31 @@ function LabTeacher(lab) {
   $('copy-link').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText($('student-link').value); } catch (e) { $('student-link').select(); }
   });
+  // Accepting reports
+  $('close-session').value = CFG.session;
+  $('closing-pill').addEventListener('click', () => { showSetup(true); $('closing-card').scrollIntoView({ block: 'center' }); });
+  $('close-now').addEventListener('click', () => {
+    const s = $('close-session').value.trim();
+    if (confirm(`Close ${LAB.title} for ${s ? 'session ' + s : 'every session'}? Students won't be able to send reports until you open it again.`))
+      setClosing(s, new Date().toISOString());
+  });
+  $('close-later').addEventListener('click', () => {
+    const v = $('close-at').value, d = v && new Date(v);
+    if (!d || isNaN(d)) { $('closing-msg').textContent = 'Choose the closing time first.'; return; }
+    if (d.getTime() <= Date.now()) { $('closing-msg').textContent = 'That time has passed: use Close now.'; return; }
+    setClosing($('close-session').value.trim(), d.toISOString());
+  });
+  // Open: a session opens with its own rule only if every session is closed or closing; otherwise its rule goes
+  $('reopen').addEventListener('click', () => {
+    const s = $('close-session').value.trim();
+    setClosing(s, s && (CLOSING || {})[LAB.id + '|'] ? '' : null);
+  });
+  $('closing-state').addEventListener('click', e => {
+    const b = e.target.closest('[data-unrule]');
+    if (b) setClosing(b.dataset.unrule, null);
+  });
+  // A closing time passing changes the pill and the table
+  setInterval(renderClosing, 30000);
   $('import').addEventListener('change', async e => { const files = [...e.target.files]; e.target.value = ''; await importFiles(files); });
   $('clear').addEventListener('click', () => {
     if (!confirm('Remove all loaded reports from this page? Reports in your Google Sheet are not affected.')) return;
@@ -591,7 +678,7 @@ function LabTeacher(lab) {
   $('demo').addEventListener('click', () => {
     LAB.demo().forEach(addRaw);
     cacheRaw();
-    CFG.session = 'DEMO'; sessEl.value = 'DEMO'; saveCfg();
+    CFG.session = 'DEMO'; sessEl.value = 'DEMO'; $('close-session').value = 'DEMO'; saveCfg(); renderClosing();
     $('data-msg').textContent = 'Demo class loaded (session DEMO).';
     showSetup(false);
     render();
@@ -601,6 +688,7 @@ function LabTeacher(lab) {
   applyTheme(savedTheme === 'light');
   $('theme-toggle').addEventListener('click', () => { applyTheme(!document.body.classList.contains('light')); render(); });
 
+  renderClosing();
   showSetup(!RAW.size && !CONN.api);
   load();
 }

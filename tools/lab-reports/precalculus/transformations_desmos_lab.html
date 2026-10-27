@@ -293,6 +293,7 @@
 </footer>
 
 <script src="transformations_desmos.js"></script>
+<script src="../lab-closing.js"></script>
 <script>
 // ── Config from the link the teacher shares ─────────────────
 const LAB_ID = TD.id;
@@ -539,7 +540,7 @@ function liveSoon(ms) {
 async function post(body) {
   try {
     const j = await (await fetch(API, { method: 'POST', body })).json();
-    return { confirmed: !!j.ok, reached: true, busy: !!j.busy, error: j.error || '' };
+    return { confirmed: !!j.ok, reached: true, busy: !!j.busy, closed: !!j.closed, closesAt: j.closesAt, error: j.error || '' };
   } catch (e) {
     // No readable answer (old script, network, browser blocking it): send blind, it may still arrive
     try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); } catch (e2) { return { confirmed: false, reached: false }; }
@@ -552,6 +553,8 @@ async function liveSend() {
   const r = await post(JSON.stringify(payload(true)));
   liveBusy = false;
   liveEl.className = 'live-state ' + (r.confirmed ? 'on' : 'bad');
+  // Closed by the teacher: say so, and stop sending updates
+  if (r.closed) { liveEl.textContent = '🔒 Closed by your teacher: answers are no longer sent'; labClosing.show(true, r.closesAt); liveAgain = false; return; }
   liveEl.textContent = r.confirmed ? '● Live with teacher · ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : r.busy ? '● Many answers at once: sending again soon' : '⚠ Teacher not reached yet: your work is saved here, sending again soon';
   if (liveAgain) { liveAgain = false; liveSend(); }
@@ -600,6 +603,8 @@ document.getElementById('send').addEventListener('click', async () => {
   if (r.confirmed || r.blind) {
     S.sent = new Date().toISOString(); save();
     setStatus(`<div class="note good">✓ Sent${r.blind ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+  } else if (r.closed) {
+    setStatus(labClosing.refused(r));
   } else if (r.reached) {
     setStatus(`<div class="note warn">Your teacher's sheet did not save it${r.error ? ` (${esc(r.error)})` : ''}. Try again in a minute. If it keeps failing, use <b>Download backup file</b> and give the file to your teacher.</div>`);
   } else {
@@ -700,6 +705,7 @@ document.getElementById('arch-list').addEventListener('click', e => {
 renderArchive();
 
 refresh();
+labClosing.watch(API, LAB_ID, S.session);
 </script>
 </body>
 </html>

@@ -125,6 +125,20 @@ try { Object.assign(CONN, JSON.parse(localStorage.getItem('labreports_connection
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let COUNTS = null;   // activity id → { reports, sessions:Set, last }
+let CLOSING = null;  // 'lab|session' → closesAt
+
+// Sessions where a lab takes no more reports, or will stop at a set time (closing rules from the sheet)
+function closingLine(id) {
+  const parts = [];
+  Object.entries(CLOSING || {}).forEach(([k, at]) => {
+    const i = k.lastIndexOf('|');
+    if (k.slice(0, i) !== id || !at) return;
+    const who = k.slice(i + 1) || 'every session', d = new Date(at);
+    parts.push(d.getTime() <= Date.now() ? `🔒 closed for ${esc(who)}`
+      : `⏰ ${esc(who)} closes ${d.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`);
+  });
+  return parts.length ? `<div class="counts">${parts.join(' · ')}</div>` : '';
+}
 
 function renderTopics() {
   document.getElementById('topics').innerHTML = MATH_TOPICS.map(t => `
@@ -139,6 +153,7 @@ function renderTopics() {
           <div class="lab-top"><span class="icon">${lab.icon}</span><span class="title">${esc(lab.title)}</span></div>
           <div class="desc">${esc(lab.desc)}</div>
           ${counts ? `<div class="counts">${counts}</div>` : ''}
+          ${closingLine(lab.id)}
           <div class="links"><a class="btn primary" href="${lab.teacher}">Open results</a><a class="btn" href="${lab.student}" target="_blank" rel="noopener">Student page</a></div>
         </div>`;
       }).join('')}</div>
@@ -158,6 +173,7 @@ async function load() {
     const j = await (await fetch(u)).json();
     if (!j.ok) throw new Error(j.error || 'server error');
     COUNTS = {};
+    CLOSING = j.closing || null;
     j.submissions.forEach(s => {
       const c = COUNTS[s.lab] || (COUNTS[s.lab] = { reports: 0, sessions: new Set(), last: '' });
       c.reports++;

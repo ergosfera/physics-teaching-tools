@@ -384,6 +384,7 @@
 <script src="rational.js"></script>
 <script src="rational_questions.js"></script>
 <script src="practice_sets.js"></script>
+<script src="../lab-closing.js"></script>
 <script>
 // ── Which practice set: from the link (?set=1.7) ────────────
 const params = new URLSearchParams(location.search);
@@ -589,19 +590,22 @@ document.getElementById('send').addEventListener('click', async () => {
   const btn = document.getElementById('send');
   btn.disabled = true; setStatus('<div class="note">Sending…</div>');
   const body = JSON.stringify(payload());
-  let ok = false, unconfirmed = false;
+  let ok = false, unconfirmed = false, closed = null;
   try {
     const r = await fetch(API, { method: 'POST', body });
     const j = await r.json();
+    if (j.closed) closed = j;   // the teacher has closed this activity: don't send it again blind
     if (!j.ok) throw new Error(j.error || 'server error');
     ok = true;
   } catch (e) {
-    try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; unconfirmed = true; } catch (e2) {}
+    if (!closed) try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; unconfirmed = true; } catch (e2) {}
   }
   btn.disabled = false;
   if (ok) {
     S.sent = new Date().toISOString(); save();
     setStatus(`<div class="note good">✓ Sent${unconfirmed ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+  } else if (closed) {
+    setStatus(labClosing.refused(closed));
   } else {
     setStatus('<div class="note warn">Could not send: check the internet connection and try again. If it keeps failing, use <b>Download backup file</b> and give the file to your teacher.</div>');
   }
@@ -700,6 +704,7 @@ document.getElementById('arch-list').addEventListener('click', e => {
 renderArchive();
 
 refresh();
+labClosing.watch(API, LAB_ID, S.session);
 </script>
 </body>
 </html>

@@ -117,7 +117,7 @@
     <div class="form-row"><label for="key">Teacher key</label><input type="password" id="key"></div>
     <div class="btns"><button class="btn primary" id="save">Save and test</button><a class="btn" id="sheet-link" target="_blank" rel="noopener" hidden>📄 Open the Google Sheet</a><span class="muted" id="save-msg"></span></div>
     <div class="note warn" id="update-note" hidden>
-      <b>Update your Apps Script.</b> Your sheet runs an older version of the code. Version 2 stores reports with screenshots (for example, Falling Cone); version 3 keeps one row per student for live activities (for example, Transformations with Desmos) instead of one row per answer; version 4 works in a standalone script too and asks students' pages to try again when many reports arrive at once.
+      <b>Update your Apps Script.</b> Your sheet runs an older version of the code. Version 2 stores reports with screenshots (for example, Falling Cone); version 3 keeps one row per student for live activities (for example, Transformations with Desmos) instead of one row per answer; version 4 works in a standalone script too and asks students' pages to try again when many reports arrive at once; version 5 lets you close a lab or activity (on its teacher page, <b>⚙ Setup &amp; data → Accepting reports</b>) so the sheet stops taking reports.
       To update: open your Apps Script project (from your sheet: <b>Extensions → Apps Script</b>), replace the code with the new code below (<b>keep your own TEACHER_KEY</b>),
       save, then <b>Deploy → Manage deployments → ✏ Edit → Version: New version → Deploy</b>. The Web app URL stays the same, and all your reports are kept.
     </div>
@@ -146,7 +146,7 @@
 // It also works as a standalone project (script.google.com): then it creates the Sheet
 // "Ergosfera lab reports" in your Drive the first time, and the Lab Reports teacher page links to it.
 const TEACHER_KEY = 'change-this-word';   // teacher pages need this word to read reports
-const VERSION = 4;
+const VERSION = 5;
 // A cell holds at most 50,000 characters, so long reports (for example with a screenshot) are split
 // across several cells. Each piece starts with '~' so Sheets never reads it as a number or a formula.
 const PIECE = 45000;
@@ -159,6 +159,14 @@ function doPost(e) {
   if (!lock.tryLock(25000)) return json_({ ok: false, busy: true, error: 'The sheet is busy, try again' });
   try {
     const data = JSON.parse(e.postData.contents);
+    // Teacher pages close and reopen labs here: { action: 'closing', key, lab, session, closesAt }
+    if (data.action === 'closing') return setClosing_(data);
+    // A closed lab refuses students' reports. A teacher importing a late report sends the key with it,
+    // so it is saved anyway (the key itself is not saved).
+    const byTeacher = data.teacherKey === TEACHER_KEY;
+    delete data.teacherKey;
+    const c = closing_(data.lab, data.session);
+    if (c.closed && !byTeacher) return json_({ ok: false, closed: true, closesAt: c.closesAt, version: VERSION, error: 'Your teacher has closed this activity' });
     const json = JSON.stringify(data), pieces = [];
     for (let i = 0; i < json.length; i += PIECE) pieces.push('~' + json.slice(i, i + PIECE));
     const row = [new Date(), data.lab || '', String(data.session || ''), String(data.group || ''),
@@ -182,8 +190,10 @@ function doPost(e) {
 }
 
 // Teacher pages read reports here (GET ?key=…&lab=…&session=…; add &summary=1 for counts only).
+// Student pages ask whether their lab still takes reports (GET ?status=1&lab=…&session=…, no key).
 function doGet(e) {
   const p = e.parameter || {};
+  if (p.status) return json_(Object.assign({ ok: true, version: VERSION }, closing_(p.lab, p.session)));
   if (p.key !== TEACHER_KEY) return json_({ ok: false, error: 'Wrong teacher key' });
   let sh;
   try { sh = getSheet_(); } catch (err) { return json_({ ok: false, error: String(err) }); }
@@ -199,7 +209,29 @@ function doGet(e) {
       out.push(p.summary ? { lab: d.lab, session: d.session, group: d.group, submittedAt: d.submittedAt } : d);
     } catch (err) {}
   });
-  return json_({ ok: true, version: VERSION, sheetUrl: sh.getParent().getUrl(), submissions: out });
+  return json_({ ok: true, version: VERSION, sheetUrl: sh.getParent().getUrl(), closing: rules_(), submissions: out });
+}
+
+// ── Closing ──
+// The rules live in the script properties as { 'lab|session': closesAt }; session '' means every session
+// of that lab. closesAt is a date (ISO) from which the lab takes no more reports, so a past date means
+// "closed now", or '' for open: a session with '' stays open even when every session is closed.
+function rules_() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('CLOSING') || '{}'); } catch (err) { return {}; }
+}
+function closing_(lab, session) {
+  const r = rules_(), s = String(session || '').trim().toLowerCase();
+  const one = String(lab || '') + '|' + s, all = String(lab || '') + '|';
+  const at = s && one in r ? r[one] : all in r ? r[all] : '';
+  return { closed: !!at && new Date(at).getTime() <= Date.now(), closesAt: at || '' };
+}
+// closesAt null removes the rule, so the session follows the rule for every session again
+function setClosing_(d) {
+  if (d.key !== TEACHER_KEY) return json_({ ok: false, error: 'Wrong teacher key' });
+  const r = rules_(), k = String(d.lab || '') + '|' + String(d.session || '').trim().toLowerCase();
+  if (d.closesAt == null) delete r[k]; else r[k] = String(d.closesAt);
+  PropertiesService.getScriptProperties().setProperty('CLOSING', JSON.stringify(r));
+  return json_({ ok: true, version: VERSION, closing: r });
 }
 
 // The row of this report's latest live update (0 if it has none). Reports start with "live", so it is in column F.
@@ -255,8 +287,22 @@ const CONN = { api: '', key: '' };
 try { Object.assign(CONN, JSON.parse(localStorage.getItem(CKEY) || '{}')); } catch (e) {}
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const BACKEND_VERSION = 4;   // version of the Apps Script code below
+const BACKEND_VERSION = 5;   // version of the Apps Script code below
 let COUNTS = null;   // lab id → { reports, sessions:Set, last }
+let CLOSING = null;  // 'lab|session' → closesAt
+
+// Sessions where a lab takes no more reports, or will stop at a set time (closing rules from the sheet)
+function closingLine(id) {
+  const parts = [];
+  Object.entries(CLOSING || {}).forEach(([k, at]) => {
+    const i = k.lastIndexOf('|');
+    if (k.slice(0, i) !== id || !at) return;
+    const who = k.slice(i + 1) || 'every session', d = new Date(at);
+    parts.push(d.getTime() <= Date.now() ? `🔒 closed for ${esc(who)}`
+      : `⏰ ${esc(who)} closes ${d.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`);
+  });
+  return parts.length ? `<div class="counts">${parts.join(' · ')}</div>` : '';
+}
 
 function renderTopics() {
   document.getElementById('topics').innerHTML = LAB_TOPICS.map(t => `
@@ -271,6 +317,7 @@ function renderTopics() {
           <div class="lab-top"><span class="icon">${lab.icon}</span><span class="title">${esc(lab.title)}</span></div>
           <div class="desc">${esc(lab.desc)}</div>
           ${counts ? `<div class="counts">${counts}</div>` : ''}
+          ${closingLine(lab.id)}
           <div class="links"><a class="btn primary" href="${lab.teacher}">Open results</a><a class="btn" href="${lab.student}" target="_blank" rel="noopener">Student page</a></div>
         </div>`;
       }).join('')}</div>
@@ -294,6 +341,7 @@ async function test() {
     const j = await (await fetch(u)).json();
     if (!j.ok) throw new Error(j.error || 'server error');
     COUNTS = {};
+    CLOSING = j.closing || null;
     j.submissions.forEach(s => {
       const c = COUNTS[s.lab] || (COUNTS[s.lab] = { reports: 0, sessions: new Set(), last: '' });
       c.reports++;
