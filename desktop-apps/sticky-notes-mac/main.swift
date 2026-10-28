@@ -260,6 +260,87 @@ enum Markup {
     }
 }
 
+// Tags, kept in the note text as "[#Delayed]" (a tag from the tag list) and "[@2026-10-30]" (a date).
+// On screen each one is a small colored label. The token is what is between the brackets.
+struct TagSpan: Equatable {
+    var range: NSRange
+    var token: String
+}
+
+enum Tags {
+    static let pattern = try! NSRegularExpression(pattern: "\\[(#[^\\[\\]{}*|:\\n]{1,24}|@[0-9]{4}-[0-9]{2}-[0-9]{2})\\]")
+    static let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+    static func find(in text: String) -> [TagSpan] {
+        let s = text as NSString
+        return pattern.matches(in: text, range: NSRange(location: 0, length: s.length)).compactMap { m in
+            let token = s.substring(with: m.range(at: 1))
+            if token.hasPrefix("#") && cleanName(String(token.dropFirst())) != String(token.dropFirst()) { return nil }
+            if token.hasPrefix("@") && date(token) == nil { return nil }
+            return TagSpan(range: m.range, token: token)
+        }
+    }
+
+    // "@2026-10-30" as (year, month, day), if it is a real date
+    static func date(_ token: String) -> (year: Int, month: Int, day: Int)? {
+        let parts = token.dropFirst().split(separator: "-").compactMap { Int($0) }
+        guard token.hasPrefix("@"), parts.count == 3, (1...12).contains(parts[1]) else { return nil }
+        let leap = parts[0] % 4 == 0 && (parts[0] % 100 != 0 || parts[0] % 400 == 0)
+        let days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][parts[1] - 1]
+        return (1...days).contains(parts[2]) ? (parts[0], parts[1], parts[2]) : nil
+    }
+
+    static func dateToken(year: Int, month: Int, day: Int) -> String { String(format: "@%04d-%02d-%02d", year, month, day) }
+
+    // What the label shows: the tag's name, or the date as "Oct 30" (and the year when it isn't this one)
+    static func label(_ token: String, thisYear: Int) -> String {
+        guard let d = date(token) else { return String(token.dropFirst()) }
+        return "\(months[d.month - 1]) \(d.day)" + (d.year == thisYear ? "" : " \(d.year)")
+    }
+
+    // A tag name is one short line, without the characters the note markers use
+    static func cleanName(_ s: String) -> String {
+        let kept = s.filter { !"[]{}*|:\n\r\t".contains($0) }
+        return String(kept.trimmingCharacters(in: .whitespaces).prefix(24)).trimmingCharacters(in: .whitespaces)
+    }
+}
+
+// The tag list, shared by both computers: "tags.conf" in the notes folder, one "name: color" a line
+struct TagDef: Equatable {
+    var name: String
+    var color: String
+}
+
+enum TagList {
+    static let fileName = "tags.conf"
+    static let colors = ["red", "orange", "yellow", "green", "teal", "blue", "purple", "pink", "gray"]
+    static let labels = ["Red", "Orange", "Yellow", "Green", "Teal", "Blue", "Purple", "Pink", "Gray"]
+    // Deep enough for white letters
+    static let hex = [0xC62828, 0xD84315, 0xA16800, 0x2E7D32, 0x00796B, 0x1565C0, 0x6A1B9A, 0xAD1457, 0x616161]
+    static let dateHex = 0x283593
+    static let unknownHex = 0x757575
+
+    static func parse(_ text: String) -> [TagDef] {
+        var defs: [TagDef] = []
+        for line in NoteFile.normalize(text).components(separatedBy: "\n") {
+            let t = line.trimmingCharacters(in: .whitespaces)
+            guard !t.hasPrefix("#"), let colon = t.lastIndex(of: ":") else { continue }
+            let name = Tags.cleanName(String(t[..<colon]))
+            let color = t[t.index(after: colon)...].trimmingCharacters(in: .whitespaces).lowercased()
+            if name.isEmpty || defs.contains(where: { $0.name.lowercased() == name.lowercased() }) { continue }
+            defs.append(TagDef(name: name, color: colors.contains(color) ? color : "gray"))
+        }
+        return defs
+    }
+
+    static func serialize(_ defs: [TagDef]) -> String {
+        "# Sticky Notes tags: one \"name: color\" a line. Colors: " + colors.joined(separator: ", ") + "\n"
+            + defs.map { "\($0.name): \($0.color)\n" }.joined()
+    }
+
+    static func hex(for color: String) -> Int { colors.firstIndex(of: color).map { hex[$0] } ?? unknownHex }
+}
+
 // "Sticky Notes --selftest" (run by build.sh). The Windows app checks the same cases.
 func selfTest() -> Int32 {
     var fails: Int32 = 0
@@ -326,6 +407,21 @@ func selfTest() -> Int32 {
     let q = Markup.parse(colored)
     check(q.text == "\u{2610} buy milk now\n\u{2611} done\nTitle x\nend\n", "parse mixed colors")
     check(Markup.serialize(q.text, bold: q.bold, ink: q.ink) == colored, "round trip with colors")
+
+    // Tags
+    check(Tags.find(in: "[#On time] go [@2026-10-30]") == [TagSpan(range: NSRange(location: 0, length: 10), token: "#On time"),
+                                                         TagSpan(range: NSRange(location: 14, length: 13), token: "@2026-10-30")], "find tags")
+    check(Tags.find(in: "[# x] [#a:b] [#] [@2026-13-01] [@2026-02-30] [x]").isEmpty, "not tags")
+    check(Tags.find(in: "[@2028-02-29]").count == 1, "leap day")
+    check(Tags.label("@2026-10-30", thisYear: 2026) == "Oct 30" && Tags.label("@2027-01-05", thisYear: 2026) == "Jan 5 2027", "date label")
+    check(Tags.label("#Delayed", thisYear: 2026) == "Delayed", "tag label")
+    check(Tags.cleanName("  On [time]: ok* ") == "On time ok", "clean tag name")
+    let tagged = "[ ] [#Delayed] **lab** report [@2026-10-30]\n[x] {red}[#Done]{/red}"
+    let tp = Markup.parse(tagged)
+    check(Markup.serialize(tp.text, bold: tp.bold, ink: tp.ink) == tagged, "round trip with tags")
+    let defs = TagList.parse("# comment\nOn time: green\nDelayed:RED\nbad line\nOdd: plaid\non time: blue\n")
+    check(defs == [TagDef(name: "On time", color: "green"), TagDef(name: "Delayed", color: "red"), TagDef(name: "Odd", color: "gray")], "read tag list")
+    check(TagList.parse(TagList.serialize(defs)) == defs, "tag list round trip")
     print(fails == 0 ? "Note format self-test passed" : "Note format self-test failed")
     return fails
 }
@@ -372,6 +468,16 @@ enum NoteColors {
             NoteColors.rgb(NoteColors.headerHex[i]).setStroke()
             p.lineWidth = 1
             p.stroke()
+            return true
+        }
+    }
+}
+
+enum TagSwatch {
+    static func image(_ hex: Int) -> NSImage {
+        NSImage(size: NSSize(width: 14, height: 14), flipped: false) { r in
+            NoteColors.rgb(hex).setFill()
+            NSBezierPath(roundedRect: r.insetBy(dx: 1.5, dy: 3), xRadius: 2, yRadius: 2).fill()
             return true
         }
     }
@@ -506,6 +612,20 @@ final class NoteTextView: NSTextView {
         if let note = note { note.pasteMarkup() } else { super.paste(sender) }
     }
 
+    // Copy and cut keep tags, bold and colors for pasting into a note (see NoteController.copySelection)
+    override func copy(_ sender: Any?) {
+        if let note = note { note.copySelection() } else { super.copy(sender) }
+    }
+
+    override func cut(_ sender: Any?) {
+        guard let note = note else { return super.cut(sender) }
+        note.copySelection()
+        delete(sender)
+    }
+
+    // Dragging text would carry tags as plain pictures; cut and paste moves them instead
+    override func dragSelection(with event: NSEvent, offset mouseOffset: NSSize, slideBack: Bool) -> Bool { false }
+
     override func mouseDown(with event: NSEvent) {
         if let note = note, let i = checkbox(at: convert(event.locationInWindow, from: nil)) {
             note.toggleCheck(at: i)
@@ -582,7 +702,7 @@ final class NoteTextView: NSTextView {
     }
 }
 
-// The note's colored top bar (+, title, ☐, A, B and ⋯ buttons, drag to move, double-click to edit the title)
+// The note's colored top bar (+, title, tag, ☐, A, B and ⋯ buttons, drag to move, double-click to edit the title)
 // and its text area. Every edge of the note resizes it, and so does the corner handle.
 final class NoteView: NSView, NSTextFieldDelegate {
     weak var note: NoteController?
@@ -603,7 +723,8 @@ final class NoteView: NSView, NSTextFieldDelegate {
     var boldRect: NSRect { NSRect(x: bounds.width - 52, y: 3, width: 22, height: 22) }
     var inkRect: NSRect { NSRect(x: bounds.width - 78, y: 3, width: 22, height: 22) }
     var checkRect: NSRect { NSRect(x: bounds.width - 104, y: 3, width: 22, height: 22) }
-    var titleRect: NSRect { NSRect(x: plusRect.maxX + 4, y: 3, width: max(0, checkRect.minX - plusRect.maxX - 8), height: 22) }
+    var tagRect: NSRect { NSRect(x: bounds.width - 130, y: 3, width: 22, height: 22) }
+    var titleRect: NSRect { NSRect(x: plusRect.maxX + 4, y: 3, width: max(0, tagRect.minX - plusRect.maxX - 8), height: 22) }
 
     override var isFlipped: Bool { true }
 
@@ -713,6 +834,21 @@ final class NoteView: NSView, NSTextFieldDelegate {
             let sz = ("B" as NSString).size(withAttributes: attrs)
             ("B" as NSString).draw(at: NSPoint(x: r.midX - sz.width / 2, y: r.midY - sz.height / 2), withAttributes: attrs)
         }
+        // A luggage tag
+        drawButton(tagRect, hover: hot == 5) { r in
+            let x0 = r.midX - 6.5, x1 = r.midX + 6.5, y0 = r.midY - 4.5, y1 = r.midY + 4.5
+            let p = NSBezierPath()
+            p.move(to: NSPoint(x: x0, y: r.midY))
+            p.line(to: NSPoint(x: x0 + 4, y: y0))
+            p.line(to: NSPoint(x: x1, y: y0))
+            p.line(to: NSPoint(x: x1, y: y1))
+            p.line(to: NSPoint(x: x0 + 4, y: y1))
+            p.close()
+            p.lineWidth = 1.3
+            p.lineJoinStyle = .round
+            p.stroke()
+            NSBezierPath(ovalIn: NSRect(x: x0 + 3.2, y: r.midY - 1.2, width: 2.4, height: 2.4)).fill()
+        }
         // "A" over a bar in the text color picked last
         drawButton(inkRect, hover: hot == 4) { r in
             let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13, weight: .semibold), .foregroundColor: NoteColors.glyph]
@@ -772,6 +908,7 @@ final class NoteView: NSView, NSTextFieldDelegate {
         if checkRect.contains(p) { return 2 }
         if boldRect.contains(p) { return 3 }
         if inkRect.contains(p) { return 4 }
+        if tagRect.contains(p) { return 5 }
         return -1
     }
 
@@ -801,6 +938,7 @@ final class NoteView: NSView, NSTextFieldDelegate {
         case 2: note.toggleChecklist()
         case 3: note.toggleBold()
         case 4: _ = note.inkMenu().popUp(positioning: nil, at: NSPoint(x: inkRect.minX, y: inkRect.maxY), in: self)
+        case 5: _ = note.tagMenu().popUp(positioning: nil, at: NSPoint(x: tagRect.minX, y: tagRect.maxY), in: self)
         default:
             if p.y < headerH && event.clickCount == 2 {
                 beginTitleEdit()
@@ -850,6 +988,10 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
     // The text color by name (see Markup.inks); restyle() turns it into the color on screen
     static let inkKey = NSAttributedString.Key("noteInk")
     static let linkFinder = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+    // A tag's token ("#Delayed", "@2026-10-30") on the one attachment character that shows it
+    static let tagKey = NSAttributedString.Key("noteTag")
+    static let markupType = NSPasteboard.PasteboardType("net.ergosfera.stickynotes.markup")
+    static var plain: [NSAttributedString.Key: Any] { [.font: regular, .foregroundColor: NoteColors.ink] }
 
     init(app: AppDelegate, data: NoteData, frame: NSRect) {
         self.app = app
@@ -863,7 +1005,7 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         window.backgroundColor = .clear
         window.hasShadow = true
         window.isReleasedWhenClosed = false
-        window.minSize = NSSize(width: 170, height: 120)
+        window.minSize = NSSize(width: 200, height: 120)
         window.acceptsMouseMovedEvents = true
         window.appearance = NSAppearance(named: .aqua)
         window.delegate = self
@@ -904,20 +1046,61 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
 
     // MARK: Checkboxes, bold and text colors
 
-    // The note as it is saved: plain text with "[ ] ", "[x] ", "**" and "{red}" markers
+    // The note as it is saved: plain text with "[ ] ", "[x] ", "**", "{red}" and "[#tag]" markers
     var markup: String {
+        guard let ts = text.textStorage else { return text.string }
+        return markup(of: NSRange(location: 0, length: ts.length))
+    }
+
+    func markup(of range: NSRange) -> String {
+        guard let ts = text.textStorage else { return "" }
+        // Tags go back to their markers, outside any bold or color
+        let a = NSMutableAttributedString(attributedString: ts.attributedSubstring(from: range))
+        for (r, token) in tags(in: a).reversed() {
+            a.replaceCharacters(in: r, with: NSAttributedString(string: "[\(token)]", attributes: NoteController.plain))
+        }
         var bold: [NSRange] = []
         var ink: [InkSpan] = []
-        if let ts = text.textStorage {
-            let all = NSRange(location: 0, length: ts.length)
-            ts.enumerateAttribute(.font, in: all) { v, r, _ in
-                if let f = v as? NSFont, f.fontDescriptor.symbolicTraits.contains(.bold) { bold.append(r) }
-            }
-            ts.enumerateAttribute(NoteController.inkKey, in: all) { v, r, _ in
-                if let name = v as? String { ink.append(InkSpan(range: r, name: name)) }
-            }
+        let all = NSRange(location: 0, length: a.length)
+        a.enumerateAttribute(.font, in: all) { v, r, _ in
+            if let f = v as? NSFont, f.fontDescriptor.symbolicTraits.contains(.bold) { bold.append(r) }
         }
-        return Markup.serialize(text.string, bold: bold, ink: ink)
+        a.enumerateAttribute(NoteController.inkKey, in: all) { v, r, _ in
+            if let name = v as? String { ink.append(InkSpan(range: r, name: name)) }
+        }
+        return Markup.serialize(a.string, bold: bold, ink: ink)
+    }
+
+    // Each tag character and its token (neighbors with the same token are separate tags)
+    private func tags(in a: NSAttributedString) -> [(NSRange, String)] {
+        var out: [(NSRange, String)] = []
+        a.enumerateAttribute(NoteController.tagKey, in: NSRange(location: 0, length: a.length)) { v, r, _ in
+            guard let token = v as? String else { return }
+            for i in r.location..<NSMaxRange(r) { out.append((NSRange(location: i, length: 1), token)) }
+        }
+        return out
+    }
+
+    // A tag as one character: a picture of a small colored label with white letters
+    func tagString(_ token: String) -> NSAttributedString {
+        let label = Tags.label(token, thisYear: Calendar.current.component(.year, from: Date()))
+        let font = NSFont.boldSystemFont(ofSize: 11)
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.white]
+        let size = (label as NSString).size(withAttributes: attrs)
+        let w = ceil(size.width) + 12, h: CGFloat = 17
+        let fill = app.tagColor(token)
+        let image = NSImage(size: NSSize(width: w, height: h), flipped: false) { r in
+            fill.setFill()
+            NSBezierPath(roundedRect: r.insetBy(dx: 0.5, dy: 0.5), xRadius: 3.5, yRadius: 3.5).fill()
+            (label as NSString).draw(at: NSPoint(x: (r.width - size.width) / 2, y: (r.height - size.height) / 2), withAttributes: attrs)
+            return true
+        }
+        let att = NSTextAttachment()
+        att.image = image
+        att.bounds = NSRect(x: 0, y: -4, width: w, height: h)
+        let a = NSMutableAttributedString(attachment: att)
+        a.addAttributes([NoteController.tagKey: token, .font: NoteController.regular], range: NSRange(location: 0, length: a.length))
+        return a
     }
 
     func attributed(_ markup: String) -> NSAttributedString {
@@ -925,7 +1108,26 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         let a = NSMutableAttributedString(string: t, attributes: [.font: NoteController.regular, .foregroundColor: NoteColors.ink])
         for r in bold { a.addAttribute(.font, value: NoteController.bold, range: r) }
         for s in ink { a.addAttribute(NoteController.inkKey, value: s.name, range: s.range) }
+        for tag in Tags.find(in: t).reversed() { a.replaceCharacters(in: tag.range, with: tagString(tag.token)) }
         return a
+    }
+
+    // Shows the tags again with the tag list as it is now (new colors, renamed or removed tags)
+    func refreshTags() {
+        let sel = text.selectedRange()
+        setMarkup(markup)
+        text.setSelectedRange(NSRange(location: min(sel.location, (text.string as NSString).length), length: 0))
+    }
+
+    // Changes "[#old]" to "[#new]" for each renamed tag, and saves the note if it had any
+    func renameTags(_ renames: [(String, String)]) {
+        var m = markup
+        for (old, new) in renames { m = m.replacingOccurrences(of: "[#\(old)]", with: "[#\(new)]") }
+        guard m != markup else { return }
+        let sel = text.selectedRange()
+        setMarkup(m)
+        text.setSelectedRange(NSRange(location: min(sel.location, (text.string as NSString).length), length: 0))
+        saveNow()
     }
 
     func setMarkup(_ m: String) {
@@ -968,6 +1170,13 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
             }
             i = NSMaxRange(line)
         }
+        // Only a tag's own character carries its token (text typed next to a tag takes its attributes)
+        ts.enumerateAttribute(NoteController.tagKey, in: all) { v, r, _ in
+            guard v != nil else { return }
+            for i in r.location..<NSMaxRange(r) where s.character(at: i) != 0xFFFC || ts.attribute(.attachment, at: i, effectiveRange: nil) == nil {
+                ts.removeAttribute(NoteController.tagKey, range: NSRange(location: i, length: 1))
+            }
+        }
         // Links are found again on every change; they aren't saved in the note file
         ts.removeAttribute(.link, range: all)
         NoteController.linkFinder?.enumerateMatches(in: ts.string, options: [], range: all) { m, _, _ in
@@ -979,6 +1188,8 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         var typing = text.typingAttributes
         typing.removeValue(forKey: .strikethroughStyle)
         typing.removeValue(forKey: .link)
+        typing.removeValue(forKey: NoteController.tagKey)
+        typing.removeValue(forKey: .attachment)
         typing[.foregroundColor] = NoteColors.inkColor(typing[NoteController.inkKey] as? String)
         if let f = typing[.font] as? NSFont, f.pointSize != 14 { typing[.font] = NoteController.regular }
         text.typingAttributes = typing
@@ -1070,10 +1281,98 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         return m
     }
 
-    // Pastes plain text; any checkbox, bold and color markers in it come in formatted
+    // Pastes plain text; any checkbox, bold, color and tag markers in it come in formatted.
+    // Text copied from a note brings its markers along.
     func pasteMarkup() {
-        guard let s = NSPasteboard.general.string(forType: .string) else { return }
+        let pb = NSPasteboard.general
+        guard let s = pb.string(forType: NoteController.markupType) ?? pb.string(forType: .string) else { return }
         text.insertText(attributed(NoteFile.normalize(s)), replacementRange: text.selectedRange())
+    }
+
+    // Copies the selection with its markers for notes, and as plain text (tags as "[Delayed]") for other apps
+    func copySelection() {
+        let r = text.selectedRange()
+        guard r.length > 0, let ts = text.textStorage else { return }
+        let plain = NSMutableString(string: ts.attributedSubstring(from: r).string)
+        let year = Calendar.current.component(.year, from: Date())
+        for (tr, token) in tags(in: ts.attributedSubstring(from: r)).reversed() {
+            plain.replaceCharacters(in: tr, with: "[\(Tags.label(token, thisYear: year))]")
+        }
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(plain as String, forType: .string)
+        pb.setString(markup(of: r), forType: NoteController.markupType)
+    }
+
+    // MARK: Tags
+
+    // Puts a tag at the start of the line the cursor is on (after its checkbox) or at its end
+    func insertTag(_ token: String, atEnd: Bool) {
+        let s = text.string as NSString
+        let sel = text.selectedRange()
+        let line = s.lineRange(for: NSRange(location: min(sel.location, s.length), length: 0))
+        var end = NSMaxRange(line)
+        if end > line.location && s.character(at: end - 1) == 10 { end -= 1 }
+        let tag = NSMutableAttributedString(attributedString: tagString(token))
+        let at: Int
+        if atEnd {
+            at = end
+            if end > line.location && s.character(at: end - 1) != 32 { tag.insert(NSAttributedString(string: " ", attributes: NoteController.plain), at: 0) }
+        } else {
+            at = line.location + (Markup.hasBox(s, at: line.location) ? 2 : 0)
+            tag.append(NSAttributedString(string: " ", attributes: NoteController.plain))
+        }
+        let r = NSRange(location: at, length: 0)
+        guard let ts = text.textStorage, text.shouldChangeText(in: r, replacementString: tag.string) else { return }
+        ts.insert(tag, at: at)
+        text.didChangeText()
+        text.setSelectedRange(NSRange(location: atEnd ? at + tag.length : (sel.location >= at ? sel.location + tag.length : sel.location), length: 0))
+        window.makeFirstResponder(text)
+    }
+
+    @objc func pickTag(_ sender: NSMenuItem) {
+        guard let v = sender.representedObject as? String, let tab = v.firstIndex(of: "\t") else { return }
+        insertTag(String(v[v.index(after: tab)...]), atEnd: v.hasPrefix("end"))
+    }
+
+    @objc func pickDate(_ sender: NSMenuItem) {
+        let picker = NSDatePicker(frame: NSRect(x: 0, y: 0, width: 140, height: 148))
+        picker.datePickerStyle = .clockAndCalendar
+        picker.datePickerElements = .yearMonthDay
+        picker.dateValue = Date()
+        picker.sizeToFit()
+        let a = NSAlert()
+        a.messageText = "Date tag"
+        a.informativeText = "Pick the date to put on the line."
+        a.accessoryView = picker
+        a.addButton(withTitle: "Add")
+        a.addButton(withTitle: "Cancel")
+        NSApp.activate(ignoringOtherApps: true)
+        guard a.runModal() == .alertFirstButtonReturn else { return }
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: picker.dateValue)
+        insertTag(Tags.dateToken(year: c.year ?? 2000, month: c.month ?? 1, day: c.day ?? 1), atEnd: (sender.representedObject as? String) == "end")
+    }
+
+    func tagMenu() -> NSMenu {
+        let m = NSMenu()
+        for (title, place) in [("At the Start of the Line", "start"), ("At the End of the Line", "end")] {
+            m.addItem(withTitle: title, action: nil, keyEquivalent: "")
+            for def in app.tagDefs {
+                let item = m.addItem(withTitle: def.name, action: #selector(pickTag(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = place + "\t#" + def.name
+                item.image = TagSwatch.image(TagList.hex(for: def.color))
+                item.indentationLevel = 1
+            }
+            let date = m.addItem(withTitle: "Date…", action: #selector(pickDate(_:)), keyEquivalent: "")
+            date.target = self
+            date.representedObject = place
+            date.image = TagSwatch.image(TagList.dateHex)
+            date.indentationLevel = 1
+            m.addItem(.separator())
+        }
+        m.addItem(withTitle: "Edit Tags…", action: #selector(AppDelegate.editTags(_:)), keyEquivalent: "").target = app
+        return m
     }
 
     func setTitle(_ t: String) {
@@ -1196,6 +1495,7 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         m.addItem(withTitle: "Checklist", action: #selector(toggleChecklist), keyEquivalent: "").target = self
         m.addItem(withTitle: "Bold", action: #selector(toggleBold), keyEquivalent: "").target = self
         m.addItem(withTitle: "Text Color", action: nil, keyEquivalent: "").submenu = inkMenu()
+        m.addItem(withTitle: "Tag", action: nil, keyEquivalent: "").submenu = tagMenu()
         m.addItem(withTitle: data.title.isEmpty ? "Add Title" : "Edit Title", action: #selector(editTitle(_:)), keyEquivalent: "").target = self
         m.addItem(.separator())
         let top = m.addItem(withTitle: "Keep on Top", action: #selector(toggleTop(_:)), keyEquivalent: "")
@@ -1290,10 +1590,104 @@ enum IconArt {
     }
 }
 
+// MARK: - Edit Tags window: a row per tag (name, color, remove), and Add Tag
+
+final class TagEditor: NSObject {
+    private struct Row {
+        let field: NSTextField
+        let color: NSPopUpButton
+        let remove: NSButton
+        let original: String
+    }
+    private var rows: [Row] = []
+    private let list = FlippedView()
+    private let scroll = NSScrollView(frame: NSRect(x: 0, y: 34, width: 340, height: 210))
+    private let rowH: CGFloat = 30
+
+    final class FlippedView: NSView { override var isFlipped: Bool { true } }
+
+    // The new list and the renamed tags (old name, new name), or nil if cancelled
+    func run(_ defs: [TagDef]) -> ([TagDef], [(String, String)])? {
+        let box = NSView(frame: NSRect(x: 0, y: 0, width: 340, height: 244))
+        scroll.hasVerticalScroller = true
+        scroll.borderType = .bezelBorder
+        scroll.documentView = list
+        box.addSubview(scroll)
+        let add = NSButton(title: "Add Tag", target: self, action: #selector(addTag(_:)))
+        add.frame = NSRect(x: 0, y: 0, width: 100, height: 28)
+        box.addSubview(add)
+        for d in defs { addRow(d.name, d.color, original: d.name) }
+        if defs.isEmpty { addRow("", "blue", original: "") }
+
+        let a = NSAlert()
+        a.messageText = "Tags"
+        a.informativeText = "Name each tag and pick its color. Both computers share this list. Dates come from the tag menu."
+        a.accessoryView = box
+        a.addButton(withTitle: "Save")
+        a.addButton(withTitle: "Cancel")
+        NSApp.activate(ignoringOtherApps: true)
+        a.window.initialFirstResponder = rows.first?.field
+        guard a.runModal() == .alertFirstButtonReturn else { return nil }
+
+        var out: [TagDef] = []
+        var renames: [(String, String)] = []
+        for r in rows {
+            let name = Tags.cleanName(r.field.stringValue)
+            if name.isEmpty || out.contains(where: { $0.name.lowercased() == name.lowercased() }) { continue }
+            out.append(TagDef(name: name, color: TagList.colors[max(0, r.color.indexOfSelectedItem)]))
+            if !r.original.isEmpty && r.original != name { renames.append((r.original, name)) }
+        }
+        return (out, renames)
+    }
+
+    private func addRow(_ name: String, _ color: String, original: String) {
+        let field = NSTextField(string: name)
+        field.placeholderString = "Tag name"
+        let pop = NSPopUpButton(frame: .zero, pullsDown: false)
+        for (i, label) in TagList.labels.enumerated() {
+            pop.addItem(withTitle: label)
+            pop.lastItem?.image = TagSwatch.image(TagList.hex[i])
+        }
+        pop.selectItem(at: TagList.colors.firstIndex(of: color) ?? 0)
+        let remove = NSButton(title: "−", target: self, action: #selector(removeTag(_:)))
+        remove.bezelStyle = .rounded
+        list.addSubview(field)
+        list.addSubview(pop)
+        list.addSubview(remove)
+        rows.append(Row(field: field, color: pop, remove: remove, original: original))
+        layoutRows()
+    }
+
+    private func layoutRows() {
+        for (i, r) in rows.enumerated() {
+            let y = CGFloat(i) * rowH + 4
+            r.field.frame = NSRect(x: 6, y: y, width: 168, height: 22)
+            r.color.frame = NSRect(x: 180, y: y - 1, width: 112, height: 24)
+            r.remove.frame = NSRect(x: 294, y: y - 2, width: 32, height: 26)
+        }
+        list.frame = NSRect(x: 0, y: 0, width: scroll.contentSize.width, height: max(scroll.contentSize.height, CGFloat(rows.count) * rowH + 8))
+    }
+
+    @objc private func addTag(_ sender: Any?) {
+        addRow("", TagList.colors[rows.count % TagList.colors.count], original: "")
+        list.scrollToVisible(rows.last!.field.frame)
+        rows.last!.field.window?.makeFirstResponder(rows.last!.field)
+    }
+
+    @objc private func removeTag(_ sender: NSButton) {
+        guard let i = rows.firstIndex(where: { $0.remove === sender }) else { return }
+        let r = rows.remove(at: i)
+        r.field.removeFromSuperview()
+        r.color.removeFromSuperview()
+        r.remove.removeFromSuperview()
+        layoutRows()
+    }
+}
+
 // MARK: - App: the notes folder and the open notes
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    static let welcome = "Welcome to Sticky Notes!\n\nWrite anything here. Notes save as you type and sync through your Google Drive folder, so they also appear on your other computer.\n\n+  makes a new note.\n☐  makes a checklist: click a box to check it.\nB  makes the selected text bold.\nA  colors the selected text.\n⋯  changes the color or deletes the note.\nDouble-click the top bar to give a note a title.\nDrag the top bar to move a note, and an edge or the corner to resize it."
+    static let welcome = "Welcome to Sticky Notes!\n\nWrite anything here. Notes save as you type and sync through your Google Drive folder, so they also appear on your other computer.\n\n+  makes a new note.\n☐  makes a checklist: click a box to check it.\nB  makes the selected text bold.\nA  colors the selected text.\nThe tag button puts a tag or a date at the start or end of a line.\n⋯  changes the color or deletes the note.\nDouble-click the top bar to give a note a title.\nDrag the top bar to move a note, and an edge or the corner to resize it."
 
     let local = LocalState()
     let fm = FileManager.default
@@ -1306,6 +1700,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var cascade = 0
     var listedOnce = false
     var offerWelcome = false
+    var tagDefs: [TagDef] = []
+    var tagStamp: String?  // of tags.conf as last read or written
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMainMenu()
@@ -1384,6 +1780,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func path(_ id: String) -> String { (folder as NSString).appendingPathComponent(id + ".txt") }
 
+    // MARK: Tags
+
+    var tagsPath: String { (folder as NSString).appendingPathComponent(TagList.fileName) }
+
+    // Reads the tag list when it changed (here or on the other computer) and shows the notes' tags again
+    func loadTags() {
+        let st = stamp(tagsPath) ?? "none"
+        guard st != tagStamp else { return }
+        guard st == "none" || fm.fileExists(atPath: tagsPath),
+              let text = st == "none" ? "" : try? String(contentsOfFile: tagsPath, encoding: .utf8) else { return }
+        tagStamp = st
+        let defs = TagList.parse(text)
+        guard defs != tagDefs else { return }
+        tagDefs = defs
+        for c in notes.values { c.refreshTags() }
+    }
+
+    func tagColor(_ token: String) -> NSColor {
+        if token.hasPrefix("@") { return NoteColors.rgb(TagList.dateHex) }
+        let name = String(token.dropFirst()).lowercased()
+        return NoteColors.rgb(TagList.hex(for: tagDefs.first { $0.name.lowercased() == name }?.color ?? ""))
+    }
+
+    @objc func editTags(_ sender: Any?) {
+        guard let (defs, renames) = TagEditor().run(tagDefs) else { return }
+        guard ensureFolder() else {
+            alert("Couldn't save the tags.", "The notes folder isn't available right now:\n\(folder)")
+            return
+        }
+        do {
+            try Data(TagList.serialize(defs).utf8).write(to: URL(fileURLWithPath: tagsPath))
+        } catch {
+            alert("Couldn't save the tags.", error.localizedDescription)
+            return
+        }
+        tagStamp = stamp(tagsPath)
+        tagDefs = defs
+        for c in notes.values {
+            c.renameTags(renames)
+            c.refreshTags()
+        }
+    }
+
     func stamp(_ path: String) -> String? {
         guard let a = try? fm.attributesOfItem(atPath: path) else { return nil }
         let time = (a[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
@@ -1410,6 +1849,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // changed ones and closes notes whose file was deleted (on the other computer).
     func scan() {
         guard ensureFolder(), let names = try? fm.contentsOfDirectory(atPath: folder) else { return }
+        loadTags()
         var present = Set<String>()
         for name in names where name.lowercased().hasSuffix(".txt") && !name.hasPrefix(".") {
             let id = String(name.dropLast(4))
@@ -1586,6 +2026,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for c in notes.values { c.close() }
         notes.removeAll()
         seen.removeAll()
+        tagStamp = nil
         let old = folder
         folder = next
         if folderOverride == nil { local.folder = next }
@@ -1633,7 +2074,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showAbout(_ sender: Any?) {
-        alert("Sticky Notes 1.2.1",
+        alert("Sticky Notes 1.3",
               "Notes folder:\n\(folder)\n\nEach note is a text file in this folder. Google Drive for desktop copies it to your other computers, where Sticky Notes for Mac or Windows shows it. Deleted notes go to the Trash folder inside it.\n\n© 2026 Mauricio Mendivelso. MIT License.\nProvided \"as is\", without warranty of any kind.")
     }
 
@@ -1653,6 +2094,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Open Notes Folder", action: #selector(openFolder(_:)), keyEquivalent: "").target = self
         appMenu.addItem(withTitle: "Change Sync Folder…", action: #selector(changeFolder(_:)), keyEquivalent: "").target = self
+        appMenu.addItem(withTitle: "Edit Tags…", action: #selector(editTags(_:)), keyEquivalent: "").target = self
         if #available(macOS 13.0, *) {
             let login = appMenu.addItem(withTitle: "Open at Login", action: #selector(toggleLogin(_:)), keyEquivalent: "")
             login.target = self

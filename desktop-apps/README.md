@@ -106,6 +106,8 @@ there when you open the Windows PC at home.
 | Checklist | **☐** on the top bar, Ctrl+Shift+L / ⇧⌘L, or type `[ ]` and a space at the start of a line. Click a box to check it; Enter adds the next one, Enter on an empty one ends the list |
 | Bold | Select text, then **B** on the top bar or Ctrl+B / ⌘B |
 | Text color | Select text, then **A** on the top bar and pick Black, Red, Orange, Green, Blue or Purple (also in the ⋯ menu, and Format → Text Color on the Mac) |
+| Tags | The tag button on the top bar → pick a tag or **Date…**, under **At the start of the line** or **At the end of the line**. Each tag is a small colored label; Backspace removes it whole |
+| Your tag list | Tag button → **Edit tags…** (also in the tray menu / Sticky Notes menu): name each tag and pick one of nine colors. Renaming a tag renames it in your notes. Dates are always indigo, shown as "Oct 30" |
 | Links | Web addresses (`https://…`, `www.…`) and email addresses turn into links; click one to open it |
 | Title | Double-click the top bar, type the title and press Enter (Esc cancels). Also ⋯ → Add title, or Ctrl+Shift+T / ⇧⌘T. A note without a title shows an empty bar |
 | Color, keep on top, delete | **⋯** on the note's top bar (or right-click the bar) |
@@ -124,10 +126,11 @@ How it works:
   separate notes, so nothing is lost. Delete the one you don't need.
 - Deleted notes move to **My Drive/StickyNotes/Trash**. To get one back, move its file back into
   StickyNotes; to free space, empty that folder yourself.
-- Notes can have checklists, bold text, six text colors and a title, and nothing else (no pictures or fonts), so they look the same on both systems.
+- Notes can have checklists, bold text, six text colors, tags and a title, and nothing else (no pictures or fonts), so they look the same on both systems.
   In the file they're plain text markers: `[ ] milk` and `[x] milk` for checkboxes, `**word**` for bold, `{red}word{/red}` for color
-  (red, orange, green, blue, purple), and a `title:` line above the `---`.
-- Titles and colors need version 1.2 on every computer: an older version shows the color markers as typed and drops the title when it saves the note.
+  (red, orange, green, blue, purple), `[#Delayed]` for a tag, `[@2026-10-30]` for a date, and a `title:` line above the `---`.
+- The tag list is `tags.conf` in the notes folder, one `name: color` a line, so it syncs like the notes.
+- Tags need version 1.3 on every computer (an older one shows `[#Delayed]` as typed). Titles and colors need version 1.2 or newer: an older version shows the color markers as typed and drops the title when it saves the note.
   A checked item shows crossed out.
 - The first time, macOS may ask to let Sticky Notes access files in Google Drive. Click **Allow**.
 

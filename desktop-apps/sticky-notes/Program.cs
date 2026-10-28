@@ -22,8 +22,8 @@ using Timer = System.Windows.Forms.Timer;
 [assembly: AssemblyTitle("Sticky Notes")]
 [assembly: AssemblyProduct("Sticky Notes")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Mauricio Mendivelso. MIT License.")]
-[assembly: AssemblyVersion("1.2.2.0")]
-[assembly: AssemblyFileVersion("1.2.2.0")]
+[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyFileVersion("1.3.0.0")]
 
 namespace StickyNotes
 {
@@ -334,6 +334,143 @@ namespace StickyNotes
         }
     }
 
+    // Tags, kept in the note text as "[#Delayed]" (a tag from the tag list) and "[@2026-10-30]" (a date).
+    // On screen each one is a small colored label. The token is what is between the brackets.
+    struct TagSpan
+    {
+        public int Start, Length;
+        public string Token;
+        public TagSpan(int start, int length, string token) { Start = start; Length = length; Token = token; }
+    }
+
+    static class Tags
+    {
+        static readonly Regex Pattern = new Regex(@"\[(#[^\[\]{}*|:\n]{1,24}|@[0-9]{4}-[0-9]{2}-[0-9]{2})\]", RegexOptions.CultureInvariant);
+        static readonly string[] Months = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+
+        public static List<TagSpan> Find(string text)
+        {
+            var tags = new List<TagSpan>();
+            foreach (Match m in Pattern.Matches(text))
+            {
+                string token = m.Groups[1].Value;
+                if (token[0] == '#' && CleanName(token.Substring(1)) != token.Substring(1)) continue;
+                int y, mo, d;
+                if (token[0] == '@' && !Date(token, out y, out mo, out d)) continue;
+                tags.Add(new TagSpan(m.Index, m.Length, token));
+            }
+            return tags;
+        }
+
+        // "@2026-10-30" as year, month and day, if it is a real date
+        public static bool Date(string token, out int y, out int mo, out int d)
+        {
+            y = mo = d = 0;
+            string[] parts = token.Length == 11 && token[0] == '@' ? token.Substring(1).Split('-') : new string[0];
+            if (parts.Length != 3 || !int.TryParse(parts[0], out y) || !int.TryParse(parts[1], out mo) || !int.TryParse(parts[2], out d)) return false;
+            if (mo < 1 || mo > 12) return false;
+            bool leap = y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
+            int days = (new[] { 31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 })[mo - 1];
+            return d >= 1 && d <= days;
+        }
+
+        public static string DateToken(DateTime t)
+        {
+            return "@" + t.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        }
+
+        // What the label shows: the tag's name, or the date as "Oct 30" (and the year when it isn't this one)
+        public static string Label(string token, int thisYear)
+        {
+            int y, mo, d;
+            if (!Date(token, out y, out mo, out d)) return token.Substring(1);
+            return Months[mo - 1] + " " + d + (y == thisYear ? "" : " " + y);
+        }
+
+        // A tag name is one short line, without the characters the note markers use
+        public static string CleanName(string s)
+        {
+            var sb = new StringBuilder();
+            foreach (char c in s) if ("[]{}*|:\n\r\t".IndexOf(c) < 0) sb.Append(c);
+            string t = sb.ToString().Trim(' ');
+            if (t.Length > 24) t = t.Substring(0, 24);
+            return t.Trim(' ');
+        }
+    }
+
+    // The tag list, shared by both computers: "tags.conf" in the notes folder, one "name: color" a line
+    class TagDef
+    {
+        public string Name, Color;
+        public TagDef(string name, string color) { Name = name; Color = color; }
+    }
+
+    static class TagList
+    {
+        public const string FileName = "tags.conf";
+        public static readonly string[] Colors = { "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink", "gray" };
+        public static readonly string[] Labels = { "Red", "Orange", "Yellow", "Green", "Teal", "Blue", "Purple", "Pink", "Gray" };
+        // Deep enough for white letters
+        static readonly int[] HexOf = { 0xC62828, 0xD84315, 0xA16800, 0x2E7D32, 0x00796B, 0x1565C0, 0x6A1B9A, 0xAD1457, 0x616161 };
+        public const int DateHex = 0x283593, UnknownHex = 0x757575;
+
+        public static List<TagDef> Parse(string text)
+        {
+            var defs = new List<TagDef>();
+            foreach (string line in NoteFile.Normalize(text).Split('\n'))
+            {
+                string t = line.Trim(' ', '\t');
+                int colon = t.LastIndexOf(':');
+                if (t.StartsWith("#", StringComparison.Ordinal) || colon < 0) continue;
+                string name = Tags.CleanName(t.Substring(0, colon));
+                string color = t.Substring(colon + 1).Trim(' ', '\t').ToLowerInvariant();
+                if (name.Length == 0 || Find(defs, name) != null) continue;
+                defs.Add(new TagDef(name, Array.IndexOf(Colors, color) >= 0 ? color : "gray"));
+            }
+            return defs;
+        }
+
+        public static string Serialize(List<TagDef> defs)
+        {
+            var sb = new StringBuilder("# Sticky Notes tags: one \"name: color\" a line. Colors: " + string.Join(", ", Colors) + "\n");
+            foreach (TagDef d in defs) sb.Append(d.Name).Append(": ").Append(d.Color).Append('\n');
+            return sb.ToString();
+        }
+
+        public static TagDef Find(List<TagDef> defs, string name)
+        {
+            foreach (TagDef d in defs) if (string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase)) return d;
+            return null;
+        }
+
+        public static int Hex(string color)
+        {
+            int i = Array.IndexOf(Colors, color);
+            return i < 0 ? UnknownHex : HexOf[i];
+        }
+
+        public static bool Same(List<TagDef> a, List<TagDef> b)
+        {
+            if (a.Count != b.Count) return false;
+            for (int i = 0; i < a.Count; i++) if (a[i].Name != b[i].Name || a[i].Color != b[i].Color) return false;
+            return true;
+        }
+
+        public static Image Swatch(int hex, float s)
+        {
+            int size = Math.Max(16, (int)(16 * s));
+            var bmp = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(bmp))
+            using (var fill = new SolidBrush(NoteColors.Rgb(hex)))
+            using (var p = NoteColors.Round(new RectangleF(1.5f * s, 4 * s, size - 3 * s, size - 8 * s), 2 * s))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.FillPath(fill, p);
+            }
+            return bmp;
+        }
+    }
+
     // StickyNotes.exe --selftest (run by build.ps1). The Mac app checks the same cases.
     static class SelfTest
     {
@@ -401,6 +538,24 @@ namespace StickyNotes
             string qt = Markup.Parse(colored, qb, qi);
             if (qt != "\u2610 buy milk now\n\u2611 done\nTitle x\nend\n") fails++;
             if (Markup.Serialize(qt, qb, qi) != colored) fails++;
+
+            // Tags
+            var t1 = Tags.Find("[#On time] go [@2026-10-30]");
+            if (t1.Count != 2 || t1[0].Start != 0 || t1[0].Length != 10 || t1[0].Token != "#On time"
+                || t1[1].Start != 14 || t1[1].Length != 13 || t1[1].Token != "@2026-10-30") fails++;
+            if (Tags.Find("[# x] [#a:b] [#] [@2026-13-01] [@2026-02-30] [x]").Count != 0) fails++;
+            if (Tags.Find("[@2028-02-29]").Count != 1) fails++;
+            if (Tags.Label("@2026-10-30", 2026) != "Oct 30" || Tags.Label("@2027-01-05", 2026) != "Jan 5 2027") fails++;
+            if (Tags.Label("#Delayed", 2026) != "Delayed") fails++;
+            if (Tags.CleanName("  On [time]: ok* ") != "On time ok") fails++;
+            string tagged = "[ ] [#Delayed] **lab** report [@2026-10-30]\n[x] {red}[#Done]{/red}";
+            var tb = new List<TextSpan>();
+            var ti = new List<InkSpan>();
+            string tt = Markup.Parse(tagged, tb, ti);
+            if (Markup.Serialize(tt, tb, ti) != tagged) fails++;
+            var defs = TagList.Parse("# comment\nOn time: green\nDelayed:RED\nbad line\nOdd: plaid\non time: blue\n");
+            if (!TagList.Same(defs, new List<TagDef> { new TagDef("On time", "green"), new TagDef("Delayed", "red"), new TagDef("Odd", "gray") })) fails++;
+            if (!TagList.Same(TagList.Parse(TagList.Serialize(defs)), defs)) fails++;
             return fails;
         }
     }
@@ -681,12 +836,135 @@ namespace StickyNotes
 
     // MARK: The app: tray icon, the notes folder and the open notes
 
+    // Edit tags window: a row per tag (name, color, remove), and Add tag
+    class TagEditor : Form
+    {
+        class Row
+        {
+            public TextBox Name;
+            public ComboBox Color;
+            public Button Remove;
+            public string Original;
+        }
+
+        readonly List<Row> rows = new List<Row>();
+        readonly Panel list = new Panel();
+        readonly float s;
+
+        // The new list and the renamed tags ({ old name, new name }); false if cancelled
+        public static bool Run(IWin32Window owner, List<TagDef> defs, float s, out List<TagDef> result, out List<string[]> renames)
+        {
+            result = null;
+            renames = null;
+            using (var f = new TagEditor(defs, s))
+            {
+                if (f.ShowDialog(owner) != DialogResult.OK) return false;
+                result = new List<TagDef>();
+                renames = new List<string[]>();
+                foreach (Row r in f.rows)
+                {
+                    string name = Tags.CleanName(r.Name.Text);
+                    if (name.Length == 0 || TagList.Find(result, name) != null) continue;
+                    result.Add(new TagDef(name, TagList.Colors[Math.Max(0, r.Color.SelectedIndex)]));
+                    if (r.Original.Length > 0 && r.Original != name) renames.Add(new[] { r.Original, name });
+                }
+                return true;
+            }
+        }
+
+        TagEditor(List<TagDef> defs, float s)
+        {
+            this.s = s;
+            Text = "Sticky Notes: tags";
+            Font = SystemFonts.MessageBoxFont;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = MinimizeBox = false;
+            ShowInTaskbar = true;
+            StartPosition = FormStartPosition.CenterScreen;
+            TopMost = true;
+            Icon = IconArt.SmallIcon(s);
+
+            int W = (int)(420 * s), pad = (int)(14 * s), bh = (int)(30 * s), bw = (int)(96 * s);
+            var label = new Label { Text = "Name each tag and pick its color. Both computers share this list. Dates come from the tag menu.",
+                                    AutoSize = true, MaximumSize = new Size(W - 2 * pad, 0), Location = new Point(pad, pad) };
+            Controls.Add(label);
+            int y = pad + label.GetPreferredSize(new Size(W - 2 * pad, 0)).Height + pad;
+
+            list.AutoScroll = true;
+            list.BorderStyle = BorderStyle.FixedSingle;
+            list.SetBounds(pad, y, W - 2 * pad, (int)(230 * s));
+            Controls.Add(list);
+            y += list.Height + pad;
+
+            var add = new Button { Text = "Add tag" };
+            add.SetBounds(pad, y, (int)(110 * s), bh);
+            add.Click += delegate { AddRow("", TagList.Colors[rows.Count % TagList.Colors.Length], ""); rows[rows.Count - 1].Name.Focus(); };
+            var ok = new Button { Text = "Save", DialogResult = DialogResult.OK };
+            ok.SetBounds(W - pad - 2 * bw - pad / 2, y, bw, bh);
+            var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel };
+            cancel.SetBounds(W - pad - bw, y, bw, bh);
+            Controls.AddRange(new Control[] { add, ok, cancel });
+            AcceptButton = ok;
+            CancelButton = cancel;
+            ClientSize = new Size(W, y + bh + pad);
+
+            foreach (TagDef d in defs) AddRow(d.Name, d.Color, d.Name);
+            if (defs.Count == 0) AddRow("", "blue", "");
+        }
+
+        void AddRow(string name, string color, string original)
+        {
+            var r = new Row { Original = original };
+            r.Name = new TextBox { Text = name, MaxLength = 24 };
+            r.Color = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, DrawMode = DrawMode.OwnerDrawFixed };
+            r.Color.Items.AddRange(TagList.Labels);
+            r.Color.SelectedIndex = Math.Max(0, Array.IndexOf(TagList.Colors, color));
+            r.Color.DrawItem += (sender, e) =>
+            {
+                e.DrawBackground();
+                if (e.Index < 0) return;
+                int sw = e.Bounds.Height - 4;
+                using (var b = new SolidBrush(NoteColors.Rgb(TagList.Hex(TagList.Colors[e.Index]))))
+                    e.Graphics.FillRectangle(b, e.Bounds.X + 3, e.Bounds.Y + 2, sw, sw);
+                TextRenderer.DrawText(e.Graphics, TagList.Labels[e.Index], e.Font, new Point(e.Bounds.X + sw + 8, e.Bounds.Y + 1), e.ForeColor);
+            };
+            r.Remove = new Button { Text = "✕" };
+            r.Remove.Click += delegate
+            {
+                rows.Remove(r);
+                list.Controls.Remove(r.Name);
+                list.Controls.Remove(r.Color);
+                list.Controls.Remove(r.Remove);
+                LayoutRows();
+            };
+            list.Controls.Add(r.Name);
+            list.Controls.Add(r.Color);
+            list.Controls.Add(r.Remove);
+            rows.Add(r);
+            LayoutRows();
+        }
+
+        void LayoutRows()
+        {
+            int rowH = (int)(34 * s), p = (int)(6 * s), w = list.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - 2 * p;
+            int nameW = w * 55 / 100, colorW = w * 30 / 100, removeW = w - nameW - colorW - 2 * p;
+            list.AutoScrollPosition = Point.Empty;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                int y = p + i * rowH;
+                rows[i].Name.SetBounds(p, y, nameW, rows[i].Name.PreferredHeight);
+                rows[i].Color.SetBounds(2 * p + nameW, y, colorW, rows[i].Name.PreferredHeight);
+                rows[i].Remove.SetBounds(3 * p + nameW + colorW, y - 1, removeW, rows[i].Name.PreferredHeight + 2);
+            }
+        }
+    }
+
     class NotesApp : ApplicationContext
     {
         const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
         const string RunValue = "ErgosferaStickyNotes";
         public static readonly string Machine = Environment.MachineName;
-        const string Welcome = "Welcome to Sticky Notes!\n\nWrite anything here. Notes save as you type and sync through your Google Drive folder, so they also appear on your other computer.\n\n+  makes a new note.\n☐  makes a checklist: click a box to check it.\nB  makes the selected text bold.\nA  colors the selected text.\n⋯  changes the color or deletes the note.\nDouble-click the top bar to give a note a title.\nDrag the top bar to move a note, and an edge or the corner to resize it.";
+        const string Welcome = "Welcome to Sticky Notes!\n\nWrite anything here. Notes save as you type and sync through your Google Drive folder, so they also appear on your other computer.\n\n+  makes a new note.\n☐  makes a checklist: click a box to check it.\nB  makes the selected text bold.\nA  colors the selected text.\nThe tag button puts a tag or a date at the start or end of a line.\n⋯  changes the color or deletes the note.\nDouble-click the top bar to give a note a title.\nDrag the top bar to move a note, and an edge or the corner to resize it.";
 
         readonly LocalState local = new LocalState();
         readonly Dictionary<string, NoteForm> notes = new Dictionary<string, NoteForm>();
@@ -701,6 +979,8 @@ namespace StickyNotes
         string folder;
         bool listedOnce, offerWelcome;
         int cascade;
+        public List<TagDef> TagDefs = new List<TagDef>();
+        string tagStamp; // of tags.conf as last read or written
 
         public NotesApp(string folderOverride, EventWaitHandle showEvent)
         {
@@ -716,6 +996,7 @@ namespace StickyNotes
             menu.Items.Add("Change sync folder…", null, delegate { ChangeFolder(); });
             startItem = new ToolStripMenuItem("Start with Windows", null, delegate { ToggleStartup(); });
             menu.Items.Add(startItem);
+            menu.Items.Add("Edit tags…", null, delegate { EditTags(null); });
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("About Sticky Notes", null, delegate { About(); });
             menu.Items.Add("Quit", null, delegate { Quit(); });
@@ -785,6 +1066,59 @@ namespace StickyNotes
 
         string PathOf(string id) { return Path.Combine(folder, id + ".txt"); }
 
+        // MARK: Tags
+
+        string TagsPath { get { return Path.Combine(folder, TagList.FileName); } }
+
+        // Reads the tag list when it changed (here or on the other computer) and shows the notes' tags again
+        void LoadTags()
+        {
+            string st = Stamp(TagsPath) ?? "none";
+            if (st == tagStamp) return;
+            string text = "";
+            if (st != "none")
+            {
+                try { text = File.ReadAllText(TagsPath, Encoding.UTF8); }
+                catch { return; } // still being written: try again next time
+            }
+            tagStamp = st;
+            var defs = TagList.Parse(text);
+            if (TagList.Same(defs, TagDefs)) return;
+            TagDefs = defs;
+            foreach (NoteForm f in notes.Values) f.RefreshTags();
+        }
+
+        public Color TagColor(string token)
+        {
+            if (token.StartsWith("@", StringComparison.Ordinal)) return NoteColors.Rgb(TagList.DateHex);
+            TagDef d = TagList.Find(TagDefs, token.Substring(1));
+            return NoteColors.Rgb(TagList.Hex(d == null ? "" : d.Color));
+        }
+
+        public void EditTags(IWin32Window owner)
+        {
+            List<TagDef> defs;
+            List<string[]> renames;
+            if (!TagEditor.Run(owner, TagDefs, S, out defs, out renames)) return;
+            try
+            {
+                if (!EnsureFolder()) throw new IOException("The notes folder isn't available right now:\n" + folder);
+                File.WriteAllText(TagsPath, TagList.Serialize(defs), new UTF8Encoding(false));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Couldn't save the tags.\n\n" + ex.Message, "Sticky Notes", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            tagStamp = Stamp(TagsPath);
+            TagDefs = defs;
+            foreach (NoteForm f in notes.Values)
+            {
+                f.RenameTags(renames);
+                f.RefreshTags();
+            }
+        }
+
         static string Stamp(string path)
         {
             try
@@ -812,6 +1146,7 @@ namespace StickyNotes
         void Scan()
         {
             if (!EnsureFolder()) { SetStatus("waiting for " + folder); return; }
+            LoadTags();
             string[] files;
             try { files = Directory.GetFiles(folder, "*.txt"); }
             catch { SetStatus("can't read " + folder); return; }
@@ -988,6 +1323,7 @@ namespace StickyNotes
             foreach (NoteForm f in new List<NoteForm>(notes.Values)) f.CloseQuietly();
             notes.Clear();
             seen.Clear();
+            tagStamp = null;
             string old = folder;
             folder = next;
             if (!fixedFolder) { local.Folder = next; local.Save(); }
@@ -1082,7 +1418,7 @@ namespace StickyNotes
 
         void About()
         {
-            MessageBox.Show("Sticky Notes 1.2.2\n\nNotes folder:\n" + folder +
+            MessageBox.Show("Sticky Notes 1.3\n\nNotes folder:\n" + folder +
                 "\n\nEach note is a text file in this folder. Google Drive for desktop copies it to your other computers, where Sticky Notes for Windows or Mac shows it. Deleted notes go to the Trash folder inside it." +
                 "\n\n© 2026 Mauricio Mendivelso. MIT License.\nProvided \"as is\", without warranty of any kind.",
                 "About Sticky Notes", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1153,8 +1489,10 @@ namespace StickyNotes
 
         const int EM_GETCHARFORMAT = 0x43A, EM_SETCHARFORMAT = 0x444, SCF_SELECTION = 1, WM_SETREDRAW = 0x0B;
         const int EM_GETSCROLLPOS = 0x4DD, EM_SETSCROLLPOS = 0x4DE;
-        const uint CFM_BOLD = 0x1, CFM_STRIKEOUT = 0x8, CFM_LINK = 0x20, CFM_COLOR = 0x40000000;
-        const uint CFE_BOLD = 0x1, CFE_STRIKEOUT = 0x8, CFE_LINK = 0x20, CFE_AUTOCOLOR = 0x40000000;
+        const uint CFM_BOLD = 0x1, CFM_STRIKEOUT = 0x8, CFM_LINK = 0x20, CFM_BACKCOLOR = 0x04000000, CFM_COLOR = 0x40000000, CFM_SIZE = 0x80000000;
+        const uint CFE_BOLD = 0x1, CFE_STRIKEOUT = 0x8, CFE_LINK = 0x20, CFE_AUTOBACKCOLOR = 0x04000000, CFE_AUTOCOLOR = 0x40000000;
+        const int TextTwips = 220, TagTwips = 180, TinyTwips = 20; // 11 pt text, 9 pt tags, 1 pt for what a tag hides
+        const string MarkupFormat = "StickyNotesMarkup";
         // Web and mail addresses; the end of a sentence (".", ")" and the like) isn't part of the link
         static readonly Regex LinkPattern = new Regex(@"\b(?:(?:https?://|www\.)[^\s<>""]+|mailto:[^\s<>""]+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+)",
                                                       RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
@@ -1164,6 +1502,8 @@ namespace StickyNotes
         readonly Timer saveTimer = new Timer();
         readonly ContextMenuStrip menu = new ContextMenuStrip();
         readonly ContextMenuStrip inkMenu = new ContextMenuStrip();
+        readonly ContextMenuStrip tagMenu = new ContextMenuStrip();
+        readonly ToolStripMenuItem tagSub = new ToolStripMenuItem("Tag");
         readonly ToolStripMenuItem topItem, titleItem;
         readonly Font titleFont;
         readonly float S;
@@ -1187,12 +1527,13 @@ namespace StickyNotes
         Rectangle BoldRect { get { var r = MenuRect; r.X -= ButtonSize + (int)(2 * S); return r; } }
         Rectangle InkRect { get { var r = BoldRect; r.X -= ButtonSize + (int)(2 * S); return r; } }
         Rectangle CheckRect { get { var r = InkRect; r.X -= ButtonSize + (int)(2 * S); return r; } }
+        Rectangle TagRect { get { var r = CheckRect; r.X -= ButtonSize + (int)(2 * S); return r; } }
         Rectangle TitleRect
         {
             get
             {
                 int x = PlusRect.Right + (int)(4 * S);
-                return new Rectangle(x, PlusRect.Y, Math.Max(0, CheckRect.Left - (int)(4 * S) - x), ButtonSize);
+                return new Rectangle(x, PlusRect.Y, Math.Max(0, TagRect.Left - (int)(4 * S) - x), ButtonSize);
             }
         }
 
@@ -1206,7 +1547,7 @@ namespace StickyNotes
             StartPosition = FormStartPosition.Manual;
             DoubleBuffered = true;
             KeyPreview = true;
-            MinimumSize = new Size((int)(170 * S), (int)(120 * S));
+            MinimumSize = new Size((int)(200 * S), (int)(120 * S));
             MaximizeBox = false; // a double-click on the top bar edits the title
             titleFont = new Font("Segoe UI", 12.5f * S, FontStyle.Bold, GraphicsUnit.Pixel);
 
@@ -1241,6 +1582,7 @@ namespace StickyNotes
             menu.Items.Add(new ToolStripMenuItem("Bold", null, delegate { ToggleBold(); }) { ShortcutKeyDisplayString = "Ctrl+B" });
             menu.Items.Add(new ToolStripMenuItem("Text color", null, InkItems()));
             titleItem = new ToolStripMenuItem("Add title", null, delegate { BeginTitleEdit(); }) { ShortcutKeyDisplayString = "Ctrl+Shift+T" };
+            menu.Items.Add(tagSub);
             menu.Items.Add(titleItem);
             inkMenu.Items.AddRange(InkItems());
             menu.Items.Add(new ToolStripSeparator());
@@ -1253,6 +1595,8 @@ namespace StickyNotes
             {
                 topItem.Checked = TopMost;
                 titleItem.Text = data.Title.Length == 0 ? "Add title" : "Edit title";
+                tagSub.DropDownItems.Clear();
+                tagSub.DropDownItems.AddRange(TagItems());
                 for (int i = 0; i < NoteColors.Names.Length; i++)
                     ((ToolStripMenuItem)menu.Items[i]).Checked = NoteColors.Index(data.Color) == i;
             };
@@ -1370,7 +1714,7 @@ namespace StickyNotes
         void UpdateTitle()
         {
             if (data.Title.Length > 0) { Text = data.Title.Length > 60 ? data.Title.Substring(0, 60) : data.Title; return; }
-            string t = box.Text.Trim();
+            string t = PlainText(box.Text).Trim();
             int nl = t.IndexOf('\n');
             if (nl >= 0) t = t.Substring(0, nl);
             if (Markup.HasBox(t, 0)) t = t.Substring(2);
@@ -1426,36 +1770,309 @@ namespace StickyNotes
 
         void SetFormat(uint mask, uint effects, Color color)
         {
+            SetFormat(mask, effects, color, Color.Empty, TextTwips);
+        }
+
+        void SetFormat(uint mask, uint effects, Color color, Color back, int twips)
+        {
             var cf = new CHARFORMAT2 { cbSize = Marshal.SizeOf(typeof(CHARFORMAT2)), dwMask = mask, dwEffects = effects,
-                                       crTextColor = color.R | (color.G << 8) | (color.B << 16) };
+                                       crTextColor = color.R | (color.G << 8) | (color.B << 16),
+                                       crBackColor = back.R | (back.G << 8) | (back.B << 16), yHeight = twips };
             SendMessage(box.Handle, EM_SETCHARFORMAT, (IntPtr)SCF_SELECTION, ref cf);
         }
 
-        // The note as it is saved: plain text with "[ ] ", "[x] ", "**" and "{red}" markers
-        string MarkupText
+        // MARK: Tags
+
+        // In the text box a tag stays text: "[#Delayed]" shows as a colored block with white letters, its brackets
+        // in the block's color. A date also carries its label, and the date itself is tiny and invisible:
+        // "[@2026-10-30]" in the file is "[@2026-10-30|Oct 30]" here.
+        struct BoxTag
         {
-            get
+            public int Start, Length, LabelStart, LabelLength;
+            public string Token;
+        }
+
+        static readonly Regex BoxTagPattern = new Regex(@"\[(#[^\[\]{}*|:\n]{1,24}|@[0-9]{4}-[0-9]{2}-[0-9]{2}\|[^\]\n]*)\]", RegexOptions.CultureInvariant);
+        static readonly Regex BoxDatePattern = new Regex(@"\[@([0-9]{4}-[0-9]{2}-[0-9]{2})\|[^\]\n]*\]", RegexOptions.CultureInvariant);
+
+        static List<BoxTag> BoxTags(string line)
+        {
+            var tags = new List<BoxTag>();
+            foreach (Match m in BoxTagPattern.Matches(line))
             {
-                string t = box.Text;
-                var bold = new List<TextSpan>();
-                var ink = new List<InkSpan>();
-                if (box.IsHandleCreated)
-                    Quietly(delegate
-                    {
-                        int start = 0;
-                        while (start <= t.Length)
-                        {
-                            int end = t.IndexOf('\n', start);
-                            if (end < 0) end = t.Length;
-                            BoldSpans(start, end - start, bold);
-                            var runs = new List<int[]>();
-                            InkRuns(start, end - start, runs);
-                            foreach (int[] r in runs) if (r[2] > 0) ink.Add(new InkSpan(r[0], r[1], Markup.Inks[r[2] - 1]));
-                            start = end + 1;
-                        }
-                    });
-                return Markup.Serialize(t, bold, ink);
+                string inner = m.Groups[1].Value;
+                int bar = inner.IndexOf('|');
+                string token = bar < 0 ? inner : inner.Substring(0, bar);
+                if (Tags.Find("[" + token + "]").Count != 1) continue;
+                var g = new BoxTag { Start = m.Index, Length = m.Length, Token = token };
+                g.LabelStart = bar < 0 ? m.Index + 2 : m.Index + 2 + bar;
+                g.LabelLength = m.Index + m.Length - 1 - g.LabelStart;
+                tags.Add(g);
             }
+            return tags;
+        }
+
+        // The text box's form of a tag
+        static string BoxText(string token)
+        {
+            return token[0] == '@' ? "[" + token + "|" + Tags.Label(token, DateTime.Now.Year) + "]" : "[" + token + "]";
+        }
+
+        static string ToBox(string markup)
+        {
+            var tags = Tags.Find(markup);
+            var sb = new StringBuilder(markup);
+            for (int i = tags.Count - 1; i >= 0; i--)
+                if (tags[i].Token[0] == '@') sb.Insert(tags[i].Start + tags[i].Length - 1, "|" + Tags.Label(tags[i].Token, DateTime.Now.Year));
+            return sb.ToString();
+        }
+
+        static string FromBox(string text) { return BoxDatePattern.Replace(text, "[@$1]"); }
+
+        // The text as other apps get it: each tag as "[Delayed]" or "[Oct 30]"
+        static string PlainText(string text)
+        {
+            var sb = new StringBuilder();
+            int at = 0;
+            foreach (Match m in BoxTagPattern.Matches(text))
+            {
+                sb.Append(text, at, m.Index - at);
+                string inner = m.Groups[1].Value;
+                int bar = inner.IndexOf('|');
+                sb.Append('[').Append(bar < 0 ? inner.Substring(1) : inner.Substring(bar + 1)).Append(']');
+                at = m.Index + m.Length;
+            }
+            return sb.Append(text, at, text.Length - at).ToString();
+        }
+
+        // Finds the runs with a background color (tags) in a stretch of text
+        void BackSpans(int start, int length, List<TextSpan> spans)
+        {
+            if (length <= 0) return;
+            box.Select(start, length);
+            var cf = GetFormat();
+            if ((cf.dwMask & CFM_BACKCOLOR) != 0)
+            {
+                if ((cf.dwEffects & CFE_AUTOBACKCOLOR) != 0) return;
+                int n = spans.Count;
+                if (n > 0 && spans[n - 1].Start + spans[n - 1].Length == start) spans[n - 1] = new TextSpan(spans[n - 1].Start, spans[n - 1].Length + length);
+                else spans.Add(new TextSpan(start, length));
+                return;
+            }
+            if (length == 1) return;
+            int half = length / 2;
+            BackSpans(start, half, spans);
+            BackSpans(start + half, length - half, spans);
+        }
+
+        // Shows the tags in a line, if they changed (or always, when force is set)
+        void StyleTags(int start, int end, bool force)
+        {
+            string t = box.Text;
+            var tags = BoxTags(t.Substring(start, end - start));
+            var have = new List<TextSpan>();
+            BackSpans(start, end - start, have);
+            bool same = !force && tags.Count == have.Count;
+            for (int i = 0; same && i < tags.Count; i++) same = start + tags[i].Start == have[i].Start && tags[i].Length == have[i].Length;
+            if (same) return;
+            foreach (var r in have)
+            {
+                box.Select(r.Start, r.Length);
+                SetFormat(CFM_BACKCOLOR | CFM_BOLD | CFM_COLOR | CFM_SIZE, CFE_AUTOBACKCOLOR, NoteColors.Ink, Color.Empty, TextTwips);
+            }
+            foreach (var g in tags)
+            {
+                Color c = app.TagColor(g.Token);
+                box.Select(start + g.Start, g.Length);
+                SetFormat(CFM_BACKCOLOR | CFM_BOLD | CFM_COLOR | CFM_SIZE | CFM_LINK, CFE_BOLD, c, c, TagTwips);
+                box.Select(start + g.LabelStart, g.LabelLength);
+                SetFormat(CFM_COLOR, 0, Color.White);
+                if (g.LabelStart - g.Start > 2)
+                {
+                    box.Select(start + g.Start + 2, g.LabelStart - g.Start - 2);
+                    SetFormat(CFM_SIZE, 0, c, c, TinyTwips);
+                }
+            }
+        }
+
+        // The tag the cursor is in or next to: before it (Backspace, Left) or after it (Delete, Right)
+        int[] TagAt(int caret, bool before)
+        {
+            int start = LineStart(caret);
+            foreach (var g in BoxTags(box.Text.Substring(start, LineEnd(start) - start)))
+            {
+                int a = start + g.Start, b = a + g.Length;
+                if (before ? caret > a && caret <= b : caret >= a && caret < b) return new[] { a, b };
+            }
+            return null;
+        }
+
+        // Puts a tag at the start of the line the cursor is on (after its checkbox) or at its end
+        void InsertTag(string token, bool atEnd)
+        {
+            string t = box.Text;
+            int caret = box.SelectionStart, start = LineStart(caret), end = LineEnd(start);
+            string tag = BoxText(token), ins;
+            int at;
+            if (atEnd)
+            {
+                at = end;
+                ins = (end > start && t[end - 1] != ' ' ? " " : "") + tag;
+            }
+            else
+            {
+                at = start + (Markup.HasBox(t, start) ? 2 : 0);
+                ins = tag + " ";
+            }
+            restyling = true;
+            box.Select(at, 0);
+            SetFormat(CFM_BOLD | CFM_COLOR | CFM_STRIKEOUT | CFM_LINK | CFM_BACKCOLOR | CFM_SIZE, CFE_AUTOBACKCOLOR, NoteColors.Ink, Color.Empty, TextTwips);
+            box.SelectedText = ins;
+            restyling = false;
+            box.Select(atEnd ? at + ins.Length : (caret >= at ? caret + ins.Length : caret), 0);
+            RestyleLine(start, true);
+            Changed();
+            box.Focus();
+        }
+
+        void PickDate(bool atEnd)
+        {
+            using (var f = new Form())
+            {
+                f.Text = "Date tag";
+                f.Font = SystemFonts.MessageBoxFont;
+                f.FormBorderStyle = FormBorderStyle.FixedDialog;
+                f.MaximizeBox = f.MinimizeBox = false;
+                f.ShowInTaskbar = false;
+                f.StartPosition = FormStartPosition.CenterParent;
+                int pad = (int)(12 * S), bh = (int)(30 * S), bw = (int)(90 * S);
+                var cal = new MonthCalendar { MaxSelectionCount = 1, Location = new Point(pad, pad) };
+                f.Controls.Add(cal);
+                var ok = new Button { Text = "Add", DialogResult = DialogResult.OK };
+                var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel };
+                f.Controls.Add(ok);
+                f.Controls.Add(cancel);
+                f.AcceptButton = ok;
+                f.CancelButton = cancel;
+                f.Load += delegate
+                {
+                    int w = Math.Max(cal.Width, 2 * bw + pad / 2);
+                    ok.SetBounds(pad + w - 2 * bw - pad / 2, cal.Bottom + pad, bw, bh);
+                    cancel.SetBounds(pad + w - bw, cal.Bottom + pad, bw, bh);
+                    f.ClientSize = new Size(w + 2 * pad, cal.Bottom + 2 * pad + bh);
+                };
+                if (f.ShowDialog(this) == DialogResult.OK) InsertTag(Tags.DateToken(cal.SelectionStart), atEnd);
+            }
+        }
+
+        // The tag menu: each tag and Date…, at the start or the end of the line, then Edit tags…
+        ToolStripItem[] TagItems()
+        {
+            var items = new List<ToolStripItem>();
+            foreach (bool atEnd in new[] { false, true })
+            {
+                bool end = atEnd;
+                items.Add(new ToolStripMenuItem(end ? "At the end of the line" : "At the start of the line") { Enabled = false });
+                foreach (TagDef d in app.TagDefs)
+                {
+                    string token = "#" + d.Name;
+                    items.Add(new ToolStripMenuItem("    " + d.Name, TagList.Swatch(TagList.Hex(d.Color), S), delegate { InsertTag(token, end); }));
+                }
+                items.Add(new ToolStripMenuItem("    Date…", TagList.Swatch(TagList.DateHex, S), delegate { PickDate(end); }));
+                items.Add(new ToolStripSeparator());
+            }
+            items.Add(new ToolStripMenuItem("Edit tags…", null, delegate { app.EditTags(this); }));
+            return items.ToArray();
+        }
+
+        // Shows the tags again with the tag list as it is now (new colors, renamed or removed tags)
+        public void RefreshTags()
+        {
+            if (!box.IsHandleCreated) return;
+            RestyleAll(true);
+            UpdateTitle();
+        }
+
+        // Changes "[#old]" to "[#new]" for each renamed tag, and saves the note if it had any
+        public void RenameTags(List<string[]> renames)
+        {
+            if (!box.IsHandleCreated || renames.Count == 0) return;
+            string m = MarkupText, was = m;
+            foreach (string[] r in renames) m = m.Replace("[#" + r[0] + "]", "[#" + r[1] + "]");
+            if (m == was) return;
+            int caret = box.SelectionStart;
+            SetMarkup(m);
+            box.Select(Math.Min(caret, box.TextLength), 0);
+            SaveNow();
+        }
+
+        // Copies the selection with its markers for notes, and as plain text (tags as "[Delayed]") for other apps
+        void CopySelection()
+        {
+            if (box.SelectionLength == 0) return;
+            try
+            {
+                var d = new DataObject();
+                d.SetData(DataFormats.UnicodeText, PlainText(box.SelectedText.Replace("\n", "\r\n")));
+                d.SetData(MarkupFormat, MarkupOf(box.SelectionStart, box.SelectionLength));
+                Clipboard.SetDataObject(d, true);
+            }
+            catch { }
+        }
+
+        // The note as it is saved: plain text with "[ ] ", "[x] ", "**", "{red}" and "[#tag]" markers
+        string MarkupText { get { return MarkupOf(0, box.TextLength); } }
+
+        // The markup of part of the text. Tags keep only their markers, never bold or color.
+        string MarkupOf(int at, int length)
+        {
+            string t = box.Text;
+            length = Math.Max(0, Math.Min(length, t.Length - at));
+            var bold = new List<TextSpan>();
+            var ink = new List<InkSpan>();
+            var isTag = new bool[length];
+            if (box.IsHandleCreated)
+                Quietly(delegate
+                {
+                    for (int start = LineStart(at); start <= at + length; )
+                    {
+                        int end = t.IndexOf('\n', start);
+                        if (end < 0) end = t.Length;
+                        foreach (var g in BoxTags(t.Substring(start, end - start)))
+                            for (int i = start + g.Start; i < start + g.Start + g.Length; i++) if (i >= at && i < at + length) isTag[i - at] = true;
+                        int from = Math.Max(start, at), to = Math.Min(end, at + length);
+                        if (to > from)
+                        {
+                            var b = new List<TextSpan>();
+                            BoldSpans(from, to - from, b);
+                            foreach (var r in b) bold.Add(new TextSpan(r.Start - at, r.Length));
+                            var runs = new List<int[]>();
+                            InkRuns(from, to - from, runs);
+                            foreach (int[] r in runs) if (r[2] > 0) ink.Add(new InkSpan(r[0] - at, r[1], Markup.Inks[r[2] - 1]));
+                        }
+                        start = end + 1;
+                    }
+                });
+            var plainBold = new List<TextSpan>();
+            foreach (var r in bold) foreach (var p in Outside(r.Start, r.Length, isTag)) plainBold.Add(p);
+            var plainInk = new List<InkSpan>();
+            foreach (var r in ink) foreach (var p in Outside(r.Start, r.Length, isTag)) plainInk.Add(new InkSpan(p.Start, p.Length, r.Name));
+            return FromBox(Markup.Serialize(t.Substring(at, length), plainBold, plainInk));
+        }
+
+        // The parts of a span that aren't tags
+        static List<TextSpan> Outside(int start, int length, bool[] isTag)
+        {
+            var parts = new List<TextSpan>();
+            for (int i = start; i < start + length && i < isTag.Length; )
+            {
+                if (isTag[i]) { i++; continue; }
+                int j = i;
+                while (j < start + length && j < isTag.Length && !isTag[j]) j++;
+                parts.Add(new TextSpan(i, j - i));
+                i = j;
+            }
+            return parts;
         }
 
         // Finds the runs of one text color in a stretch of text, as { start, length, color number }
@@ -1493,7 +2110,7 @@ namespace StickyNotes
         void ApplyMarks(int at, int length, List<TextSpan> bold, List<InkSpan> ink)
         {
             box.Select(at, length);
-            SetFormat(CFM_BOLD | CFM_COLOR | CFM_STRIKEOUT, 0, NoteColors.Ink);
+            SetFormat(CFM_BOLD | CFM_COLOR | CFM_STRIKEOUT | CFM_BACKCOLOR | CFM_SIZE, CFE_AUTOBACKCOLOR, NoteColors.Ink, Color.Empty, TextTwips);
             foreach (var r in bold)
             {
                 box.Select(at + r.Start, r.Length);
@@ -1534,6 +2151,7 @@ namespace StickyNotes
                     start = end + 1;
                 }
             });
+            RestyleAll(true); // tags keep their own look
             Changed();
             box.Focus();
         }
@@ -1570,7 +2188,7 @@ namespace StickyNotes
         {
             var bold = new List<TextSpan>();
             var ink = new List<InkSpan>();
-            string t = Markup.Parse(m, bold, ink);
+            string t = Markup.Parse(ToBox(m), bold, ink);
             loading = true;
             box.Text = t;
             Quietly(delegate { ApplyMarks(0, box.TextLength, bold, ink); });
@@ -1592,13 +2210,13 @@ namespace StickyNotes
             return end < 0 ? box.TextLength : end;
         }
 
-        void RestyleAll()
+        void RestyleAll(bool force = false)
         {
             string t = box.Text;
             int start = 0;
             while (start <= t.Length)
             {
-                RestyleLine(start);
+                RestyleLine(start, force);
                 int end = t.IndexOf('\n', start);
                 if (end < 0) break;
                 start = end + 1;
@@ -1647,9 +2265,9 @@ namespace StickyNotes
         }
 
         // A checked item's text is faded and crossed out; everything else keeps its own color.
-        // Web and mail addresses become links you can click.
+        // Web and mail addresses become links you can click, and tags colored labels.
         // The format only changes when it has to, so typing doesn't fill the undo list with format changes.
-        void RestyleLine(int start)
+        void RestyleLine(int start, bool force = false)
         {
             if (!box.IsHandleCreated) return;
             string t = box.Text;
@@ -1657,6 +2275,7 @@ namespace StickyNotes
             bool done = Markup.HasBox(t, start) && t[start] == Markup.Checked;
             Quietly(delegate
             {
+                bool recolored = false;
                 int from = done ? start + 2 : start;
                 if (end > from)
                 {
@@ -1664,8 +2283,8 @@ namespace StickyNotes
                     var cf = GetFormat();
                     bool struck = (cf.dwMask & CFM_STRIKEOUT) != 0 && (cf.dwEffects & CFE_STRIKEOUT) != 0;
                     bool plain = (cf.dwMask & CFM_STRIKEOUT) != 0 && (cf.dwEffects & CFE_STRIKEOUT) == 0;
-                    if (done && !struck) Recolor(from, end - from, true);
-                    else if (!done && !plain) Recolor(from, end - from, false);
+                    if (done && !struck) { Recolor(from, end - from, true); recolored = true; }
+                    else if (!done && !plain) { Recolor(from, end - from, false); recolored = true; }
                 }
                 if (done)
                 {
@@ -1674,6 +2293,8 @@ namespace StickyNotes
                     if ((cf.dwMask & CFM_STRIKEOUT) == 0 || (cf.dwEffects & CFE_STRIKEOUT) != 0) SetFormat(CFM_STRIKEOUT | CFM_COLOR, 0, NoteColors.Ink);
                 }
                 var want = FindLinks(t.Substring(start, end - start));
+                var tags = BoxTags(t.Substring(start, end - start));
+                want.RemoveAll(r => tags.Exists(g => r.Start < g.Start + g.Length && g.Start < r.Start + r.Length));
                 var have = new List<TextSpan>();
                 LinkSpans(start, end - start, have);
                 bool same = want.Count == have.Count;
@@ -1688,6 +2309,7 @@ namespace StickyNotes
                         SetFormat(CFM_LINK, CFE_LINK, NoteColors.Ink);
                     }
                 }
+                StyleTags(start, end, force || recolored);
             });
         }
 
@@ -1751,7 +2373,11 @@ namespace StickyNotes
             var cf = GetFormat();
             bool allBold = (cf.dwMask & CFM_BOLD) != 0 && (cf.dwEffects & CFE_BOLD) != 0;
             SetFormat(CFM_BOLD, allBold ? 0 : CFE_BOLD, NoteColors.Ink);
-            if (box.SelectionLength > 0) Changed();
+            if (box.SelectionLength > 0)
+            {
+                RestyleAll(true); // tags stay bold
+                Changed();
+            }
             box.Focus();
         }
 
@@ -1827,6 +2453,27 @@ namespace StickyNotes
                 PasteMarkup();
                 return;
             }
+            if ((e.Control && !e.Shift && (e.KeyCode == Keys.C || e.KeyCode == Keys.Insert)) || (e.Control && e.KeyCode == Keys.X) || (e.Shift && e.KeyCode == Keys.Delete))
+            {
+                e.Handled = e.SuppressKeyPress = true;
+                CopySelection();
+                if (e.KeyCode == Keys.X || e.KeyCode == Keys.Delete) box.SelectedText = "";
+                return;
+            }
+            // A tag goes as a whole: Backspace and Delete remove it, the arrows step over it
+            if (!e.Control && !e.Alt && !e.Shift && box.SelectionLength == 0
+                && (e.KeyCode == Keys.Back || e.KeyCode == Keys.Delete || e.KeyCode == Keys.Left || e.KeyCode == Keys.Right))
+            {
+                bool before = e.KeyCode == Keys.Back || e.KeyCode == Keys.Left;
+                int[] g = TagAt(box.SelectionStart, before);
+                if (g != null)
+                {
+                    e.Handled = e.SuppressKeyPress = true;
+                    if (e.KeyCode == Keys.Back || e.KeyCode == Keys.Delete) { box.Select(g[0], g[1] - g[0]); box.SelectedText = ""; }
+                    else box.Select(before ? g[0] : g[1], 0);
+                    return;
+                }
+            }
             if (e.Control && !e.Shift && e.KeyCode == Keys.B)
             {
                 e.Handled = e.SuppressKeyPress = true;
@@ -1886,15 +2533,18 @@ namespace StickyNotes
             box.SelectedText = (pre == "[ ]" ? Markup.Unchecked : Markup.Checked) + " ";
         }
 
-        // Pastes plain text; any checkbox, bold and color markers in it come in formatted
+        // Pastes plain text; any checkbox, bold, color and tag markers in it come in formatted.
+        // Text copied from a note brings its markers along.
         void PasteMarkup()
         {
             try
             {
-                if (!Clipboard.ContainsText()) return;
+                string text = Clipboard.ContainsData(MarkupFormat) ? Clipboard.GetData(MarkupFormat) as string : null;
+                if (text == null && Clipboard.ContainsText()) text = Clipboard.GetText();
+                if (text == null) return;
                 var bold = new List<TextSpan>();
                 var ink = new List<InkSpan>();
-                string t = Markup.Parse(NoteFile.Normalize(Clipboard.GetText()), bold, ink);
+                string t = Markup.Parse(ToBox(NoteFile.Normalize(text)), bold, ink);
                 int at = box.SelectionStart;
                 box.SelectedText = t;
                 Quietly(delegate { ApplyMarks(at, t.Length, bold, ink); });
@@ -1908,8 +2558,8 @@ namespace StickyNotes
             var m = new ContextMenuStrip();
             var undo = m.Items.Add("Undo", null, delegate { box.Undo(); });
             m.Items.Add(new ToolStripSeparator());
-            var cut = m.Items.Add("Cut", null, delegate { box.Cut(); });
-            var copy = m.Items.Add("Copy", null, delegate { box.Copy(); });
+            var cut = m.Items.Add("Cut", null, delegate { CopySelection(); box.SelectedText = ""; });
+            var copy = m.Items.Add("Copy", null, delegate { CopySelection(); });
             var paste = m.Items.Add("Paste", null, delegate { PasteMarkup(); });
             m.Items.Add(new ToolStripSeparator());
             m.Items.Add(new ToolStripMenuItem("Bold", null, delegate { ToggleBold(); }) { ShortcutKeyDisplayString = "Ctrl+B" });
@@ -1921,7 +2571,7 @@ namespace StickyNotes
             {
                 undo.Enabled = box.CanUndo;
                 cut.Enabled = copy.Enabled = box.SelectionLength > 0;
-                paste.Enabled = Clipboard.ContainsText();
+                paste.Enabled = Clipboard.ContainsText() || Clipboard.ContainsData(MarkupFormat);
             };
             return m;
         }
@@ -1947,6 +2597,7 @@ namespace StickyNotes
                 g.FillRectangle(b, 0, 0, ClientSize.Width, HeaderH);
             DrawButton(g, PlusRect, 0);
             DrawButton(g, CheckRect, 2);
+            DrawButton(g, TagRect, 5);
             DrawButton(g, InkRect, 4);
             DrawButton(g, BoldRect, 3);
             DrawButton(g, MenuRect, 1);
@@ -2003,6 +2654,13 @@ namespace StickyNotes
                         using (var bar = new SolidBrush(NoteColors.InkColor(lastInk)))
                             g.FillRectangle(bar, cx - 6 * S, r.Bottom - 6 * S, 12 * S, 3 * S);
                         break;
+                    case 5: // a luggage tag
+                        float tx0 = cx - 6.5f * S, tx1 = cx + 6.5f * S, ty0 = cy - 4.5f * S, ty1 = cy + 4.5f * S;
+                        using (var thin = new Pen(NoteColors.Glyph, Math.Max(1.2f, 1.3f * S)) { LineJoin = LineJoin.Round })
+                            g.DrawPolygon(thin, new[] { new PointF(tx0, cy), new PointF(tx0 + 4 * S, ty0), new PointF(tx1, ty0),
+                                                        new PointF(tx1, ty1), new PointF(tx0 + 4 * S, ty1) });
+                        g.FillEllipse(b, tx0 + 3.2f * S, cy - 1.2f * S, 2.4f * S, 2.4f * S);
+                        break;
                 }
             }
         }
@@ -2014,6 +2672,7 @@ namespace StickyNotes
             if (CheckRect.Contains(p)) return 2;
             if (BoldRect.Contains(p)) return 3;
             if (InkRect.Contains(p)) return 4;
+            if (TagRect.Contains(p)) return 5;
             return -1;
         }
 
@@ -2041,6 +2700,12 @@ namespace StickyNotes
             else if (h == 2) ToggleChecklist();
             else if (h == 3) ToggleBold();
             else if (h == 4) inkMenu.Show(this, new Point(InkRect.Left, InkRect.Bottom));
+            else if (h == 5)
+            {
+                tagMenu.Items.Clear();
+                tagMenu.Items.AddRange(TagItems());
+                tagMenu.Show(this, new Point(TagRect.Left, TagRect.Bottom));
+            }
             else if (e.Y < HeaderH && e.Clicks == 2) BeginTitleEdit();
             else if (e.Y < HeaderH)
             {
