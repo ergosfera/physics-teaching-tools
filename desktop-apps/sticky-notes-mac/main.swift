@@ -849,6 +849,7 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
     static let boxFont = NSFont.systemFont(ofSize: 16)
     // The text color by name (see Markup.inks); restyle() turns it into the color on screen
     static let inkKey = NSAttributedString.Key("noteInk")
+    static let linkFinder = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
 
     init(app: AppDelegate, data: NoteData, frame: NSRect) {
         self.app = app
@@ -933,7 +934,7 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
     }
 
     // Keeps the look in step with the text: only regular or bold, the text colors, boxes a little bigger,
-    // and the text of a checked item faded and crossed out.
+    // the text of a checked item faded and crossed out, and web and mail addresses as links you can click.
     func restyle() {
         guard let ts = text.textStorage, !restyling else { return }
         restyling = true
@@ -967,10 +968,17 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
             }
             i = NSMaxRange(line)
         }
+        // Links are found again on every change; they aren't saved in the note file
+        ts.removeAttribute(.link, range: all)
+        NoteController.linkFinder?.enumerateMatches(in: ts.string, options: [], range: all) { m, _, _ in
+            guard let m = m, let url = m.url, ["http", "https", "mailto"].contains(url.scheme?.lowercased() ?? "") else { return }
+            ts.addAttribute(.link, value: url, range: m.range)
+        }
         ts.endEditing()
         // New typing takes the look of the line it's on, never the box's
         var typing = text.typingAttributes
         typing.removeValue(forKey: .strikethroughStyle)
+        typing.removeValue(forKey: .link)
         typing[.foregroundColor] = NoteColors.inkColor(typing[NoteController.inkKey] as? String)
         if let f = typing[.font] as? NSFont, f.pointSize != 14 { typing[.font] = NoteController.regular }
         text.typingAttributes = typing
@@ -1625,7 +1633,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showAbout(_ sender: Any?) {
-        alert("Sticky Notes 1.2",
+        alert("Sticky Notes 1.2.1",
               "Notes folder:\n\(folder)\n\nEach note is a text file in this folder. Google Drive for desktop copies it to your other computers, where Sticky Notes for Mac or Windows shows it. Deleted notes go to the Trash folder inside it.\n\n© 2026 Mauricio Mendivelso. MIT License.\nProvided \"as is\", without warranty of any kind.")
     }
 

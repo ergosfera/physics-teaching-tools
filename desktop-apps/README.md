@@ -106,6 +106,7 @@ there when you open the Windows PC at home.
 | Checklist | **☐** on the top bar, Ctrl+Shift+L / ⇧⌘L, or type `[ ]` and a space at the start of a line. Click a box to check it; Enter adds the next one, Enter on an empty one ends the list |
 | Bold | Select text, then **B** on the top bar or Ctrl+B / ⌘B |
 | Text color | Select text, then **A** on the top bar and pick Black, Red, Orange, Green, Blue or Purple (also in the ⋯ menu, and Format → Text Color on the Mac) |
+| Links | Web addresses (`https://…`, `www.…`) and email addresses turn into links; click one to open it |
 | Title | Double-click the top bar, type the title and press Enter (Esc cancels). Also ⋯ → Add title, or Ctrl+Shift+T / ⇧⌘T. A note without a title shows an empty bar |
 | Color, keep on top, delete | **⋯** on the note's top bar (or right-click the bar) |
 | Move / resize | Drag the top bar / drag any edge or the bottom-right corner |

@@ -13,6 +13,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -21,8 +22,8 @@ using Timer = System.Windows.Forms.Timer;
 [assembly: AssemblyTitle("Sticky Notes")]
 [assembly: AssemblyProduct("Sticky Notes")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Mauricio Mendivelso. MIT License.")]
-[assembly: AssemblyVersion("1.2.1.0")]
-[assembly: AssemblyFileVersion("1.2.1.0")]
+[assembly: AssemblyVersion("1.2.2.0")]
+[assembly: AssemblyFileVersion("1.2.2.0")]
 
 namespace StickyNotes
 {
@@ -1081,7 +1082,7 @@ namespace StickyNotes
 
         void About()
         {
-            MessageBox.Show("Sticky Notes 1.2.1\n\nNotes folder:\n" + folder +
+            MessageBox.Show("Sticky Notes 1.2.2\n\nNotes folder:\n" + folder +
                 "\n\nEach note is a text file in this folder. Google Drive for desktop copies it to your other computers, where Sticky Notes for Windows or Mac shows it. Deleted notes go to the Trash folder inside it." +
                 "\n\n© 2026 Mauricio Mendivelso. MIT License.\nProvided \"as is\", without warranty of any kind.",
                 "About Sticky Notes", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1103,7 +1104,18 @@ namespace StickyNotes
     // The note's text box: a click on a ☐ / ☑ checks it instead of moving the cursor
     class NoteBox : RichTextBox
     {
+        [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+        const int EM_GETEVENTMASK = 0x43B, EM_SETEVENTMASK = 0x445, ENM_LINK = 0x04000000;
+
         public Func<Point, bool> CheckboxClick;
+
+        // Clicks on links (marked by NoteForm, not by the text box's own detection) are reported as LinkClicked
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            int mask = (int)SendMessage(Handle, EM_GETEVENTMASK, IntPtr.Zero, IntPtr.Zero);
+            SendMessage(Handle, EM_SETEVENTMASK, IntPtr.Zero, (IntPtr)(mask | ENM_LINK));
+        }
 
         protected override void WndProc(ref Message m)
         {
@@ -1141,8 +1153,11 @@ namespace StickyNotes
 
         const int EM_GETCHARFORMAT = 0x43A, EM_SETCHARFORMAT = 0x444, SCF_SELECTION = 1, WM_SETREDRAW = 0x0B;
         const int EM_GETSCROLLPOS = 0x4DD, EM_SETSCROLLPOS = 0x4DE;
-        const uint CFM_BOLD = 0x1, CFM_STRIKEOUT = 0x8, CFM_COLOR = 0x40000000;
-        const uint CFE_BOLD = 0x1, CFE_STRIKEOUT = 0x8, CFE_AUTOCOLOR = 0x40000000;
+        const uint CFM_BOLD = 0x1, CFM_STRIKEOUT = 0x8, CFM_LINK = 0x20, CFM_COLOR = 0x40000000;
+        const uint CFE_BOLD = 0x1, CFE_STRIKEOUT = 0x8, CFE_LINK = 0x20, CFE_AUTOCOLOR = 0x40000000;
+        // Web and mail addresses; the end of a sentence (".", ")" and the like) isn't part of the link
+        static readonly Regex LinkPattern = new Regex(@"\b(?:(?:https?://|www\.)[^\s<>""]+|mailto:[^\s<>""]+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+)",
+                                                      RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         readonly NotesApp app;
         readonly NoteBox box = new NoteBox();
@@ -1199,7 +1214,7 @@ namespace StickyNotes
             box.Font = new Font("Segoe UI", 11f);
             box.ForeColor = NoteColors.Ink;
             box.ScrollBars = RichTextBoxScrollBars.Vertical;
-            box.DetectUrls = true;
+            box.DetectUrls = false; // RestyleLine marks the links, so they stay links through the formatting
             box.AcceptsTab = true;
             box.TextChanged += delegate
             {
@@ -1207,7 +1222,7 @@ namespace StickyNotes
                 RestyleLine(LineStart(box.SelectionStart));
                 Changed();
             };
-            box.LinkClicked += (s, e) => { try { Process.Start(e.LinkText); } catch { } };
+            box.LinkClicked += (s, e) => { try { Process.Start(LinkTarget(e.LinkText)); } catch { } };
             box.KeyDown += BoxKeyDown;
             box.KeyPress += BoxKeyPress;
             box.CheckboxClick = CheckboxClick;
@@ -1590,7 +1605,49 @@ namespace StickyNotes
             }
         }
 
+        // Where the links are in a line of text
+        static List<TextSpan> FindLinks(string line)
+        {
+            var links = new List<TextSpan>();
+            foreach (Match m in LinkPattern.Matches(line))
+            {
+                string u = m.Value.TrimEnd('.', ',', ';', ':', '!', '?', ')', ']', '}', '\'', '"');
+                if (u.Length > 4) links.Add(new TextSpan(m.Index, u.Length));
+            }
+            return links;
+        }
+
+        // What a click on a link opens
+        static string LinkTarget(string link)
+        {
+            if (link.StartsWith("www.", StringComparison.OrdinalIgnoreCase)) return "http://" + link;
+            if (link.IndexOf("://", StringComparison.Ordinal) < 0 && !link.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) && link.Contains("@"))
+                return "mailto:" + link;
+            return link;
+        }
+
+        // Finds the runs of link text in a stretch of text, joining neighbors
+        void LinkSpans(int start, int length, List<TextSpan> links)
+        {
+            if (length <= 0) return;
+            box.Select(start, length);
+            var cf = GetFormat();
+            if ((cf.dwMask & CFM_LINK) != 0)
+            {
+                if ((cf.dwEffects & CFE_LINK) == 0) return;
+                int n = links.Count;
+                if (n > 0 && links[n - 1].Start + links[n - 1].Length == start) links[n - 1] = new TextSpan(links[n - 1].Start, links[n - 1].Length + length);
+                else links.Add(new TextSpan(start, length));
+                return;
+            }
+            if (length == 1) return;
+            int half = length / 2;
+            LinkSpans(start, half, links);
+            LinkSpans(start + half, length - half, links);
+        }
+
         // A checked item's text is faded and crossed out; everything else keeps its own color.
+        // Web and mail addresses become links you can click.
         // The format only changes when it has to, so typing doesn't fill the undo list with format changes.
         void RestyleLine(int start)
         {
@@ -1615,6 +1672,21 @@ namespace StickyNotes
                     box.Select(start, 2);
                     var cf = GetFormat();
                     if ((cf.dwMask & CFM_STRIKEOUT) == 0 || (cf.dwEffects & CFE_STRIKEOUT) != 0) SetFormat(CFM_STRIKEOUT | CFM_COLOR, 0, NoteColors.Ink);
+                }
+                var want = FindLinks(t.Substring(start, end - start));
+                var have = new List<TextSpan>();
+                LinkSpans(start, end - start, have);
+                bool same = want.Count == have.Count;
+                for (int i = 0; same && i < want.Count; i++) same = start + want[i].Start == have[i].Start && want[i].Length == have[i].Length;
+                if (!same)
+                {
+                    box.Select(start, end - start);
+                    SetFormat(CFM_LINK, 0, NoteColors.Ink);
+                    foreach (var r in want)
+                    {
+                        box.Select(start + r.Start, r.Length);
+                        SetFormat(CFM_LINK, CFE_LINK, NoteColors.Ink);
+                    }
                 }
             });
         }
