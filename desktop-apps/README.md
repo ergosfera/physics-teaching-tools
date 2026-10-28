@@ -103,6 +103,8 @@ there when you open the Windows PC at home.
 | New note | **+** on a note, Ctrl+N / ⌘N, or click the tray icon (Windows) / Dock icon (Mac) |
 | Checklist | **☐** on the top bar, Ctrl+Shift+L / ⇧⌘L, or type `[ ]` and a space at the start of a line. Click a box to check it; Enter adds the next one, Enter on an empty one ends the list |
 | Bold | Select text, then **B** on the top bar or Ctrl+B / ⌘B |
+| Text color | Select text, then **A** on the top bar and pick Black, Red, Orange, Green, Blue or Purple (also in the ⋯ menu, and Format → Text Color on the Mac) |
+| Title | Double-click the top bar, type the title and press Enter (Esc cancels). Also ⋯ → Add title, or Ctrl+Shift+T / ⇧⌘T. A note without a title shows an empty bar |
 | Color, keep on top, delete | **⋯** on the note's top bar (or right-click the bar) |
 | Move / resize | Drag the top bar / drag any edge or the bottom-right corner |
 | Bring all notes forward | Tray icon → Show all notes (Windows) · click the Dock icon (Mac) |
@@ -119,8 +121,10 @@ How it works:
   separate notes, so nothing is lost. Delete the one you don't need.
 - Deleted notes move to **My Drive/StickyNotes/Trash**. To get one back, move its file back into
   StickyNotes; to free space, empty that folder yourself.
-- Notes can have checklists and bold text, and nothing else (no pictures, fonts or colors), so they look the same on both systems.
-  In the file they're plain text markers: `[ ] milk` and `[x] milk` for checkboxes, `**word**` for bold.
+- Notes can have checklists, bold text, six text colors and a title, and nothing else (no pictures or fonts), so they look the same on both systems.
+  In the file they're plain text markers: `[ ] milk` and `[x] milk` for checkboxes, `**word**` for bold, `{red}word{/red}` for color
+  (red, orange, green, blue, purple), and a `title:` line above the `---`.
+- Titles and colors need version 1.2 on every computer: an older version shows the color markers as typed and drops the title when it saves the note.
   A checked item shows crossed out.
 - The first time, macOS may ask to let Sticky Notes access files in Google Drive. Click **Allow**.
 

@@ -10,6 +10,7 @@ import ServiceManagement
 struct NoteData {
     var id: String
     var color = "yellow"
+    var title = ""
     var modified = ""
     var by = ""
     var text = ""
@@ -19,10 +20,12 @@ struct NoteData {
 
 // A note file is a short header, a "---" line, then the note text:
 //   color: yellow
+//   title: Groceries
 //   modified: 2026-10-18T14:03:22.123Z
 //   by: WORK-MAC
 //   ---
 //   Buy milk
+// The title line is there only when the note has a title.
 // A plain .txt file without the header also works: all of it becomes the note text.
 enum NoteFile {
     static let machine: String = (Host.current().localizedName ?? "Mac").replacingOccurrences(of: "\n", with: " ")
@@ -51,9 +54,16 @@ enum NoteFile {
         s.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
     }
 
+    // A title is one line, without spaces at either end
+    static func cleanTitle(_ s: String) -> String {
+        normalize(s).replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespaces)
+    }
+
     static func serialize(_ n: NoteData) -> String {
         let by = n.by.replacingOccurrences(of: "\n", with: " ")
-        return "color: \(n.color)\nmodified: \(n.modified)\nby: \(by)\n---\n" + normalize(n.text)
+        let title = cleanTitle(n.title)
+        return "color: \(n.color)\n" + (title.isEmpty ? "" : "title: \(title)\n")
+            + "modified: \(n.modified)\nby: \(by)\n---\n" + normalize(n.text)
     }
 
     static func parse(id: String, content: String) -> NoteData {
@@ -84,6 +94,7 @@ enum NoteFile {
             fields[String(line[..<colon])] = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
         }
         if let c = fields["color"], !c.isEmpty { n.color = c }
+        n.title = fields["title"] ?? ""
         n.modified = fields["modified"] ?? ""
         n.by = fields["by"] ?? ""
         n.text = body
@@ -91,13 +102,21 @@ enum NoteFile {
     }
 }
 
-// Checkboxes and bold, kept in the note text as plain markers so the file stays readable anywhere:
-//   "[ ] milk" / "[x] milk" at the start of a line is a checkbox (shown as ☐ / ☑), and "**word**" is bold.
-// On screen the markers become a box character plus a space, and bold text. Ranges count UTF-16 units,
-// like the Windows app.
+// Checkboxes, bold and text colors, kept in the note text as plain markers so the file stays readable anywhere:
+//   "[ ] milk" / "[x] milk" at the start of a line is a checkbox (shown as ☐ / ☑), "**word**" is bold,
+//   and "{red}word{/red}" is red text (the color names are Markup.inks).
+// On screen the markers become a box character plus a space, bold text and colored text. Ranges count
+// UTF-16 units, like the Windows app.
+struct InkSpan: Equatable {
+    var range: NSRange
+    var name: String
+}
+
 enum Markup {
     static let unchecked = "\u{2610}", checked = "\u{2611}"
     static let uncheckedChar: unichar = 0x2610, checkedChar: unichar = 0x2611
+    // Text colors besides the usual dark ink
+    static let inks = ["red", "orange", "green", "blue", "purple"]
 
     static func isBox(_ c: unichar) -> Bool { c == uncheckedChar || c == checkedChar }
 
@@ -106,9 +125,17 @@ enum Markup {
         i + 1 < s.length && isBox(s.character(at: i)) && s.character(at: i + 1) == 32
     }
 
-    static func parse(_ markup: String) -> (text: String, bold: [NSRange]) {
+    static func parse(_ markup: String) -> (text: String, bold: [NSRange], ink: [InkSpan]) {
         let out = NSMutableString()
         var bold: [NSRange] = []
+        var ink: [InkSpan] = []
+        func addBold(_ i: Int) {
+            if let last = bold.last, NSMaxRange(last) == i { bold[bold.count - 1].length += 1 } else { bold.append(NSRange(location: i, length: 1)) }
+        }
+        func addInk(_ i: Int, _ name: String) {
+            if let last = ink.last, last.name == name, NSMaxRange(last.range) == i { ink[ink.count - 1].range.length += 1 }
+            else { ink.append(InkSpan(range: NSRange(location: i, length: 1), name: name)) }
+        }
         for (n, raw) in markup.components(separatedBy: "\n").enumerated() {
             if n > 0 { out.append("\n") }
             var line = raw as NSString
@@ -119,36 +146,89 @@ enum Markup {
                 out.append(checked + " ")
                 line = line.substring(from: 4) as NSString
             }
+            let len = line.length
+            var drop = [Bool](repeating: false, count: len)
+            var isBold = [Bool](repeating: false, count: len)
+            var color = [String?](repeating: nil, count: len)
+
+            // "{name}" and "{/name}" pair up within the line; a tag without its partner, or an empty pair, stays as typed
+            var i = 0
+            scan: while i < len {
+                if line.character(at: i) == 123 {
+                    for name in inks {
+                        let open = "{" + name + "}", close = "{/" + name + "}"
+                        let ol = (open as NSString).length, cl = (close as NSString).length
+                        guard line.range(of: open, options: .anchored, range: NSRange(location: i, length: len - i)).location != NSNotFound
+                        else { continue }
+                        let c = line.range(of: close, options: [], range: NSRange(location: i + ol, length: len - i - ol)).location
+                        guard c != NSNotFound, c > i + ol else { continue }
+                        for k in i..<(i + ol) { drop[k] = true }
+                        for k in c..<(c + cl) { drop[k] = true }
+                        for k in (i + ol)..<c { color[k] = name }
+                        i = c + cl
+                        continue scan
+                    }
+                }
+                i += 1
+            }
+
             // "**" marks pair up within the line; an odd one out, or an empty pair, stays as typed
             var marks: [Int] = []
             var j = 0
-            while j + 1 < line.length {
+            while j + 1 < len {
                 if line.character(at: j) == 42 && line.character(at: j + 1) == 42 { marks.append(j); j += 2 } else { j += 1 }
             }
             if marks.count % 2 == 1 { marks.removeLast() }
-            var cursor = 0
             var k = 0
             while k < marks.count {
                 let a = marks[k], b = marks[k + 1]
                 k += 2
                 if b == a + 2 { continue }
-                out.append(line.substring(with: NSRange(location: cursor, length: a - cursor)))
-                bold.append(NSRange(location: out.length, length: b - a - 2))
-                out.append(line.substring(with: NSRange(location: a + 2, length: b - a - 2)))
-                cursor = b + 2
+                for x in [a, a + 1, b, b + 1] { drop[x] = true }
+                for x in (a + 2)..<b { isBold[x] = true }
             }
-            out.append(line.substring(from: cursor))
+
+            // Copy what is left in runs (markers are plain ASCII, so a run never splits a character)
+            var x = 0
+            while x < len {
+                if drop[x] { x += 1; continue }
+                var y = x
+                while y < len && !drop[y] { y += 1 }
+                let at = out.length
+                out.append(line.substring(with: NSRange(location: x, length: y - x)))
+                for z in x..<y {
+                    if isBold[z] { addBold(at + z - x) }
+                    if let c = color[z] { addInk(at + z - x, c) }
+                }
+                x = y
+            }
         }
-        return (out as String, bold)
+        return (out as String, bold, ink)
     }
 
-    static func serialize(_ text: String, bold: [NSRange]) -> String {
+    static func serialize(_ text: String, bold: [NSRange], ink: [InkSpan] = []) -> String {
         let t = text as NSString
         var isBold = [Bool](repeating: false, count: t.length)
         for r in bold {
-            for i in max(0, r.location)..<min(t.length, r.location + r.length) { isBold[i] = true }
+            for i in max(0, r.location)..<max(0, min(t.length, r.location + r.length)) { isBold[i] = true }
+        }
+        var color = [String?](repeating: nil, count: t.length)
+        for s in ink where inks.contains(s.name) {
+            for i in max(0, s.range.location)..<max(0, min(t.length, s.range.location + s.range.length)) { color[i] = s.name }
         }
         let out = NSMutableString()
+        // Bold runs get "**" around them
+        func writeBold(_ from: Int, _ to: Int) {
+            var i = from
+            while i < to {
+                let b = isBold[i]
+                var j = i
+                while j < to && isBold[j] == b { j += 1 }
+                let piece = t.substring(with: NSRange(location: i, length: j - i))
+                if b && !piece.trimmingCharacters(in: .whitespaces).isEmpty { out.append("**" + piece + "**") } else { out.append(piece) }
+                i = j
+            }
+        }
         var start = 0
         while start <= t.length {
             var end = t.range(of: "\n", options: [], range: NSRange(location: start, length: t.length - start)).location
@@ -158,13 +238,19 @@ enum Markup {
                 out.append(t.character(at: i) == uncheckedChar ? "[ ] " : "[x] ")
                 i += 2
             }
-            // Bold runs get "**" around them; each line closes its own
+            // Colored runs get "{name}" and "{/name}" around them, outside any "**"; each line closes its own
             while i < end {
-                let b = isBold[i]
+                let c = color[i]
                 var j = i
-                while j < end && isBold[j] == b { j += 1 }
+                while j < end && color[j] == c { j += 1 }
                 let piece = t.substring(with: NSRange(location: i, length: j - i))
-                if b && !piece.trimmingCharacters(in: .whitespaces).isEmpty { out.append("**" + piece + "**") } else { out.append(piece) }
+                if let c = c, !piece.trimmingCharacters(in: .whitespaces).isEmpty {
+                    out.append("{\(c)}")
+                    writeBold(i, j)
+                    out.append("{/\(c)}")
+                } else {
+                    writeBold(i, j)
+                }
                 i = j
             }
             if end < t.length { out.append("\n") }
@@ -212,6 +298,34 @@ func selfTest() -> Int32 {
     let mixed = "[ ] **buy** milk\n[x] done\n**Title**\nend\n"
     let p = Markup.parse(mixed)
     check(Markup.serialize(p.text, bold: p.bold) == mixed, "round trip with markers")
+
+    // Titles
+    check(back.title == "", "no title")
+    var titled = n
+    titled.title = " Groceries\nweek 2 "
+    let titledFile = NoteFile.serialize(titled)
+    check(titledFile == "color: pink\ntitle: Groceries week 2\nmodified: 2026-10-18T10:00:00.000Z\nby: MAC\n---\nHello\n---\nworld: yes", "write title")
+    check(NoteFile.parse(id: "a", content: titledFile).title == "Groceries week 2", "read title")
+
+    // Text colors
+    let c1 = Markup.parse("a {red}b{/red} c")
+    check(c1.text == "a b c" && c1.ink == [InkSpan(range: NSRange(location: 2, length: 1), name: "red")] && c1.bold.isEmpty, "parse color")
+    check(Markup.parse("{red}x").text == "{red}x" && Markup.parse("{red}x").ink.isEmpty, "lone tag stays")
+    check(Markup.parse("{pink}x{/pink}").text == "{pink}x{/pink}", "unknown color stays")
+    check(Markup.parse("{red}{/red}").text == "{red}{/red}", "empty color stays")
+    let c2 = Markup.parse("{blue}**b**{/blue}")
+    check(c2.text == "b" && c2.bold == [NSRange(location: 0, length: 1)]
+          && c2.ink == [InkSpan(range: NSRange(location: 0, length: 1), name: "blue")], "bold inside color")
+    check(Markup.serialize("ab cd", bold: [], ink: [InkSpan(range: NSRange(location: 0, length: 2), name: "green")]) == "{green}ab{/green} cd", "write color")
+    check(Markup.serialize("abc", bold: [NSRange(location: 1, length: 2)], ink: [InkSpan(range: NSRange(location: 0, length: 2), name: "red")])
+          == "{red}a**b**{/red}**c**", "write bold and color")
+    check(Markup.serialize("ab\ncd", bold: [], ink: [InkSpan(range: NSRange(location: 1, length: 3), name: "purple")])
+          == "a{purple}b{/purple}\n{purple}c{/purple}d", "color across lines")
+    check(Markup.serialize("a b", bold: [], ink: [InkSpan(range: NSRange(location: 1, length: 1), name: "red")]) == "a b", "colored space")
+    let colored = "[ ] {red}**buy** milk{/red} now\n[x] {orange}done{/orange}\n**Title** {blue}x{/blue}\nend\n"
+    let q = Markup.parse(colored)
+    check(q.text == "\u{2610} buy milk now\n\u{2611} done\nTitle x\nend\n", "parse mixed colors")
+    check(Markup.serialize(q.text, bold: q.bold, ink: q.ink) == colored, "round trip with colors")
     print(fails == 0 ? "Note format self-test passed" : "Note format self-test failed")
     return fails
 }
@@ -225,8 +339,22 @@ enum NoteColors {
     static let headerHex = [0xF7E479, 0xB8E3A3, 0xF9B6CE, 0xCDBAF2, 0xA9D3FB, 0xD2D2D2]
     static let ink = NSColor(srgbRed: 0.133, green: 0.133, blue: 0.133, alpha: 1)
     static let glyph = NSColor(srgbRed: 0.16, green: 0.16, blue: 0.16, alpha: 0.6)
+    // Text colors: the usual ink, then Markup.inks. Dark enough to read on every note color.
+    static let inkLabels = ["Black", "Red", "Orange", "Green", "Blue", "Purple"]
+    static let inkHex = [0x222222, 0xB71C1C, 0xA03F00, 0x1B6E20, 0x0D47A1, 0x6A1B9A]
 
     static func index(_ name: String) -> Int { names.firstIndex(of: name) ?? 0 }
+
+    static func inkIndex(_ name: String?) -> Int { name.flatMap { Markup.inks.firstIndex(of: $0) }.map { $0 + 1 } ?? 0 }
+    static func inkColor(_ name: String?) -> NSColor { inkIndex(name) == 0 ? ink : rgb(inkHex[inkIndex(name)]) }
+
+    static func inkSwatch(_ i: Int) -> NSImage {
+        NSImage(size: NSSize(width: 14, height: 14), flipped: false) { r in
+            NoteColors.rgb(NoteColors.inkHex[i]).setFill()
+            NSBezierPath(ovalIn: r.insetBy(dx: 2, dy: 2)).fill()
+            return true
+        }
+    }
 
     static func rgb(_ hex: Int) -> NSColor {
         NSColor(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
@@ -454,9 +582,9 @@ final class NoteTextView: NSTextView {
     }
 }
 
-// The note's colored top bar (+, ☐, B and ⋯ buttons, drag to move) and its text area.
-// Every edge of the note resizes it, and so does the corner handle.
-final class NoteView: NSView {
+// The note's colored top bar (+, title, ☐, A, B and ⋯ buttons, drag to move, double-click to edit the title)
+// and its text area. Every edge of the note resizes it, and so does the corner handle.
+final class NoteView: NSView, NSTextFieldDelegate {
     weak var note: NoteController?
     let scroll = NSScrollView()
     let grip = GripView()
@@ -467,11 +595,15 @@ final class NoteView: NSView {
     private var resizing: (l: Bool, r: Bool, t: Bool, b: Bool)?
     private var startMouse = NSPoint.zero
     private var startFrame = NSRect.zero
+    private var titleField: NSTextField?
+    private var titleCancelled = false
 
     var plusRect: NSRect { NSRect(x: 4, y: 3, width: 22, height: 22) }
     var menuRect: NSRect { NSRect(x: bounds.width - 26, y: 3, width: 22, height: 22) }
     var boldRect: NSRect { NSRect(x: bounds.width - 52, y: 3, width: 22, height: 22) }
-    var checkRect: NSRect { NSRect(x: bounds.width - 78, y: 3, width: 22, height: 22) }
+    var inkRect: NSRect { NSRect(x: bounds.width - 78, y: 3, width: 22, height: 22) }
+    var checkRect: NSRect { NSRect(x: bounds.width - 104, y: 3, width: 22, height: 22) }
+    var titleRect: NSRect { NSRect(x: plusRect.maxX + 4, y: 3, width: max(0, checkRect.minX - plusRect.maxX - 8), height: 22) }
 
     override var isFlipped: Bool { true }
 
@@ -492,7 +624,51 @@ final class NoteView: NSView {
     private func layoutParts() {
         scroll.frame = NSRect(x: 10, y: headerH + 2, width: max(10, bounds.width - 20), height: max(10, bounds.height - headerH - 12))
         grip.frame = NSRect(x: bounds.width - 18, y: bounds.height - 18, width: 18, height: 18)
+        titleField?.frame = titleRect.insetBy(dx: 0, dy: 2)
         window?.invalidateCursorRects(for: self)
+    }
+
+    // MARK: Title
+
+    static let titleFont = NSFont.boldSystemFont(ofSize: 13)
+
+    func beginTitleEdit() {
+        guard let note = note, titleField == nil else { return }
+        let f = NSTextField(frame: titleRect.insetBy(dx: 0, dy: 2))
+        f.stringValue = note.data.title
+        f.placeholderString = "Title"
+        f.font = NoteView.titleFont
+        f.textColor = NoteColors.ink
+        f.isBordered = false
+        f.focusRingType = .none
+        f.drawsBackground = true
+        f.backgroundColor = NoteColors.back(note.data.color)
+        f.cell?.wraps = false
+        f.cell?.isScrollable = true
+        f.delegate = self
+        addSubview(f)
+        titleField = f
+        titleCancelled = false
+        setNeedsDisplay(NSRect(x: 0, y: 0, width: bounds.width, height: headerH))
+        window?.makeKeyAndOrderFront(nil)
+        window?.makeFirstResponder(f)
+    }
+
+    // Enter keeps the title and Esc puts the old one back; both go on to the note's text
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy sel: Selector) -> Bool {
+        if sel == #selector(NSResponder.cancelOperation(_:)) { titleCancelled = true }
+        guard sel == #selector(NSResponder.cancelOperation(_:)) || sel == #selector(NSResponder.insertNewline(_:)) else { return false }
+        if let note = note { window?.makeFirstResponder(note.text) }
+        return true
+    }
+
+    func controlTextDidEndEditing(_ obj: Notification) {
+        guard let f = titleField else { return }
+        titleField = nil
+        f.delegate = nil
+        f.removeFromSuperview()
+        if !titleCancelled { note?.setTitle(f.stringValue) }
+        setNeedsDisplay(NSRect(x: 0, y: 0, width: bounds.width, height: headerH))
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -537,6 +713,22 @@ final class NoteView: NSView {
             let sz = ("B" as NSString).size(withAttributes: attrs)
             ("B" as NSString).draw(at: NSPoint(x: r.midX - sz.width / 2, y: r.midY - sz.height / 2), withAttributes: attrs)
         }
+        // "A" over a bar in the text color picked last
+        drawButton(inkRect, hover: hot == 4) { r in
+            let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13, weight: .semibold), .foregroundColor: NoteColors.glyph]
+            let sz = ("A" as NSString).size(withAttributes: attrs)
+            ("A" as NSString).draw(at: NSPoint(x: r.midX - sz.width / 2, y: r.midY - sz.height / 2 - 2), withAttributes: attrs)
+            NoteColors.inkColor(note.lastInk).setFill()
+            NSBezierPath(roundedRect: NSRect(x: r.midX - 6, y: r.maxY - 6, width: 12, height: 3), xRadius: 1, yRadius: 1).fill()
+        }
+        if titleField == nil && !note.data.title.isEmpty && titleRect.width > 10 {
+            let style = NSMutableParagraphStyle()
+            style.lineBreakMode = .byTruncatingTail
+            let attrs: [NSAttributedString.Key: Any] = [.font: NoteView.titleFont, .foregroundColor: NoteColors.ink, .paragraphStyle: style]
+            let h = ceil(NoteView.titleFont.ascender - NoteView.titleFont.descender + NoteView.titleFont.leading)
+            (note.data.title as NSString).draw(in: NSRect(x: titleRect.minX, y: titleRect.midY - h / 2, width: titleRect.width, height: h),
+                                               withAttributes: attrs)
+        }
     }
 
     private func drawButton(_ r: NSRect, hover: Bool, _ glyph: (NSRect) -> Void) {
@@ -579,6 +771,7 @@ final class NoteView: NSView {
         if menuRect.contains(p) { return 1 }
         if checkRect.contains(p) { return 2 }
         if boldRect.contains(p) { return 3 }
+        if inkRect.contains(p) { return 4 }
         return -1
     }
 
@@ -607,8 +800,11 @@ final class NoteView: NSView {
         case 1: _ = note.menu().popUp(positioning: nil, at: NSPoint(x: menuRect.minX, y: menuRect.maxY), in: self)
         case 2: note.toggleChecklist()
         case 3: note.toggleBold()
+        case 4: _ = note.inkMenu().popUp(positioning: nil, at: NSPoint(x: inkRect.minX, y: inkRect.maxY), in: self)
         default:
-            if p.y < headerH {
+            if p.y < headerH && event.clickCount == 2 {
+                beginTitleEdit()
+            } else if p.y < headerH {
                 window?.performDrag(with: event)
             } else {
                 window?.makeFirstResponder(note.text)
@@ -646,11 +842,13 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
     private var saveTimer: Timer?
     private var restyling = false
     var ready = false
+    var lastInk: String? = "red"  // shown under the A button
 
     static let regular = NSFont.systemFont(ofSize: 14)
     static let bold = NSFont.boldSystemFont(ofSize: 14)
     static let boxFont = NSFont.systemFont(ofSize: 16)
-    static let doneInk = NSColor(srgbRed: 0.133, green: 0.133, blue: 0.133, alpha: 0.5)
+    // The text color by name (see Markup.inks); restyle() turns it into the color on screen
+    static let inkKey = NSAttributedString.Key("noteInk")
 
     init(app: AppDelegate, data: NoteData, frame: NSRect) {
         self.app = app
@@ -674,7 +872,7 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         view.layer?.cornerRadius = 8
         view.layer?.masksToBounds = true
 
-        // Only bold and checkboxes, so both apps show the same thing (restyle() keeps it that way)
+        // Only bold, text colors and checkboxes, so both apps show the same thing (restyle() keeps it that way)
         text.note = self
         text.isRichText = true
         text.usesFontPanel = false
@@ -703,23 +901,29 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         updateTitle()
     }
 
-    // MARK: Checkboxes and bold
+    // MARK: Checkboxes, bold and text colors
 
-    // The note as it is saved: plain text with "[ ] ", "[x] " and "**" markers
+    // The note as it is saved: plain text with "[ ] ", "[x] ", "**" and "{red}" markers
     var markup: String {
         var bold: [NSRange] = []
+        var ink: [InkSpan] = []
         if let ts = text.textStorage {
-            ts.enumerateAttribute(.font, in: NSRange(location: 0, length: ts.length)) { v, r, _ in
+            let all = NSRange(location: 0, length: ts.length)
+            ts.enumerateAttribute(.font, in: all) { v, r, _ in
                 if let f = v as? NSFont, f.fontDescriptor.symbolicTraits.contains(.bold) { bold.append(r) }
             }
+            ts.enumerateAttribute(NoteController.inkKey, in: all) { v, r, _ in
+                if let name = v as? String { ink.append(InkSpan(range: r, name: name)) }
+            }
         }
-        return Markup.serialize(text.string, bold: bold)
+        return Markup.serialize(text.string, bold: bold, ink: ink)
     }
 
     func attributed(_ markup: String) -> NSAttributedString {
-        let (t, bold) = Markup.parse(markup)
+        let (t, bold, ink) = Markup.parse(markup)
         let a = NSMutableAttributedString(string: t, attributes: [.font: NoteController.regular, .foregroundColor: NoteColors.ink])
         for r in bold { a.addAttribute(.font, value: NoteController.bold, range: r) }
+        for s in ink { a.addAttribute(NoteController.inkKey, value: s.name, range: s.range) }
         return a
     }
 
@@ -728,8 +932,8 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         restyle()
     }
 
-    // Keeps the look in step with the text: only regular or bold, boxes a little bigger,
-    // and the text of a checked item gray and crossed out.
+    // Keeps the look in step with the text: only regular or bold, the text colors, boxes a little bigger,
+    // and the text of a checked item faded and crossed out.
     func restyle() {
         guard let ts = text.textStorage, !restyling else { return }
         restyling = true
@@ -742,18 +946,23 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
             ts.addAttribute(.font, value: isBold ? NoteController.bold : NoteController.regular, range: r)
         }
         ts.removeAttribute(.strikethroughStyle, range: all)
-        ts.addAttribute(.foregroundColor, value: NoteColors.ink, range: all)
+        ts.enumerateAttribute(NoteController.inkKey, in: all) { v, r, _ in
+            ts.addAttribute(.foregroundColor, value: NoteColors.inkColor(v as? String), range: r)
+        }
         var i = 0
         while i < s.length {
             let line = s.lineRange(for: NSRange(location: i, length: 0))
             if Markup.hasBox(s, at: line.location) {
                 ts.addAttribute(.font, value: NoteController.boxFont, range: NSRange(location: line.location, length: 1))
+                ts.addAttribute(.foregroundColor, value: NoteColors.ink, range: NSRange(location: line.location, length: 2))
                 if s.character(at: line.location) == Markup.checkedChar {
                     var end = NSMaxRange(line)
                     if end > line.location && s.character(at: end - 1) == 10 { end -= 1 }
                     let r = NSRange(location: line.location + 2, length: max(0, end - line.location - 2))
                     ts.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: r)
-                    ts.addAttribute(.foregroundColor, value: NoteController.doneInk, range: r)
+                    ts.enumerateAttribute(NoteController.inkKey, in: r) { v, rr, _ in
+                        ts.addAttribute(.foregroundColor, value: NoteColors.inkColor(v as? String).withAlphaComponent(0.5), range: rr)
+                    }
                 }
             }
             i = NSMaxRange(line)
@@ -762,7 +971,7 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         // New typing takes the look of the line it's on, never the box's
         var typing = text.typingAttributes
         typing.removeValue(forKey: .strikethroughStyle)
-        typing[.foregroundColor] = NoteColors.ink
+        typing[.foregroundColor] = NoteColors.inkColor(typing[NoteController.inkKey] as? String)
         if let f = typing[.font] as? NSFont, f.pointSize != 14 { typing[.font] = NoteController.regular }
         text.typingAttributes = typing
         text.window?.invalidateCursorRects(for: text)
@@ -824,16 +1033,62 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         window.makeFirstResponder(text)
     }
 
-    // Pastes plain text; any checkbox and bold markers in it come in formatted
+    // Colors the selected text, or what is typed next; nil is the usual ink
+    func setInk(_ name: String?) {
+        lastInk = name
+        view.setNeedsDisplay(NSRect(x: 0, y: 0, width: view.bounds.width, height: view.headerH))
+        window.makeFirstResponder(text)
+        let r = text.selectedRange()
+        guard r.length > 0 else {
+            text.typingAttributes[NoteController.inkKey] = name
+            text.typingAttributes[.foregroundColor] = NoteColors.inkColor(name)
+            return
+        }
+        guard let ts = text.textStorage, text.shouldChangeText(in: r, replacementString: nil) else { return }
+        if let n = name { ts.addAttribute(NoteController.inkKey, value: n, range: r) } else { ts.removeAttribute(NoteController.inkKey, range: r) }
+        text.didChangeText()
+    }
+
+    @objc func pickInk(_ sender: NSMenuItem) { setInk(sender.tag == 0 ? nil : Markup.inks[sender.tag - 1]) }
+
+    func inkMenu() -> NSMenu {
+        let m = NSMenu()
+        for (i, label) in NoteColors.inkLabels.enumerated() {
+            let item = m.addItem(withTitle: label, action: #selector(pickInk(_:)), keyEquivalent: "")
+            item.tag = i
+            item.target = self
+            item.image = NoteColors.inkSwatch(i)
+        }
+        return m
+    }
+
+    // Pastes plain text; any checkbox, bold and color markers in it come in formatted
     func pasteMarkup() {
         guard let s = NSPasteboard.general.string(forType: .string) else { return }
         text.insertText(attributed(NoteFile.normalize(s)), replacementRange: text.selectedRange())
     }
 
+    func setTitle(_ t: String) {
+        let clean = NoteFile.cleanTitle(t)
+        guard clean != data.title else { return }
+        data.title = clean
+        view.needsDisplay = true
+        updateTitle()
+        saveNow()
+    }
+
+    @objc func editTitle(_ sender: Any?) { view.beginTitleEdit() }
+
+    // The window's name (in the Window menu and Mission Control): the title, or else the first line
     private func updateTitle() {
+        if !data.title.isEmpty {
+            window.title = String(data.title.prefix(60))
+            return
+        }
         var first = markup.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: "\n").first ?? ""
         if first.hasPrefix("[ ] ") || first.hasPrefix("[x] ") { first = String(first.dropFirst(4)) }
         first = first.replacingOccurrences(of: "**", with: "")
+        for name in Markup.inks { first = first.replacingOccurrences(of: "{\(name)}", with: "").replacingOccurrences(of: "{/\(name)}", with: "") }
         window.title = first.isEmpty ? "Sticky Note" : String(first.prefix(60))
     }
 
@@ -880,7 +1135,7 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
     }
 
     func applyRemote(_ d: NoteData) {
-        if d.modified == data.modified && d.color == data.color && d.text == data.text { return }  // our own save
+        if d.modified == data.modified && d.color == data.color && d.title == data.title && d.text == data.text { return }  // our own save
         if dirty {
             app.conflictCopy(d, near: self)
             return
@@ -932,6 +1187,8 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         m.addItem(.separator())
         m.addItem(withTitle: "Checklist", action: #selector(toggleChecklist), keyEquivalent: "").target = self
         m.addItem(withTitle: "Bold", action: #selector(toggleBold), keyEquivalent: "").target = self
+        m.addItem(withTitle: "Text Color", action: nil, keyEquivalent: "").submenu = inkMenu()
+        m.addItem(withTitle: data.title.isEmpty ? "Add Title" : "Edit Title", action: #selector(editTitle(_:)), keyEquivalent: "").target = self
         m.addItem(.separator())
         let top = m.addItem(withTitle: "Keep on Top", action: #selector(toggleTop(_:)), keyEquivalent: "")
         top.target = self
@@ -1028,7 +1285,7 @@ enum IconArt {
 // MARK: - App: the notes folder and the open notes
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    static let welcome = "Welcome to Sticky Notes!\n\nWrite anything here. Notes save as you type and sync through your Google Drive folder, so they also appear on your other computer.\n\n+  makes a new note.\n☐  makes a checklist: click a box to check it.\nB  makes the selected text bold.\n⋯  changes the color or deletes the note.\nDrag the top bar to move a note, and an edge or the corner to resize it."
+    static let welcome = "Welcome to Sticky Notes!\n\nWrite anything here. Notes save as you type and sync through your Google Drive folder, so they also appear on your other computer.\n\n+  makes a new note.\n☐  makes a checklist: click a box to check it.\nB  makes the selected text bold.\nA  colors the selected text.\n⋯  changes the color or deletes the note.\nDouble-click the top bar to give a note a title.\nDrag the top bar to move a note, and an edge or the corner to resize it."
 
     let local = LocalState()
     let fm = FileManager.default
@@ -1226,9 +1483,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         local.setPlacement(c.data.id, c.window.frame, c.onTop)
     }
 
-    func createNote(text: String, color: String, near: NoteController?, activate: Bool) {
+    func createNote(text: String, color: String, title: String = "", near: NoteController?, activate: Bool) {
         var d = NoteData(id: NoteFile.newId())
         d.color = color
+        d.title = title
         d.text = text
         d.modified = NoteFile.now()
         d.by = NoteFile.machine
@@ -1244,7 +1502,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // The note changed on the other computer while it was being edited here: keep the other
     // version as a new note next to it (this one is saved over the file a moment later).
     func conflictCopy(_ remote: NoteData, near: NoteController) {
-        createNote(text: remote.text, color: remote.color, near: near, activate: false)
+        createNote(text: remote.text, color: remote.color, title: remote.title, near: near, activate: false)
     }
 
     func delete(_ c: NoteController) {
@@ -1300,6 +1558,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func boldCommand(_ sender: Any?) { keyNote?.toggleBold() }
     @objc func checklistCommand(_ sender: Any?) { keyNote?.toggleChecklist() }
+    @objc func inkCommand(_ sender: NSMenuItem) { keyNote?.setInk(sender.tag == 0 ? nil : Markup.inks[sender.tag - 1]) }
+    @objc func titleCommand(_ sender: Any?) { keyNote?.view.beginTitleEdit() }
 
     @objc func openFolder(_ sender: Any?) {
         if ensureFolder() {
@@ -1365,7 +1625,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showAbout(_ sender: Any?) {
-        alert("Sticky Notes 1.1",
+        alert("Sticky Notes 1.2",
               "Notes folder:\n\(folder)\n\nEach note is a text file in this folder. Google Drive for desktop copies it to your other computers, where Sticky Notes for Mac or Windows shows it. Deleted notes go to the Trash folder inside it.\n\n© 2026 Mauricio Mendivelso. MIT License.\nProvided \"as is\", without warranty of any kind.")
     }
 
@@ -1417,6 +1677,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let check = format.addItem(withTitle: "Checklist", action: #selector(checklistCommand(_:)), keyEquivalent: "l")
         check.keyEquivalentModifierMask = [.command, .shift]
         check.target = self
+        let inks = NSMenu()
+        for (i, label) in NoteColors.inkLabels.enumerated() {
+            let item = inks.addItem(withTitle: label, action: #selector(inkCommand(_:)), keyEquivalent: "")
+            item.tag = i
+            item.target = self
+            item.image = NoteColors.inkSwatch(i)
+        }
+        format.addItem(withTitle: "Text Color", action: nil, keyEquivalent: "").submenu = inks
+        format.addItem(.separator())
+        let title = format.addItem(withTitle: "Edit Title", action: #selector(titleCommand(_:)), keyEquivalent: "t")
+        title.keyEquivalentModifierMask = [.command, .shift]
+        title.target = self
         add(format, title: "Format", to: main)
 
         let windowMenu = NSMenu()

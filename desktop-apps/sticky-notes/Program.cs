@@ -21,8 +21,8 @@ using Timer = System.Windows.Forms.Timer;
 [assembly: AssemblyTitle("Sticky Notes")]
 [assembly: AssemblyProduct("Sticky Notes")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Mauricio Mendivelso. MIT License.")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 namespace StickyNotes
 {
@@ -66,6 +66,7 @@ namespace StickyNotes
     {
         public string Id = "";
         public string Color = "yellow";
+        public string Title = "";
         public string Modified = "";
         public string By = "";
         public string Text = "";
@@ -73,10 +74,12 @@ namespace StickyNotes
 
     // A note file is a short header, a "---" line, then the note text:
     //   color: yellow
+    //   title: Groceries
     //   modified: 2026-10-18T14:03:22.123Z
     //   by: HOME-PC
     //   ---
     //   Buy milk
+    // The title line is there only when the note has a title.
     // A plain .txt file without the header also works: all of it becomes the note text.
     static class NoteFile
     {
@@ -102,10 +105,18 @@ namespace StickyNotes
             return s.Replace("\r\n", "\n").Replace('\r', '\n');
         }
 
+        // A title is one line, without spaces at either end
+        public static string CleanTitle(string s)
+        {
+            return Normalize(s).Replace('\n', ' ').Trim(' ', '\t');
+        }
+
         public static string Serialize(NoteData n)
         {
             var sb = new StringBuilder();
             sb.Append("color: ").Append(n.Color).Append('\n');
+            string title = CleanTitle(n.Title);
+            if (title.Length > 0) sb.Append("title: ").Append(title).Append('\n');
             sb.Append("modified: ").Append(n.Modified).Append('\n');
             sb.Append("by: ").Append(n.By.Replace('\n', ' ')).Append('\n');
             sb.Append("---\n");
@@ -145,6 +156,7 @@ namespace StickyNotes
             }
             string v;
             if (fields.TryGetValue("color", out v) && v.Length > 0) n.Color = v;
+            if (fields.TryGetValue("title", out v)) n.Title = v;
             if (fields.TryGetValue("modified", out v)) n.Modified = v;
             if (fields.TryGetValue("by", out v)) n.By = v;
             n.Text = body;
@@ -159,19 +171,47 @@ namespace StickyNotes
         public TextSpan(int start, int length) { Start = start; Length = length; }
     }
 
-    // Checkboxes and bold, kept in the note text as plain markers so the file stays readable anywhere:
-    //   "[ ] milk" / "[x] milk" at the start of a line is a checkbox (shown as ☐ / ☑), and "**word**" is bold.
-    // On screen the markers become a box character plus a space, and bold text.
+    // A run of characters in one text color (a name from Markup.Inks)
+    struct InkSpan
+    {
+        public int Start, Length;
+        public string Name;
+        public InkSpan(int start, int length, string name) { Start = start; Length = length; Name = name; }
+    }
+
+    // Checkboxes, bold and text colors, kept in the note text as plain markers so the file stays readable anywhere:
+    //   "[ ] milk" / "[x] milk" at the start of a line is a checkbox (shown as ☐ / ☑), "**word**" is bold,
+    //   and "{red}word{/red}" is red text (the color names are Markup.Inks).
+    // On screen the markers become a box character plus a space, bold text and colored text.
     static class Markup
     {
         public const char Unchecked = '\u2610', Checked = '\u2611';
+        // Text colors besides the usual dark ink
+        public static readonly string[] Inks = { "red", "orange", "green", "blue", "purple" };
 
         public static bool IsBox(char c) { return c == Unchecked || c == Checked; }
 
         // Is there a box (and its space) at the start of the line beginning at index i?
         public static bool HasBox(string s, int i) { return i >= 0 && i + 1 < s.Length && IsBox(s[i]) && s[i + 1] == ' '; }
 
-        public static string Parse(string markup, List<TextSpan> bold)
+        static void AddBold(List<TextSpan> bold, int i)
+        {
+            int n = bold.Count;
+            if (n > 0 && bold[n - 1].Start + bold[n - 1].Length == i) bold[n - 1] = new TextSpan(bold[n - 1].Start, bold[n - 1].Length + 1);
+            else bold.Add(new TextSpan(i, 1));
+        }
+
+        static void AddInk(List<InkSpan> ink, int i, string name)
+        {
+            int n = ink.Count;
+            if (n > 0 && ink[n - 1].Name == name && ink[n - 1].Start + ink[n - 1].Length == i)
+                ink[n - 1] = new InkSpan(ink[n - 1].Start, ink[n - 1].Length + 1, name);
+            else ink.Add(new InkSpan(i, 1, name));
+        }
+
+        public static string Parse(string markup, List<TextSpan> bold) { return Parse(markup, bold, new List<InkSpan>()); }
+
+        public static string Parse(string markup, List<TextSpan> bold, List<InkSpan> ink)
         {
             var o = new StringBuilder();
             string[] lines = markup.Split('\n');
@@ -182,33 +222,69 @@ namespace StickyNotes
                 if (line.StartsWith("[ ] ", StringComparison.Ordinal)) { o.Append(Unchecked).Append(' '); line = line.Substring(4); }
                 else if (line.StartsWith("[x] ", StringComparison.Ordinal) || line.StartsWith("[X] ", StringComparison.Ordinal))
                 { o.Append(Checked).Append(' '); line = line.Substring(4); }
+                int len = line.Length;
+                var drop = new bool[len];
+                var isBold = new bool[len];
+                var color = new string[len];
+
+                // "{name}" and "{/name}" pair up within the line; a tag without its partner, or an empty pair, stays as typed
+                for (int i = 0; i < len; )
+                {
+                    int next = i + 1;
+                    if (line[i] == '{')
+                        foreach (string name in Inks)
+                        {
+                            string open = "{" + name + "}", close = "{/" + name + "}";
+                            if (i + open.Length > len || string.CompareOrdinal(line, i, open, 0, open.Length) != 0) continue;
+                            int c = line.IndexOf(close, i + open.Length, StringComparison.Ordinal);
+                            if (c <= i + open.Length) continue;
+                            for (int k = i; k < i + open.Length; k++) drop[k] = true;
+                            for (int k = c; k < c + close.Length; k++) drop[k] = true;
+                            for (int k = i + open.Length; k < c; k++) color[k] = name;
+                            next = c + close.Length;
+                            break;
+                        }
+                    i = next;
+                }
+
                 // "**" marks pair up within the line; an odd one out, or an empty pair, stays as typed
                 var marks = new List<int>();
-                for (int j = 0; j + 1 < line.Length; )
+                for (int j = 0; j + 1 < len; )
                 {
                     if (line[j] == '*' && line[j + 1] == '*') { marks.Add(j); j += 2; } else j++;
                 }
                 if (marks.Count % 2 == 1) marks.RemoveAt(marks.Count - 1);
-                int cursor = 0;
                 for (int k = 0; k < marks.Count; k += 2)
                 {
                     int a = marks[k], b = marks[k + 1];
                     if (b == a + 2) continue;
-                    o.Append(line, cursor, a - cursor);
-                    bold.Add(new TextSpan(o.Length, b - a - 2));
-                    o.Append(line, a + 2, b - a - 2);
-                    cursor = b + 2;
+                    drop[a] = drop[a + 1] = drop[b] = drop[b + 1] = true;
+                    for (int x = a + 2; x < b; x++) isBold[x] = true;
                 }
-                o.Append(line, cursor, line.Length - cursor);
+
+                for (int x = 0; x < len; x++)
+                {
+                    if (drop[x]) continue;
+                    int at = o.Length;
+                    o.Append(line[x]);
+                    if (isBold[x]) AddBold(bold, at);
+                    if (color[x] != null) AddInk(ink, at, color[x]);
+                }
             }
             return o.ToString();
         }
 
-        public static string Serialize(string t, List<TextSpan> bold)
+        public static string Serialize(string t, List<TextSpan> bold) { return Serialize(t, bold, new List<InkSpan>()); }
+
+        public static string Serialize(string t, List<TextSpan> bold, List<InkSpan> ink)
         {
             var isBold = new bool[t.Length];
             foreach (var r in bold)
                 for (int i = Math.Max(0, r.Start); i < Math.Min(t.Length, r.Start + r.Length); i++) isBold[i] = true;
+            var color = new string[t.Length];
+            foreach (var r in ink)
+                if (Array.IndexOf(Inks, r.Name) >= 0)
+                    for (int i = Math.Max(0, r.Start); i < Math.Min(t.Length, r.Start + r.Length); i++) color[i] = r.Name;
             var o = new StringBuilder();
             int start = 0;
             while (start <= t.Length)
@@ -221,20 +297,39 @@ namespace StickyNotes
                     o.Append(t[i] == Unchecked ? "[ ] " : "[x] ");
                     i += 2;
                 }
-                // Bold runs get "**" around them; each line closes its own
+                // Colored runs get "{name}" and "{/name}" around them, outside any "**"; each line closes its own
                 while (i < end)
                 {
-                    bool b = isBold[i];
+                    string c = color[i];
                     int j = i;
-                    while (j < end && isBold[j] == b) j++;
-                    string piece = t.Substring(i, j - i);
-                    if (b && piece.Trim(' ', '\t').Length > 0) o.Append("**").Append(piece).Append("**"); else o.Append(piece);
+                    while (j < end && color[j] == c) j++;
+                    if (c != null && t.Substring(i, j - i).Trim(' ', '\t').Length > 0)
+                    {
+                        o.Append('{').Append(c).Append('}');
+                        WriteBold(o, t, isBold, i, j);
+                        o.Append("{/").Append(c).Append('}');
+                    }
+                    else WriteBold(o, t, isBold, i, j);
                     i = j;
                 }
                 if (end < t.Length) o.Append('\n');
                 start = end + 1;
             }
             return o.ToString();
+        }
+
+        // Bold runs get "**" around them
+        static void WriteBold(StringBuilder o, string t, bool[] isBold, int from, int to)
+        {
+            for (int i = from; i < to; )
+            {
+                bool b = isBold[i];
+                int j = i;
+                while (j < to && isBold[j] == b) j++;
+                string piece = t.Substring(i, j - i);
+                if (b && piece.Trim(' ', '\t').Length > 0) o.Append("**").Append(piece).Append("**"); else o.Append(piece);
+                i = j;
+            }
         }
     }
 
@@ -275,6 +370,36 @@ namespace StickyNotes
             var bm = new List<TextSpan>();
             string shown = Markup.Parse(mixed, bm);
             if (Markup.Serialize(shown, bm) != mixed) fails++;
+
+            // Titles
+            if (back.Title != "") fails++;
+            var titled = new NoteData { Id = "a", Color = "pink", Title = " Groceries\nweek 2 ", Modified = n.Modified, By = "MAC", Text = n.Text };
+            string titledFile = NoteFile.Serialize(titled);
+            if (titledFile != "color: pink\ntitle: Groceries week 2\nmodified: 2026-10-18T10:00:00.000Z\nby: MAC\n---\nHello\n---\nworld: yes") fails++;
+            if (NoteFile.Parse("a", titledFile).Title != "Groceries week 2") fails++;
+
+            // Text colors
+            var cb = new List<TextSpan>();
+            var c1 = new List<InkSpan>();
+            if (Markup.Parse("a {red}b{/red} c", cb, c1) != "a b c" || cb.Count != 0 || c1.Count != 1 || c1[0].Start != 2 || c1[0].Length != 1 || c1[0].Name != "red") fails++;
+            var c0 = new List<InkSpan>();
+            if (Markup.Parse("{red}x", new List<TextSpan>(), c0) != "{red}x" || c0.Count != 0) fails++;
+            if (Markup.Parse("{pink}x{/pink}", new List<TextSpan>(), new List<InkSpan>()) != "{pink}x{/pink}") fails++;
+            if (Markup.Parse("{red}{/red}", new List<TextSpan>(), new List<InkSpan>()) != "{red}{/red}") fails++;
+            var c2b = new List<TextSpan>();
+            var c2 = new List<InkSpan>();
+            if (Markup.Parse("{blue}**b**{/blue}", c2b, c2) != "b" || c2b.Count != 1 || c2b[0].Start != 0 || c2b[0].Length != 1
+                || c2.Count != 1 || c2[0].Start != 0 || c2[0].Length != 1 || c2[0].Name != "blue") fails++;
+            if (Markup.Serialize("ab cd", new List<TextSpan>(), new List<InkSpan> { new InkSpan(0, 2, "green") }) != "{green}ab{/green} cd") fails++;
+            if (Markup.Serialize("abc", new List<TextSpan> { new TextSpan(1, 2) }, new List<InkSpan> { new InkSpan(0, 2, "red") }) != "{red}a**b**{/red}**c**") fails++;
+            if (Markup.Serialize("ab\ncd", new List<TextSpan>(), new List<InkSpan> { new InkSpan(1, 3, "purple") }) != "a{purple}b{/purple}\n{purple}c{/purple}d") fails++;
+            if (Markup.Serialize("a b", new List<TextSpan>(), new List<InkSpan> { new InkSpan(1, 1, "red") }) != "a b") fails++;
+            string colored = "[ ] {red}**buy** milk{/red} now\n[x] {orange}done{/orange}\n**Title** {blue}x{/blue}\nend\n";
+            var qb = new List<TextSpan>();
+            var qi = new List<InkSpan>();
+            string qt = Markup.Parse(colored, qb, qi);
+            if (qt != "\u2610 buy milk now\n\u2611 done\nTitle x\nend\n") fails++;
+            if (Markup.Serialize(qt, qb, qi) != colored) fails++;
             return fails;
         }
     }
@@ -289,6 +414,9 @@ namespace StickyNotes
         static readonly int[] HeaderHex = { 0xF7E479, 0xB8E3A3, 0xF9B6CE, 0xCDBAF2, 0xA9D3FB, 0xD2D2D2 };
         public static readonly Color Ink = Color.FromArgb(34, 34, 34);
         public static readonly Color Glyph = Color.FromArgb(150, 40, 40, 40);
+        // Text colors: the usual ink, then Markup.Inks. Dark enough to read on every note color.
+        public static readonly string[] InkLabels = { "Black", "Red", "Orange", "Green", "Blue", "Purple" };
+        static readonly int[] InkHex = { 0x222222, 0xB71C1C, 0xA03F00, 0x1B6E20, 0x0D47A1, 0x6A1B9A };
 
         public static int Index(string name)
         {
@@ -299,6 +427,37 @@ namespace StickyNotes
         public static Color Rgb(int hex) { return Color.FromArgb((hex >> 16) & 0xFF, (hex >> 8) & 0xFF, hex & 0xFF); }
         public static Color Back(string name) { return Rgb(BackHex[Index(name)]); }
         public static Color Header(string name) { return Rgb(HeaderHex[Index(name)]); }
+
+        public static Color InkColor(int k) { return Rgb(InkHex[k < 0 || k >= InkHex.Length ? 0 : k]); }
+
+        // A checked item's text: its color, faded halfway to white
+        public static Color DoneInkColor(int k)
+        {
+            Color c = InkColor(k);
+            return Color.FromArgb((c.R + 255) / 2, (c.G + 255) / 2, (c.B + 255) / 2);
+        }
+
+        // Which text color a rich-edit color (0x00BBGGRR) is, plain or faded; 0 (the usual ink) for any other
+        public static int InkIndexOf(int cr)
+        {
+            for (int k = 1; k < InkHex.Length; k++)
+                foreach (Color c in new[] { InkColor(k), DoneInkColor(k) })
+                    if ((c.R | (c.G << 8) | (c.B << 16)) == cr) return k;
+            return 0;
+        }
+
+        public static Image InkSwatch(int k, float s)
+        {
+            int size = Math.Max(16, (int)(16 * s));
+            var bmp = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+            using (var g = Graphics.FromImage(bmp))
+            using (var fill = new SolidBrush(InkColor(k)))
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.FillEllipse(fill, 3 * s, 3 * s, size - 6 * s, size - 6 * s);
+            }
+            return bmp;
+        }
 
         public static Image Swatch(int i, float s)
         {
@@ -526,7 +685,7 @@ namespace StickyNotes
         const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
         const string RunValue = "ErgosferaStickyNotes";
         public static readonly string Machine = Environment.MachineName;
-        const string Welcome = "Welcome to Sticky Notes!\n\nWrite anything here. Notes save as you type and sync through your Google Drive folder, so they also appear on your other computer.\n\n+  makes a new note.\n☐  makes a checklist: click a box to check it.\nB  makes the selected text bold.\n⋯  changes the color or deletes the note.\nDrag the top bar to move a note, and an edge or the corner to resize it.";
+        const string Welcome = "Welcome to Sticky Notes!\n\nWrite anything here. Notes save as you type and sync through your Google Drive folder, so they also appear on your other computer.\n\n+  makes a new note.\n☐  makes a checklist: click a box to check it.\nB  makes the selected text bold.\nA  colors the selected text.\n⋯  changes the color or deletes the note.\nDouble-click the top bar to give a note a title.\nDrag the top bar to move a note, and an edge or the corner to resize it.";
 
         readonly LocalState local = new LocalState();
         readonly Dictionary<string, NoteForm> notes = new Dictionary<string, NoteForm>();
@@ -753,12 +912,12 @@ namespace StickyNotes
         // version as a new note next to it (this one is saved over the file a moment later).
         public void ConflictCopy(NoteData remote, NoteForm near)
         {
-            NewNoteWith(remote.Text, remote.Color, near, false);
+            NewNoteWith(remote.Text, remote.Color, near, false, remote.Title);
         }
 
-        void NewNoteWith(string text, string color, NoteForm near, bool activate)
+        void NewNoteWith(string text, string color, NoteForm near, bool activate, string title = "")
         {
-            var d = new NoteData { Id = NoteFile.NewId(), Color = color, Text = text, Modified = NoteFile.Now(), By = Machine };
+            var d = new NoteData { Id = NoteFile.NewId(), Color = color, Title = title, Text = text, Modified = NoteFile.Now(), By = Machine };
             bool saved = Write(d);
             NoteForm f = Open(d, activate, near);
             if (!saved) f.MarkDirty(); // keeps retrying until the folder is reachable
@@ -883,7 +1042,7 @@ namespace StickyNotes
 
         void About()
         {
-            MessageBox.Show("Sticky Notes 1.1\n\nNotes folder:\n" + folder +
+            MessageBox.Show("Sticky Notes 1.2\n\nNotes folder:\n" + folder +
                 "\n\nEach note is a text file in this folder. Google Drive for desktop copies it to your other computers, where Sticky Notes for Windows or Mac shows it. Deleted notes go to the Trash folder inside it." +
                 "\n\n© 2026 Mauricio Mendivelso. MIT License.\nProvided \"as is\", without warranty of any kind.",
                 "About Sticky Notes", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -944,18 +1103,21 @@ namespace StickyNotes
         const int EM_GETCHARFORMAT = 0x43A, EM_SETCHARFORMAT = 0x444, SCF_SELECTION = 1, WM_SETREDRAW = 0x0B;
         const int EM_GETSCROLLPOS = 0x4DD, EM_SETSCROLLPOS = 0x4DE;
         const uint CFM_BOLD = 0x1, CFM_STRIKEOUT = 0x8, CFM_COLOR = 0x40000000;
-        const uint CFE_BOLD = 0x1, CFE_STRIKEOUT = 0x8;
-        static readonly Color DoneInk = Color.FromArgb(140, 140, 140);
+        const uint CFE_BOLD = 0x1, CFE_STRIKEOUT = 0x8, CFE_AUTOCOLOR = 0x40000000;
 
         readonly NotesApp app;
         readonly NoteBox box = new NoteBox();
         readonly Timer saveTimer = new Timer();
         readonly ContextMenuStrip menu = new ContextMenuStrip();
-        readonly ToolStripMenuItem topItem;
+        readonly ContextMenuStrip inkMenu = new ContextMenuStrip();
+        readonly ToolStripMenuItem topItem, titleItem;
+        readonly Font titleFont;
         readonly float S;
         NoteData data; // the version last read from or written to the file
         bool loading, quiet, restyling;
         int hot = -1;
+        int lastInk = 1; // shown under the A button
+        TextBox titleBox; // while the title is being edited
 
         public bool Dirty { get; private set; }
         public string Id { get { return data.Id; } }
@@ -969,7 +1131,16 @@ namespace StickyNotes
         Rectangle PlusRect { get { return new Rectangle((int)(4 * S), (HeaderH - ButtonSize) / 2, ButtonSize, ButtonSize); } }
         Rectangle MenuRect { get { return new Rectangle(ClientSize.Width - (int)(4 * S) - ButtonSize, (HeaderH - ButtonSize) / 2, ButtonSize, ButtonSize); } }
         Rectangle BoldRect { get { var r = MenuRect; r.X -= ButtonSize + (int)(2 * S); return r; } }
-        Rectangle CheckRect { get { var r = BoldRect; r.X -= ButtonSize + (int)(2 * S); return r; } }
+        Rectangle InkRect { get { var r = BoldRect; r.X -= ButtonSize + (int)(2 * S); return r; } }
+        Rectangle CheckRect { get { var r = InkRect; r.X -= ButtonSize + (int)(2 * S); return r; } }
+        Rectangle TitleRect
+        {
+            get
+            {
+                int x = PlusRect.Right + (int)(4 * S);
+                return new Rectangle(x, PlusRect.Y, Math.Max(0, CheckRect.Left - (int)(4 * S) - x), ButtonSize);
+            }
+        }
 
         public NoteForm(NotesApp app, NoteData d)
         {
@@ -982,6 +1153,8 @@ namespace StickyNotes
             DoubleBuffered = true;
             KeyPreview = true;
             MinimumSize = new Size((int)(170 * S), (int)(120 * S));
+            MaximizeBox = false; // a double-click on the top bar edits the title
+            titleFont = new Font("Segoe UI", 12.5f * S, FontStyle.Bold, GraphicsUnit.Pixel);
 
             box.BorderStyle = BorderStyle.None;
             box.Font = new Font("Segoe UI", 11f);
@@ -1012,6 +1185,10 @@ namespace StickyNotes
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(new ToolStripMenuItem("Checklist", null, delegate { ToggleChecklist(); }) { ShortcutKeyDisplayString = "Ctrl+Shift+L" });
             menu.Items.Add(new ToolStripMenuItem("Bold", null, delegate { ToggleBold(); }) { ShortcutKeyDisplayString = "Ctrl+B" });
+            menu.Items.Add(new ToolStripMenuItem("Text color", null, InkItems()));
+            titleItem = new ToolStripMenuItem("Add title", null, delegate { BeginTitleEdit(); }) { ShortcutKeyDisplayString = "Ctrl+Shift+T" };
+            menu.Items.Add(titleItem);
+            inkMenu.Items.AddRange(InkItems());
             menu.Items.Add(new ToolStripSeparator());
             topItem = new ToolStripMenuItem("Keep on top", null, delegate { TopMost = !TopMost; app.PlacementChanged(this); });
             menu.Items.Add(topItem);
@@ -1021,12 +1198,17 @@ namespace StickyNotes
             menu.Opening += delegate
             {
                 topItem.Checked = TopMost;
+                titleItem.Text = data.Title.Length == 0 ? "Add title" : "Edit title";
                 for (int i = 0; i < NoteColors.Names.Length; i++)
                     ((ToolStripMenuItem)menu.Items[i]).Checked = NoteColors.Index(data.Color) == i;
             };
 
             ApplyColor();
-            Deactivate += delegate { if (Dirty) SaveNow(); };
+            Deactivate += delegate
+            {
+                if (titleBox != null) BeginInvoke((Action)delegate { EndTitleEdit(true); });
+                if (Dirty) SaveNow();
+            };
             LocationChanged += delegate { app.PlacementChanged(this); };
             SizeChanged += delegate { app.PlacementChanged(this); LayoutBox(); Invalidate(); };
         }
@@ -1069,6 +1251,58 @@ namespace StickyNotes
         {
             int top = HeaderH + (int)(4 * S);
             box.SetBounds(Pad, top, Math.Max(10, ClientSize.Width - 2 * Pad), Math.Max(10, ClientSize.Height - top - Pad));
+            if (titleBox != null)
+            {
+                Rectangle r = TitleRect;
+                titleBox.SetBounds(r.X, r.Y + (r.Height - titleBox.PreferredHeight) / 2, r.Width, titleBox.PreferredHeight);
+            }
+        }
+
+        // MARK: Title
+
+        void BeginTitleEdit()
+        {
+            if (titleBox != null) return;
+            var t = new TextBox { BorderStyle = BorderStyle.None, Font = titleFont, Text = data.Title,
+                                  BackColor = NoteColors.Back(data.Color), ForeColor = NoteColors.Ink };
+            bool cancelled = false;
+            // Enter keeps the title and Esc puts the old one back; both go on to the note's text
+            t.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode != Keys.Enter && e.KeyCode != Keys.Escape) return;
+                cancelled = e.KeyCode == Keys.Escape;
+                e.Handled = e.SuppressKeyPress = true;
+                box.Focus();
+            };
+            t.Leave += delegate { BeginInvoke((Action)delegate { EndTitleEdit(!cancelled); }); };
+            titleBox = t;
+            Controls.Add(t);
+            LayoutBox();
+            Invalidate(new Rectangle(0, 0, ClientSize.Width, HeaderH));
+            Activate();
+            t.Focus();
+            t.SelectAll();
+        }
+
+        void EndTitleEdit(bool keep)
+        {
+            TextBox t = titleBox;
+            if (t == null) return;
+            titleBox = null;
+            string value = t.Text;
+            Controls.Remove(t);
+            t.Dispose();
+            if (keep) SetTitle(value);
+            Invalidate(new Rectangle(0, 0, ClientSize.Width, HeaderH));
+        }
+
+        void SetTitle(string t)
+        {
+            string clean = NoteFile.CleanTitle(t);
+            if (clean == data.Title) return;
+            data.Title = clean;
+            UpdateTitle();
+            SaveNow();
         }
 
         void ApplyColor()
@@ -1078,8 +1312,10 @@ namespace StickyNotes
             Invalidate();
         }
 
+        // The window's name (on the taskbar's Alt+Tab list): the title, or else the first line
         void UpdateTitle()
         {
+            if (data.Title.Length > 0) { Text = data.Title.Length > 60 ? data.Title.Substring(0, 60) : data.Title; return; }
             string t = box.Text.Trim();
             int nl = t.IndexOf('\n');
             if (nl >= 0) t = t.Substring(0, nl);
@@ -1104,7 +1340,7 @@ namespace StickyNotes
             UpdateTitle();
         }
 
-        // MARK: Checkboxes and bold (the text box keeps only these, so both apps show the same thing)
+        // MARK: Checkboxes, bold and text colors (the text box keeps only these, so both apps show the same thing)
 
         // Runs an action that moves the selection around, then puts the selection, scroll and drawing back
         void Quietly(Action a)
@@ -1141,13 +1377,14 @@ namespace StickyNotes
             SendMessage(box.Handle, EM_SETCHARFORMAT, (IntPtr)SCF_SELECTION, ref cf);
         }
 
-        // The note as it is saved: plain text with "[ ] ", "[x] " and "**" markers
+        // The note as it is saved: plain text with "[ ] ", "[x] ", "**" and "{red}" markers
         string MarkupText
         {
             get
             {
                 string t = box.Text;
                 var bold = new List<TextSpan>();
+                var ink = new List<InkSpan>();
                 if (box.IsHandleCreated)
                     Quietly(delegate
                     {
@@ -1157,11 +1394,105 @@ namespace StickyNotes
                             int end = t.IndexOf('\n', start);
                             if (end < 0) end = t.Length;
                             BoldSpans(start, end - start, bold);
+                            var runs = new List<int[]>();
+                            InkRuns(start, end - start, runs);
+                            foreach (int[] r in runs) if (r[2] > 0) ink.Add(new InkSpan(r[0], r[1], Markup.Inks[r[2] - 1]));
                             start = end + 1;
                         }
                     });
-                return Markup.Serialize(t, bold);
+                return Markup.Serialize(t, bold, ink);
             }
+        }
+
+        // Finds the runs of one text color in a stretch of text, as { start, length, color number }
+        void InkRuns(int start, int length, List<int[]> runs)
+        {
+            if (length <= 0) return;
+            box.Select(start, length);
+            var cf = GetFormat();
+            if ((cf.dwMask & CFM_COLOR) != 0 || length == 1)
+            {
+                int k = (cf.dwMask & CFM_COLOR) != 0 && (cf.dwEffects & CFE_AUTOCOLOR) == 0 ? NoteColors.InkIndexOf(cf.crTextColor) : 0;
+                int n = runs.Count;
+                if (n > 0 && runs[n - 1][2] == k && runs[n - 1][0] + runs[n - 1][1] == start) runs[n - 1][1] += length;
+                else runs.Add(new[] { start, length, k });
+                return;
+            }
+            int half = length / 2;
+            InkRuns(start, half, runs);
+            InkRuns(start + half, length - half, runs);
+        }
+
+        // Crosses out and fades a checked item's text (or brings it back), keeping each run's color
+        void Recolor(int start, int length, bool done)
+        {
+            var runs = new List<int[]>();
+            InkRuns(start, length, runs);
+            foreach (int[] r in runs)
+            {
+                box.Select(r[0], r[1]);
+                SetFormat(CFM_STRIKEOUT | CFM_COLOR, done ? CFE_STRIKEOUT : 0, done ? NoteColors.DoneInkColor(r[2]) : NoteColors.InkColor(r[2]));
+            }
+        }
+
+        // Applies parsed bold and colors to the text that starts at index "at"
+        void ApplyMarks(int at, int length, List<TextSpan> bold, List<InkSpan> ink)
+        {
+            box.Select(at, length);
+            SetFormat(CFM_BOLD | CFM_COLOR | CFM_STRIKEOUT, 0, NoteColors.Ink);
+            foreach (var r in bold)
+            {
+                box.Select(at + r.Start, r.Length);
+                SetFormat(CFM_BOLD, CFE_BOLD, NoteColors.Ink);
+            }
+            foreach (var r in ink)
+            {
+                box.Select(at + r.Start, r.Length);
+                SetFormat(CFM_COLOR, 0, NoteColors.InkColor(Array.IndexOf(Markup.Inks, r.Name) + 1));
+            }
+        }
+
+        // Colors the selected text, or what is typed next; 0 is the usual ink
+        void SetInk(int k)
+        {
+            lastInk = k;
+            Invalidate(new Rectangle(0, 0, ClientSize.Width, HeaderH));
+            int ss = box.SelectionStart, sl = box.SelectionLength;
+            if (sl == 0)
+            {
+                SetFormat(CFM_COLOR, 0, NoteColors.InkColor(k));
+                box.Focus();
+                return;
+            }
+            string t = box.Text;
+            Quietly(delegate
+            {
+                for (int start = LineStart(ss); start < ss + sl; )
+                {
+                    int end = LineEnd(start);
+                    bool boxed = Markup.HasBox(t, start);
+                    int from = Math.Max(ss, boxed ? start + 2 : start), to = Math.Min(ss + sl, end);
+                    if (to > from)
+                    {
+                        box.Select(from, to - from);
+                        SetFormat(CFM_COLOR, 0, boxed && t[start] == Markup.Checked ? NoteColors.DoneInkColor(k) : NoteColors.InkColor(k));
+                    }
+                    start = end + 1;
+                }
+            });
+            Changed();
+            box.Focus();
+        }
+
+        ToolStripItem[] InkItems()
+        {
+            var items = new ToolStripItem[NoteColors.InkLabels.Length];
+            for (int i = 0; i < items.Length; i++)
+            {
+                int k = i;
+                items[i] = new ToolStripMenuItem(NoteColors.InkLabels[i], NoteColors.InkSwatch(i, S), delegate { SetInk(k); });
+            }
+            return items;
         }
 
         // Finds the bold runs in a stretch of text, splitting it until each part is all bold or not bold
@@ -1184,19 +1515,11 @@ namespace StickyNotes
         void SetMarkup(string m)
         {
             var bold = new List<TextSpan>();
-            string t = Markup.Parse(m, bold);
+            var ink = new List<InkSpan>();
+            string t = Markup.Parse(m, bold, ink);
             loading = true;
             box.Text = t;
-            Quietly(delegate
-            {
-                box.SelectAll();
-                SetFormat(CFM_BOLD, 0, NoteColors.Ink);
-                foreach (var r in bold)
-                {
-                    box.Select(r.Start, r.Length);
-                    SetFormat(CFM_BOLD, CFE_BOLD, NoteColors.Ink);
-                }
-            });
+            Quietly(delegate { ApplyMarks(0, box.TextLength, bold, ink); });
             RestyleAll();
             box.ClearUndo();
             loading = false;
@@ -1228,7 +1551,7 @@ namespace StickyNotes
             }
         }
 
-        // A checked item's text is gray and crossed out; everything else is plain ink.
+        // A checked item's text is faded and crossed out; everything else keeps its own color.
         // The format only changes when it has to, so typing doesn't fill the undo list with format changes.
         void RestyleLine(int start)
         {
@@ -1245,8 +1568,8 @@ namespace StickyNotes
                     var cf = GetFormat();
                     bool struck = (cf.dwMask & CFM_STRIKEOUT) != 0 && (cf.dwEffects & CFE_STRIKEOUT) != 0;
                     bool plain = (cf.dwMask & CFM_STRIKEOUT) != 0 && (cf.dwEffects & CFE_STRIKEOUT) == 0;
-                    if (done && !struck) SetFormat(CFM_STRIKEOUT | CFM_COLOR, CFE_STRIKEOUT, DoneInk);
-                    else if (!done && !plain) SetFormat(CFM_STRIKEOUT | CFM_COLOR, 0, NoteColors.Ink);
+                    if (done && !struck) Recolor(from, end - from, true);
+                    else if (!done && !plain) Recolor(from, end - from, false);
                 }
                 if (done)
                 {
@@ -1326,7 +1649,7 @@ namespace StickyNotes
         public bool SaveNow()
         {
             saveTimer.Stop();
-            var d = new NoteData { Id = data.Id, Color = data.Color, Text = MarkupText, Modified = NoteFile.Now(), By = NotesApp.Machine };
+            var d = new NoteData { Id = data.Id, Color = data.Color, Title = data.Title, Text = MarkupText, Modified = NoteFile.Now(), By = NotesApp.Machine };
             if (app.Write(d))
             {
                 data = d;
@@ -1347,7 +1670,7 @@ namespace StickyNotes
 
         public void ApplyRemote(NoteData d)
         {
-            if (d.Modified == data.Modified && d.Color == data.Color && d.Text == data.Text) return; // our own save
+            if (d.Modified == data.Modified && d.Color == data.Color && d.Title == data.Title && d.Text == data.Text) return; // our own save
             if (Dirty) { app.ConflictCopy(d, this); return; }
             if (d.Text != MarkupText)
             {
@@ -1405,6 +1728,12 @@ namespace StickyNotes
                 ToggleChecklist();
                 return;
             }
+            if (e.Control && e.Shift && e.KeyCode == Keys.T)
+            {
+                e.Handled = e.SuppressKeyPress = true;
+                BeginTitleEdit();
+                return;
+            }
             if (e.KeyCode == Keys.Enter && !e.Control && !e.Shift && !e.Alt && ContinueChecklist())
             {
                 e.Handled = e.SuppressKeyPress = true;
@@ -1446,26 +1775,18 @@ namespace StickyNotes
             box.SelectedText = (pre == "[ ]" ? Markup.Unchecked : Markup.Checked) + " ";
         }
 
-        // Pastes plain text; any checkbox and bold markers in it come in formatted
+        // Pastes plain text; any checkbox, bold and color markers in it come in formatted
         void PasteMarkup()
         {
             try
             {
                 if (!Clipboard.ContainsText()) return;
                 var bold = new List<TextSpan>();
-                string t = Markup.Parse(NoteFile.Normalize(Clipboard.GetText()), bold);
+                var ink = new List<InkSpan>();
+                string t = Markup.Parse(NoteFile.Normalize(Clipboard.GetText()), bold, ink);
                 int at = box.SelectionStart;
                 box.SelectedText = t;
-                Quietly(delegate
-                {
-                    box.Select(at, t.Length);
-                    SetFormat(CFM_BOLD, 0, NoteColors.Ink);
-                    foreach (var r in bold)
-                    {
-                        box.Select(at + r.Start, r.Length);
-                        SetFormat(CFM_BOLD, CFE_BOLD, NoteColors.Ink);
-                    }
-                });
+                Quietly(delegate { ApplyMarks(at, t.Length, bold, ink); });
                 RestyleAll();
             }
             catch { }
@@ -1481,6 +1802,7 @@ namespace StickyNotes
             var paste = m.Items.Add("Paste", null, delegate { PasteMarkup(); });
             m.Items.Add(new ToolStripSeparator());
             m.Items.Add(new ToolStripMenuItem("Bold", null, delegate { ToggleBold(); }) { ShortcutKeyDisplayString = "Ctrl+B" });
+            m.Items.Add(new ToolStripMenuItem("Text color", null, InkItems()));
             m.Items.Add(new ToolStripMenuItem("Checklist", null, delegate { ToggleChecklist(); }) { ShortcutKeyDisplayString = "Ctrl+Shift+L" });
             m.Items.Add(new ToolStripSeparator());
             m.Items.Add("Select all", null, delegate { box.SelectAll(); });
@@ -1514,8 +1836,12 @@ namespace StickyNotes
                 g.FillRectangle(b, 0, 0, ClientSize.Width, HeaderH);
             DrawButton(g, PlusRect, 0);
             DrawButton(g, CheckRect, 2);
+            DrawButton(g, InkRect, 4);
             DrawButton(g, BoldRect, 3);
             DrawButton(g, MenuRect, 1);
+            if (titleBox == null && data.Title.Length > 0 && TitleRect.Width > 10)
+                TextRenderer.DrawText(g, data.Title, titleFont, TitleRect, NoteColors.Ink,
+                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
 
             // Corner grip: every edge resizes the note, the corner too
             using (var pen = new Pen(Color.FromArgb(90, 0, 0, 0), Math.Max(1f, 1.2f * S)) { StartCap = LineCap.Round, EndCap = LineCap.Round })
@@ -1559,6 +1885,13 @@ namespace StickyNotes
                         using (var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
                             g.DrawString("B", f, b, new RectangleF(r.X, r.Y, r.Width, r.Height), sf);
                         break;
+                    case 4: // "A" over a bar in the text color picked last
+                        using (var f = new Font("Segoe UI", 10.5f * S, FontStyle.Bold, GraphicsUnit.Pixel))
+                        using (var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
+                            g.DrawString("A", f, b, new RectangleF(r.X, r.Y - 2 * S, r.Width, r.Height), sf);
+                        using (var bar = new SolidBrush(NoteColors.InkColor(lastInk)))
+                            g.FillRectangle(bar, cx - 6 * S, r.Bottom - 6 * S, 12 * S, 3 * S);
+                        break;
                 }
             }
         }
@@ -1569,6 +1902,7 @@ namespace StickyNotes
             if (MenuRect.Contains(p)) return 1;
             if (CheckRect.Contains(p)) return 2;
             if (BoldRect.Contains(p)) return 3;
+            if (InkRect.Contains(p)) return 4;
             return -1;
         }
 
@@ -1595,6 +1929,8 @@ namespace StickyNotes
             else if (h == 1) menu.Show(this, new Point(MenuRect.Left, MenuRect.Bottom));
             else if (h == 2) ToggleChecklist();
             else if (h == 3) ToggleBold();
+            else if (h == 4) inkMenu.Show(this, new Point(InkRect.Left, InkRect.Bottom));
+            else if (e.Y < HeaderH && e.Clicks == 2) BeginTitleEdit();
             else if (e.Y < HeaderH)
             {
                 ReleaseCapture();
