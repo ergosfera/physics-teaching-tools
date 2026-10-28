@@ -21,8 +21,8 @@ using Timer = System.Windows.Forms.Timer;
 [assembly: AssemblyTitle("Sticky Notes")]
 [assembly: AssemblyProduct("Sticky Notes")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Mauricio Mendivelso. MIT License.")]
-[assembly: AssemblyVersion("1.2.0.0")]
-[assembly: AssemblyFileVersion("1.2.0.0")]
+[assembly: AssemblyVersion("1.2.1.0")]
+[assembly: AssemblyFileVersion("1.2.1.0")]
 
 namespace StickyNotes
 {
@@ -719,6 +719,7 @@ namespace StickyNotes
             menu.Items.Add("About Sticky Notes", null, delegate { About(); });
             menu.Items.Add("Quit", null, delegate { Quit(); });
             menu.Opening += delegate { startItem.Checked = StartsWithWindows(); };
+            RefreshStartupCopy();
             tray.ContextMenuStrip = menu;
             tray.Icon = IconArt.SmallIcon(S);
             tray.Text = "Sticky Notes";
@@ -1024,14 +1025,52 @@ namespace StickyNotes
             catch { return false; }
         }
 
+        // Windows starts the app from a copy on this computer: StickyNotes.exe is often kept in Google Drive,
+        // and the G: drive isn't there yet when Windows runs its startup apps.
+        static readonly string StartupExe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                                                         "Programs", "StickyNotes", "StickyNotes.exe");
+
+        static bool RunningStartupCopy()
+        {
+            return string.Equals(Path.GetFullPath(Application.ExecutablePath), Path.GetFullPath(StartupExe), StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Puts this version in the startup copy and points Windows at it
+        static void InstallStartupCopy(RegistryKey k)
+        {
+            if (!RunningStartupCopy())
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(StartupExe));
+                File.Copy(Application.ExecutablePath, StartupExe, true);
+            }
+            k.SetValue(RunValue, "\"" + StartupExe + "\"");
+        }
+
+        // When Start with Windows is on and this is a newer StickyNotes.exe opened from elsewhere, the copy gets
+        // updated (this also moves the setting over from versions that pointed Windows at the original file).
+        static void RefreshStartupCopy()
+        {
+            if (RunningStartupCopy()) return;
+            try
+            {
+                using (var k = Registry.CurrentUser.OpenSubKey(RunKey, true))
+                    if (k != null && k.GetValue(RunValue) != null) InstallStartupCopy(k);
+            }
+            catch { }
+        }
+
         void ToggleStartup()
         {
             try
             {
                 using (var k = Registry.CurrentUser.CreateSubKey(RunKey))
                 {
-                    if (k.GetValue(RunValue) != null) k.DeleteValue(RunValue, false);
-                    else k.SetValue(RunValue, "\"" + Application.ExecutablePath + "\"");
+                    if (k.GetValue(RunValue) != null)
+                    {
+                        k.DeleteValue(RunValue, false);
+                        if (!RunningStartupCopy()) try { File.Delete(StartupExe); } catch { }
+                    }
+                    else InstallStartupCopy(k);
                 }
             }
             catch (Exception ex)
@@ -1042,7 +1081,7 @@ namespace StickyNotes
 
         void About()
         {
-            MessageBox.Show("Sticky Notes 1.2\n\nNotes folder:\n" + folder +
+            MessageBox.Show("Sticky Notes 1.2.1\n\nNotes folder:\n" + folder +
                 "\n\nEach note is a text file in this folder. Google Drive for desktop copies it to your other computers, where Sticky Notes for Windows or Mac shows it. Deleted notes go to the Trash folder inside it." +
                 "\n\n© 2026 Mauricio Mendivelso. MIT License.\nProvided \"as is\", without warranty of any kind.",
                 "About Sticky Notes", MessageBoxButtons.OK, MessageBoxIcon.Information);

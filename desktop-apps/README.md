@@ -96,7 +96,9 @@ there when you open the Windows PC at home.
    If you have more than one Google account, it asks which one to use: pick the same one everywhere.
 3. On Windows the app lives in the notification area (the ^ next to the clock); on the Mac it's in the Dock.
    Turn on **Start with Windows** (tray menu) or **Open at Login** (Sticky Notes menu, macOS 13+)
-   so your notes are there when you start the computer.
+   so your notes are there when you start the computer. On Windows this keeps a copy of the app in
+   `%LOCALAPPDATA%\Programs\StickyNotes`, because Google Drive isn't ready yet when Windows starts its
+   startup apps; opening a newer StickyNotes.exe updates that copy.
 
 | Action | How |
 |---|---|
