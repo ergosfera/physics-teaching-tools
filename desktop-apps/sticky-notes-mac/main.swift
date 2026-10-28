@@ -290,6 +290,12 @@ enum Tags {
         return (1...days).contains(parts[2]) ? (parts[0], parts[1], parts[2]) : nil
     }
 
+    // A date label's two parts, as on a calendar page: "OCT" (and the year when it isn't this one) and "30"
+    static func calendarParts(_ token: String, thisYear: Int) -> (month: String, day: String)? {
+        guard let d = date(token) else { return nil }
+        return (months[d.month - 1].uppercased() + (d.year == thisYear ? "" : " \(d.year)"), "\(d.day)")
+    }
+
     static func dateToken(year: Int, month: Int, day: Int) -> String { String(format: "@%04d-%02d-%02d", year, month, day) }
 
     // What the label shows: the tag's name, or the date as "Oct 30" (and the year when it isn't this one)
@@ -317,7 +323,7 @@ enum TagList {
     static let labels = ["Red", "Orange", "Yellow", "Green", "Teal", "Blue", "Purple", "Pink", "Gray"]
     // Deep enough for white letters
     static let hex = [0xC62828, 0xD84315, 0xA16800, 0x2E7D32, 0x00796B, 0x1565C0, 0x6A1B9A, 0xAD1457, 0x616161]
-    static let dateHex = 0x283593
+    static let dateHex = 0xD32F2F  // a date looks like a calendar page: the month on red, the day on white
     static let unknownHex = 0x757575
 
     static func parse(_ text: String) -> [TagDef] {
@@ -415,6 +421,8 @@ func selfTest() -> Int32 {
     check(Tags.find(in: "[@2028-02-29]").count == 1, "leap day")
     check(Tags.label("@2026-10-30", thisYear: 2026) == "Oct 30" && Tags.label("@2027-01-05", thisYear: 2026) == "Jan 5 2027", "date label")
     check(Tags.label("#Delayed", thisYear: 2026) == "Delayed", "tag label")
+    check(Tags.calendarParts("@2026-10-30", thisYear: 2026)! == ("OCT", "30") && Tags.calendarParts("@2027-01-05", thisYear: 2026)! == ("JAN 2027", "5")
+          && Tags.calendarParts("#Delayed", thisYear: 2026) == nil, "calendar date parts")
     check(Tags.cleanName("  On [time]: ok* ") == "On time ok", "clean tag name")
     let tagged = "[ ] [#Delayed] **lab** report [@2026-10-30]\n[x] {red}[#Done]{/red}"
     let tp = Markup.parse(tagged)
@@ -1081,20 +1089,47 @@ final class NoteController: NSObject, NSWindowDelegate, NSTextViewDelegate {
         return out
     }
 
-    // A tag as one character: a picture of a small colored label with white letters
+    // A tag as one character: a picture of a small colored label with white letters.
+    // A date is a tiny calendar page: the month in white on red, then the day in red on white.
     func tagString(_ token: String) -> NSAttributedString {
-        let label = Tags.label(token, thisYear: Calendar.current.component(.year, from: Date()))
+        let year = Calendar.current.component(.year, from: Date())
         let font = NSFont.boldSystemFont(ofSize: 11)
-        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.white]
-        let size = (label as NSString).size(withAttributes: attrs)
-        let w = ceil(size.width) + 12, h: CGFloat = 17
+        let h: CGFloat = 17
         let fill = app.tagColor(token)
-        let image = NSImage(size: NSSize(width: w, height: h), flipped: false) { r in
-            fill.setFill()
-            NSBezierPath(roundedRect: r.insetBy(dx: 0.5, dy: 0.5), xRadius: 3.5, yRadius: 3.5).fill()
-            (label as NSString).draw(at: NSPoint(x: (r.width - size.width) / 2, y: (r.height - size.height) / 2), withAttributes: attrs)
-            return true
+        let image: NSImage
+        if let parts = Tags.calendarParts(token, thisYear: year) {
+            let monthAttrs: [NSAttributedString.Key: Any] = [.font: NSFont.boldSystemFont(ofSize: 9.5), .foregroundColor: NSColor.white]
+            let dayAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: fill]
+            let ms = (parts.month as NSString).size(withAttributes: monthAttrs), ds = (parts.day as NSString).size(withAttributes: dayAttrs)
+            let mw = ceil(ms.width) + 10, dw = ceil(ds.width) + 10
+            image = NSImage(size: NSSize(width: mw + dw, height: h), flipped: false) { r in
+                let page = NSBezierPath(roundedRect: r.insetBy(dx: 0.5, dy: 0.5), xRadius: 3.5, yRadius: 3.5)
+                NSColor.white.setFill()
+                page.fill()
+                NSGraphicsContext.saveGraphicsState()
+                page.addClip()
+                fill.setFill()
+                NSRect(x: 0, y: 0, width: mw, height: r.height).fill()
+                NSGraphicsContext.restoreGraphicsState()
+                fill.withAlphaComponent(0.55).setStroke()
+                page.lineWidth = 0.8
+                page.stroke()
+                (parts.month as NSString).draw(at: NSPoint(x: (mw - ms.width) / 2, y: (r.height - ms.height) / 2), withAttributes: monthAttrs)
+                (parts.day as NSString).draw(at: NSPoint(x: mw + (dw - ds.width) / 2, y: (r.height - ds.height) / 2), withAttributes: dayAttrs)
+                return true
+            }
+        } else {
+            let label = Tags.label(token, thisYear: year)
+            let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.white]
+            let size = (label as NSString).size(withAttributes: attrs)
+            image = NSImage(size: NSSize(width: ceil(size.width) + 12, height: h), flipped: false) { r in
+                fill.setFill()
+                NSBezierPath(roundedRect: r.insetBy(dx: 0.5, dy: 0.5), xRadius: 3.5, yRadius: 3.5).fill()
+                (label as NSString).draw(at: NSPoint(x: (r.width - size.width) / 2, y: (r.height - size.height) / 2), withAttributes: attrs)
+                return true
+            }
         }
+        let w = image.size.width
         let att = NSTextAttachment()
         att.image = image
         att.bounds = NSRect(x: 0, y: -4, width: w, height: h)

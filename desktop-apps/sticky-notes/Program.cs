@@ -387,6 +387,17 @@ namespace StickyNotes
             return Months[mo - 1] + " " + d + (y == thisYear ? "" : " " + y);
         }
 
+        // A date label's two parts, as on a calendar page: "OCT" (and the year when it isn't this one) and "30"
+        public static bool CalendarParts(string token, int thisYear, out string month, out string day)
+        {
+            int y, mo, d;
+            month = day = null;
+            if (!Date(token, out y, out mo, out d)) return false;
+            month = Months[mo - 1].ToUpperInvariant() + (y == thisYear ? "" : " " + y);
+            day = d.ToString(CultureInfo.InvariantCulture);
+            return true;
+        }
+
         // A tag name is one short line, without the characters the note markers use
         public static string CleanName(string s)
         {
@@ -412,7 +423,7 @@ namespace StickyNotes
         public static readonly string[] Labels = { "Red", "Orange", "Yellow", "Green", "Teal", "Blue", "Purple", "Pink", "Gray" };
         // Deep enough for white letters
         static readonly int[] HexOf = { 0xC62828, 0xD84315, 0xA16800, 0x2E7D32, 0x00796B, 0x1565C0, 0x6A1B9A, 0xAD1457, 0x616161 };
-        public const int DateHex = 0x283593, UnknownHex = 0x757575;
+        public const int DateHex = 0xD32F2F, UnknownHex = 0x757575; // a date looks like a calendar page: the month on red, the day on white
 
         public static List<TagDef> Parse(string text)
         {
@@ -547,6 +558,10 @@ namespace StickyNotes
             if (Tags.Find("[@2028-02-29]").Count != 1) fails++;
             if (Tags.Label("@2026-10-30", 2026) != "Oct 30" || Tags.Label("@2027-01-05", 2026) != "Jan 5 2027") fails++;
             if (Tags.Label("#Delayed", 2026) != "Delayed") fails++;
+            string cm, cd;
+            if (!Tags.CalendarParts("@2026-10-30", 2026, out cm, out cd) || cm != "OCT" || cd != "30") fails++;
+            if (!Tags.CalendarParts("@2027-01-05", 2026, out cm, out cd) || cm != "JAN 2027" || cd != "5") fails++;
+            if (Tags.CalendarParts("#Delayed", 2026, out cm, out cd)) fails++;
             if (Tags.CleanName("  On [time]: ok* ") != "On time ok") fails++;
             string tagged = "[ ] [#Delayed] **lab** report [@2026-10-30]\n[x] {red}[#Done]{/red}";
             var tb = new List<TextSpan>();
@@ -1785,7 +1800,8 @@ namespace StickyNotes
 
         // In the text box a tag stays text: "[#Delayed]" shows as a colored block with white letters, its brackets
         // in the block's color. A date also carries its label, and the date itself is tiny and invisible:
-        // "[@2026-10-30]" in the file is "[@2026-10-30|Oct 30]" here.
+        // "[@2026-10-30]" in the file is "[@2026-10-30|OCT 30]" here, shown as a calendar page
+        // (the month in white on red, the day in red on white).
         struct BoxTag
         {
             public int Start, Length, LabelStart, LabelLength;
@@ -1815,7 +1831,14 @@ namespace StickyNotes
         // The text box's form of a tag
         static string BoxText(string token)
         {
-            return token[0] == '@' ? "[" + token + "|" + Tags.Label(token, DateTime.Now.Year) + "]" : "[" + token + "]";
+            return "[" + token + DateLabel(token) + "]";
+        }
+
+        // "|OCT 30" for a date, nothing for a tag
+        static string DateLabel(string token)
+        {
+            string month, day;
+            return Tags.CalendarParts(token, DateTime.Now.Year, out month, out day) ? "|" + month + " " + day : "";
         }
 
         static string ToBox(string markup)
@@ -1823,7 +1846,7 @@ namespace StickyNotes
             var tags = Tags.Find(markup);
             var sb = new StringBuilder(markup);
             for (int i = tags.Count - 1; i >= 0; i--)
-                if (tags[i].Token[0] == '@') sb.Insert(tags[i].Start + tags[i].Length - 1, "|" + Tags.Label(tags[i].Token, DateTime.Now.Year));
+                if (tags[i].Token[0] == '@') sb.Insert(tags[i].Start + tags[i].Length - 1, DateLabel(tags[i].Token));
             return sb.ToString();
         }
 
@@ -1839,7 +1862,7 @@ namespace StickyNotes
                 sb.Append(text, at, m.Index - at);
                 string inner = m.Groups[1].Value;
                 int bar = inner.IndexOf('|');
-                sb.Append('[').Append(bar < 0 ? inner.Substring(1) : inner.Substring(bar + 1)).Append(']');
+                sb.Append('[').Append(Tags.Label(bar < 0 ? inner : inner.Substring(0, bar), DateTime.Now.Year)).Append(']');
                 at = m.Index + m.Length;
             }
             return sb.Append(text, at, text.Length - at).ToString();
@@ -1891,6 +1914,15 @@ namespace StickyNotes
                 {
                     box.Select(start + g.Start + 2, g.LabelStart - g.Start - 2);
                     SetFormat(CFM_SIZE, 0, c, c, TinyTwips);
+                }
+                if (g.Token[0] == '@')
+                {
+                    // The day and the closing bracket on white, the day in the date's red
+                    int dayAt = start + g.LabelStart + t.Substring(start + g.LabelStart, g.LabelLength).LastIndexOf(' ') + 1;
+                    box.Select(dayAt, start + g.Start + g.Length - dayAt);
+                    SetFormat(CFM_BACKCOLOR | CFM_COLOR, 0, Color.White, Color.White, TagTwips);
+                    box.Select(dayAt, start + g.LabelStart + g.LabelLength - dayAt);
+                    SetFormat(CFM_COLOR, 0, c);
                 }
             }
         }

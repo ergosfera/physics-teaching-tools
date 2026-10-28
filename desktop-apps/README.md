@@ -107,7 +107,7 @@ there when you open the Windows PC at home.
 | Bold | Select text, then **B** on the top bar or Ctrl+B / ⌘B |
 | Text color | Select text, then **A** on the top bar and pick Black, Red, Orange, Green, Blue or Purple (also in the ⋯ menu, and Format → Text Color on the Mac) |
 | Tags | The tag button on the top bar → pick a tag or **Date…**, under **At the start of the line** or **At the end of the line**. Each tag is a small colored label; Backspace removes it whole |
-| Your tag list | Tag button → **Edit tags…** (also in the tray menu / Sticky Notes menu): name each tag and pick one of nine colors. Renaming a tag renames it in your notes. Dates are always indigo, shown as "Oct 30" |
+| Your tag list | Tag button → **Edit tags…** (also in the tray menu / Sticky Notes menu): name each tag and pick one of nine colors. Renaming a tag renames it in your notes. A date looks like a little calendar page: the month in white on red, the day in red on white (OCT \| 30), with the year when it isn't this one |
 | Links | Web addresses (`https://…`, `www.…`) and email addresses turn into links; click one to open it |
 | Title | Double-click the top bar, type the title and press Enter (Esc cancels). Also ⋯ → Add title, or Ctrl+Shift+T / ⇧⌘T. A note without a title shows an empty bar |
 | Color, keep on top, delete | **⋯** on the note's top bar (or right-click the bar) |
