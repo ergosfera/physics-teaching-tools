@@ -118,7 +118,6 @@ final class FieldView: NSView, NSViewToolTipOwner {
     var banked: TimeInterval = 0       // time already counted before the current run
     var runStart: TimeInterval = 0     // uptime when the current run began
     var doneAt: TimeInterval = 0
-    var startLit: Double = 0           // lit dots when the countdown began
     var dragging = false
     var pressed: String?
     var hover: String?
@@ -162,7 +161,6 @@ final class FieldView: NSView, NSViewToolTipOwner {
         gx0 = (W - CGFloat(cols - 1) * Self.cell) / 2
         gy0 = (H - CGFloat(rows - 1) * Self.cell) / 2
         px = max(2, min(6, (min(W, H) / 150).rounded()))
-        if state == .running || state == .paused { startLit = litFor(duration) }
         layoutButtons()
         updateToolTips()
         needsDisplay = true
@@ -176,15 +174,15 @@ final class FieldView: NSView, NSViewToolTipOwner {
     func layoutButtons() {
         let W = bounds.width, cy = (bounds.height * 0.74).rounded()
         var b: [Button] = []
+        if state == .running { buttons = []; return }   // only the dots while counting down; any click pauses
         switch state {
         case .setup: b.append(card("start", "START", W / 2, cy))
-        case .running: b.append(card("pause", "PAUSE", W / 2, cy))
         case .paused:
             let a = card("resume", "RESUME", 0, cy), r = card("reset", "RESET", 0, cy), gap = 4 * px
             let x = (W / 2 - (a.rect.width + gap + r.rect.width) / 2).rounded()
             b.append(Button(id: a.id, label: a.label, rect: NSRect(x: x, y: a.rect.minY, width: a.rect.width, height: a.rect.height)))
             b.append(Button(id: r.id, label: r.label, rect: NSRect(x: x + a.rect.width + gap, y: r.rect.minY, width: r.rect.width, height: r.rect.height)))
-        case .done: b.append(card("dismiss", "DISMISS", W / 2, cy))
+        case .done, .running: b.append(card("dismiss", "DISMISS", W / 2, cy))
         }
         let mw = 11 * px, mh = 7 * px
         b.append(Button(id: "menu", label: "", rect: NSRect(x: (W / 2 - mw / 2).rounded(), y: cy + 11 * px, width: mw, height: mh)))
@@ -246,7 +244,6 @@ final class FieldView: NSView, NSViewToolTipOwner {
 
     func start() {
         duration = TimeInterval(cfg.seconds)
-        startLit = litFor(duration)
         banked = 0
         runStart = now
         beepsLeft = 0
@@ -505,14 +502,14 @@ final class FieldView: NSView, NSViewToolTipOwner {
             stamp(&over, Self.display(Double(cfg.seconds)))
         case .running, .paused:
             let remaining = max(0, duration - elapsed)
-            let lit = startLit * remaining / max(0.001, duration)
+            let lit = Double(total) * remaining / max(0.001, duration)   // the whole field at the start, whatever the time
             let full = min(total, Int(lit.rounded(.down)))
             for i in 0..<full { slot[i] = paused ? 2 : 1 }
             if full < total && lit > Double(full) {
                 let step = min(Skin.partialSteps - 1, Int((lit - Double(full)) * Double(Skin.partialSteps)))
                 slot[full] = UInt8((paused ? Skin.pPartialPaused : Skin.pPartial) + step)
             }
-            stamp(&over, Self.display(remaining))
+            if paused { stamp(&over, Self.display(remaining)) }
         case .done:
             // The glow: warm colours spreading from the centre, breathing, with a little sparkle
             let still = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -563,7 +560,7 @@ final class FieldView: NSView, NSViewToolTipOwner {
     func stamp(_ over: inout [UInt8], _ d: (text: String, unit: String)) {
         let digits = Skin.textWidth(d.text, Skin.big)
         var s = max(1, min((cols - 4) / max(1, digits), Int(Double(rows) * 0.5) / 7,
-                           Int(min(Double(cols) / 34, Double(rows) / 20).rounded())))
+                           Int(min(Double(cols) / 64, Double(rows) / 40).rounded())))
         if digits * s > cols - 2 { return }
         // Keep clear of the buttons: drop the unit first, then make the numbers smaller
         let buttonTop = bounds.height * 0.74 - 5.5 * px

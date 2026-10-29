@@ -241,7 +241,7 @@ namespace FieldTimer
         State state = State.Setup;
         readonly Stopwatch sw = new Stopwatch();         // runs while counting down, stops while paused
         readonly Stopwatch doneClock = new Stopwatch();
-        double durationMs, startLit;
+        double durationMs;
         string lastFrame = "";
         int doneFrames;
         bool dragging;
@@ -407,7 +407,6 @@ namespace FieldTimer
             gx0 = (W - (cols - 1) * cell) / 2f;
             gy0 = (H - (rows - 1) * cell) / 2f;
             px = k * Math.Max(2, Math.Min(6, (float)Math.Round(Math.Min(W, H) / k / 150f)));
-            if (state == State.Running || state == State.Paused) startLit = LitFor(durationMs / 1000.0);
             lastFrame = "";
             LayoutButtons();
         }
@@ -422,10 +421,10 @@ namespace FieldTimer
         {
             float W = ClientSize.Width, cy = (float)Math.Round(ClientSize.Height * 0.74);
             var b = new List<Btn>();
+            if (state == State.Running) { buttons = b; return; }   // only the dots while counting down; any click pauses
             switch (state)
             {
                 case State.Setup: b.Add(Card("start", "START", W / 2, cy)); break;
-                case State.Running: b.Add(Card("pause", "PAUSE", W / 2, cy)); break;
                 case State.Paused:
                     var a = Card("resume", "RESUME", 0, cy);
                     var r = Card("reset", "RESET", 0, cy);
@@ -524,7 +523,6 @@ namespace FieldTimer
         void Start()
         {
             durationMs = cfg.Seconds * 1000.0;
-            startLit = LitFor(cfg.Seconds);
             sw.Reset();
             sw.Start();
             beepsLeft = 0;
@@ -580,12 +578,10 @@ namespace FieldTimer
         // What a countdown frame shows; the window repaints only when this changes
         string FrameKey()
         {
-            double lit = startLit * RemainingMs / Math.Max(1, durationMs);
+            double lit = total * RemainingMs / Math.Max(1, durationMs);
             int full = (int)Math.Floor(lit);
             int step = (int)Math.Floor((lit - full) * Skin.PartialSteps);
-            string text, unit;
-            Display(RemainingMs / 1000.0, out text, out unit);
-            return full + "/" + step + "/" + text + unit;
+            return full + "/" + step;
         }
 
         void OnTick(object sender, EventArgs e)
@@ -765,7 +761,7 @@ namespace FieldTimer
             else if (state == State.Running || paused)
             {
                 double remaining = RemainingMs;
-                double lit = startLit * remaining / Math.Max(1, durationMs);
+                double lit = total * remaining / Math.Max(1, durationMs);   // the whole field at the start, whatever the time
                 int full = (int)Math.Min(total, Math.Floor(lit));
                 for (int i = 0; i < full; i++) slot[i] = (byte)(paused ? 2 : 1);
                 if (full < total && lit > full)
@@ -773,9 +769,12 @@ namespace FieldTimer
                     int step = Math.Min(Skin.PartialSteps - 1, (int)Math.Floor((lit - full) * Skin.PartialSteps));
                     slot[full] = (byte)((paused ? Skin.PPartialPaused : Skin.PPartial) + step);
                 }
-                string text, unit;
-                Display(remaining / 1000.0, out text, out unit);
-                Stamp(over, text, unit);
+                if (paused)
+                {
+                    string text, unit;
+                    Display(remaining / 1000.0, out text, out unit);
+                    Stamp(over, text, unit);
+                }
             }
             else
             {
@@ -828,7 +827,7 @@ namespace FieldTimer
         {
             int digits = Skin.TextWidth(text, Skin.Big);
             int s = Math.Max(1, Math.Min(Math.Min((cols - 4) / Math.Max(1, digits), (int)(rows * 0.5) / 7),
-                                         (int)Math.Round(Math.Min(cols / 34.0, rows / 20.0))));
+                                         (int)Math.Round(Math.Min(cols / 64.0, rows / 40.0))));
             if (digits * s > cols - 2) return;
             // Keep clear of the buttons: drop the unit first, then make the numbers smaller
             float cell = CELL * k, buttonTop = ClientSize.Height * 0.74f - 5.5f * px;

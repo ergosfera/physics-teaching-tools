@@ -142,7 +142,7 @@
       <p class="small"><a href="https://perceptor.nl/everything/untime.html" target="_blank" rel="noopener">Untime on perceptor.nl</a></p>
     </div>
     <p>Drag down on the field to set the time (or scroll, or use ↑ ↓), then press <strong>start</strong>.
-       Click the field or press Space to pause. Esc resets.</p>
+       While it runs only the dots show: click anywhere or press Space to pause and see the time. Esc resets.</p>
     <p class="small">Free software, provided “as is”, without warranty of any kind. Don't rely on it where an
        interrupted countdown could cause harm or loss. This page collects no personal data.</p>
     <button type="button" class="close" id="aboutClose">CLOSE</button>
@@ -202,7 +202,6 @@
   var selectedSeconds = load('field.seconds', 600);
   var sound = load('field.sound', 1) === 1;
   var durationMs = 0, startTime = 0, pausedAt = 0, pausedAccum = 0, doneAt = 0;
-  var startLit = 0;                    // lit dots when the countdown began
   var W = 0, H = 0, cols = 1, rows = 1, total = 1, gx0 = 0, gy0 = 0, px = 3;
   var buttons = [];                    // {id, x, y, w, h, label}
   var pressed = null, hover = null, dragging = false;
@@ -281,7 +280,6 @@
     gx0 = (W - (cols - 1) * CELL) / 2;
     gy0 = (H - (rows - 1) * CELL) / 2;
     px = Math.max(2, Math.min(6, Math.round(Math.min(W, H) / 150)));
-    if (state === 'running' || state === 'paused') startLit = litForSeconds(durationMs / 1000);
     draw();
   }
 
@@ -300,8 +298,8 @@
   function layoutButtons() {
     var cy = Math.round(H * 0.74);
     buttons = [];
+    if (state === 'running') return;   // only the dots while counting down; any click pauses
     if (state === 'setup') buttons.push(card('start', 'START', W / 2, cy));
-    else if (state === 'running') buttons.push(card('pause', 'PAUSE', W / 2, cy));
     else if (state === 'paused') {
       var a = card('resume', 'RESUME', 0, cy), b = card('reset', 'RESET', 0, cy), gap = 4 * px;
       a.x = Math.round(W / 2 - (a.w + gap + b.w) / 2); b.x = a.x + a.w + gap;
@@ -325,7 +323,7 @@
     var digits = 0;
     for (var i = 0; i < d.text.length; i++) digits += BIG[d.text[i]][0].length + (i ? 1 : 0);
     var unitW = textWidth(d.unit);
-    var s = Math.max(1, Math.min(Math.floor((cols - 4) / digits), Math.floor((rows * 0.5) / 7), Math.round(Math.min(cols / 34, rows / 20))));
+    var s = Math.max(1, Math.min(Math.floor((cols - 4) / digits), Math.floor((rows * 0.5) / 7), Math.round(Math.min(cols / 64, rows / 40))));
     if (digits * s > cols - 2) return;
     // Keep clear of the buttons: drop the unit first, then make the numbers smaller
     var limit = Math.min(rows - 1, Math.floor((H * 0.74 - 5.5 * px - gy0 - CELL) / CELL) + 1);
@@ -393,14 +391,14 @@
       stampText(over, display(selectedSeconds));
     } else if (state === 'running' || paused) {
       var remainingMs = Math.max(0, durationMs - elapsedMs());
-      var lit = startLit * remainingMs / durationMs;
+      var lit = total * remainingMs / durationMs;   // the whole field at the start, whatever the time
       var full = Math.floor(lit);
       for (i = 0; i < full && i < total; i++) slot[i] = paused ? 2 : 1;
       if (full < total && lit > full) {
         var step = Math.min(PARTIAL_STEPS - 1, Math.floor((lit - full) * PARTIAL_STEPS));
         slot[full] = (paused ? P_PARTIAL_PAUSED : P_PARTIAL) + step;
       }
-      stampText(over, display(remainingMs / 1000));
+      if (paused) stampText(over, display(remainingMs / 1000));
     } else {
       // The glow: warm colours spreading from the centre, breathing, with a little sparkle
       var t = reduceMotion ? 3 : (performance.now() - doneAt) / 1000;
@@ -508,7 +506,6 @@
 
   function start() {
     durationMs = selectedSeconds * 1000;
-    startLit = litForSeconds(selectedSeconds);
     startTime = performance.now();
     pausedAccum = 0;
     chimesLeft = 0;

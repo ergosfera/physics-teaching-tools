@@ -75,14 +75,14 @@ and the numbers drawn with dots and the glow at the end come from their app. Tha
 ([Untime on perceptor.nl](https://perceptor.nl/everything/untime.html))
 
 - Drag down on the field to set the time, from 1 second to 6 hours. Gray dots fill the field from the top and big dot numbers show the time.
-- Press **start**. The gray dots go dark one by one from the end, and the field glows when the time is up.
-- Click the field to pause, then **resume** or **reset**.
+- Press **start**. The whole field lights up, whatever the time, and the dots go dark one by one from the end. Only the dots show while it counts down, and the field glows when the time is up.
+- Click anywhere to pause: the numbers and the **resume** and **reset** buttons come back.
 - Full screen for a projector, optional "always on top" and optional sound at the end, all in the **···** menu.
 
 | Action | Mouse | Keyboard |
 |---|---|---|
 | Set the time | Drag down on the field for more time, or scroll over it | ↑ / ↓ |
-| Start / pause / resume | **start**, **pause** and **resume** buttons, or click the field | Space or Enter |
+| Start / pause / resume | **start**, then click anywhere to pause, then **resume** | Space or Enter |
 | Reset | **reset** (while paused) or **dismiss** (at the end) | Esc |
 | Full screen | **···** → Full screen | F11 on Windows, ⌃⌘F on Mac (Esc leaves) |
 | Always on top, sound, About | **···** button, or right-click the window | — |
