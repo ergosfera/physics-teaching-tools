@@ -29,9 +29,9 @@
       --lcd-bg:       #0a1410;
       --lcd-digit:    #eaf3ee;
 
-      --green:        #2f9e44;
-      --yellow:       #cf9b12;
-      --red:          #b93a2f;
+      --green:        #22c55e;
+      --yellow:       #facc15;
+      --red:          #ff3b30;
 
       --font-mono: ui-monospace, 'SF Mono', 'Fira Code', monospace;
     }
@@ -221,7 +221,7 @@
     .progress-wrap {
       width: 100%;
       height: clamp(36px, 7vw, 64px);
-      background: var(--field-bg);
+      background: var(--disabled);
       overflow: hidden;
       position: relative;
     }
@@ -230,7 +230,6 @@
       height: 100%;
       width: 100%;
       background: var(--green);
-      transition: width 0.25s linear, background 0.25s linear;
     }
 
     .tick-layer {
@@ -247,7 +246,9 @@
     }
 
     .segment:first-child { border-left: none; }
-    .segment.dark        { background: rgba(0,0,0,0.28); }
+    /* Lighten, not darken, alternate blocks: a dark overlay turns the
+       yellow muddy brown. */
+    .segment.light       { background: rgba(255,255,255,0.5); }
 
     .tick-labels {
       position: relative;
@@ -270,7 +271,7 @@
 
     /* Questions whose time is already used up fade back; the one the class
        should be on now is boxed so it stands out from across the room. */
-    .tick-label.past    { opacity: 0.3; }
+    .tick-label.past    { color: var(--disabled); opacity: 0.6; }
     .tick-label.current {
       color: var(--title-text);
       background: var(--title-from);
@@ -615,24 +616,35 @@
       return n;
     }
 
-    // Continuous green → yellow → red interpolation as remaining fraction
-    // drops from 1 to 0, so the bar's color change reads as one smooth ramp
-    // rather than a hard snap between thresholds.
-    const GREEN  = [47, 158, 68];
-    const YELLOW = [207, 155, 18];
-    const RED    = [185, 58, 47];
-
-    function lerp(a, b, t) { return a + (b - a) * t; }
+    // Hard green → yellow → red switch at fixed fractions of time remaining,
+    // so the class notices the moment the bar changes color.
+    const YELLOW_AT = 0.5;
+    const RED_AT    = 0.2;
 
     function colorForFraction(frac) {
-      frac = Math.max(0, Math.min(1, frac));
-      const [c0, c1, t] = frac >= 0.5
-        ? [YELLOW, GREEN, (frac - 0.5) * 2]
-        : [RED, YELLOW, frac * 2];
-      const r = Math.round(lerp(c0[0], c1[0], t));
-      const g = Math.round(lerp(c0[1], c1[1], t));
-      const b = Math.round(lerp(c0[2], c1[2], t));
-      return `rgb(${r}, ${g}, ${b})`;
+      if (frac > YELLOW_AT) return "var(--green)";
+      if (frac > RED_AT)    return "var(--yellow)";
+      return "var(--red)";
+    }
+
+    // Exact fraction of time left, from the deadline while running, so the
+    // bar can shrink smoothly between whole-second display updates.
+    function remainingRatio() {
+      if (initial <= 0) return 1;
+      const ms = running && deadlineMs ? deadlineMs - Date.now() : remaining * 1000;
+      return Math.max(0, Math.min(1, ms / (initial * 1000)));
+    }
+
+    function drawBar() {
+      const ratio = remainingRatio();
+      bar.style.width = (ratio * 100) + "%";
+      bar.style.background = colorForFraction(ratio);
+    }
+
+    let barFrame = null;
+    function animateBar() {
+      drawBar();
+      barFrame = running ? requestAnimationFrame(animateBar) : null;
     }
 
     // ---- Question blocks on the bar track ----
@@ -648,7 +660,7 @@
         // right-to-left — question 1 is the rightmost block.
         const q = n - i;
         const seg = document.createElement("div");
-        seg.className = "segment" + (q % 2 === 0 ? " dark" : "");
+        seg.className = "segment" + (q % 2 === 1 ? " light" : "");
         seg.style.left  = (i / n) * 100 + "%";
         seg.style.width = (1 / n) * 100 + "%";
         tickLayer.appendChild(seg);
@@ -718,10 +730,8 @@
       const done = initial > 0 && remaining === 0;
       digits.classList.toggle("blink", done);
 
-      const ratio = initial > 0 ? Math.max(0, Math.min(1, remaining / initial)) : 1;
-      const color = colorForFraction(ratio);
-      bar.style.width = (ratio * 100) + "%";
-      bar.style.background = color;
+      drawBar();
+      if (running && !barFrame) barFrame = requestAnimationFrame(animateBar);
 
       // Per-question duration, live from whatever is currently in the inputs
       const liveTotal = initial > 0 ? initial : inputTotalSeconds();
@@ -735,7 +745,8 @@
         const elapsed = initial - remaining;
         const idx = Math.min(n, Math.floor(elapsed / (initial / n)) + 1);
         paceLabel.textContent = done ? "Time's up" : `Pace: Q${idx} of ${n}`;
-        highlightCurrentQuestion(done ? 0 : idx);
+        // Time's up: every question goes gray (idx past the last one)
+        highlightCurrentQuestion(done ? n + 1 : idx);
       } else {
         paceLabel.textContent = "";
         highlightCurrentQuestion(0);
