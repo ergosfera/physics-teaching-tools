@@ -4,7 +4,7 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 
 - **Countdown Timer**: a compact countdown whose bar and numbers turn from green to yellow to red.
 - **Physics Calculator**: the calculator from the Ergosfera *Notebook & Physics Calculator* web tool, where numbers carry units.
-- **Field**: the Ergosfera *Field* dot timer, a field of dots that go dark as time runs out, with no numbers.
+- **Field**: the Ergosfera *Field* dot timer, a field of dots that go dark as time runs out, with big numbers drawn in dots. A tribute to Untime by Perceptor.
 - **Sticky Notes**: sticky notes on your desktop that sync between your Mac and Windows computers through Google Drive.
 - **Screen Ruler**: up to three rulers and a protractor that float over anything on the screen.
 - **Screen Shapes**: lines, rectangles, circles and guide lines that float over the screen and measure what's under them.
@@ -69,19 +69,23 @@ It gives the same results as the web version: both desktop versions are checked 
 
 ## Field
 
-- Drag up or down on the field to set the time, from 1 second to 6 hours. The lit dots show how much.
-- Press **Start**. The dots go dark one by one from the bottom, and a box says when the time is up.
-- Click the field to pause or resume.
-- Full screen for a projector, optional "always on top" (pin button) and optional sound at the end.
+Field is a tribute to **Untime**, the iPhone and iPad timer made in 2012 by **Perceptor**, the Dutch design
+studio of **Bastiaan Terhorst** and **Casper Schipper**. Showing time as a field of dots was their idea,
+and the numbers drawn with dots and the glow at the end come from their app. Thank you for a wonderful idea.
+([Untime on perceptor.nl](https://perceptor.nl/everything/untime.html))
+
+- Drag down on the field to set the time, from 1 second to 6 hours. Gray dots fill the field from the top and big dot numbers show the time.
+- Press **start**. The gray dots go dark one by one from the end, and the field glows when the time is up.
+- Click the field to pause, then **resume** or **reset**.
+- Full screen for a projector, optional "always on top" and optional sound at the end, all in the **···** menu.
 
 | Action | Mouse | Keyboard |
 |---|---|---|
-| Set the time | Drag up or down on the field, or scroll over it | ↑ / ↓ |
-| Start / pause / resume | **Start** button, then click the field | Space or Enter |
-| Cancel | × button (top right of the field) | Esc |
-| Full screen | Full-screen button in the top bar | F11 on Windows, ⌃⌘F on Mac (Esc leaves) |
-| Always on top | Pin button in the top bar | — |
-| Sound, About | Right-click the window | — |
+| Set the time | Drag down on the field for more time, or scroll over it | ↑ / ↓ |
+| Start / pause / resume | **start**, **pause** and **resume** buttons, or click the field | Space or Enter |
+| Reset | **reset** (while paused) or **dismiss** (at the end) | Esc |
+| Full screen | **···** → Full screen | F11 on Windows, ⌃⌘F on Mac (Esc leaves) |
+| Always on top, sound, About | **···** button, or right-click the window | — |
 
 ## Sticky Notes
 

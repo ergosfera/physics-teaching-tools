@@ -1,73 +1,76 @@
 // Field for macOS: the Field dot timer (tools/teaching/field-timer.html) as a desktop app
 // (twin of ../windows/Program.cs). Single-file AppKit app; build.sh makes Field.app and a .dmg.
+//
+// Field is a tribute to Untime, the iPhone and iPad timer that Perceptor, the Dutch design studio of
+// Bastiaan Terhorst and Casper Schipper, made in 2012 (https://perceptor.nl/everything/untime.html).
+// The idea of time as a field of dots, the dot-matrix numbers and the glowing end are theirs.
 import AppKit
 
-// MARK: - Dark Windows 95 skin (same tokens as the web page)
+// MARK: - Look (same palette and glyphs as the web page)
 
 enum Skin {
     static func rgb(_ r: Int, _ g: Int, _ b: Int, _ a: CGFloat = 1) -> NSColor {
         NSColor(srgbRed: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: a)
     }
-    static let face = rgb(0x3b, 0x3b, 0x3b)
-    static let hi = rgb(0x6e, 0x6e, 0x6e)
-    static let lt = rgb(0x54, 0x54, 0x54)
-    static let sh = rgb(0x1c, 0x1c, 0x1c)
-    static let dk = NSColor.black
-    static let text = rgb(0xe8, 0xe8, 0xe8)
-    static let titleFrom = rgb(0x0a, 0x0a, 0x5c)
-    static let titleTo = rgb(0x16, 0x3a, 0x70)
-    static let closeHover = rgb(0xc0, 0x00, 0x00)
+    typealias RGB = (Double, Double, Double)
 
-    static let bg = rgb(0x06, 0x06, 0x07)
-    static let dotIdle = rgb(255, 255, 255, 0.10)
-    static let setupFill = rgb(0xcf, 0xcd, 0xc6)
-    static let active = rgb(0xf4, 0xf1, 0xea)
-    static let elapsed = rgb(0x33, 0x33, 0x38)
+    static let dark: RGB = (0x24, 0x24, 0x24), lit: RGB = (0x8c, 0x8c, 0x8c), litPaused: RGB = (0x4a, 0x4a, 0x4a)
+    static let halo: RGB = (0x0e, 0x0e, 0x0e), glyph: RGB = (0xff, 0xff, 0xff), unit: RGB = (0xe6, 0xe6, 0xe6)
+    // The glow at the end, from the centre (0) to the edge (1)
+    static let warm: [(Double, RGB)] = [(0, (255, 255, 255)), (0.3, (255, 243, 176)), (0.5, (255, 210, 90)),
+                                        (0.7, (255, 143, 42)), (0.86, (168, 64, 26)), (1, (42, 18, 8))]
+    static let partialSteps = 16, warmSteps = 48
 
-    static let lcd = rgb(0x7f, 0xae, 0x86)
-    static let lcdDigit = rgb(0x16, 0x32, 0x1c)
-
-    static func font(_ name: String, _ size: CGFloat, bold: Bool = false) -> NSFont {
-        var f = NSFont(name: name, size: size) ?? NSFont.systemFont(ofSize: size)
-        if bold { f = NSFontManager.shared.convert(f, toHaveTrait: .boldFontMask) }
-        return f
+    static func mix(_ a: RGB, _ b: RGB, _ t: Double) -> RGB {
+        (a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t, a.2 + (b.2 - a.2) * t)
     }
-
-    // Views are flipped: minY is the top edge
-    static func edge(_ r: NSRect, _ tl: NSColor, _ br: NSColor) {
-        tl.setFill()
-        NSRect(x: r.minX, y: r.minY, width: r.width, height: 1).fill()
-        NSRect(x: r.minX, y: r.minY, width: 1, height: r.height).fill()
-        br.setFill()
-        NSRect(x: r.minX, y: r.maxY - 1, width: r.width, height: 1).fill()
-        NSRect(x: r.maxX - 1, y: r.minY, width: 1, height: r.height).fill()
-    }
-    static func raised(_ r: NSRect) { edge(r, hi, dk); edge(r.insetBy(dx: 1, dy: 1), lt, sh) }
-    static func sunken(_ r: NSRect) { edge(r, dk, hi); edge(r.insetBy(dx: 1, dy: 1), sh, lt) }
-
-    static func size(_ s: String, _ font: NSFont) -> NSSize {
-        (s as NSString).size(withAttributes: [.font: font])
-    }
-
-    static func draw(_ s: String, _ font: NSFont, _ color: NSColor, in r: NSRect, left: Bool = false) {
-        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
-        let sz = (s as NSString).size(withAttributes: attrs)
-        let x = left ? r.minX : r.midX - sz.width / 2
-        (s as NSString).draw(at: NSPoint(x: x, y: r.midY - sz.height / 2), withAttributes: attrs)
-    }
-
-    static func symbol(_ name: String, in r: NSRect, color: NSColor) {
-        guard let base = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-                .withSymbolConfiguration(.init(pointSize: 11, weight: .semibold)) else { return }
-        let tinted = NSImage(size: base.size, flipped: false) { rect in
-            base.draw(in: rect)
-            color.set()
-            rect.fill(using: .sourceAtop)
-            return true
+    static func warmAt(_ t: Double) -> RGB {
+        let t = min(1, max(0, t))
+        for i in 1..<warm.count where t <= warm[i].0 {
+            let a = warm[i - 1], b = warm[i]
+            return mix(a.1, b.1, (t - a.0) / (b.0 - a.0))
         }
-        let s = base.size
-        tinted.draw(in: NSRect(x: r.midX - s.width / 2, y: r.midY - s.height / 2, width: s.width, height: s.height),
-                    from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        return warm[warm.count - 1].1
+    }
+
+    // Colour slots: 0 dark, 1 lit, 2 lit paused, 3 halo, 4 glyph, 5 unit, then partial and warm ramps
+    static let pPartial = 6, pPartialPaused = pPartial + partialSteps, pWarm = pPartialPaused + partialSteps
+    static let palette: [CGColor] = {
+        var p: [RGB] = [dark, lit, litPaused, halo, glyph, unit]
+        for i in 0..<partialSteps { p.append(mix(dark, lit, (Double(i) + 0.5) / Double(partialSteps))) }
+        for i in 0..<partialSteps { p.append(mix(dark, litPaused, (Double(i) + 0.5) / Double(partialSteps))) }
+        for i in 0..<warmSteps { p.append(warmAt(Double(i) / Double(warmSteps - 1))) }
+        return p.map { rgb(Int($0.0.rounded()), Int($0.1.rounded()), Int($0.2.rounded())).cgColor }
+    }()
+
+    // Dot-matrix glyphs: digits 5×7, letters 3×5 (small caps)
+    static let big: [Character: [String]] = [
+        "0": ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
+        "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
+        "2": ["01110", "10001", "00001", "00010", "00100", "01000", "11111"],
+        "3": ["11110", "00001", "00001", "01110", "00001", "00001", "11110"],
+        "4": ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
+        "5": ["11111", "10000", "11110", "00001", "00001", "10001", "01110"],
+        "6": ["00110", "01000", "10000", "11110", "10001", "10001", "01110"],
+        "7": ["11111", "00001", "00010", "00100", "01000", "01000", "01000"],
+        "8": ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
+        "9": ["01110", "10001", "10001", "01111", "00001", "00010", "01100"],
+        ":": ["0", "0", "1", "0", "1", "0", "0"],
+    ]
+    static let small: [Character: [String]] = [
+        "A": ["010", "101", "111", "101", "101"], "C": ["011", "100", "100", "100", "011"],
+        "D": ["110", "101", "101", "101", "110"], "E": ["111", "100", "110", "100", "111"],
+        "H": ["101", "101", "111", "101", "101"], "I": ["111", "010", "010", "010", "111"],
+        "M": ["10001", "11011", "10101", "10001", "10001"], "N": ["1001", "1101", "1011", "1001", "1001"],
+        "P": ["110", "101", "110", "100", "100"], "R": ["110", "101", "110", "101", "101"],
+        "S": ["011", "100", "010", "001", "110"], "T": ["111", "010", "010", "010", "010"],
+        "U": ["101", "101", "101", "101", "111"],
+    ]
+
+    static func textWidth(_ s: String, _ font: [Character: [String]]) -> Int {
+        var w = 0
+        for (i, ch) in s.enumerated() { w += (font[ch]?[0].count ?? 0) + (i > 0 ? 1 : 0) }
+        return w
     }
 }
 
@@ -80,25 +83,34 @@ final class Settings {
     init() { d.register(defaults: ["seconds": 600, "topMost": false, "sound": true]) }
 
     var seconds: Int {
-        get { Settings.clampSeconds(d.integer(forKey: "seconds")) }
-        set { d.set(Settings.clampSeconds(newValue), forKey: "seconds") }
+        get { Settings.snap(d.integer(forKey: "seconds")) }
+        set { d.set(Settings.snap(newValue), forKey: "seconds") }
     }
     var topMost: Bool { get { d.bool(forKey: "topMost") } set { d.set(newValue, forKey: "topMost") } }
     var sound: Bool { get { d.bool(forKey: "sound") } set { d.set(newValue, forKey: "sound") } }
 
     static func clampSeconds(_ v: Int) -> Int { min(maxSeconds, max(minSeconds, v)) }
+
+    // Seconds below a minute, whole minutes below an hour, then 5-minute steps
+    static func snap(_ v: Int) -> Int {
+        let s = clampSeconds(v)
+        if s < 60 { return s }
+        if s < 3600 { return clampSeconds(Int((Double(s) / 60).rounded()) * 60) }
+        return clampSeconds(Int((Double(s) / 300).rounded()) * 300)
+    }
 }
 
 // MARK: - The field
 
 final class FieldView: NSView, NSViewToolTipOwner {
     enum State { case setup, running, paused, done }
-    enum Hit: Equatable { case none, full, pin, about, start, cancel, ok, field }
+
+    struct Button { let id: String; let label: String; let rect: NSRect }
 
     // Same geometry as the web page
-    static let dot: CGFloat = 11, gap: CGFloat = 11, pad: CGFloat = 18
+    static let dot: CGFloat = 8, cell: CGFloat = 14, pad: CGFloat = 14
     static let logMin = log(Double(Settings.minSeconds)), logMax = log(Double(Settings.maxSeconds))
-    static let hintText = "Drag the field to set time"
+    static let glowSeconds: TimeInterval = 60   // how long the glow at the end keeps moving
 
     let cfg: Settings
     var state = State.setup
@@ -106,30 +118,19 @@ final class FieldView: NSView, NSViewToolTipOwner {
     var banked: TimeInterval = 0       // time already counted before the current run
     var runStart: TimeInterval = 0     // uptime when the current run began
     var doneAt: TimeInterval = 0
-    var lastGray = -1
+    var startLit: Double = 0           // lit dots when the countdown began
     var dragging = false
-    var pressed = Hit.none
-    var hover = Hit.none
+    var pressed: String?
+    var hover: String?
     var beepsLeft = 0
     var nextBeep: TimeInterval = 0
     var scrollAccum: CGFloat = 0
     var ticker: Timer?
 
-    let fTitle = Skin.font("Tahoma", 12, bold: true)
-    let fAbout = Skin.font("Tahoma", 12.5, bold: true)
-    let fHint = Skin.font("Tahoma", 12)
-    let fStart = Skin.font("Tahoma", 13.6, bold: true)
-    let fCancel = Skin.font("Tahoma", 15)
-    let fPaused = Skin.font("Tahoma", 11.5, bold: true)
-    let fAlertTitle = Skin.font("Tahoma", 11.5, bold: true)
-    let fDone = Skin.font("Tahoma", 13.6)
-    let fOk = Skin.font("Tahoma", 12.5, bold: true)
-    var fReadout = NSFont.monospacedSystemFont(ofSize: 38, weight: .bold)
-
-    var rcHeader = NSRect.zero, rcFull = NSRect.zero, rcPin = NSRect.zero, rcAbout = NSRect.zero
-    var rcScreen = NSRect.zero, rcApp = NSRect.zero
     var cols = 1, rows = 1, total = 1
-    var gx0: CGFloat = 0, gy0: CGFloat = 0
+    var gx0: CGFloat = 0, gy0: CGFloat = 0   // centre of the first dot
+    var px: CGFloat = 3                      // size of one pixel of the button letters
+    var buttons: [Button] = []
 
     init(settings: Settings) {
         cfg = settings
@@ -155,115 +156,99 @@ final class FieldView: NSView, NSViewToolTipOwner {
 
     func doLayout() {
         let W = bounds.width, H = bounds.height
-        let hh: CGFloat = 34
-        rcHeader = NSRect(x: 0, y: 0, width: W, height: hh)
-        let bw: CGFloat = 26, bh: CGFloat = 24, by = (hh - bh) / 2
-        var x = W - 8
-        rcAbout = NSRect(x: x - bw, y: by, width: bw, height: bh); x -= bw + 3
-        rcPin = NSRect(x: x - bw, y: by, width: bw, height: bh); x -= bw + 3
-        rcFull = NSRect(x: x - bw, y: by, width: bw, height: bh)
-
-        let m: CGFloat = 6
-        rcScreen = NSRect(x: m, y: hh + m, width: max(5, W - 2 * m), height: max(5, H - hh - 2 * m))
-        rcApp = rcScreen.insetBy(dx: 2, dy: 2)
-
-        let cell = Self.dot + Self.gap
-        cols = max(1, Int(((rcApp.width - 2 * Self.pad) / cell).rounded(.down)))
-        rows = max(1, Int(((rcApp.height - 2 * Self.pad) / cell).rounded(.down)))
+        cols = max(1, Int(((W - 2 * Self.pad - Self.dot) / Self.cell).rounded(.down)) + 1)
+        rows = max(1, Int(((H - 2 * Self.pad - Self.dot) / Self.cell).rounded(.down)) + 1)
         total = cols * rows
-        let gw = CGFloat(cols) * Self.dot + CGFloat(cols - 1) * Self.gap
-        let gh = CGFloat(rows) * Self.dot + CGFloat(rows - 1) * Self.gap
-        gx0 = rcApp.minX + (rcApp.width - gw) / 2
-        gy0 = rcApp.minY + (rcApp.height - gh) / 2
-        lastGray = -1
-
-        // The readout grows with the window, like clamp(2.4rem, 10vw, 4.4rem) on the web page
-        let px = max(38, min(70, (0.10 * rcApp.width).rounded()))
-        if abs(px - fReadout.pointSize) > 0.5 { fReadout = NSFont.monospacedSystemFont(ofSize: px, weight: .bold) }
-
-        window?.invalidateCursorRects(for: self)
+        gx0 = (W - CGFloat(cols - 1) * Self.cell) / 2
+        gy0 = (H - CGFloat(rows - 1) * Self.cell) / 2
+        px = max(2, min(6, (min(W, H) / 150).rounded()))
+        if state == .running || state == .paused { startLit = litFor(duration) }
+        layoutButtons()
         updateToolTips()
         needsDisplay = true
     }
 
-    func setupRects() -> (lcd: NSRect, hint: NSRect, start: NSRect) {
-        let ts = Skin.size(Self.format(cfg.seconds), fReadout)
-        let hs = Skin.size(Self.hintText, fHint)
-        let ss = Skin.size("Start", fStart)
-        let lw = ts.width + 48 + 4, lh = ts.height + 24 + 4
-        let bw = ss.width + 16 + 48, bh = ss.height + 18
-        let gap: CGFloat = 18
-        let totalH = lh + gap + hs.height + gap + 2 + bh
-        let cx = rcApp.midX
-        var y = (rcApp.minY + (rcApp.height - totalH) / 2).rounded()
-        let lcd = NSRect(x: (cx - lw / 2).rounded(), y: y, width: lw.rounded(), height: lh.rounded()); y += lh + gap
-        let hint = NSRect(x: cx - hs.width / 2 - 4, y: y, width: hs.width + 8, height: hs.height); y += hs.height + gap + 2
-        let start = NSRect(x: (cx - bw / 2).rounded(), y: y.rounded(), width: bw.rounded(), height: bh.rounded())
-        return (lcd, hint, start)
+    func card(_ id: String, _ label: String, _ cx: CGFloat, _ cy: CGFloat) -> Button {
+        let w = CGFloat(Skin.textWidth(label, Skin.small) + 8) * px, h = 11 * px
+        return Button(id: id, label: label, rect: NSRect(x: (cx - w / 2).rounded(), y: (cy - h / 2).rounded(), width: w, height: h))
     }
 
-    func doneRects() -> (box: NSRect, title: NSRect, label: NSRect, ok: NSRect) {
-        let bw: CGFloat = 230
-        let th = Skin.size("Field Timer", fAlertTitle).height + 10
-        let lh = Skin.size("Time’s up!", fDone).height + 32
-        let os = Skin.size("OK", fOk)
-        let okw = (os.width + 48).rounded(), okh = (os.height + 12).rounded()
-        let bh = 2 + th + lh + okh + 16 + 2
-        let box = NSRect(x: (rcApp.midX - bw / 2).rounded(), y: (rcApp.midY - bh / 2).rounded(), width: bw, height: bh.rounded())
-        let title = NSRect(x: box.minX + 2, y: box.minY + 2, width: bw - 4, height: th.rounded())
-        let label = NSRect(x: box.minX + 2, y: title.maxY, width: bw - 4, height: lh.rounded())
-        let ok = NSRect(x: (box.midX - okw / 2).rounded(), y: label.maxY, width: okw, height: okh)
-        return (box, title, label, ok)
+    func layoutButtons() {
+        let W = bounds.width, cy = (bounds.height * 0.74).rounded()
+        var b: [Button] = []
+        switch state {
+        case .setup: b.append(card("start", "START", W / 2, cy))
+        case .running: b.append(card("pause", "PAUSE", W / 2, cy))
+        case .paused:
+            let a = card("resume", "RESUME", 0, cy), r = card("reset", "RESET", 0, cy), gap = 4 * px
+            let x = (W / 2 - (a.rect.width + gap + r.rect.width) / 2).rounded()
+            b.append(Button(id: a.id, label: a.label, rect: NSRect(x: x, y: a.rect.minY, width: a.rect.width, height: a.rect.height)))
+            b.append(Button(id: r.id, label: r.label, rect: NSRect(x: x + a.rect.width + gap, y: r.rect.minY, width: r.rect.width, height: r.rect.height)))
+        case .done: b.append(card("dismiss", "DISMISS", W / 2, cy))
+        }
+        let mw = 11 * px, mh = 7 * px
+        b.append(Button(id: "menu", label: "", rect: NSRect(x: (W / 2 - mw / 2).rounded(), y: cy + 11 * px, width: mw, height: mh)))
+        buttons = b
     }
 
-    var rcCancel: NSRect { NSRect(x: rcApp.maxX - 6 - 22, y: rcApp.minY + 6, width: 22, height: 20) }
+    func button(at p: NSPoint) -> Button? { buttons.first { $0.rect.contains(p) } }
 
     // MARK: Time
 
-    static func secondsToFrac(_ seconds: Int) -> Double {
-        (log(Double(Settings.clampSeconds(seconds))) - logMin) / (logMax - logMin)
+    static func secondsToFrac(_ seconds: Double) -> Double {
+        (log(min(Double(Settings.maxSeconds), max(Double(Settings.minSeconds), seconds))) - logMin) / (logMax - logMin)
     }
 
     static func fracToSeconds(_ frac: Double) -> Int {
-        Int(exp(logMin + min(1, max(0, frac)) * (logMax - logMin)).rounded())
+        Settings.snap(Int(exp(logMin + min(1, max(0, frac)) * (logMax - logMin)).rounded()))
     }
 
-    static func format(_ totalSeconds: Int) -> String {
-        let h = totalSeconds / 3600, m = (totalSeconds % 3600) / 60, s = totalSeconds % 60
-        return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
+    // What the big numbers say: seconds, whole minutes, or h:mm
+    static func display(_ seconds: Double) -> (text: String, unit: String) {
+        let s = max(0, Int(seconds.rounded(.up)))
+        if s < 60 { return (String(s), "SEC") }
+        let m = (s + 59) / 60
+        if m < 60 { return (String(m), "MIN") }
+        return (String(format: "%d:%02d", m / 60, m % 60), "H")
+    }
+
+    static func spoken(_ seconds: Int) -> String {
+        let d = display(Double(seconds))
+        return d.text + (d.unit == "SEC" ? " seconds" : d.unit == "MIN" ? " minutes" : " hours")
     }
 
     var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
 
     var elapsed: TimeInterval { state == .running ? banked + (now - runStart) : banked }
 
-    func grayCount() -> Int {
-        Int((min(1, elapsed / duration) * Double(total)).rounded(.down))
-    }
+    func litFor(_ seconds: Double) -> Double { (Self.secondsToFrac(seconds) * Double(total)).rounded() }
 
     func setSeconds(_ s: Int) {
-        let v = Settings.clampSeconds(s)
+        let v = Settings.snap(s)
         guard v != cfg.seconds else { return }
         cfg.seconds = v
         needsDisplay = true
     }
 
+    // Drag: the higher the pointer, the less time; the lit dots end where you point
     func setFromY(_ y: CGFloat) {
-        setSeconds(Self.fracToSeconds(Double(1 - (y - rcApp.minY) / max(1, rcApp.height))))
+        setSeconds(Self.fracToSeconds(Double((y - (gy0 - Self.cell / 2)) / (CGFloat(rows) * Self.cell))))
     }
 
-    // Wheel and arrow keys: about 10% more or less time per step
     func nudge(_ dir: Int) {
-        var s = Self.fracToSeconds(Self.secondsToFrac(cfg.seconds) + Double(dir) * 0.01)
-        if s == cfg.seconds { s += dir }
+        var s = Self.fracToSeconds(Self.secondsToFrac(Double(cfg.seconds)) + Double(dir) * 0.012)
+        if s == cfg.seconds {
+            let step = cfg.seconds < 60 ? 1 : cfg.seconds < 3600 ? 60 : 300
+            s = cfg.seconds + dir * step
+        }
         setSeconds(s)
     }
 
     func start() {
         duration = TimeInterval(cfg.seconds)
+        startLit = litFor(duration)
         banked = 0
         runStart = now
-        lastGray = -1
         beepsLeft = 0
         state = .running
         stateChanged()
@@ -296,7 +281,8 @@ final class FieldView: NSView, NSViewToolTipOwner {
     }
 
     func stateChanged() {
-        window?.invalidateCursorRects(for: self)
+        pressed = nil
+        layoutButtons()
         needsDisplay = true
     }
 
@@ -304,8 +290,7 @@ final class FieldView: NSView, NSViewToolTipOwner {
         switch state {
         case .running:
             if elapsed >= duration { finish(); return }
-            let gray = grayCount()
-            if gray != lastGray { lastGray = gray; setNeedsDisplay(rcApp) }
+            needsDisplay = true
         case .done:
             let t = now - doneAt
             if beepsLeft > 0 && t >= nextBeep {
@@ -313,7 +298,7 @@ final class FieldView: NSView, NSViewToolTipOwner {
                 beepsLeft -= 1
                 nextBeep += 1.3
             }
-            if t < 2.4 { setNeedsDisplay(rcApp) }
+            if t < Self.glowSeconds && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { needsDisplay = true }
         default:
             break
         }
@@ -324,7 +309,6 @@ final class FieldView: NSView, NSViewToolTipOwner {
     func setTopMost(_ on: Bool) {
         cfg.topMost = on
         window?.level = on ? .floating : .normal
-        needsDisplay = true
     }
 
     @objc func toggleTopMost() { setTopMost(!cfg.topMost) }
@@ -333,21 +317,45 @@ final class FieldView: NSView, NSViewToolTipOwner {
     @objc func quit() { NSApp.terminate(nil) }
 
     @objc func showAbout() {
-        let credits = NSMutableAttributedString(
-            string: "Free software, provided \"as is\", without warranty of any kind. " +
-                    "Don't rely on it where an interrupted countdown could cause harm or loss.\n" +
-                    "This app collects no personal data and never connects to the internet.\n\n",
-            attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.labelColor])
+        let body: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.labelColor]
+        let bold: [NSAttributedString.Key: Any] = [.font: NSFont.boldSystemFont(ofSize: 11), .foregroundColor: NSColor.labelColor]
+        let credits = NSMutableAttributedString()
+        func add(_ s: String, _ a: [NSAttributedString.Key: Any]) { credits.append(NSAttributedString(string: s, attributes: a)) }
+        add("Field is a tribute to ", body); add("Untime", bold)
+        add(", the timer app made in 2012 by ", body); add("Perceptor", bold)
+        add(", the Dutch design studio of ", body); add("Bastiaan Terhorst", bold)
+        add(" and ", body); add("Casper Schipper", bold)
+        add(". Showing time as a quiet field of dots was their idea, and the numbers drawn with dots and the glow at the end " +
+            "come from their app. Thank you for a wonderful idea.\n", body)
+        var link = body
+        link[.link] = URL(string: "https://perceptor.nl/everything/untime.html")!
+        add("Untime on perceptor.nl", link)
+        add("\n\nFree software, provided \"as is\", without warranty of any kind. " +
+            "Don't rely on it where an interrupted countdown could cause harm or loss.\n" +
+            "This app collects no personal data and never connects to the internet.\n\n", body)
         credits.append(NSAttributedString(string: License.text,
             attributes: [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.secondaryLabelColor]))
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "Field",
-            .applicationVersion: "1.0",
+            .applicationVersion: "2.0",
             .version: "",
             .credits: credits,
             NSApplication.AboutPanelOptionKey(rawValue: "Copyright"): "© 2026 Mauricio Mendivelso · MIT License",
         ])
+    }
+
+    func activate(_ id: String) {
+        switch id {
+        case "start": start()
+        case "pause", "resume": togglePause()
+        case "reset", "dismiss": reset()
+        case "menu":
+            if let b = buttons.last {
+                buildMenu().popUp(positioning: nil, at: NSPoint(x: b.rect.midX - 60, y: b.rect.maxY + 4), in: self)
+            }
+        default: break
+        }
     }
 
     // MARK: Keyboard
@@ -371,81 +379,71 @@ final class FieldView: NSView, NSViewToolTipOwner {
 
     // MARK: Mouse
 
-    func region(at p: NSPoint) -> Hit {
-        if rcFull.contains(p) { return .full }
-        if rcPin.contains(p) { return .pin }
-        if rcAbout.contains(p) { return .about }
-        guard rcApp.contains(p) else { return .none }
-        switch state {
-        case .setup: return setupRects().start.contains(p) ? .start : .field
-        case .running, .paused: return rcCancel.contains(p) ? .cancel : .field
-        case .done: return doneRects().ok.contains(p) ? .ok : .none
-        }
-    }
-
     func point(_ e: NSEvent) -> NSPoint { convert(e.locationInWindow, from: nil) }
-
-    override func resetCursorRects() {
-        guard state == .setup else { return }
-        addCursorRect(rcApp, cursor: .resizeUpDown)
-    }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         for t in trackingAreas { removeTrackingArea(t) }
         addTrackingArea(NSTrackingArea(rect: bounds,
-                                       options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                       options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect, .cursorUpdate],
                                        owner: self, userInfo: nil))
         updateToolTips()
     }
 
     func updateToolTips() {
         removeAllToolTips()
-        for r in [rcFull, rcPin, rcAbout, rcApp] { addToolTip(r, owner: self, userData: nil) }
+        addToolTip(bounds, owner: self, userData: nil)
     }
 
     func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData data: UnsafeMutableRawPointer?) -> String {
-        switch region(at: point) {
-        case .full: return isFullScreen ? "Exit full screen (⌃⌘F)" : "Full screen (⌃⌘F)"
-        case .pin: return cfg.topMost ? "Always on top: ON (click to turn off)" : "Always on top: OFF (click to turn on)"
-        case .about: return "About Field"
-        case .start: return "Start (Space)"
-        case .cancel: return "Cancel (Esc)"
-        case .field:
-            switch state {
-            case .setup: return "Drag up or down, or scroll, to set the time"
-            case .paused: return "Click to resume (Space)"
-            default: return "Click to pause (Space)"
+        if let b = button(at: point) {
+            switch b.id {
+            case "start": return "Start (Space)"
+            case "pause": return "Pause (Space)"
+            case "resume": return "Resume (Space)"
+            case "reset", "dismiss": return "Reset (Esc)"
+            default: return "Options and About"
             }
-        default: return ""
+        }
+        switch state {
+        case .setup: return "Drag down for more time, or scroll (now \(Self.spoken(cfg.seconds)))"
+        case .paused: return "Click to resume (Space)"
+        case .running: return "Click to pause (Space)"
+        case .done: return "Time's up"
         }
     }
 
+    func updateCursor(_ p: NSPoint) {
+        if button(at: p) != nil { NSCursor.pointingHand.set() }
+        else if state == .setup { NSCursor.resizeUpDown.set() }
+        else { NSCursor.arrow.set() }
+    }
+
+    override func cursorUpdate(with e: NSEvent) { updateCursor(point(e)) }
+
     override func mouseMoved(with e: NSEvent) {
-        let h = region(at: point(e))
-        if h != hover {
-            if h == .cancel || hover == .cancel { setNeedsDisplay(rcCancel) }
-            hover = h
-        }
+        let p = point(e)
+        updateCursor(p)
+        let h = button(at: p)?.id
+        if h != hover { hover = h; needsDisplay = true }
     }
 
     override func mouseExited(with e: NSEvent) {
-        if hover == .cancel { setNeedsDisplay(rcCancel) }
-        hover = .none
+        if hover != nil { hover = nil; needsDisplay = true }
     }
 
     override func mouseDown(with e: NSEvent) {
         window?.makeFirstResponder(self)
         let p = point(e)
-        let h = region(at: p)
-        if h == .field && state == .setup {
-            dragging = true
-            setFromY(p.y)
+        if let b = button(at: p) {
+            pressed = b.id
+            needsDisplay = true
             return
         }
-        if h != .none {
-            pressed = h
-            needsDisplay = true
+        switch state {
+        case .setup: dragging = true; setFromY(p.y)
+        case .running, .paused: pressed = "field"
+        case .done: break
         }
     }
 
@@ -455,24 +453,16 @@ final class FieldView: NSView, NSViewToolTipOwner {
 
     override func mouseUp(with e: NSEvent) {
         if dragging { dragging = false; return }
-        guard pressed != .none else { return }
-        let p = pressed
-        pressed = .none
+        guard let p = pressed else { return }
+        pressed = nil
         needsDisplay = true
-        guard region(at: point(e)) == p else { return }
-        switch p {
-        case .full: toggleFullScreen()
-        case .pin: toggleTopMost()
-        case .about: showAbout()
-        case .start: start()
-        case .cancel, .ok: reset()
-        case .field: togglePause()
-        case .none: break
-        }
+        let b = button(at: point(e))
+        if p == "field" { if b == nil { togglePause() }; return }
+        if b?.id == p { activate(p) }
     }
 
     override func scrollWheel(with e: NSEvent) {
-        guard state == .setup, rcApp.contains(point(e)) else { return }
+        guard state == .setup else { return }
         if e.hasPreciseScrollingDeltas {
             // Trackpad: one step per ~14 points of scrolling
             scrollAccum += e.scrollingDeltaY
@@ -483,7 +473,7 @@ final class FieldView: NSView, NSViewToolTipOwner {
         }
     }
 
-    override func menu(for event: NSEvent) -> NSMenu? {
+    func buildMenu() -> NSMenu {
         let m = NSMenu()
         m.addItem(withTitle: "Always on top", action: #selector(toggleTopMost), keyEquivalent: "").state = cfg.topMost ? .on : .off
         m.addItem(withTitle: "Sound at the end", action: #selector(toggleSound), keyEquivalent: "").state = cfg.sound ? .on : .off
@@ -495,168 +485,162 @@ final class FieldView: NSView, NSViewToolTipOwner {
         return m
     }
 
+    override func menu(for event: NSEvent) -> NSMenu? { buildMenu() }
+
     // MARK: Drawing
 
     override func draw(_ dirtyRect: NSRect) {
-        Skin.face.setFill()
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        NSColor.black.setFill()
         bounds.fill()
 
-        // Header: title, then full screen, pin and about buttons
-        Skin.sh.setFill()
-        NSRect(x: 0, y: rcHeader.maxY - 2, width: rcHeader.width, height: 1).fill()
-        Skin.lt.setFill()
-        NSRect(x: 0, y: rcHeader.maxY - 1, width: rcHeader.width, height: 1).fill()
-        Skin.draw("FIELD", fTitle, Skin.text, in: NSRect(x: 10, y: 0, width: max(0, rcFull.minX - 14), height: rcHeader.height - 2), left: true)
-        button(rcFull, .full, active: isFullScreen) { r in
-            Skin.symbol(self.isFullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right", in: r, color: Skin.text)
-        }
-        button(rcPin, .pin, active: cfg.topMost) { r in
-            Skin.symbol(self.cfg.topMost ? "pin.fill" : "pin", in: r, color: Skin.text)
-        }
-        button(rcAbout, .about, active: false) { r in Skin.draw("?", self.fAbout, Skin.text, in: r) }
+        var slot = [UInt8](repeating: 0, count: total)
+        var over = [UInt8](repeating: 0, count: total)
+        let paused = state == .paused
 
-        // Screen
-        Skin.sunken(rcScreen)
-        Skin.bg.setFill()
-        rcApp.fill()
-        NSGraphicsContext.saveGraphicsState()
-        NSBezierPath(rect: rcApp).addClip()
-        drawDots()
-        if state == .paused { veil(0.55) }
-        if state == .done {
-            // Two slow "breaths" of the gray field, as on the web page
-            let t = now - doneAt
-            if t < 2.2 { veil(0.25 * (1 - cos(2 * .pi * t / 1.1))) }
-        }
         switch state {
-        case .setup: drawSetup()
+        case .setup:
+            let n = min(total, Int(litFor(Double(cfg.seconds))))
+            for i in 0..<n { slot[i] = 1 }
+            stamp(&over, Self.display(Double(cfg.seconds)))
         case .running, .paused:
-            drawCancel()
-            if state == .paused { drawPausedLabel() }
-        case .done: drawDone()
+            let remaining = max(0, duration - elapsed)
+            let lit = startLit * remaining / max(0.001, duration)
+            let full = min(total, Int(lit.rounded(.down)))
+            for i in 0..<full { slot[i] = paused ? 2 : 1 }
+            if full < total && lit > Double(full) {
+                let step = min(Skin.partialSteps - 1, Int((lit - Double(full)) * Double(Skin.partialSteps)))
+                slot[full] = UInt8((paused ? Skin.pPartialPaused : Skin.pPartial) + step)
+            }
+            stamp(&over, Self.display(remaining))
+        case .done:
+            // The glow: warm colours spreading from the centre, breathing, with a little sparkle
+            let still = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            let t = still ? 3 : min(now - doneAt, Self.glowSeconds)
+            let grow = min(1, 0.2 + t / 1.4)
+            let breathe = 1 + 0.08 * sin(t * 2 * .pi / 2.4)
+            let R = 0.62 * Double(max(bounds.width, bounds.height)) * grow * breathe
+            let cx = Double(bounds.width) / 2, cy = Double(bounds.height) * 0.42
+            for r in 0..<rows {
+                for c in 0..<cols {
+                    let k = r * cols + c
+                    let dx = Double(gx0) + Double(c) * Double(Self.cell) - cx
+                    let dy = Double(gy0) + Double(r) * Double(Self.cell) - cy
+                    let tw = still ? 0 : 0.07 * sin(Self.hash(k) * 6.283 + t * (1.5 + 2 * Self.hash(k + 7)))
+                    let v = (dx * dx + dy * dy).squareRoot() / R + tw
+                    slot[k] = UInt8(Skin.pWarm + min(Skin.warmSteps - 1, max(0, Int((v * Double(Skin.warmSteps - 1)).rounded()))))
+                }
+            }
+            stamp(&over, ("0", ""))
         }
-        NSGraphicsContext.restoreGraphicsState()
+
+        // One path per colour
+        var paths = [CGMutablePath?](repeating: nil, count: Skin.palette.count)
+        let rad = Self.dot / 2
+        for i in 0..<total {
+            let o = over[i]
+            let p = o == 2 ? 4 : o == 3 ? 5 : o == 1 ? 3 : Int(slot[i])
+            let x = gx0 + CGFloat(i % cols) * Self.cell, y = gy0 + CGFloat(i / cols) * Self.cell
+            if paths[p] == nil { paths[p] = CGMutablePath() }
+            paths[p]!.addEllipse(in: CGRect(x: x - rad, y: y - rad, width: Self.dot, height: Self.dot))
+        }
+        for (i, path) in paths.enumerated() {
+            guard let path = path else { continue }
+            ctx.setFillColor(Skin.palette[i])
+            ctx.addPath(path)
+            ctx.fillPath()
+        }
+
+        for b in buttons { drawButton(b) }
     }
 
-    func veil(_ alpha: Double) {
-        Skin.bg.withAlphaComponent(CGFloat(max(0, min(1, alpha)))).setFill()
-        rcApp.fill(using: .sourceOver)
+    static func hash(_ i: Int) -> Double {
+        let x = sin(Double(i) * 12.9898) * 43758.5453
+        return x - x.rounded(.down)
     }
 
-    // Dots fill and empty from the bottom-right corner, row by row
-    func drawDots() {
-        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        let n: Int
-        switch state {
-        case .setup: n = Int((Self.secondsToFrac(cfg.seconds) * Double(total)).rounded())
-        case .done: n = total
-        default: n = grayCount()
+    // Marks which dots carry the numbers (2), the unit (3) or the dark ring around the numbers (1)
+    func stamp(_ over: inout [UInt8], _ d: (text: String, unit: String)) {
+        let digits = Skin.textWidth(d.text, Skin.big)
+        var s = max(1, min((cols - 4) / max(1, digits), Int(Double(rows) * 0.5) / 7,
+                           Int(min(Double(cols) / 34, Double(rows) / 20).rounded())))
+        if digits * s > cols - 2 { return }
+        // Keep clear of the buttons: drop the unit first, then make the numbers smaller
+        let buttonTop = bounds.height * 0.74 - 5.5 * px
+        let limit = min(rows - 1, Int(((buttonTop - gy0 - Self.cell) / Self.cell).rounded(.down)) + 1)
+        var unit = d.unit, u = 1, blockH = 0, top = 1
+        while true {
+            u = max(1, Int((Double(s) * 0.6).rounded()))
+            blockH = 7 * s + (unit.isEmpty ? 0 : 2 * s + 5 * u)
+            top = max(1, min(Int((Double(rows) * 0.40 - Double(blockH) / 2).rounded()), limit - blockH))
+            if top + blockH <= limit { break }
+            if !unit.isEmpty { unit = "" }
+            else if s > 1 { s -= 1; unit = d.unit }
+            else { return }
         }
-        let first = CGMutablePath(), rest = CGMutablePath()
-        let glow = [CGMutablePath(), CGMutablePath(), CGMutablePath()]
-        let cell = Self.dot + Self.gap, d = Self.dot
-        for r in 0..<rows {
-            for c in 0..<cols {
-                let order = (rows - 1 - r) * cols + (cols - 1 - c)
-                let x = gx0 + CGFloat(c) * cell, y = gy0 + CGFloat(r) * cell
-                let rect = CGRect(x: x, y: y, width: d, height: d)
-                if order < n {
-                    first.addEllipse(in: rect)
-                } else if state == .setup {
-                    rest.addEllipse(in: rect.insetBy(dx: 0.5, dy: 0.5))
-                } else {
-                    rest.addEllipse(in: rect)
-                    for (i, g) in glow.enumerated() {
-                        let grow = CGFloat(3 - i) * 1.2
-                        g.addEllipse(in: rect.insetBy(dx: -grow, dy: -grow))
+        var x = (cols - digits * s) / 2
+        for ch in d.text {
+            guard let g = Skin.big[ch] else { continue }
+            paint(&over, g, x, top, s, 2)
+            x += (g[0].count + 1) * s
+        }
+        if unit.isEmpty { return }
+        x = (cols - Skin.textWidth(unit, Skin.small) * u) / 2
+        let uy = top + 7 * s + 2 * s
+        for ch in unit {
+            guard let g = Skin.small[ch] else { continue }
+            paint(&over, g, x, uy, u, 3)
+            x += (g[0].count + 1) * u
+        }
+    }
+
+    func paint(_ over: inout [UInt8], _ glyph: [String], _ col: Int, _ row: Int, _ s: Int, _ value: UInt8) {
+        for (r, line) in glyph.enumerated() {
+            for (c, ch) in line.enumerated() where ch == "1" {
+                for dy in -1...s {
+                    for dx in -1...s {
+                        let gr = row + r * s + dy, gc = col + c * s + dx
+                        if gr < 0 || gc < 0 || gr >= rows || gc >= cols { continue }
+                        let k = gr * cols + gc
+                        if dy >= 0 && dx >= 0 && dy < s && dx < s { over[k] = value }
+                        else if over[k] == 0 && value == 2 { over[k] = 1 }
                     }
                 }
             }
         }
-        switch state {
-        case .setup:
-            ctx.setFillColor(Skin.setupFill.cgColor)
-            ctx.addPath(first); ctx.fillPath()
-            ctx.setStrokeColor(Skin.dotIdle.cgColor)
-            ctx.setLineWidth(1)
-            ctx.addPath(rest); ctx.strokePath()
-        default:
-            ctx.setFillColor(Skin.elapsed.cgColor)
-            ctx.addPath(first); ctx.fillPath()
-            // Soft glow, like box-shadow: 0 0 5px rgba(244,241,234,0.30)
-            for (i, g) in glow.enumerated() {
-                ctx.setFillColor(Skin.active.withAlphaComponent([0.055, 0.11, 0.18][i]).cgColor)
-                ctx.addPath(g); ctx.fillPath()
+    }
+
+    // White cards with dot letters, and the ··· menu button
+    func drawButton(_ b: Button) {
+        let hot = hover == b.id, down = hot && pressed == b.id
+        if b.id == "menu" {
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: b.rect, xRadius: px * 1.5, yRadius: px * 1.5).fill()
+            (hot ? Skin.rgb(0xe0, 0xe0, 0xe0) : Skin.rgb(0x80, 0x80, 0x80)).setFill()
+            for i in -1...1 {
+                let cx = b.rect.midX + CGFloat(i) * 2.6 * px, cy = b.rect.midY, r = px * 0.65
+                NSBezierPath(ovalIn: NSRect(x: cx - r, y: cy - r, width: 2 * r, height: 2 * r)).fill()
             }
-            ctx.setFillColor(Skin.active.cgColor)
-            ctx.addPath(rest); ctx.fillPath()
+            return
         }
-    }
-
-    func drawSetup() {
-        let (lcd, hint, start) = setupRects()
-        Skin.lcd.setFill()
-        lcd.fill()
-        Skin.sunken(lcd)
-        Skin.draw(Self.format(cfg.seconds), fReadout, Skin.lcdDigit, in: lcd)
-
-        Skin.bg.setFill()
-        hint.insetBy(dx: -4, dy: -3).fill()   // keeps the hint readable over lit dots
-        Skin.draw(Self.hintText, fHint, Skin.text, in: hint)
-
-        button(start, .start, active: false) { r in
-            let ts = Skin.size("Start", self.fStart)
-            let tri: CGFloat = 9, gap: CGFloat = 7
-            let x = r.midX - (tri + gap + ts.width) / 2, cy = r.midY
-            let p = NSBezierPath()
-            p.move(to: NSPoint(x: x, y: cy - tri * 0.55))
-            p.line(to: NSPoint(x: x + tri, y: cy))
-            p.line(to: NSPoint(x: x, y: cy + tri * 0.55))
-            p.close()
-            Skin.text.setFill()
-            p.fill()
-            Skin.draw("Start", self.fStart, Skin.text, in: NSRect(x: x + tri + gap, y: r.minY, width: ts.width + 2, height: r.height), left: true)
+        let r = down ? b.rect.offsetBy(dx: 0, dy: 1) : b.rect
+        (down ? Skin.rgb(0xc8, 0xc8, 0xc8) : hot ? NSColor.white : Skin.rgb(0xec, 0xec, 0xec)).setFill()
+        NSBezierPath(roundedRect: r, xRadius: px, yRadius: px).fill()
+        Skin.rgb(0x11, 0x11, 0x11).setFill()
+        let path = NSBezierPath()
+        var x = r.minX + 4 * px
+        let y = r.minY + 3 * px, dr = px * 0.42
+        for ch in b.label {
+            guard let g = Skin.small[ch] else { continue }
+            for (row, line) in g.enumerated() {
+                for (col, bit) in line.enumerated() where bit == "1" {
+                    let cx = x + CGFloat(col) * px + px / 2, cy = y + CGFloat(row) * px + px / 2
+                    path.appendOval(in: NSRect(x: cx - dr, y: cy - dr, width: 2 * dr, height: 2 * dr))
+                }
+            }
+            x += CGFloat(g[0].count + 1) * px
         }
-    }
-
-    func drawCancel() {
-        let r = rcCancel
-        let hot = hover == .cancel
-        (hot ? Skin.closeHover : Skin.face).setFill()
-        r.fill()
-        if pressed == .cancel { Skin.sunken(r) } else { Skin.raised(r) }
-        Skin.draw("×", fCancel, hot ? .white : Skin.text, in: r)
-    }
-
-    func drawPausedLabel() {
-        let text = "Paused — click to resume"
-        let s = Skin.size(text, fPaused)
-        let w = (s.width + 32).rounded(), h = (s.height + 14).rounded()
-        let r = NSRect(x: (rcApp.midX - w / 2).rounded(), y: (rcApp.midY - h / 2).rounded(), width: w, height: h)
-        Skin.face.setFill()
-        r.fill()
-        Skin.raised(r)
-        Skin.draw(text, fPaused, Skin.text, in: r)
-    }
-
-    func drawDone() {
-        let (box, title, label, ok) = doneRects()
-        Skin.face.setFill()
-        box.fill()
-        Skin.raised(box)
-        NSGradient(starting: Skin.titleFrom, ending: Skin.titleTo)?.draw(in: title, angle: 0)
-        Skin.draw("Field Timer", fAlertTitle, .white, in: NSRect(x: title.minX + 8, y: title.minY, width: title.width - 16, height: title.height), left: true)
-        Skin.draw("Time’s up!", fDone, Skin.text, in: NSRect(x: label.minX, y: label.minY + 8, width: label.width, height: label.height - 8))
-        button(ok, .ok, active: false) { r in Skin.draw("OK", self.fOk, Skin.text, in: r) }
-    }
-
-    // A Windows 95 push button; `content` draws the label, shifted while pressed
-    func button(_ r: NSRect, _ h: Hit, active: Bool, _ content: (NSRect) -> Void) {
-        let down = active || pressed == h
-        Skin.face.setFill()
-        r.fill()
-        if down { Skin.sunken(r) } else { Skin.raised(r) }
-        content(down ? r.offsetBy(dx: 1, dy: 1) : r)
+        path.fill()
     }
 }
 
@@ -691,26 +675,23 @@ enum License {
 // MARK: - App icon (used by build.sh: Field --write-iconset <dir>)
 
 enum IconArt {
-    // A small field of dots, the bottom ones already gray
+    // A small field of dots on black, the first ones lit
     static func draw(_ s: CGFloat) {
         let inset = s * 0.098
         let body = NSRect(x: inset, y: inset, width: s - 2 * inset, height: s - 2 * inset)
-        Skin.face.setFill()
+        Skin.rgb(0x0a, 0x0a, 0x0a).setFill()
         NSBezierPath(roundedRect: body, xRadius: body.width * 0.225, yRadius: body.width * 0.225).fill()
-        let inner = body.insetBy(dx: body.width * 0.09, dy: body.width * 0.09)
-        Skin.bg.setFill()
-        NSBezierPath(roundedRect: inner, xRadius: inner.width * 0.13, yRadius: inner.width * 0.13).fill()
+        let inner = body.insetBy(dx: body.width * 0.12, dy: body.width * 0.12)
 
         let n = 4
         let cell = inner.width / CGFloat(n), d = cell * 0.56
-        let gray = Skin.rgb(0x4a, 0x4a, 0x50)
+        let dim = Skin.rgb(0x3a, 0x3a, 0x3a), lit = Skin.rgb(0xf4, 0xf4, 0xf4)
         for r in 0..<n {
             for c in 0..<n {
                 // Not flipped here: row 0 is the top row, drawn at the highest y
-                let order = (n - 1 - r) * n + (n - 1 - c)
                 let cx = inner.minX + (CGFloat(c) + 0.5) * cell
                 let cy = inner.maxY - (CGFloat(r) + 0.5) * cell
-                (order < 6 ? gray : Skin.active).setFill()
+                (r * n + c < 6 ? lit : dim).setFill()
                 NSBezierPath(ovalIn: NSRect(x: cx - d / 2, y: cy - d / 2, width: d, height: d)).fill()
             }
         }
@@ -751,6 +732,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window = NSWindow(contentRect: field.frame, styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
         window.title = "Field"
+        // No chrome to speak of: a black title bar that melts into the field
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.backgroundColor = .black
+        window.appearance = NSAppearance(named: .darkAqua)
         window.contentView = field
         window.contentMinSize = NSSize(width: 260, height: 240)
         window.collectionBehavior = [.fullScreenPrimary]

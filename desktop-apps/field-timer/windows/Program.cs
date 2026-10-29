@@ -1,5 +1,9 @@
 // Field for Windows: the Field dot timer (tools/teaching/field-timer.html) as a desktop app.
 // Builds with the C# compiler that ships with Windows (.NET Framework 4.x); see build.ps1.
+//
+// Field is a tribute to Untime, the iPhone and iPad timer that Perceptor, the Dutch design studio of
+// Bastiaan Terhorst and Casper Schipper, made in 2012 (https://perceptor.nl/everything/untime.html).
+// The idea of time as a field of dots, the dot-matrix numbers and the glowing end are theirs.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,8 +19,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Field")]
 [assembly: AssemblyProduct("Field")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Mauricio Mendivelso. MIT License.")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("2.0.0.0")]
+[assembly: AssemblyFileVersion("2.0.0.0")]
 
 namespace FieldTimer
 {
@@ -39,52 +43,85 @@ namespace FieldTimer
         }
     }
 
-    // ── Dark Windows 95 skin (same tokens as the web page) ──
+    // ── Look (same palette and glyphs as the web page) ──
     static class Skin
     {
-        public static readonly Color Face = Color.FromArgb(0x3b, 0x3b, 0x3b);
-        public static readonly Color Hi = Color.FromArgb(0x6e, 0x6e, 0x6e);
-        public static readonly Color Lt = Color.FromArgb(0x54, 0x54, 0x54);
-        public static readonly Color Sh = Color.FromArgb(0x1c, 0x1c, 0x1c);
-        public static readonly Color Dk = Color.Black;
-        public static readonly Color Text = Color.FromArgb(0xe8, 0xe8, 0xe8);
-        public static readonly Color TitleFrom = Color.FromArgb(0x0a, 0x0a, 0x5c);
-        public static readonly Color TitleTo = Color.FromArgb(0x16, 0x3a, 0x70);
-        public static readonly Color CloseHover = Color.FromArgb(0xc0, 0x00, 0x00);
+        static readonly double[] Dark = { 0x24, 0x24, 0x24 }, Lit = { 0x8c, 0x8c, 0x8c }, LitPaused = { 0x4a, 0x4a, 0x4a };
+        static readonly double[] Halo = { 0x0e, 0x0e, 0x0e }, Glyph = { 0xff, 0xff, 0xff }, Unit = { 0xe6, 0xe6, 0xe6 };
+        // The glow at the end, from the centre (0) to the edge (1)
+        static readonly double[] WarmAt0 = { 0, 0.3, 0.5, 0.7, 0.86, 1 };
+        static readonly double[][] WarmRgb = {
+            new double[] { 255, 255, 255 }, new double[] { 255, 243, 176 }, new double[] { 255, 210, 90 },
+            new double[] { 255, 143, 42 }, new double[] { 168, 64, 26 }, new double[] { 42, 18, 8 } };
+        public const int PartialSteps = 16, WarmSteps = 48;
 
-        public static readonly Color Bg = Color.FromArgb(0x06, 0x06, 0x07);
-        public static readonly Color DotIdle = Color.FromArgb(26, 255, 255, 255);
-        public static readonly Color SetupFill = Color.FromArgb(0xcf, 0xcd, 0xc6);
-        public static readonly Color Active = Color.FromArgb(0xf4, 0xf1, 0xea);
-        public static readonly Color Elapsed = Color.FromArgb(0x33, 0x33, 0x38);
+        // Colour slots: 0 dark, 1 lit, 2 lit paused, 3 halo, 4 glyph, 5 unit, then partial and warm ramps
+        public const int PPartial = 6, PPartialPaused = PPartial + PartialSteps, PWarm = PPartialPaused + PartialSteps;
+        public static readonly Color[] Palette = BuildPalette();
 
-        public static readonly Color Lcd = Color.FromArgb(0x7f, 0xae, 0x86);
-        public static readonly Color LcdDigit = Color.FromArgb(0x16, 0x32, 0x1c);
-
-        static void Edge(Graphics g, Rectangle r, int t, Color tl, Color br)
+        static double[] Mix(double[] a, double[] b, double t)
         {
-            using (var b = new SolidBrush(tl))
-            {
-                g.FillRectangle(b, r.X, r.Y, r.Width, t);
-                g.FillRectangle(b, r.X, r.Y, t, r.Height);
-            }
-            using (var b = new SolidBrush(br))
-            {
-                g.FillRectangle(b, r.X, r.Bottom - t, r.Width, t);
-                g.FillRectangle(b, r.Right - t, r.Y, t, r.Height);
-            }
+            return new[] { a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t };
         }
 
-        public static void Raised(Graphics g, Rectangle r, int t)
+        static double[] Warm(double t)
         {
-            Edge(g, r, t, Hi, Dk);
-            Edge(g, Rectangle.Inflate(r, -t, -t), t, Lt, Sh);
+            t = Math.Min(1, Math.Max(0, t));
+            for (int i = 1; i < WarmAt0.Length; i++)
+                if (t <= WarmAt0[i])
+                    return Mix(WarmRgb[i - 1], WarmRgb[i], (t - WarmAt0[i - 1]) / (WarmAt0[i] - WarmAt0[i - 1]));
+            return WarmRgb[WarmRgb.Length - 1];
         }
 
-        public static void Sunken(Graphics g, Rectangle r, int t)
+        static Color ToColor(double[] c)
         {
-            Edge(g, r, t, Dk, Hi);
-            Edge(g, Rectangle.Inflate(r, -t, -t), t, Sh, Lt);
+            return Color.FromArgb((int)Math.Round(c[0]), (int)Math.Round(c[1]), (int)Math.Round(c[2]));
+        }
+
+        static Color[] BuildPalette()
+        {
+            var p = new List<Color> { ToColor(Dark), ToColor(Lit), ToColor(LitPaused), ToColor(Halo), ToColor(Glyph), ToColor(Unit) };
+            for (int i = 0; i < PartialSteps; i++) p.Add(ToColor(Mix(Dark, Lit, (i + 0.5) / PartialSteps)));
+            for (int i = 0; i < PartialSteps; i++) p.Add(ToColor(Mix(Dark, LitPaused, (i + 0.5) / PartialSteps)));
+            for (int i = 0; i < WarmSteps; i++) p.Add(ToColor(Warm(i / (double)(WarmSteps - 1))));
+            return p.ToArray();
+        }
+
+        // Dot-matrix glyphs: digits 5×7, letters 3×5 (small caps)
+        public static readonly Dictionary<char, string[]> Big = new Dictionary<char, string[]>
+        {
+            { '0', new[] { "01110", "10001", "10001", "10001", "10001", "10001", "01110" } },
+            { '1', new[] { "00100", "01100", "00100", "00100", "00100", "00100", "01110" } },
+            { '2', new[] { "01110", "10001", "00001", "00010", "00100", "01000", "11111" } },
+            { '3', new[] { "11110", "00001", "00001", "01110", "00001", "00001", "11110" } },
+            { '4', new[] { "00010", "00110", "01010", "10010", "11111", "00010", "00010" } },
+            { '5', new[] { "11111", "10000", "11110", "00001", "00001", "10001", "01110" } },
+            { '6', new[] { "00110", "01000", "10000", "11110", "10001", "10001", "01110" } },
+            { '7', new[] { "11111", "00001", "00010", "00100", "01000", "01000", "01000" } },
+            { '8', new[] { "01110", "10001", "10001", "01110", "10001", "10001", "01110" } },
+            { '9', new[] { "01110", "10001", "10001", "01111", "00001", "00010", "01100" } },
+            { ':', new[] { "0", "0", "1", "0", "1", "0", "0" } },
+        };
+        public static readonly Dictionary<char, string[]> Small = new Dictionary<char, string[]>
+        {
+            { 'A', new[] { "010", "101", "111", "101", "101" } }, { 'C', new[] { "011", "100", "100", "100", "011" } },
+            { 'D', new[] { "110", "101", "101", "101", "110" } }, { 'E', new[] { "111", "100", "110", "100", "111" } },
+            { 'H', new[] { "101", "101", "111", "101", "101" } }, { 'I', new[] { "111", "010", "010", "010", "111" } },
+            { 'M', new[] { "10001", "11011", "10101", "10001", "10001" } }, { 'N', new[] { "1001", "1101", "1011", "1001", "1001" } },
+            { 'P', new[] { "110", "101", "110", "100", "100" } }, { 'R', new[] { "110", "101", "110", "101", "101" } },
+            { 'S', new[] { "011", "100", "010", "001", "110" } }, { 'T', new[] { "111", "010", "010", "010", "010" } },
+            { 'U', new[] { "101", "101", "101", "101", "111" } },
+        };
+
+        public static int TextWidth(string s, Dictionary<char, string[]> font)
+        {
+            int w = 0;
+            for (int i = 0; i < s.Length; i++)
+            {
+                string[] g;
+                if (font.TryGetValue(s[i], out g)) w += g[0].Length + (i > 0 ? 1 : 0);
+            }
+            return w;
         }
 
         public static GraphicsPath Round(RectangleF r, float radius)
@@ -123,6 +160,15 @@ namespace FieldTimer
 
         public static int ClampSeconds(int v) { return v < MinSeconds ? MinSeconds : v > MaxSeconds ? MaxSeconds : v; }
 
+        // Seconds below a minute, whole minutes below an hour, then 5-minute steps
+        public static int Snap(int v)
+        {
+            int s = ClampSeconds(v);
+            if (s < 60) return s;
+            if (s < 3600) return ClampSeconds((int)Math.Round(s / 60.0, MidpointRounding.AwayFromZero) * 60);
+            return ClampSeconds((int)Math.Round(s / 300.0, MidpointRounding.AwayFromZero) * 300);
+        }
+
         public static Settings Load()
         {
             var s = new Settings();
@@ -139,7 +185,7 @@ namespace FieldTimer
                     bool isInt = int.TryParse(val, out n), isBool = bool.TryParse(val, out b);
                     switch (key)
                     {
-                        case "Seconds": if (isInt) s.Seconds = ClampSeconds(n); break;
+                        case "Seconds": if (isInt) s.Seconds = Snap(n); break;
                         case "TopMost": if (isBool) s.TopMost = b; break;
                         case "Sound": if (isBool) s.Sound = b; break;
                         case "X": if (isInt) x = n; break;
@@ -170,30 +216,36 @@ namespace FieldTimer
     class FieldForm : Form
     {
         enum State { Setup, Running, Paused, Done }
-        enum Hit { None, Full, Pin, About, Start, Cancel, Ok, Field }
+
+        class Btn
+        {
+            public string Id, Label;
+            public Rectangle R;
+        }
 
         [DllImport("user32.dll")] static extern bool FlashWindowEx(ref FLASHWINFO info);
+        [DllImport("user32.dll")] static extern bool SystemParametersInfo(uint action, uint param, ref bool value, uint flags);
+        [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
 
         [StructLayout(LayoutKind.Sequential)]
         struct FLASHWINFO { public uint cbSize; public IntPtr hwnd; public uint dwFlags; public uint uCount; public uint dwTimeout; }
 
         // Same geometry as the web page, in 96-dpi pixels
-        const float DOT = 11, GAP = 11, PAD = 18;
+        const float DOT = 8, CELL = 14, PAD = 14;
+        const double GlowMs = 60000;   // how long the glow at the end keeps moving
         static readonly double LogMin = Math.Log(Settings.MinSeconds), LogMax = Math.Log(Settings.MaxSeconds);
-        const string HintText = "Drag the field to set time";
-        const string GlyphFull = "", GlyphWindow = "", GlyphPin = "", GlyphPinned = "";
-        const TextFormatFlags Center = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
-                                       TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding;
 
         readonly Settings cfg = Settings.Load();
         readonly float k;
+        readonly bool reduceMotion;
         State state = State.Setup;
         readonly Stopwatch sw = new Stopwatch();         // runs while counting down, stops while paused
         readonly Stopwatch doneClock = new Stopwatch();
-        double durationMs;
-        int lastGray = -1;
+        double durationMs, startLit;
+        string lastFrame = "";
+        int doneFrames;
         bool dragging;
-        Hit pressed = Hit.None, hover = Hit.None;
+        string pressed, hover;
         int beepsLeft;
         long nextBeepMs;
         bool fullScreen, wasMaximized;
@@ -202,41 +254,34 @@ namespace FieldTimer
         readonly Timer tick;
         readonly ToolTip tip;
         string tipText = "";
+        ContextMenuStrip menu;
         ToolStripMenuItem miTop, miSound, miFull;
 
-        readonly Font fTitle, fGlyph, fAbout, fHint, fStart, fCancel, fPaused, fAlertTitle, fDone, fOk;
-        Font fReadout;
-        float readoutPx;
-        Bitmap spIdle, spSetup, spActive, spGray;
-        int spPad;
-
-        Rectangle rcHeader, rcFull, rcPin, rcAbout, rcScreen, rcApp;
+        Bitmap[] sprites;
+        int spSize, spPad;
         int cols = 1, rows = 1, total = 1;
-        float gx0, gy0;
+        float gx0, gy0, px = 3;
+        List<Btn> buttons = new List<Btn>();
 
         public FieldForm()
         {
             using (var g = CreateGraphics()) k = g.DpiX / 96f;
+            try
+            {
+                bool anim = true;
+                if (SystemParametersInfo(0x1042, 0, ref anim, 0)) reduceMotion = !anim;   // SPI_GETCLIENTAREAANIMATION
+            }
+            catch { }
             Text = "Field";
             AutoScaleMode = AutoScaleMode.None;
-            BackColor = Skin.Face;
+            BackColor = Color.Black;
             KeyPreview = true;
             StartPosition = FormStartPosition.Manual;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint |
                      ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             MinimumSize = SizeFromClientSize(new Size(S(260), S(240)));
-
-            fTitle = Px("Tahoma", 12, true);
-            fGlyph = Px("Segoe MDL2 Assets", 12, false);
-            fAbout = Px("Tahoma", 12.5f, true);
-            fHint = Px("Tahoma", 12, false);
-            fStart = Px("Tahoma", 13.6f, true);
-            fCancel = Px("Tahoma", 15, false);
-            fPaused = Px("Tahoma", 11.5f, true);
-            fAlertTitle = Px("Tahoma", 11.5f, true);
-            fDone = Px("Tahoma", 13.6f, false);
-            fOk = Px("Tahoma", 12.5f, true);
+            cfg.Seconds = Settings.Snap(cfg.Seconds);
             MakeSprites();
 
             tip = new ToolTip { InitialDelay = 600, ReshowDelay = 200 };
@@ -251,13 +296,20 @@ namespace FieldTimer
         }
 
         int S(float v) { return (int)Math.Round(v * k); }
-        int T { get { return Math.Max(1, (int)Math.Round(k)); } }
-        Font Px(string family, float px, bool bold)
-        {
-            return new Font(family, px * k, bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
-        }
 
         // ── Window ──
+
+        // A dark title bar, so the window is black all over (Windows 10 2004 and later)
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            try
+            {
+                int on = 1;
+                if (DwmSetWindowAttribute(Handle, 20, ref on, 4) != 0) DwmSetWindowAttribute(Handle, 19, ref on, 4);
+            }
+            catch { }
+        }
 
         void PlaceWindow()
         {
@@ -277,7 +329,7 @@ namespace FieldTimer
 
         void BuildMenu()
         {
-            var menu = new ContextMenuStrip();
+            menu = new ContextMenuStrip();
             miTop = new ToolStripMenuItem("Always on top", null, delegate { SetTopMost(!TopMost); });
             miSound = new ToolStripMenuItem("Sound at the end", null, delegate { cfg.Sound = !cfg.Sound; miSound.Checked = cfg.Sound; cfg.Save(); });
             miSound.Checked = cfg.Sound;
@@ -297,8 +349,6 @@ namespace FieldTimer
             cfg.TopMost = on;
             miTop.Checked = on;
             cfg.Save();
-            UpdateTip();
-            Invalidate(rcHeader);
         }
 
         void ToggleFullScreen()
@@ -321,7 +371,6 @@ namespace FieldTimer
                 if (wasMaximized) WindowState = FormWindowState.Maximized;
             }
             miFull.Checked = fullScreen;
-            UpdateTip();
             DoLayout();
             Invalidate();
         }
@@ -351,140 +400,145 @@ namespace FieldTimer
         void DoLayout()
         {
             int W = ClientSize.Width, H = ClientSize.Height;
-            int hh = S(34);
-            rcHeader = new Rectangle(0, 0, W, hh);
-            int bw = S(26), bh = S(24), by = (hh - bh) / 2, x = W - S(8);
-            rcAbout = new Rectangle(x - bw, by, bw, bh); x -= bw + S(3);
-            rcPin = new Rectangle(x - bw, by, bw, bh); x -= bw + S(3);
-            rcFull = new Rectangle(x - bw, by, bw, bh);
-
-            int m = S(6), b = 2 * T;
-            rcScreen = new Rectangle(m, hh + m, Math.Max(2 * b + 1, W - 2 * m), Math.Max(2 * b + 1, H - hh - 2 * m));
-            rcApp = Rectangle.Inflate(rcScreen, -b, -b);
-
-            float dot = DOT * k, cell = (DOT + GAP) * k, pad = PAD * k;
-            cols = Math.Max(1, (int)Math.Floor((rcApp.Width - 2 * pad) / cell));
-            rows = Math.Max(1, (int)Math.Floor((rcApp.Height - 2 * pad) / cell));
+            float dot = DOT * k, cell = CELL * k, pad = PAD * k;
+            cols = Math.Max(1, (int)Math.Floor((W - 2 * pad - dot) / cell) + 1);
+            rows = Math.Max(1, (int)Math.Floor((H - 2 * pad - dot) / cell) + 1);
             total = cols * rows;
-            float gw = cols * dot + (cols - 1) * GAP * k, gh = rows * dot + (rows - 1) * GAP * k;
-            gx0 = rcApp.X + (rcApp.Width - gw) / 2;
-            gy0 = rcApp.Y + (rcApp.Height - gh) / 2;
-            lastGray = -1;
+            gx0 = (W - (cols - 1) * cell) / 2f;
+            gy0 = (H - (rows - 1) * cell) / 2f;
+            px = k * Math.Max(2, Math.Min(6, (float)Math.Round(Math.Min(W, H) / k / 150f)));
+            if (state == State.Running || state == State.Paused) startLit = LitFor(durationMs / 1000.0);
+            lastFrame = "";
+            LayoutButtons();
+        }
 
-            // The readout grows with the window, like clamp(2.4rem, 10vw, 4.4rem) on the web page
-            float px = Math.Max(38, Math.Min(70, 0.10f * rcApp.Width / k));
-            if (fReadout == null || Math.Abs(px - readoutPx) > 0.5f)
+        Btn Card(string id, string label, float cx, float cy)
+        {
+            int w = (int)Math.Round((Skin.TextWidth(label, Skin.Small) + 8) * px), h = (int)Math.Round(11 * px);
+            return new Btn { Id = id, Label = label, R = new Rectangle((int)Math.Round(cx - w / 2f), (int)Math.Round(cy - h / 2f), w, h) };
+        }
+
+        void LayoutButtons()
+        {
+            float W = ClientSize.Width, cy = (float)Math.Round(ClientSize.Height * 0.74);
+            var b = new List<Btn>();
+            switch (state)
             {
-                if (fReadout != null) fReadout.Dispose();
-                fReadout = Px("Consolas", px, true);
-                readoutPx = px;
+                case State.Setup: b.Add(Card("start", "START", W / 2, cy)); break;
+                case State.Running: b.Add(Card("pause", "PAUSE", W / 2, cy)); break;
+                case State.Paused:
+                    var a = Card("resume", "RESUME", 0, cy);
+                    var r = Card("reset", "RESET", 0, cy);
+                    int gap = (int)Math.Round(4 * px);
+                    int x = (int)Math.Round(W / 2 - (a.R.Width + gap + r.R.Width) / 2f);
+                    a.R.X = x;
+                    r.R.X = x + a.R.Width + gap;
+                    b.Add(a);
+                    b.Add(r);
+                    break;
+                default: b.Add(Card("dismiss", "DISMISS", W / 2, cy)); break;
             }
+            int mw = (int)Math.Round(11 * px), mh = (int)Math.Round(7 * px);
+            b.Add(new Btn { Id = "menu", Label = "", R = new Rectangle((int)Math.Round(W / 2 - mw / 2f), (int)Math.Round(cy + 11 * px), mw, mh) });
+            buttons = b;
         }
 
-        Size Measure(string s, Font f)
+        Btn ButtonAt(Point p)
         {
-            return TextRenderer.MeasureText(s, f, Size.Empty, TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+            foreach (var b in buttons) if (b.R.Contains(p)) return b;
+            return null;
         }
-
-        void SetupRects(out Rectangle lcd, out Rectangle hint, out Rectangle start)
-        {
-            var ts = Measure(FormatDuration(cfg.Seconds), fReadout);
-            var hs = Measure(HintText, fHint);
-            var ss = Measure("Start", fStart);
-            int lw = ts.Width + S(48) + 4 * T, lh = ts.Height + S(24) + 4 * T;
-            int bw = ss.Width + S(16) + S(48), bh = ss.Height + S(18);
-            int gap = S(18);
-            int totalH = lh + gap + hs.Height + gap + S(2) + bh;
-            int cx = rcApp.X + rcApp.Width / 2, y = rcApp.Y + (rcApp.Height - totalH) / 2;
-            lcd = new Rectangle(cx - lw / 2, y, lw, lh); y += lh + gap;
-            hint = new Rectangle(cx - hs.Width / 2 - S(4), y, hs.Width + S(8), hs.Height); y += hs.Height + gap + S(2);
-            start = new Rectangle(cx - bw / 2, y, bw, bh);
-        }
-
-        void DoneRects(out Rectangle box, out Rectangle title, out Rectangle label, out Rectangle ok)
-        {
-            int bw = S(230), t = 2 * T;
-            int th = Measure("Field Timer", fAlertTitle).Height + S(10);
-            int lh = Measure("Time's up!", fDone).Height + S(32);
-            var os = Measure("OK", fOk);
-            int okw = os.Width + S(48), okh = os.Height + S(12);
-            int bh = t + th + lh + okh + S(16) + t;
-            box = new Rectangle(rcApp.X + (rcApp.Width - bw) / 2, rcApp.Y + (rcApp.Height - bh) / 2, bw, bh);
-            title = new Rectangle(box.X + t, box.Y + t, bw - 2 * t, th);
-            label = new Rectangle(box.X + t, title.Bottom, bw - 2 * t, lh);
-            ok = new Rectangle(box.X + (bw - okw) / 2, label.Bottom, okw, okh);
-        }
-
-        Rectangle RcCancel { get { return new Rectangle(rcApp.Right - S(6) - S(22), rcApp.Y + S(6), S(22), S(20)); } }
 
         // ── Time ──
 
-        static double SecondsToFrac(int seconds)
+        static double SecondsToFrac(double seconds)
         {
-            seconds = Settings.ClampSeconds(seconds);
+            seconds = Math.Min(Settings.MaxSeconds, Math.Max(Settings.MinSeconds, seconds));
             return (Math.Log(seconds) - LogMin) / (LogMax - LogMin);
         }
 
         static int FracToSeconds(double frac)
         {
             frac = Math.Min(1, Math.Max(0, frac));
-            return (int)Math.Round(Math.Exp(LogMin + frac * (LogMax - LogMin)));
+            return Settings.Snap((int)Math.Round(Math.Exp(LogMin + frac * (LogMax - LogMin))));
         }
 
-        static string FormatDuration(int totalSeconds)
+        // What the big numbers say: seconds, whole minutes, or h:mm
+        static void Display(double seconds, out string text, out string unit)
         {
-            int h = totalSeconds / 3600, m = (totalSeconds % 3600) / 60, s = totalSeconds % 60;
-            if (h > 0) return string.Format("{0}:{1:00}:{2:00}", h, m, s);
-            return string.Format("{0}:{1:00}", m, s);
+            int s = Math.Max(0, (int)Math.Ceiling(seconds));
+            if (s < 60) { text = s.ToString(); unit = "SEC"; return; }
+            int m = (s + 59) / 60;
+            if (m < 60) { text = m.ToString(); unit = "MIN"; return; }
+            text = string.Format("{0}:{1:00}", m / 60, m % 60);
+            unit = "H";
         }
 
-        int GrayCount()
+        static string Spoken(int seconds)
         {
-            double frac = Math.Min(1, sw.Elapsed.TotalMilliseconds / durationMs);
-            return (int)Math.Floor(frac * total);
+            string text, unit;
+            Display(seconds, out text, out unit);
+            return text + (unit == "SEC" ? " seconds" : unit == "MIN" ? " minutes" : " hours");
         }
+
+        double LitFor(double seconds) { return Math.Round(SecondsToFrac(seconds) * total); }
+
+        double RemainingMs { get { return Math.Max(0, durationMs - sw.Elapsed.TotalMilliseconds); } }
 
         void SetSeconds(int seconds)
         {
-            seconds = Settings.ClampSeconds(seconds);
+            seconds = Settings.Snap(seconds);
             if (seconds == cfg.Seconds) return;
             cfg.Seconds = seconds;
-            Invalidate(rcApp);
+            UpdateTip();
+            Invalidate();
         }
 
+        // Drag: the higher the pointer, the less time; the lit dots end where you point
         void SetFromY(int y)
         {
-            double frac = 1 - (y - rcApp.Top) / (double)Math.Max(1, rcApp.Height);
-            SetSeconds(FracToSeconds(frac));
+            float cell = CELL * k;
+            SetSeconds(FracToSeconds((y - (gy0 - cell / 2)) / (rows * cell)));
         }
 
-        // Wheel and arrow keys: about 10% more or less time per step
         void Nudge(int dir)
         {
-            int s = FracToSeconds(SecondsToFrac(cfg.Seconds) + dir * 0.01);
-            if (s == cfg.Seconds) s += dir;
+            int s = FracToSeconds(SecondsToFrac(cfg.Seconds) + dir * 0.012);
+            if (s == cfg.Seconds)
+            {
+                int step = cfg.Seconds < 60 ? 1 : cfg.Seconds < 3600 ? 60 : 300;
+                s = cfg.Seconds + dir * step;
+            }
             SetSeconds(s);
+        }
+
+        void StateChanged()
+        {
+            pressed = null;
+            lastFrame = "";
+            LayoutButtons();
+            UpdateTip();
+            Invalidate();
         }
 
         void Start()
         {
             durationMs = cfg.Seconds * 1000.0;
+            startLit = LitFor(cfg.Seconds);
             sw.Reset();
             sw.Start();
-            lastGray = -1;
             beepsLeft = 0;
             state = State.Running;
             cfg.Save();
-            UpdateTip();
-            Invalidate();
+            StateChanged();
         }
 
         void TogglePause()
         {
             if (state == State.Running) { sw.Stop(); state = State.Paused; }
             else if (state == State.Paused) { sw.Start(); state = State.Running; }
-            UpdateTip();
-            Invalidate(rcApp);
+            else return;
+            StateChanged();
         }
 
         void DoReset()
@@ -493,8 +547,7 @@ namespace FieldTimer
             doneClock.Reset();
             beepsLeft = 0;
             state = State.Setup;
-            UpdateTip();
-            Invalidate();
+            StateChanged();
         }
 
         void Finish()
@@ -503,11 +556,36 @@ namespace FieldTimer
             state = State.Done;
             doneClock.Reset();
             doneClock.Start();
+            doneFrames = 0;
             beepsLeft = cfg.Sound ? 3 : 0;
             nextBeepMs = 0;
             FlashTaskbar();
-            UpdateTip();
-            Invalidate();
+            StateChanged();
+        }
+
+        void Press(string id)
+        {
+            switch (id)
+            {
+                case "start": Start(); break;
+                case "pause": case "resume": TogglePause(); break;
+                case "reset": case "dismiss": DoReset(); break;
+                case "menu":
+                    var b = buttons[buttons.Count - 1];
+                    menu.Show(this, new Point(b.R.X + b.R.Width / 2 - S(60), b.R.Bottom + S(4)));
+                    break;
+            }
+        }
+
+        // What a countdown frame shows; the window repaints only when this changes
+        string FrameKey()
+        {
+            double lit = startLit * RemainingMs / Math.Max(1, durationMs);
+            int full = (int)Math.Floor(lit);
+            int step = (int)Math.Floor((lit - full) * Skin.PartialSteps);
+            string text, unit;
+            Display(RemainingMs / 1000.0, out text, out unit);
+            return full + "/" + step + "/" + text + unit;
         }
 
         void OnTick(object sender, EventArgs e)
@@ -515,8 +593,8 @@ namespace FieldTimer
             if (state == State.Running)
             {
                 if (sw.Elapsed.TotalMilliseconds >= durationMs) { Finish(); return; }
-                int gray = GrayCount();
-                if (gray != lastGray) { lastGray = gray; Invalidate(rcApp); }
+                string key = FrameKey();
+                if (key != lastFrame) { lastFrame = key; Invalidate(); }
             }
             else if (state == State.Done)
             {
@@ -527,7 +605,8 @@ namespace FieldTimer
                     beepsLeft--;
                     nextBeepMs += 1300;
                 }
-                if (t < 2400) Invalidate(rcApp);
+                // About 16 frames a second, for the first minute
+                if (!reduceMotion && t < GlowMs && (++doneFrames & 1) == 0) Invalidate();
             }
         }
 
@@ -574,65 +653,47 @@ namespace FieldTimer
 
         // ── Mouse ──
 
-        Hit HitTest(Point p)
-        {
-            if (rcFull.Contains(p)) return Hit.Full;
-            if (rcPin.Contains(p)) return Hit.Pin;
-            if (rcAbout.Contains(p)) return Hit.About;
-            if (!rcApp.Contains(p)) return Hit.None;
-            Rectangle a, b, c, d;
-            switch (state)
-            {
-                case State.Setup:
-                    SetupRects(out a, out b, out c);
-                    return c.Contains(p) ? Hit.Start : Hit.Field;
-                case State.Running:
-                case State.Paused:
-                    return RcCancel.Contains(p) ? Hit.Cancel : Hit.Field;
-                default:
-                    DoneRects(out a, out b, out c, out d);
-                    return d.Contains(p) ? Hit.Ok : Hit.None;
-            }
-        }
-
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
             if (e.Button != MouseButtons.Left) return;
-            var h = HitTest(e.Location);
-            if (h == Hit.Field && state == State.Setup)
+            var b = ButtonAt(e.Location);
+            if (b != null)
+            {
+                pressed = b.Id;
+                Invalidate(b.R);
+                return;
+            }
+            if (state == State.Setup)
             {
                 dragging = true;
                 Capture = true;
                 SetFromY(e.Y);
-                return;
             }
-            if (h != Hit.None)
-            {
-                pressed = h;
-                Invalidate();
-            }
+            else if (state == State.Running || state == State.Paused) pressed = "field";
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
             if (dragging) { SetFromY(e.Y); return; }
-            var h = HitTest(e.Location);
+            var b = ButtonAt(e.Location);
+            string h = b == null ? null : b.Id;
+            Cursor = b != null ? Cursors.Hand : state == State.Setup ? Cursors.SizeNS : Cursors.Default;
             if (h != hover)
             {
-                if (h == Hit.Cancel || hover == Hit.Cancel) Invalidate(RcCancel);
                 hover = h;
                 UpdateTip();
-                Cursor = h == Hit.Field && state == State.Setup ? Cursors.SizeNS : Cursors.Default;
+                Invalidate();
             }
         }
 
         protected override void OnMouseLeave(EventArgs e)
         {
             base.OnMouseLeave(e);
-            if (hover == Hit.Cancel) Invalidate(RcCancel);
-            hover = Hit.None;
+            if (hover == null) return;
+            hover = null;
+            Invalidate();
         }
 
         protected override void OnMouseUp(MouseEventArgs e)
@@ -645,42 +706,35 @@ namespace FieldTimer
                 cfg.Save();
                 return;
             }
-            if (pressed == Hit.None) return;
-            var p = pressed;
-            pressed = Hit.None;
+            if (pressed == null) return;
+            string p = pressed;
+            pressed = null;
             Invalidate();
-            if (HitTest(e.Location) != p) return;
-            switch (p)
-            {
-                case Hit.Full: ToggleFullScreen(); break;
-                case Hit.Pin: SetTopMost(!TopMost); break;
-                case Hit.About: ShowAbout(); break;
-                case Hit.Start: Start(); break;
-                case Hit.Cancel:
-                case Hit.Ok: DoReset(); break;
-                case Hit.Field: TogglePause(); break;
-            }
+            var b = ButtonAt(e.Location);
+            if (p == "field") { if (b == null) TogglePause(); return; }
+            if (b != null && b.Id == p) Press(p);
         }
 
         protected override void OnMouseWheel(MouseEventArgs e)
         {
             base.OnMouseWheel(e);
-            if (state == State.Setup && rcApp.Contains(e.Location)) Nudge(e.Delta > 0 ? 1 : -1);
+            if (state == State.Setup) Nudge(e.Delta > 0 ? 1 : -1);
         }
 
         void UpdateTip()
         {
-            string t = "";
+            string t;
             switch (hover)
             {
-                case Hit.Full: t = fullScreen ? "Exit full screen (F11)" : "Full screen (F11)"; break;
-                case Hit.Pin: t = TopMost ? "Always on top: ON (click to turn off)" : "Always on top: OFF (click to turn on)"; break;
-                case Hit.About: t = "About Field"; break;
-                case Hit.Start: t = "Start (Space)"; break;
-                case Hit.Cancel: t = "Cancel (Esc)"; break;
-                case Hit.Field:
-                    t = state == State.Setup ? "Drag up or down, or scroll, to set the time" :
-                        state == State.Paused ? "Click to resume (Space)" : "Click to pause (Space)";
+                case "start": t = "Start (Space)"; break;
+                case "pause": t = "Pause (Space)"; break;
+                case "resume": t = "Resume (Space)"; break;
+                case "reset": case "dismiss": t = "Reset (Esc)"; break;
+                case "menu": t = "Options and About"; break;
+                default:
+                    t = state == State.Setup ? "Drag down for more time, or scroll (now " + Spoken(cfg.Seconds) + ")" :
+                        state == State.Paused ? "Click to resume (Space)" :
+                        state == State.Running ? "Click to pause (Space)" : "Time's up";
                     break;
             }
             if (t == tipText) return;
@@ -693,205 +747,197 @@ namespace FieldTimer
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
-            g.Clear(Skin.Face);
+            g.Clear(Color.Black);
 
-            // Header: title, then full screen, pin and about buttons
-            using (var b = new SolidBrush(Skin.Sh)) g.FillRectangle(b, 0, rcHeader.Bottom - 2 * T, rcHeader.Width, T);
-            using (var b = new SolidBrush(Skin.Lt)) g.FillRectangle(b, 0, rcHeader.Bottom - T, rcHeader.Width, T);
-            TextRenderer.DrawText(g, "FIELD", fTitle, new Rectangle(S(10), 0, Math.Max(0, rcFull.X - S(14)), rcHeader.Height - 2 * T), Skin.Text,
-                TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis);
-            DrawButton(g, rcFull, fullScreen ? GlyphWindow : GlyphFull, fGlyph, Hit.Full, fullScreen);
-            DrawButton(g, rcPin, TopMost ? GlyphPinned : GlyphPin, fGlyph, Hit.Pin, TopMost);
-            DrawButton(g, rcAbout, "?", fAbout, Hit.About, false);
+            var slot = new byte[total];
+            var over = new byte[total];
+            bool paused = state == State.Paused;
+            float cell = CELL * k;
 
-            // Screen
-            Skin.Sunken(g, rcScreen, T);
-            using (var b = new SolidBrush(Skin.Bg)) g.FillRectangle(b, rcApp);
-            g.SetClip(rcApp);
-            DrawDots(g);
-            if (state == State.Paused) Veil(g, 0.55);
-            if (state == State.Done && doneClock.ElapsedMilliseconds < 2200)
+            if (state == State.Setup)
             {
-                // Two slow "breaths" of the gray field, as on the web page
-                double t = doneClock.ElapsedMilliseconds / 1000.0;
-                Veil(g, 0.25 * (1 - Math.Cos(2 * Math.PI * t / 1.1)));
+                int n = (int)Math.Min(total, LitFor(cfg.Seconds));
+                for (int i = 0; i < n; i++) slot[i] = 1;
+                string text, unit;
+                Display(cfg.Seconds, out text, out unit);
+                Stamp(over, text, unit);
+            }
+            else if (state == State.Running || paused)
+            {
+                double remaining = RemainingMs;
+                double lit = startLit * remaining / Math.Max(1, durationMs);
+                int full = (int)Math.Min(total, Math.Floor(lit));
+                for (int i = 0; i < full; i++) slot[i] = (byte)(paused ? 2 : 1);
+                if (full < total && lit > full)
+                {
+                    int step = Math.Min(Skin.PartialSteps - 1, (int)Math.Floor((lit - full) * Skin.PartialSteps));
+                    slot[full] = (byte)((paused ? Skin.PPartialPaused : Skin.PPartial) + step);
+                }
+                string text, unit;
+                Display(remaining / 1000.0, out text, out unit);
+                Stamp(over, text, unit);
+            }
+            else
+            {
+                // The glow: warm colours spreading from the centre, breathing, with a little sparkle
+                double t = reduceMotion ? 3 : Math.Min(doneClock.ElapsedMilliseconds, GlowMs) / 1000.0;
+                double grow = Math.Min(1, 0.2 + t / 1.4);
+                double breathe = 1 + 0.08 * Math.Sin(t * 2 * Math.PI / 2.4);
+                double R = 0.62 * Math.Max(ClientSize.Width, ClientSize.Height) * grow * breathe;
+                double cx = ClientSize.Width / 2.0, cy = ClientSize.Height * 0.42;
+                for (int r = 0; r < rows; r++)
+                    for (int c = 0; c < cols; c++)
+                    {
+                        int i = r * cols + c;
+                        double dx = gx0 + c * cell - cx, dy = gy0 + r * cell - cy;
+                        double tw = reduceMotion ? 0 : 0.07 * Math.Sin(Hash(i) * 6.283 + t * (1.5 + 2 * Hash(i + 7)));
+                        double v = Math.Sqrt(dx * dx + dy * dy) / R + tw;
+                        slot[i] = (byte)(Skin.PWarm + Math.Min(Skin.WarmSteps - 1, Math.Max(0, (int)Math.Round(v * (Skin.WarmSteps - 1)))));
+                    }
+                Stamp(over, "0", "");
             }
 
-            switch (state)
-            {
-                case State.Setup: DrawSetup(g); break;
-                case State.Running:
-                case State.Paused:
-                    DrawCancel(g);
-                    if (state == State.Paused) DrawPausedLabel(g);
-                    break;
-                case State.Done: DrawDone(g); break;
-            }
-            g.ResetClip();
-        }
-
-        void Veil(Graphics g, double alpha)
-        {
-            int a = (int)Math.Round(255 * Math.Max(0, Math.Min(1, alpha)));
-            using (var b = new SolidBrush(Color.FromArgb(a, Skin.Bg))) g.FillRectangle(b, rcApp);
-        }
-
-        // Dots fill and empty from the bottom-right corner, row by row
-        void DrawDots(Graphics g)
-        {
-            Bitmap first, rest;
-            int n;
-            switch (state)
-            {
-                case State.Setup:
-                    first = spSetup; rest = spIdle;
-                    n = (int)Math.Round(SecondsToFrac(cfg.Seconds) * total);
-                    break;
-                case State.Done:
-                    first = spGray; rest = spGray; n = total;
-                    break;
-                default:
-                    first = spGray; rest = spActive; n = GrayCount();
-                    break;
-            }
             g.InterpolationMode = InterpolationMode.NearestNeighbor;
             g.PixelOffsetMode = PixelOffsetMode.Half;
-            float cell = (DOT + GAP) * k;
-            int size = spIdle.Width;
-            for (int r = 0; r < rows; r++)
+            var clip = e.ClipRectangle;
+            for (int i = 0; i < total; i++)
             {
-                int y = (int)Math.Round(gy0 + r * cell) - spPad;
-                for (int c = 0; c < cols; c++)
-                {
-                    int order = (rows - 1 - r) * cols + (cols - 1 - c);
-                    int x = (int)Math.Round(gx0 + c * cell) - spPad;
-                    g.DrawImage(order < n ? first : rest, new Rectangle(x, y, size, size));
-                }
+                int o = over[i];
+                int p = o == 2 ? 4 : o == 3 ? 5 : o == 1 ? 3 : slot[i];
+                int x = (int)Math.Round(gx0 + (i % cols) * cell) - spSize / 2;
+                int y = (int)Math.Round(gy0 + (i / cols) * cell) - spSize / 2;
+                if (x > clip.Right || y > clip.Bottom || x + spSize < clip.X || y + spSize < clip.Y) continue;
+                g.DrawImage(sprites[p], new Rectangle(x, y, spSize, spSize));
             }
             g.InterpolationMode = InterpolationMode.Default;
             g.PixelOffsetMode = PixelOffsetMode.Default;
-        }
 
-        void DrawSetup(Graphics g)
-        {
-            Rectangle lcd, hint, start;
-            SetupRects(out lcd, out hint, out start);
-
-            using (var b = new SolidBrush(Skin.Lcd)) g.FillRectangle(b, lcd);
-            Skin.Sunken(g, lcd, T);
-            TextRenderer.DrawText(g, FormatDuration(cfg.Seconds), fReadout, lcd, Skin.LcdDigit, Center);
-
-            using (var b = new SolidBrush(Skin.Bg)) g.FillRectangle(b, Rectangle.Inflate(hint, S(4), S(3)));   // keeps the hint readable over lit dots
-            TextRenderer.DrawText(g, HintText, fHint, hint, Skin.Text, Center);
-
-            bool down = pressed == Hit.Start;
-            using (var b = new SolidBrush(Skin.Face)) g.FillRectangle(b, start);
-            if (down) Skin.Sunken(g, start, T); else Skin.Raised(g, start, T);
-            var r = down ? new Rectangle(start.X + T, start.Y + T, start.Width, start.Height) : start;
-            var ts = Measure("Start", fStart);
-            int tri = S(9), gap = S(7);
-            int x = r.X + (r.Width - (tri + gap + ts.Width)) / 2, cy = r.Y + r.Height / 2;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            using (var b = new SolidBrush(Skin.Text))
-                g.FillPolygon(b, new[] { new PointF(x, cy - tri * 0.55f), new PointF(x + tri, cy), new PointF(x, cy + tri * 0.55f) });
+            foreach (var b in buttons) DrawButton(g, b);
             g.SmoothingMode = SmoothingMode.Default;
-            TextRenderer.DrawText(g, "Start", fStart, new Rectangle(x + tri + gap, r.Y, ts.Width + S(2), r.Height), Skin.Text,
-                TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
         }
 
-        void DrawCancel(Graphics g)
+        static double Hash(int i)
         {
-            var r = RcCancel;
-            bool down = pressed == Hit.Cancel, hot = hover == Hit.Cancel;
-            using (var b = new SolidBrush(hot ? Skin.CloseHover : Skin.Face)) g.FillRectangle(b, r);
-            if (down) Skin.Sunken(g, r, T); else Skin.Raised(g, r, T);
-            TextRenderer.DrawText(g, "×", fCancel, r, hot ? Color.White : Skin.Text, Center);
+            double x = Math.Sin(i * 12.9898) * 43758.5453;
+            return x - Math.Floor(x);
         }
 
-        void DrawPausedLabel(Graphics g)
+        // Marks which dots carry the numbers (2), the unit (3) or the dark ring around the numbers (1)
+        void Stamp(byte[] over, string text, string unit)
         {
-            const string text = "Paused — click to resume";
-            var s = Measure(text, fPaused);
-            int w = s.Width + S(32), h = s.Height + S(14);
-            var r = new Rectangle(rcApp.X + (rcApp.Width - w) / 2, rcApp.Y + (rcApp.Height - h) / 2, w, h);
-            using (var b = new SolidBrush(Skin.Face)) g.FillRectangle(b, r);
-            Skin.Raised(g, r, T);
-            TextRenderer.DrawText(g, text, fPaused, r, Skin.Text, Center);
+            int digits = Skin.TextWidth(text, Skin.Big);
+            int s = Math.Max(1, Math.Min(Math.Min((cols - 4) / Math.Max(1, digits), (int)(rows * 0.5) / 7),
+                                         (int)Math.Round(Math.Min(cols / 34.0, rows / 20.0))));
+            if (digits * s > cols - 2) return;
+            // Keep clear of the buttons: drop the unit first, then make the numbers smaller
+            float cell = CELL * k, buttonTop = ClientSize.Height * 0.74f - 5.5f * px;
+            int limit = Math.Min(rows - 1, (int)Math.Floor((buttonTop - gy0 - cell) / cell) + 1);
+            string wanted = unit;
+            int u, blockH, top;
+            while (true)
+            {
+                u = Math.Max(1, (int)Math.Round(s * 0.6));
+                blockH = 7 * s + (unit.Length == 0 ? 0 : 2 * s + 5 * u);
+                top = Math.Max(1, Math.Min((int)Math.Round(rows * 0.40 - blockH / 2.0), limit - blockH));
+                if (top + blockH <= limit) break;
+                if (unit.Length > 0) unit = "";
+                else if (s > 1) { s--; unit = wanted; }
+                else return;
+            }
+            int x = (cols - digits * s) / 2;
+            foreach (char ch in text)
+            {
+                string[] g;
+                if (!Skin.Big.TryGetValue(ch, out g)) continue;
+                PaintGlyph(over, g, x, top, s, 2);
+                x += (g[0].Length + 1) * s;
+            }
+            if (unit.Length == 0) return;
+            x = (cols - Skin.TextWidth(unit, Skin.Small) * u) / 2;
+            int uy = top + 7 * s + 2 * s;
+            foreach (char ch in unit)
+            {
+                string[] g;
+                if (!Skin.Small.TryGetValue(ch, out g)) continue;
+                PaintGlyph(over, g, x, uy, u, 3);
+                x += (g[0].Length + 1) * u;
+            }
         }
 
-        void DrawDone(Graphics g)
+        void PaintGlyph(byte[] over, string[] glyph, int col, int row, int s, byte value)
         {
-            Rectangle box, title, label, ok;
-            DoneRects(out box, out title, out label, out ok);
-            using (var b = new SolidBrush(Skin.Face)) g.FillRectangle(b, box);
-            Skin.Raised(g, box, T);
-            using (var b = new LinearGradientBrush(new Rectangle(title.X - 1, title.Y, title.Width + 2, title.Height),
-                                                   Skin.TitleFrom, Skin.TitleTo, LinearGradientMode.Horizontal))
-                g.FillRectangle(b, title);
-            TextRenderer.DrawText(g, "Field Timer", fAlertTitle, new Rectangle(title.X + S(8), title.Y, title.Width - S(16), title.Height), Color.White,
-                TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
-            TextRenderer.DrawText(g, "Time’s up!", fDone, new Rectangle(label.X, label.Y + S(8), label.Width, label.Height - S(8)), Skin.Text, Center);
-
-            bool down = pressed == Hit.Ok;
-            using (var b = new SolidBrush(Skin.Face)) g.FillRectangle(b, ok);
-            if (down) Skin.Sunken(g, ok, T); else Skin.Raised(g, ok, T);
-            var r = down ? new Rectangle(ok.X + T, ok.Y + T, ok.Width, ok.Height) : ok;
-            TextRenderer.DrawText(g, "OK", fOk, r, Skin.Text, Center);
+            for (int r = 0; r < glyph.Length; r++)
+                for (int c = 0; c < glyph[r].Length; c++)
+                {
+                    if (glyph[r][c] != '1') continue;
+                    for (int dy = -1; dy <= s; dy++)
+                        for (int dx = -1; dx <= s; dx++)
+                        {
+                            int gr = row + r * s + dy, gc = col + c * s + dx;
+                            if (gr < 0 || gc < 0 || gr >= rows || gc >= cols) continue;
+                            int i = gr * cols + gc;
+                            if (dy >= 0 && dx >= 0 && dy < s && dx < s) over[i] = value;
+                            else if (over[i] == 0 && value == 2) over[i] = 1;
+                        }
+                }
         }
 
-        void DrawButton(Graphics g, Rectangle r, string text, Font f, Hit h, bool active)
+        // White cards with dot letters, and the ··· menu button
+        void DrawButton(Graphics g, Btn b)
         {
-            bool down = active || pressed == h;
-            using (var b = new SolidBrush(Skin.Face)) g.FillRectangle(b, r);
-            if (down) Skin.Sunken(g, r, T); else Skin.Raised(g, r, T);
-            var tr = down ? new Rectangle(r.X + T, r.Y + T, r.Width, r.Height) : r;
-            TextRenderer.DrawText(g, text, f, tr, Skin.Text, Center);
+            bool hot = hover == b.Id, down = hot && pressed == b.Id;
+            if (b.Id == "menu")
+            {
+                Skin.FillRound(g, b.R, px * 1.5f, Color.Black);
+                using (var br = new SolidBrush(hot ? Color.FromArgb(0xe0, 0xe0, 0xe0) : Color.FromArgb(0x80, 0x80, 0x80)))
+                    for (int i = -1; i <= 1; i++)
+                    {
+                        float cx = b.R.X + b.R.Width / 2f + i * 2.6f * px, cy = b.R.Y + b.R.Height / 2f, rr = px * 0.65f;
+                        g.FillEllipse(br, cx - rr, cy - rr, 2 * rr, 2 * rr);
+                    }
+                return;
+            }
+            var r = b.R;
+            if (down) r.Offset(0, 1);
+            Skin.FillRound(g, r, px, down ? Color.FromArgb(0xc8, 0xc8, 0xc8) : hot ? Color.White : Color.FromArgb(0xec, 0xec, 0xec));
+            float x = r.X + 4 * px, y = r.Y + 3 * px, dr = px * 0.42f;
+            using (var br = new SolidBrush(Color.FromArgb(0x11, 0x11, 0x11)))
+                foreach (char ch in b.Label)
+                {
+                    string[] gl;
+                    if (!Skin.Small.TryGetValue(ch, out gl)) continue;
+                    for (int row = 0; row < gl.Length; row++)
+                        for (int col = 0; col < gl[row].Length; col++)
+                        {
+                            if (gl[row][col] != '1') continue;
+                            float cx = x + col * px + px / 2, cy = y + row * px + px / 2;
+                            g.FillEllipse(br, cx - dr, cy - dr, 2 * dr, 2 * dr);
+                        }
+                    x += (gl[0].Length + 1) * px;
+                }
         }
 
-        // ── Dot sprites, drawn once ──
+        // ── Dot sprites, one per colour, drawn once ──
 
         void MakeSprites()
         {
             int d = Math.Max(3, (int)Math.Round(DOT * k));
-            spPad = (int)Math.Ceiling(4 * k);
-            int size = d + 2 * spPad;
-            float pw = Math.Max(1f, k);
-            spIdle = Sprite(size, g =>
+            spPad = 1;
+            spSize = d + 2 * spPad;
+            sprites = new Bitmap[Skin.Palette.Length];
+            for (int i = 0; i < sprites.Length; i++)
             {
-                using (var pen = new Pen(Skin.DotIdle, pw))
-                    g.DrawEllipse(pen, spPad + pw / 2, spPad + pw / 2, d - pw, d - pw);
-            });
-            spSetup = Sprite(size, g => Disc(g, spPad, d, Skin.SetupFill));
-            spActive = Sprite(size, g =>
-            {
-                // Soft glow, like box-shadow: 0 0 5px rgba(244,241,234,0.30)
-                int[] alpha = { 14, 28, 46 };
-                for (int i = 0; i < 3; i++)
+                var bmp = new Bitmap(spSize, spSize, PixelFormat.Format32bppPArgb);
+                using (var g = Graphics.FromImage(bmp))
+                using (var b = new SolidBrush(Skin.Palette[i]))
                 {
-                    float grow = (3 - i) * 1.2f * k;
-                    using (var b = new SolidBrush(Color.FromArgb(alpha[i], Skin.Active)))
-                        g.FillEllipse(b, spPad - grow, spPad - grow, d + 2 * grow, d + 2 * grow);
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.Clear(Color.Transparent);
+                    g.FillEllipse(b, spPad, spPad, d, d);
                 }
-                Disc(g, spPad, d, Skin.Active);
-            });
-            spGray = Sprite(size, g => Disc(g, spPad, d, Skin.Elapsed));
-        }
-
-        static void Disc(Graphics g, int at, int d, Color c)
-        {
-            using (var b = new SolidBrush(c)) g.FillEllipse(b, at, at, d, d);
-        }
-
-        static Bitmap Sprite(int size, Action<Graphics> draw)
-        {
-            var bmp = new Bitmap(size, size, PixelFormat.Format32bppPArgb);
-            using (var g = Graphics.FromImage(bmp))
-            {
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-                g.Clear(Color.Transparent);
-                draw(g);
+                sprites[i] = bmp;
             }
-            return bmp;
         }
     }
 
@@ -916,6 +962,8 @@ namespace FieldTimer
             "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE " +
             "SOFTWARE.";
 
+        const string UntimeUrl = "https://perceptor.nl/everything/untime.html";
+
         public AboutForm()
         {
             SuspendLayout();
@@ -928,7 +976,7 @@ namespace FieldTimer
             MinimizeBox = false;
             ShowInTaskbar = false;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(420, 410);
+            ClientSize = new Size(420, 500);
 
             var icon = new PictureBox { Location = new Point(16, 16), Size = new Size(48, 48), SizeMode = PictureBoxSizeMode.Zoom };
             var bmp = new Bitmap(96, 96, PixelFormat.Format32bppArgb);
@@ -937,23 +985,36 @@ namespace FieldTimer
             Controls.Add(icon);
 
             Controls.Add(new Label { Text = "Field", Location = new Point(76, 16), AutoSize = true, Font = new Font("Segoe UI Semibold", 12F) });
-            Controls.Add(new Label { Text = "Version 1.0  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
+            Controls.Add(new Label { Text = "Version 2.0  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
+            Controls.Add(new Label
+            {
+                Text = "Field is a tribute to Untime, the timer app made in 2012 by Perceptor, the Dutch design studio of " +
+                       "Bastiaan Terhorst and Casper Schipper. Showing time as a quiet field of dots was their idea, and the " +
+                       "numbers drawn with dots and the glow at the end come from their app. Thank you for a wonderful idea.",
+                Location = new Point(16, 80), Size = new Size(390, 84)
+            });
+            var link = new LinkLabel { Text = "Untime on perceptor.nl", Location = new Point(16, 166), AutoSize = true };
+            link.LinkClicked += delegate
+            {
+                try { Process.Start(UntimeUrl); } catch { }
+            };
+            Controls.Add(link);
             Controls.Add(new Label
             {
                 Text = "Free software, provided \"as is\", without warranty of any kind. Don't rely on it " +
                        "where an interrupted countdown could cause harm or loss.\r\n" +
                        "This app collects no personal data and never connects to the internet.",
-                Location = new Point(16, 80), Size = new Size(390, 54)
+                Location = new Point(16, 196), Size = new Size(390, 54)
             });
 
             Controls.Add(new TextBox
             {
                 Text = License, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical,
-                Location = new Point(16, 142), Size = new Size(388, 214), TabStop = false,
+                Location = new Point(16, 256), Size = new Size(388, 190), TabStop = false,
                 BackColor = SystemColors.Window
             });
 
-            var ok = new Button { Text = "OK", Location = new Point(324, 368), Size = new Size(80, 28), DialogResult = DialogResult.OK };
+            var ok = new Button { Text = "OK", Location = new Point(324, 458), Size = new Size(80, 28), DialogResult = DialogResult.OK };
             Controls.Add(ok);
             AcceptButton = ok;
             CancelButton = ok;
@@ -961,7 +1022,7 @@ namespace FieldTimer
         }
     }
 
-    // App icon: a small field of dots, the bottom ones already gray
+    // App icon: a small field of dots on black, the first ones lit
     static class IconArt
     {
         public static void Draw(Graphics g, int size)
@@ -971,20 +1032,19 @@ namespace FieldTimer
             g.Clear(Color.Transparent);
             float m = s * 0.03f;
             var body = new RectangleF(m, m, s - 2 * m, s - 2 * m);
-            Skin.FillRound(g, body, s * 0.2f, Skin.Face);
-            float inset = s * 0.09f;
+            Skin.FillRound(g, body, s * 0.2f, Color.FromArgb(0x0a, 0x0a, 0x0a));
+            float inset = s * 0.12f;
             var inner = new RectangleF(body.X + inset, body.Y + inset, body.Width - 2 * inset, body.Height - 2 * inset);
-            Skin.FillRound(g, inner, s * 0.12f, Skin.Bg);
 
             const int n = 4;
             float cell = inner.Width / n, d = cell * 0.56f;
-            var gray = Color.FromArgb(0x4a, 0x4a, 0x50);
+            var dim = Color.FromArgb(0x3a, 0x3a, 0x3a);
+            var lit = Color.FromArgb(0xf4, 0xf4, 0xf4);
             for (int r = 0; r < n; r++)
                 for (int c = 0; c < n; c++)
                 {
-                    int order = (n - 1 - r) * n + (n - 1 - c);
                     float cx = inner.X + (c + 0.5f) * cell, cy = inner.Y + (r + 0.5f) * cell;
-                    using (var b = new SolidBrush(order < 6 ? gray : Skin.Active))
+                    using (var b = new SolidBrush(r * n + c < 6 ? lit : dim))
                         g.FillEllipse(b, cx - d / 2, cy - d / 2, d, d);
                 }
         }
