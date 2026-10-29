@@ -93,13 +93,14 @@ namespace PhysicsCalculator
         public static int BevelWidth { get { return 2 * T; } }
 
         static readonly Dictionary<string, Font> fonts = new Dictionary<string, Font>();
-        public static Font Font(string family, float px, bool bold)
+        public static Font Font(string family, float px, bool bold, bool italic = false)
         {
-            string key = family + "|" + px + "|" + bold;
+            string key = family + "|" + px + "|" + bold + "|" + italic;
             Font f;
             if (!fonts.TryGetValue(key, out f))
             {
-                f = new Font(family, Math.Max(1, px * K), bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Pixel);
+                var style = (bold ? FontStyle.Bold : FontStyle.Regular) | (italic ? FontStyle.Italic : FontStyle.Regular);
+                f = new Font(family, Math.Max(1, px * K), style, GraphicsUnit.Pixel);
                 fonts[key] = f;
             }
             return f;
@@ -296,7 +297,8 @@ namespace PhysicsCalculator
         static readonly string[][] HINT = {
             new[] { "Numbers can carry units: ", "`3 m/s × 2 s" },
             new[] { "Convert with “to”: ", "`72 km/h to m/s", ", ", "`25 °C to °F" },
-            new[] { "Constants: ", "`G Mearth / Rearth^2", " · ½mv²: ", "`1/2 × 2 kg × (3 m/s)^2" } };
+            new[] { "Constants: ", "`G M_Earth / R_Earth^2", " · find any with ", "`Ctrl+K" },
+            new[] { "½mv²: ", "`1/2 × 2 kg × (3 m/s)^2", " · ", "`\\hbar", " types ħ" } };
 
         struct Word { public string Text; public bool Code; public Rectangle R; }
 
@@ -406,32 +408,127 @@ namespace PhysicsCalculator
         }
     }
 
-    // Constants pad: one raised button per constant, scrolling
+    // Constants pad: a search bar, then one raised button per constant, grouped.
+    // The search takes its keys from the expression box (CalcForm.SearchKey), so the
+    // focus never moves: Ctrl+K, type, ↑ ↓, Enter.
     class ConstView : ScrollBox
     {
         public event Action<string> Picked;
+        public event Action SearchClicked;
+        public string Query { get; private set; }     // null: not searching
+        public List<Constant> Items = Engine.CONSTANTS.ToList();
+        public int Pick = -1;
         int pressed = -1;
+        // A group heading (Row = -1) or a constant (index into Items), at Y from the top of the content
+        struct Entry { public string Head; public int Row, Y; }
 
         public ConstView() : base(false) { BackColor = W95.Face; }
 
         int Pad { get { return W95.S(8); } }
-        int RowH { get { return W95.S(44); } }
+        int BarH { get { return W95.S(30); } }
+        int HeadH { get { return W95.S(22); } }
+        int RowH { get { return W95.S(52); } }
         int Gap { get { return W95.S(4); } }
+
+        public void SetQuery(string q)
+        {
+            Query = q;
+            Items = Engine.FindConstants(q ?? "");
+            Pick = (q ?? "").Trim() == "" || Items.Count == 0 ? -1 : 0;
+            UpdateScroll();
+            ScrollToTop();
+        }
+
+        public Constant PickedConstant { get { return Items.Count == 0 ? null : Items[Math.Max(Pick, 0)]; } }
+
+        public void MovePick(int step)
+        {
+            if (Items.Count == 0) return;
+            Pick = Math.Max(0, Math.Min(Items.Count - 1, Pick + step));
+            // Scroll the picked row into view
+            foreach (var e in Entries())
+            {
+                if (e.Row != Pick) continue;
+                int top = e.Y - Gap, bottom = e.Y + RowH + Gap, view = Inner.Height;
+                if (Bar.Visible)
+                {
+                    int max = Bar.Maximum - Bar.LargeChange + 1;
+                    if (top < Offset) Bar.Value = Math.Max(0, top);
+                    else if (bottom > Offset + view) Bar.Value = Math.Min(max, bottom - view);
+                }
+            }
+            Invalidate();
+        }
+
+        // Worked out on each use: the sizes follow the screen's scale
+        List<Entry> Entries()
+        {
+            var entries = new List<Entry>();
+            int y = Pad + BarH + Gap;
+            string group = null;
+            bool grouped = (Query ?? "").Trim() == "";
+            for (int i = 0; i < Items.Count; i++)
+            {
+                if (grouped && Items[i].Group != group)
+                {
+                    group = Items[i].Group;
+                    entries.Add(new Entry { Head = group, Row = -1, Y = y });
+                    y += HeadH;
+                }
+                entries.Add(new Entry { Row = i, Y = y });
+                y += RowH + Gap;
+            }
+            return entries;
+        }
 
         protected override int ContentHeight(int width)
         {
-            return 2 * Pad + Engine.CONSTANTS.Length * (RowH + Gap) - Gap;
+            var entries = Entries();
+            int last = entries.Count == 0 ? Pad + BarH + Gap + W95.S(20) : entries[entries.Count - 1].Y + RowH;
+            return last + Pad;
         }
 
-        Rectangle RowRect(int i)
+        Rectangle BarRect { get { var inner = Inner; return new Rectangle(inner.X + Pad, inner.Y + Pad - Offset, inner.Width - 2 * Pad, BarH); } }
+
+        Rectangle EntryRect(Entry e)
         {
             var inner = Inner;
-            return new Rectangle(inner.X + Pad, inner.Y + Pad + i * (RowH + Gap) - Offset, inner.Width - 2 * Pad, RowH);
+            return new Rectangle(inner.X + Pad, inner.Y + e.Y - Offset, inner.Width - 2 * Pad, e.Row < 0 ? HeadH : RowH);
         }
 
         static string Pretty(string val)
         {
             return Regex.Replace(val, @"e(-?\d+)", " ×10^$1");
+        }
+
+        // The textbook symbol: italic letter, upright subscript after "_"
+        static void DrawSymbol(Graphics g, string sym, int x, int y)
+        {
+            var nf = TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding;
+            var big = W95.Font("Times New Roman", 26, false, true);
+            var small = W95.Font("Times New Roman", 15, false);
+            int cut = sym.IndexOf('_');
+            string b = cut < 0 ? sym : sym.Substring(0, cut);
+            TextRenderer.DrawText(g, b, big, new Point(x, y), W95.Navy, nf);
+            if (cut < 0) return;
+            int w = TextRenderer.MeasureText(g, b, big, Size.Empty, nf).Width;
+            TextRenderer.DrawText(g, sym.Substring(cut + 1), small, new Point(x + w + W95.S(1), y + W95.S(15)), W95.Navy, nf);
+        }
+
+        int leftW = -1;
+        int LeftW(Graphics g)
+        {
+            if (leftW >= 0) return leftW;
+            var nf = TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding;
+            foreach (var c in Engine.CONSTANTS)
+            {
+                int cut = c.Sym.IndexOf('_');
+                int w = TextRenderer.MeasureText(g, cut < 0 ? c.Sym : c.Sym.Substring(0, cut), W95.Font("Times New Roman", 26, false, true), Size.Empty, nf).Width;
+                if (cut >= 0) w += TextRenderer.MeasureText(g, c.Sym.Substring(cut + 1), W95.Font("Times New Roman", 15, false), Size.Empty, nf).Width;
+                w = Math.Max(w, TextRenderer.MeasureText(g, c.Typed, W95.Font("Courier New", 11, true), Size.Empty, nf).Width);
+                leftW = Math.Max(leftW, w);
+            }
+            return leftW += W95.S(14);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -440,30 +537,61 @@ namespace PhysicsCalculator
             g.Clear(W95.Face);
             g.SetClip(Inner);
             var tf = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis;
-            var nameFont = W95.Font("Courier New", 16.5f, true);
-            int nameW = TextRenderer.MeasureText("Mearth", nameFont, Size.Empty, TextFormatFlags.NoPadding).Width + W95.S(12);
-            for (int i = 0; i < Engine.CONSTANTS.Length; i++)
+
+            // Search bar
+            var bar = BarRect;
+            g.FillRectangle(Brushes.White, bar);
+            W95.Sunken(g, bar);
+            var tr = Rectangle.Inflate(bar, -W95.S(8), 0);
+            if (Query != null)
             {
-                var r = RowRect(i);
+                var f = W95.Font("Courier New", 15, true);
+                TextRenderer.DrawText(g, Query, f, tr, W95.Text, tf);
+                int qw = Query == "" ? 0 : TextRenderer.MeasureText(g, Query, f, Size.Empty, TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding).Width;
+                using (var b = new SolidBrush(W95.Text)) g.FillRectangle(b, tr.X + qw + W95.S(1), bar.Y + W95.S(7), W95.S(2), bar.Height - W95.S(14));
+                if (Query == "")
+                    TextRenderer.DrawText(g, "type a name, symbol or word · ↑ ↓ · Enter", W95.Font("Tahoma", 11.5f, false),
+                        new Rectangle(tr.X + W95.S(8), tr.Y, tr.Width - W95.S(8), tr.Height), W95.Placeholder, tf);
+            }
+            else TextRenderer.DrawText(g, "Search constants… (Ctrl+K)", W95.Font("Tahoma", 12, false), tr, W95.Placeholder, tf);
+
+            if (Items.Count == 0)
+                TextRenderer.DrawText(g, "No constant matches.", W95.Font("Tahoma", 12, false),
+                    new Rectangle(bar.X + W95.S(2), bar.Bottom + Gap, bar.Width, W95.S(20)), W95.Dim, tf);
+
+            int lw = LeftW(g);
+            foreach (var en in Entries())
+            {
+                var r = EntryRect(en);
                 if (r.Bottom < 0 || r.Y > ClientSize.Height) continue;
-                var c = Engine.CONSTANTS[i];
-                bool down = i == pressed;
+                if (en.Row < 0)
+                {
+                    TextRenderer.DrawText(g, en.Head.ToUpperInvariant(), W95.Font("Tahoma", 11, true),
+                        new Rectangle(r.X + W95.S(2), r.Y + W95.S(4), r.Width, r.Height - W95.S(4)), W95.Dim, tf);
+                    continue;
+                }
+                var c = Items[en.Row];
+                bool down = en.Row == pressed;
                 if (down) W95.Sunken(g, r); else W95.Raised(g, r);
+                if (en.Row == Pick)
+                    using (var pen = new Pen(W95.Navy, Math.Max(1, W95.S(1))))
+                        g.DrawRectangle(pen, Rectangle.Inflate(r, -W95.S(4), -W95.S(4)));
                 int dx = down ? W95.S(1) : 0;
                 int x = r.X + W95.S(10) + dx;
-                TextRenderer.DrawText(g, c.Name, nameFont, new Rectangle(x, r.Y + dx, nameW, r.Height), W95.Navy, tf);
-                int x2 = x + nameW;
-                int w2 = r.Right - x2 - W95.S(6);
-                TextRenderer.DrawText(g, Pretty(c.Value) + " " + c.Unit, W95.Font("Courier New", 13.5f, true),
-                    new Rectangle(x2, r.Y + W95.S(4) + dx, w2, r.Height / 2 - W95.S(2)), W95.Text, tf);
+                DrawSymbol(g, c.Sym, x, r.Y + W95.S(3) + dx);
+                TextRenderer.DrawText(g, c.Typed, W95.Font("Courier New", 11, true),
+                    new Rectangle(x, r.Y + W95.S(34) + dx, lw, W95.S(14)), W95.Dim, tf);
+                int x2 = x + lw, w2 = r.Right - x2 - W95.S(6);
+                TextRenderer.DrawText(g, (Pretty(c.Value) + " " + c.Unit).Trim(), W95.Font("Courier New", 13.5f, true),
+                    new Rectangle(x2, r.Y + W95.S(6) + dx, w2, W95.S(20)), W95.Text, tf);
                 TextRenderer.DrawText(g, c.Desc, W95.Font("Tahoma", 12, false),
-                    new Rectangle(x2, r.Y + r.Height / 2 + dx, w2, r.Height / 2 - W95.S(4)), W95.Dim, tf);
+                    new Rectangle(x2, r.Y + W95.S(28) + dx, w2, W95.S(18)), W95.Dim, tf);
             }
         }
 
         int RowAt(Point p)
         {
-            for (int i = 0; i < Engine.CONSTANTS.Length; i++) if (RowRect(i).Contains(p)) return i;
+            foreach (var en in Entries()) if (en.Row >= 0 && EntryRect(en).Contains(p)) return en.Row;
             return -1;
         }
 
@@ -471,6 +599,7 @@ namespace PhysicsCalculator
         {
             base.OnMouseDown(e);
             if (e.Button != MouseButtons.Left) return;
+            if (BarRect.Contains(e.Location)) { if (SearchClicked != null) SearchClicked(); return; }
             pressed = RowAt(e.Location);
             Invalidate();
         }
@@ -482,13 +611,13 @@ namespace PhysicsCalculator
             int was = pressed;
             pressed = -1;
             Invalidate();
-            if (was >= 0 && hit == was && Picked != null) Picked(Engine.CONSTANTS[was].Name);
+            if (was >= 0 && hit == was && Picked != null) Picked(Items[was].Typed);
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
-            Cursor = RowAt(e.Location) >= 0 ? Cursors.Hand : Cursors.Default;
+            Cursor = BarRect.Contains(e.Location) ? Cursors.IBeam : RowAt(e.Location) >= 0 ? Cursors.Hand : Cursors.Default;
         }
     }
 
@@ -686,8 +815,10 @@ namespace PhysicsCalculator
             expr.Font = W95.Font("Courier New", 26, true);
             expr.TextAlign = HorizontalAlignment.Right;
             expr.HandleCreated += delegate { SendMessage(expr.Handle, 0x1501 /* EM_SETCUEBANNER */, (IntPtr)1, "e.g. 72 km/h to m/s"); };
-            tip.SetToolTip(expr, "Numbers can carry units: 3 m/s × 2 s. Convert with “to”: 72 km/h to m/s. ↑/↓ recall earlier lines.");
+            tip.SetToolTip(expr, "Numbers can carry units: 3 m/s × 2 s. Convert with “to”: 72 km/h to m/s. ↑/↓ recall earlier lines. " +
+                "Ctrl+K finds a constant; \\hbar types ħ.");
             expr.KeyDown += ExprKeyDown;
+            expr.TextChanged += ExprTextChanged;
             expr.KeyPress += ExprKeyPress;
 
             ans.Font = W95.Font("Courier New", 14, false);
@@ -791,13 +922,15 @@ namespace PhysicsCalculator
             unitsPad.Place(MakeKey("⌫", "!back", "ctrl"), 9, 2);
             unitsPad.Place(MakeKey("=", "!eq", "eq"), 9, 3);
 
-            constPad.Picked += name => InsertAt(name);
+            constPad.Picked += name => { CloseConstSearch(); InsertAt(name); };
+            constPad.SearchClicked += OpenConstSearch;
 
             for (int i = 0; i < tabs.Length; i++)
             {
                 int idx = i;
                 tabs[i].Font = W95.Font("Tahoma", 12.5f, true);
                 tabs[i].Click += delegate { ShowPad(idx); expr.Focus(); };
+                tip.SetToolTip(tabs[i], new[] { "F1", "F2", "F3 or Ctrl+K: search the constants" }[i]);
             }
             ShowPad(0);
         }
@@ -832,6 +965,7 @@ namespace PhysicsCalculator
                 tabs[i].ForeColor = i == idx ? W95.Navy : W95.Text;
                 tabs[i].Invalidate();
             }
+            if (idx != 2 && constPad.Query != null) constPad.SetQuery(null);
             keysPad.Visible = idx == 0;
             unitsPad.Visible = idx == 1;
             constPad.Visible = idx == 2;
@@ -1009,8 +1143,73 @@ namespace PhysicsCalculator
             if (resultShown && lastResult != null) ShowResult(engine.FormatResult(lastResult));
         }
 
+        // ── Constants search (Ctrl+K or F3) ──
+        void OpenConstSearch()
+        {
+            ShowPad(2);
+            expr.Focus();
+            constPad.SetQuery("");
+        }
+
+        void CloseConstSearch()
+        {
+            if (constPad.Query != null) constPad.SetQuery(null);
+        }
+
+        // F1 / F2 / F3 pick the pad and Ctrl+K searches the constants, wherever the focus is
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            switch (keyData)
+            {
+                case Keys.F1: CloseConstSearch(); ShowPad(0); expr.Focus(); return true;
+                case Keys.F2: CloseConstSearch(); ShowPad(1); expr.Focus(); return true;
+                case Keys.F3:
+                case Keys.Control | Keys.K: OpenConstSearch(); return true;
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        // While searching, the expression box's keys go to the search
+        bool SearchKey(KeyEventArgs e)
+        {
+            string q = constPad.Query;
+            if (q == null) return false;
+            switch (e.KeyCode)
+            {
+                case Keys.Escape: CloseConstSearch(); break;
+                case Keys.Enter:
+                    var c = constPad.PickedConstant;
+                    CloseConstSearch();
+                    if (c != null) InsertAt(c.Typed);
+                    break;
+                case Keys.Up:
+                case Keys.Down: constPad.MovePick(e.KeyCode == Keys.Down ? 1 : -1); break;
+                case Keys.Back:
+                    if (q == "") CloseConstSearch(); else constPad.SetQuery(q.Substring(0, q.Length - 1));
+                    break;
+                case Keys.Delete: break;
+                default: return true;   // letters arrive in ExprKeyPress
+            }
+            e.SuppressKeyPress = true;
+            e.Handled = true;
+            return true;
+        }
+
+        // \hbar becomes ħ as soon as it is typed
+        void ExprTextChanged(object sender, EventArgs e)
+        {
+            string v = expr.Text;
+            if (v.IndexOf('\\') < 0) return;
+            int at = Math.Min(expr.SelectionStart, v.Length);
+            string head = Engine.FromLatex(v.Substring(0, at)), tail = Engine.FromLatex(v.Substring(at));
+            if (head + tail == v) return;
+            expr.Text = head + tail;
+            expr.SelectionStart = head.Length;
+        }
+
         void ExprKeyDown(object sender, KeyEventArgs e)
         {
+            if (SearchKey(e)) return;
             if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; Commit(); return; }
             if (e.KeyCode == Keys.Escape) { e.SuppressKeyPress = true; ResetCalcDisplay(); return; }
             if ((e.KeyCode == Keys.Up || e.KeyCode == Keys.Down) && hist.Items.Count > 0)
@@ -1035,6 +1234,12 @@ namespace PhysicsCalculator
 
         void ExprKeyPress(object sender, KeyPressEventArgs e)
         {
+            if (constPad.Query != null)
+            {
+                e.Handled = true;
+                if (!char.IsControl(e.KeyChar)) constPad.SetQuery(constPad.Query + e.KeyChar);
+                return;
+            }
             if (!resultShown || char.IsControl(e.KeyChar)) return;
             if ((ModifierKeys & (Keys.Control | Keys.Alt)) != 0 && (ModifierKeys & (Keys.Control | Keys.Alt)) != (Keys.Control | Keys.Alt)) return;
             // After a result, a new key starts fresh; an operator carries on from ANS

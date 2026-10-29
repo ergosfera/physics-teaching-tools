@@ -300,9 +300,20 @@ body { display:flex; }
     inset -2px -2px var(--bevel-lt),
     inset  2px  2px var(--bevel-sh);
 }
-.const-name { grid-row:span 2; font-family:'Courier New',monospace; font-size:1.05rem; font-weight:700; color:var(--sem-navy); min-width:4.2em; }
+.const-btn.picked { outline:2px solid var(--sem-navy); outline-offset:-5px; }
+.const-sym  { font-family:'Times New Roman',Times,serif; font-size:1.45rem; font-style:italic; color:var(--sem-navy); min-width:3.2em; line-height:1.1; white-space:nowrap; }
+.const-sym sub { font-style:normal; font-size:0.6em; }
+.const-code { font-family:'Courier New',monospace; font-size:0.75rem; font-weight:700; color:var(--dim-text); }
 .const-val  { font-family:'Courier New',monospace; font-size:0.85rem; font-weight:700; }
 .const-desc { font-size:0.75rem; color:var(--dim-text); }
+.const-group { flex-shrink:0; margin-top:6px; font-size:0.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--dim-text); }
+#const-search {
+  flex-shrink:0; position:sticky; top:-8px; z-index:1; margin:-8px -8px 0; padding:6px 8px;
+  border:none; border-bottom:1px solid var(--bevel-sh); background:var(--field-bg); color:var(--win-text);
+  font-family:'Courier New',monospace; font-size:0.95rem; font-weight:700; outline:none;
+}
+#const-search::placeholder { font-family:Tahoma,'MS Sans Serif',Geneva,Verdana,sans-serif; font-weight:400; font-size:0.8rem; color:#8a8a8a; }
+.const-none { padding:6px 2px; font-size:0.8rem; color:var(--dim-text); }
 
 ::-webkit-scrollbar { width:16px; }
 ::-webkit-scrollbar-track { background:var(--field-bg); }
@@ -403,9 +414,9 @@ body { display:flex; }
   <div id="calc-hist"></div>
 
   <div id="pad-tabs">
-    <button class="pad-tab active" data-pad="calc-btns">Keys</button>
-    <button class="pad-tab"        data-pad="units-pad">Units</button>
-    <button class="pad-tab"        data-pad="const-pad">Constants</button>
+    <button class="pad-tab active" data-pad="calc-btns" title="F1">Keys</button>
+    <button class="pad-tab"        data-pad="units-pad" title="F2">Units</button>
+    <button class="pad-tab"        data-pad="const-pad" title="F3 or Ctrl+K: search the constants">Constants</button>
   </div>
 
   <div id="calc-btns" class="pad">
@@ -722,7 +733,7 @@ defUnit('L l',       1e-3,             DIM.vol,    true);
 defUnit('gal',       3.785411784e-3,   DIM.vol);
 // mass
 defUnit('t',         1000,             DIM.mass);
-defUnit('u Da',      1.66053906660e-27, DIM.mass,  true);
+defUnit('u Da',      1.66053906892e-27, DIM.mass,  true);
 defUnit('lb',        0.45359237,       DIM.mass);
 defUnit('oz',        0.028349523125,   DIM.mass);
 // speed
@@ -759,31 +770,74 @@ Object.entries(TEMP).forEach(([n, t]) => defUnit(n, t.f, DIM.temp));
 const PREFIX = { f:1e-15, p:1e-12, n:1e-9, 'μ':1e-6, 'µ':1e-6, u:1e-6, m:1e-3, c:1e-2, d:1e-1,
                  h:1e2, k:1e3, M:1e6, G:1e9, T:1e12, P:1e15 };
 
-const CONSTANTS = [
-  // [name, value, unit, description]
-  ['gn',     '9.80665',           'm/s²',        'g — standard gravity'],
-  ['G',      '6.67430e-11',       'N·m²/kg²',    'gravitational constant'],
-  ['c',      '299792458',         'm/s',         'speed of light in vacuum'],
-  ['hP',     '6.62607015e-34',    'J·s',         'h — Planck constant'],
-  ['hbar',   '1.054571817e-34',   'J·s',         'ħ — reduced Planck constant'],
-  ['kB',     '1.380649e-23',      'J/K',         'Boltzmann constant'],
-  ['NA',     '6.02214076e23',     '1/mol',       'Avogadro constant'],
-  ['R',      '8.314462618',       'J/(mol·K)',   'molar gas constant'],
-  ['qe',     '1.602176634e-19',   'C',           'e — elementary charge'],
-  ['me',     '9.1093837015e-31',  'kg',          'electron mass'],
-  ['mp',     '1.67262192369e-27', 'kg',          'proton mass'],
-  ['mn',     '1.67492749804e-27', 'kg',          'neutron mass'],
-  ['ke',     '8.9875517923e9',    'N·m²/C²',     'Coulomb constant'],
-  ['eps0',   '8.8541878128e-12',  'F/m',         'ε₀ — vacuum permittivity'],
-  ['mu0',    '1.25663706212e-6',  'H/m',         'μ₀ — vacuum permeability'],
-  ['sigma',  '5.670374419e-8',    'W/(m²·K⁴)',   'σ — Stefan–Boltzmann constant'],
-  ['Mearth', '5.972e24',          'kg',          'mass of the Earth'],
-  ['Rearth', '6.371e6',           'm',           'mean radius of the Earth'],
-  ['Mmoon',  '7.342e22',          'kg',          'mass of the Moon'],
-  ['Msun',   '1.989e30',          'kg',          'mass of the Sun'],
+// CODATA 2022 (physics.nist.gov/constants); Earth, Moon and Sun: IAU nominal values.
+// [name, symbol, other names, value, unit, description]. The symbol is drawn with
+// "_" starting a subscript; the first other name (else the name) is what gets typed.
+// h, e and g already mean hour, Euler's number and gram, hence hP, qe and gn.
+const CONST_GROUPS = [
+  ['Universal', [
+    ['c',       'c',       '',            '299792458',          'm/s',         'speed of light in vacuum'],
+    ['G',       'G',       '',            '6.67430e-11',        'N·m²/kg²',    'gravitational constant'],
+    ['hP',      'h',       '',            '6.62607015e-34',     'J·s',         'Planck constant'],
+    ['hbar',    'ħ',       'ħ',           '1.054571817e-34',    'J·s',         'reduced Planck constant'],
+    ['gn',      'g_n',     'g_n',         '9.80665',            'm/s²',        'standard gravity (free fall)'],
+  ]],
+  ['Electromagnetism', [
+    ['qe',      'e',       'q_e',         '1.602176634e-19',    'C',           'elementary charge'],
+    ['eps0',    'ε_0',     'ε₀ ε0 ε_0',   '8.8541878188e-12',   'F/m',         'vacuum electric permittivity'],
+    ['mu0',     'μ_0',     'μ₀ μ0 μ_0',   '1.25663706127e-6',   'H/m',         'vacuum magnetic permeability'],
+    ['ke',      'k_e',     'k_e',         '8.9875517862e9',     'N·m²/C²',     'Coulomb constant, 1/(4πε₀)'],
+    ['muB',     'μ_B',     'μ_B',         '9.2740100657e-24',   'J/T',         'Bohr magneton'],
+    ['muN',     'μ_N',     'μ_N',         '5.0507837393e-27',   'J/T',         'nuclear magneton'],
+  ]],
+  ['Atoms and particles', [
+    ['me',      'm_e',     'm_e',         '9.1093837139e-31',   'kg',          'electron mass'],
+    ['mp',      'm_p',     'm_p',         '1.67262192595e-27',  'kg',          'proton mass'],
+    ['mn',      'm_n',     'm_n',         '1.67492750056e-27',  'kg',          'neutron mass'],
+    ['m_u',     'm_u',     '',            '1.66053906892e-27',  'kg',          'atomic mass constant (1 u)'],
+    ['alpha',   'α',       'α',           '7.2973525643e-3',    '',            'fine-structure constant'],
+    ['a0',      'a_0',     'a₀ a_0',      '5.29177210544e-11',  'm',           'Bohr radius'],
+    ['Rinf',    'R_∞',     'R_inf',       '10973731.568157',    '1/m',         'Rydberg constant'],
+    ['lambdaC', 'λ_C',     'λ_C',         '2.42631023538e-12',  'm',           'Compton wavelength of the electron'],
+  ]],
+  ['Heat and chemistry', [
+    ['kB',      'k_B',     'k_B',         '1.380649e-23',       'J/K',         'Boltzmann constant'],
+    ['NA',      'N_A',     'N_A',         '6.02214076e23',      '1/mol',       'Avogadro constant'],
+    ['R',       'R',       '',            '8.314462618',        'J/(mol·K)',   'molar gas constant'],
+    ['Faraday', 'F',       '',            '96485.33212',        'C/mol',       'Faraday constant'],
+    ['Vm',      'V_m',     'V_m',         '22.41396954e-3',     'm³/mol',      'molar volume of an ideal gas at 0 °C, 1 atm'],
+    ['sigma',   'σ',       'σ',           '5.670374419e-8',     'W/(m²·K⁴)',   'Stefan–Boltzmann constant'],
+    ['wien',    'b',       '',            '2.897771955e-3',     'm·K',         'Wien displacement constant'],
+  ]],
+  ['Earth, Moon and Sun', [
+    ['Mearth',  'M_Earth', 'M_Earth',     '5.972e24',           'kg',          'mass of the Earth'],
+    ['Rearth',  'R_Earth', 'R_Earth',     '6.371e6',            'm',           'mean radius of the Earth'],
+    ['Mmoon',   'M_Moon',  'M_Moon',      '7.342e22',           'kg',          'mass of the Moon'],
+    ['Rmoon',   'R_Moon',  'R_Moon',      '1.7374e6',           'm',           'mean radius of the Moon'],
+    ['dmoon',   'd_Moon',  'd_Moon',      '3.844e8',            'm',           'mean Earth–Moon distance'],
+    ['Msun',    'M_Sun',   'M_Sun',       '1.9884e30',          'kg',          'mass of the Sun'],
+    ['Rsun',    'R_Sun',   'R_Sun',       '6.957e8',            'm',           'radius of the Sun'],
+    ['Lsun',    'L_Sun',   'L_Sun',       '3.828e26',           'W',           'luminosity of the Sun'],
+  ]],
 ];
+const CONSTANTS = CONST_GROUPS.flatMap(([group, rows]) =>
+  rows.map(([name, sym, alias, val, unit, desc]) =>
+    ({ group, name, sym, alias: alias ? alias.split(' ') : [], val, unit, desc })));
 const CONST_Q = { pi: Q(Math.PI), e: Q(Math.E) };
-const CONST_ALIAS = { 'π':'pi', PI:'pi', E:'e', 'ħ':'hbar', 'ε0':'eps0', 'ε₀':'eps0', 'μ0':'mu0', 'μ₀':'mu0', 'σ':'sigma' };
+const CONST_ALIAS = { 'π':'pi', PI:'pi', E:'e', 'µ₀':'mu0', 'µ0':'mu0' };
+CONSTANTS.forEach(c => c.alias.forEach(a => CONST_ALIAS[a] = c.name));
+const constTyped = c => c.alias[0] || c.name;
+
+// LaTeX names typed with a backslash become symbols: \hbar → ħ, \epsilon_0 → ε_0.
+// None is the start of another, so each can be swapped as soon as it is complete.
+const LATEX = {
+  alpha:'α', beta:'β', gamma:'γ', delta:'δ', epsilon:'ε', varepsilon:'ε', zeta:'ζ', eta:'η', theta:'θ',
+  iota:'ι', kappa:'κ', lambda:'λ', mu:'μ', nu:'ν', xi:'ξ', pi:'π', rho:'ρ', sigma:'σ', tau:'τ',
+  upsilon:'υ', phi:'φ', varphi:'φ', chi:'χ', psi:'ψ', omega:'ω', Gamma:'Γ', Delta:'Δ', Theta:'Θ',
+  Lambda:'Λ', Xi:'Ξ', Pi:'Π', Sigma:'Σ', Phi:'Φ', Psi:'Ψ', Omega:'Ω', hbar:'ħ',
+  times:'×', cdot:'·', div:'÷', circ:'°', to:'→',
+};
+const fromLatex = s => s.replace(/\\([A-Za-z]+)/g, (m, w) => LATEX[w] || m);
 
 let angleMode = 'deg', lastAns = Q(0);
 const toRad = x => x.ang ? x.v : angleMode === 'deg' ? x.v * Math.PI / 180 : x.v;
@@ -936,7 +990,7 @@ function tokenize(s) {
 // Implicit multiplication binds tighter than × and ÷, so a number stays
 // with its unit: 10 N / 0.2 m = 50 N/m, and J/kg K = J/(kg·K).
 function evaluate(input) {
-  const src = input.replace(/º/g, '°').replace(/℃/g, '°C').replace(/℉/g, '°F');
+  const src = fromLatex(input).replace(/º/g, '°').replace(/℃/g, '°C').replace(/℉/g, '°F');
   const toks = tokenize(src);
   let p = 0;
   const peek = () => toks[p];
@@ -1035,7 +1089,7 @@ function evaluate(input) {
   return { q, conv };
 }
 
-CONSTANTS.forEach(([name, val, unit]) => CONST_Q[name] = evaluate(`${val} ${unit}`).q);
+CONSTANTS.forEach(c => CONST_Q[c.name] = evaluate(`${c.val} ${c.unit}`).q);
 
 
 /* ══════════════════════════════════════════
@@ -1125,7 +1179,8 @@ function renderHistory() {
   if (!calcHistory.length) {
     histEl.innerHTML = '<div class="hist-hint">Numbers can carry units: <code>3 m/s × 2 s</code><br>' +
       'Convert with “to”: <code>72 km/h to m/s</code>, <code>25 °C to °F</code><br>' +
-      'Constants: <code>G Mearth / Rearth^2</code> · ½mv²: <code>1/2 × 2 kg × (3 m/s)^2</code></div>';
+      'Constants: <code>G M_Earth / R_Earth^2</code> · find any with <b>Ctrl+K</b><br>' +
+      '½mv²: <code>1/2 × 2 kg × (3 m/s)^2</code> · <code>\\hbar</code> types ħ</div>';
     return;
   }
   for (let i = calcHistory.length - 1; i >= 0; i--) {
@@ -1208,18 +1263,29 @@ exprEl.addEventListener('keydown', e => {
   }
 });
 
+// \hbar becomes ħ as soon as it is typed
+exprEl.addEventListener('input', () => {
+  const v = exprEl.value, at = exprEl.selectionStart ?? v.length;
+  if (!v.includes('\\')) return;
+  const head = fromLatex(v.slice(0, at)), tail = fromLatex(v.slice(at));
+  if (head + tail === v) return;
+  exprEl.value = head + tail;
+  exprEl.setSelectionRange(head.length, head.length);
+});
+
 document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.mode-btn').forEach(x => x.classList.toggle('active', x === b));
   angleMode = b.dataset.mode;
   refreshShown();
 }));
 
-document.querySelectorAll('.pad-tab').forEach(b => b.addEventListener('click', () => {
+function showPad(id) {
   document.querySelectorAll('.pad-tab').forEach(x => {
-    x.classList.toggle('active', x === b);
-    document.getElementById(x.dataset.pad).classList.toggle('hidden', x !== b);
+    x.classList.toggle('active', x.dataset.pad === id);
+    document.getElementById(x.dataset.pad).classList.toggle('hidden', x.dataset.pad !== id);
   });
-}));
+}
+document.querySelectorAll('.pad-tab').forEach(b => b.addEventListener('click', () => showPad(b.dataset.pad)));
 
 function insertAt(text) {
   let s, f;
@@ -1300,17 +1366,113 @@ unitsPad.insertAdjacentHTML('beforeend',
   '<button class="cb cb-ctrl" data-act="back">⌫</button>' +
   '<button class="cb cb-eq" data-act="eq" style="grid-column:auto">=</button>');
 
+// Constants pad: textbook symbols, grouped; a search box on top
+// (Ctrl+K or F3) picks one from the keyboard: type, ↑ ↓, Enter.
 const constPad = document.getElementById('const-pad');
-CONSTANTS.forEach(([name, val, unit, desc]) => {
-  const b = document.createElement('button');
-  b.className = 'const-btn';
-  b.dataset.ins = name;
-  b.innerHTML = '<span class="const-name"></span><span class="const-val"></span><span class="const-desc"></span>';
-  b.children[0].textContent = name;
-  b.children[1].textContent = `${val.replace(/e(-?\d+)/, ' ×10^$1')} ${unit}`;
-  b.children[2].textContent = desc;
-  constPad.appendChild(b);
+const constSearch = document.createElement('input');
+constSearch.id = 'const-search';
+constSearch.placeholder = 'Search: name, symbol or “electron”…  (Ctrl+K)';
+constSearch.autocomplete = 'off'; constSearch.spellcheck = false;
+constPad.appendChild(constSearch);
+const constList = document.createElement('div');
+constList.style.cssText = 'display:flex; flex-direction:column; gap:4px';
+constPad.appendChild(constList);
+
+function symHTML(sym) {
+  const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const i = sym.indexOf('_');
+  return i < 0 ? esc(sym) : esc(sym.slice(0, i)) + '<sub>' + esc(sym.slice(i + 1)) + '</sub>';
+}
+
+// 0 = the name or symbol itself, 1 = starts it, 2 = starts a word of the description,
+// 3 = inside it, 4 = the group's name
+function constRank(c, q) {
+  const norm = t => t.toLowerCase().replace(/[_\s]/g, '');
+  const qn = norm(q), ql = q.toLowerCase().trim();
+  const keys = [c.name, c.sym, ...c.alias].map(norm);
+  if (keys.includes(qn)) return 0;
+  if (keys.some(k => k.startsWith(qn))) return 1;
+  const d = c.desc.toLowerCase();
+  if (d.split(/[^\p{L}\d]+/u).some(w => w.startsWith(ql))) return 2;
+  if (d.includes(ql)) return 3;
+  return c.group.toLowerCase().includes(ql) ? 4 : -1;
+}
+function findConstants(q) {
+  if (!q.trim()) return CONSTANTS;
+  return CONSTANTS.map((c, i) => ({ c, i, r: constRank(c, q) })).filter(x => x.r >= 0)
+    .sort((x, y) => x.r - y.r || x.i - y.i).map(x => x.c);
+}
+
+let constShown = CONSTANTS, constPick = -1;
+function renderConstants() {
+  const q = constSearch.value;
+  constShown = findConstants(q);
+  constPick = q.trim() && constShown.length ? 0 : -1;
+  constList.innerHTML = '';
+  let group = null;
+  constShown.forEach((c, i) => {
+    if (!q.trim() && c.group !== group) {
+      group = c.group;
+      const h = document.createElement('div');
+      h.className = 'const-group'; h.textContent = group;
+      constList.appendChild(h);
+    }
+    const b = document.createElement('button');
+    b.className = 'const-btn' + (i === constPick ? ' picked' : '');
+    b.dataset.ins = constTyped(c);
+    b.tabIndex = -1;
+    b.title = 'Type ' + constTyped(c);
+    b.innerHTML = '<span class="const-sym">' + symHTML(c.sym) + '</span><span class="const-val"></span>' +
+                  '<span class="const-code"></span><span class="const-desc"></span>';
+    b.children[1].textContent = `${c.val.replace(/e(-?\d+)/, ' ×10^$1')} ${c.unit}`.trim();
+    b.children[2].textContent = constTyped(c);
+    b.children[3].textContent = c.desc;
+    constList.appendChild(b);
+  });
+  if (!constShown.length) constList.innerHTML = '<div class="const-none">No constant matches.</div>';
+}
+function movePick(step) {
+  if (!constShown.length) return;
+  constPick = Math.max(0, Math.min(constShown.length - 1, constPick + step));
+  const btns = constList.querySelectorAll('.const-btn');
+  btns.forEach((b, i) => b.classList.toggle('picked', i === constPick));
+  btns[constPick].scrollIntoView({ block: 'nearest' });
+}
+function openConstSearch() {
+  showPad('const-pad');
+  constSearch.focus();
+  constSearch.select();
+}
+function closeConstSearch() {
+  constSearch.value = '';
+  renderConstants();
+  exprEl.focus();
+}
+constSearch.addEventListener('input', renderConstants);
+constSearch.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); movePick(e.key === 'ArrowDown' ? 1 : -1); }
+  else if (e.key === 'Enter') {
+    e.preventDefault();
+    const c = constShown[Math.max(constPick, 0)];
+    if (!c) return;
+    closeConstSearch();
+    insertAt(constTyped(c));
+  }
+  else if (e.key === 'Escape') { e.preventDefault(); closeConstSearch(); }
 });
+// A click inserts and returns to the input, which insertAt already does
+constList.addEventListener('click', e => { if (e.target.closest('.const-btn') && constSearch.value) { constSearch.value = ''; renderConstants(); } });
+renderConstants();
+
+// F1 / F2 / F3 pick the pad; Ctrl+K (⌘K) searches the constants, wherever the focus is
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && k === 'k') { e.preventDefault(); openConstSearch(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'F1') { e.preventDefault(); showPad('calc-btns'); exprEl.focus(); }
+  else if (e.key === 'F2') { e.preventDefault(); showPad('units-pad'); exprEl.focus(); }
+  else if (e.key === 'F3') { e.preventDefault(); openConstSearch(); }
+}, true);
 
 renderHistory();
 exprEl.focus();

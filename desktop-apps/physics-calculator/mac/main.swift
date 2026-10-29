@@ -203,7 +203,8 @@ final class HistoryDoc: FlippedView {
     private static let hint: [[String]] = [
         ["Numbers can carry units: ", "`3 m/s × 2 s"],
         ["Convert with “to”: ", "`72 km/h to m/s", ", ", "`25 °C to °F"],
-        ["Constants: ", "`G Mearth / Rearth^2", " · ½mv²: ", "`1/2 × 2 kg × (3 m/s)^2"]]
+        ["Constants: ", "`G M_Earth / R_Earth^2", " · find any with ", "`⌘K"],
+        ["½mv²: ", "`1/2 × 2 kg × (3 m/s)^2", " · ", "`\\hbar", " types ħ"]]
 
     private struct Word { let text: String; let isCode: Bool; let rect: NSRect }
 
@@ -296,55 +297,158 @@ final class HistoryDoc: FlippedView {
     }
 }
 
-// MARK: - Constants pad: one raised button per constant, scrolling
+// MARK: - Constants pad: a search bar, then one raised button per constant, grouped
+// The search takes its keys from the expression box (CalcView.searchKey), so the
+// focus never moves: ⌘K, type, ↑ ↓, Return.
 
 final class ConstDoc: FlippedView {
     var picked: ((String) -> Void)?
+    var searchClicked: (() -> Void)?
+    private(set) var query: String?          // nil: not searching
+    private(set) var items = Engine.CONSTANTS
+    private(set) var pick = -1
     private var pressed = -1
-    private let pad: CGFloat = 8, rowH: CGFloat = 44, gap: CGFloat = 4
+    private enum Entry { case header(String), row(Int) }
+    private var entries: [(Entry, NSRect)] = []
+    private let pad: CGFloat = 8, barH: CGFloat = 30, headH: CGFloat = 22, rowH: CGFloat = 52, gap: CGFloat = 4
 
-    func contentHeight() -> CGFloat { 2 * pad + CGFloat(Engine.CONSTANTS.count) * (rowH + gap) - gap }
-
-    private func rowRect(_ i: Int) -> NSRect {
-        NSRect(x: pad, y: pad + CGFloat(i) * (rowH + gap), width: bounds.width - 2 * pad, height: rowH)
+    func setQuery(_ q: String?) {
+        query = q
+        items = Engine.findConstants(q ?? "")
+        pick = (q ?? "").trimmingCharacters(in: .whitespaces).isEmpty || items.isEmpty ? -1 : 0
+        layoutEntries()
     }
+
+    func movePick(_ step: Int) {
+        if items.isEmpty { return }
+        pick = max(0, min(items.count - 1, pick + step))
+        needsDisplay = true
+        if let r = rowRect(pick) { scrollToVisible(r.insetBy(dx: 0, dy: -gap)) }
+    }
+
+    var pickedConstant: Constant? { items.isEmpty ? nil : items[max(pick, 0)] }
+
+    private func layoutEntries() {
+        entries = []
+        var y = pad + barH + gap
+        var group: String? = nil
+        let grouped = (query ?? "").trimmingCharacters(in: .whitespaces).isEmpty
+        for (i, c) in items.enumerated() {
+            if grouped && c.group != group {
+                group = c.group
+                entries.append((.header(c.group), NSRect(x: pad, y: y, width: 0, height: headH)))
+                y += headH
+            }
+            entries.append((.row(i), NSRect(x: pad, y: y, width: 0, height: rowH)))
+            y += rowH + gap
+        }
+        needsDisplay = true
+    }
+
+    func contentHeight() -> CGFloat {
+        if entries.isEmpty && !items.isEmpty { layoutEntries() }
+        return (entries.last.map { $0.1.maxY } ?? pad + barH + gap + 20) + pad
+    }
+
+    private func full(_ r: NSRect) -> NSRect { NSRect(x: r.minX, y: r.minY, width: bounds.width - 2 * pad, height: r.height) }
+    private func rowRect(_ i: Int) -> NSRect? {
+        for (e, r) in entries { if case .row(let j) = e, j == i { return full(r) } }
+        return nil
+    }
+    private var barRect: NSRect { NSRect(x: pad, y: pad, width: bounds.width - 2 * pad, height: barH) }
 
     private static func pretty(_ v: String) -> String {
         v.replacingOccurrences(of: "e(-?\\d+)", with: " ×10^$1", options: .regularExpression)
     }
 
+    // The textbook symbol: italic letter, upright subscript after "_"
+    static func symbol(_ sym: String, _ size: CGFloat, _ color: NSColor) -> NSAttributedString {
+        let italic = NSFont(name: "TimesNewRomanPS-ItalicMT", size: size)
+            ?? NSFontManager.shared.convert(NSFont.systemFont(ofSize: size), toHaveTrait: .italicFontMask)
+        let upright = NSFont(name: "Times New Roman", size: size * 0.6) ?? NSFont.systemFont(ofSize: size * 0.6)
+        let parts = sym.split(separator: "_", maxSplits: 1).map(String.init)
+        let out = NSMutableAttributedString(string: parts[0], attributes: [.font: italic, .foregroundColor: color])
+        if parts.count > 1 {
+            out.append(NSAttributedString(string: parts[1], attributes: [
+                .font: upright, .foregroundColor: color, .baselineOffset: -size * 0.2]))
+        }
+        return out
+    }
+
+    private lazy var leftW: CGFloat = {
+        let code = W95.font("Courier New", 11, bold: true)
+        return Engine.CONSTANTS.map { max(ConstDoc.symbol($0.sym, 24, W95.navy).size().width, W95.width($0.typed, code)) }
+            .max()! + 14
+    }()
+
     override func draw(_ dirtyRect: NSRect) {
         W95.face.setFill()
         bounds.fill()
-        let nameFont = W95.font("Courier New", 16.5, bold: true)
-        let nameW = W95.width("Mearth", nameFont) + 12
-        for (i, c) in Engine.CONSTANTS.enumerated() {
-            let r = rowRect(i)
+
+        // Search bar
+        let bar = barRect
+        NSColor.white.setFill()
+        bar.fill()
+        W95.sunken(bar)
+        let tr = bar.insetBy(dx: 8, dy: 0)
+        if let q = query {
+            let f = W95.font("Courier New", 15, bold: true)
+            W95.draw(q, f, W95.text, in: tr, align: .left)
+            W95.text.setFill()
+            NSRect(x: tr.minX + W95.width(q, f) + 1, y: bar.minY + 7, width: 2, height: barH - 14).fill()
+            if q.isEmpty {
+                W95.draw("type a name, symbol or word · ↑ ↓ · Return", W95.font("Tahoma", 11.5), W95.placeholder,
+                         in: tr.offsetBy(dx: 8, dy: 0), align: .left)
+            }
+        } else {
+            W95.draw("Search constants… (⌘K)", W95.font("Tahoma", 12), W95.placeholder, in: tr, align: .left)
+        }
+
+        if items.isEmpty {
+            W95.draw("No constant matches.", W95.font("Tahoma", 12), W95.dim,
+                     in: NSRect(x: pad + 2, y: bar.maxY + gap, width: bar.width, height: 20), align: .left)
+        }
+        let code = W95.font("Courier New", 11, bold: true)
+        for (e, r0) in entries {
+            let r = full(r0)
             if !r.intersects(dirtyRect) { continue }
-            let down = i == pressed
-            if down { W95.sunken(r) } else { W95.raised(r) }
-            let d: CGFloat = down ? 1 : 0
-            let x = r.minX + 10 + d
-            W95.draw(c.name, nameFont, W95.navy, in: NSRect(x: x, y: r.minY + d, width: nameW, height: r.height), align: .left)
-            let x2 = x + nameW, w2 = r.maxX - x2 - 6
-            W95.drawTruncated(ConstDoc.pretty(c.value) + " " + c.unit, W95.font("Courier New", 13.5, bold: true), W95.text,
-                              in: NSRect(x: x2, y: r.minY + 4 + d, width: w2, height: r.height / 2 - 2))
-            W95.drawTruncated(c.desc, W95.font("Tahoma", 12), W95.dim,
-                              in: NSRect(x: x2, y: r.minY + r.height / 2 + d, width: w2, height: r.height / 2 - 4))
+            switch e {
+            case .header(let g):
+                W95.draw(g.uppercased(), W95.font("Tahoma", 11, bold: true), W95.dim,
+                         in: NSRect(x: r.minX + 2, y: r.minY + 4, width: r.width, height: r.height - 4), align: .left)
+            case .row(let i):
+                let c = items[i]
+                let down = i == pressed
+                if down { W95.sunken(r) } else { W95.raised(r) }
+                if i == pick { W95.navy.setStroke(); NSBezierPath(rect: r.insetBy(dx: 3.5, dy: 3.5)).stroke() }
+                let d: CGFloat = down ? 1 : 0
+                let x = r.minX + 10 + d
+                ConstDoc.symbol(c.sym, 24, W95.navy).draw(at: NSPoint(x: x, y: r.minY + 3 + d))
+                W95.draw(c.typed, code, W95.dim, in: NSRect(x: x, y: r.minY + 33 + d, width: leftW, height: 14), align: .left)
+                let x2 = x + leftW, w2 = r.maxX - x2 - 6
+                W95.drawTruncated((ConstDoc.pretty(c.value) + " " + c.unit).trimmingCharacters(in: .whitespaces),
+                                  W95.font("Courier New", 13.5, bold: true), W95.text,
+                                  in: NSRect(x: x2, y: r.minY + 6 + d, width: w2, height: 20))
+                W95.drawTruncated(c.desc, W95.font("Tahoma", 12), W95.dim,
+                                  in: NSRect(x: x2, y: r.minY + 28 + d, width: w2, height: 18))
+            }
         }
     }
 
     private func rowAt(_ p: NSPoint) -> Int {
-        for i in 0..<Engine.CONSTANTS.count where rowRect(i).contains(p) { return i }
+        for (e, r) in entries { if case .row(let i) = e, full(r).contains(p) { return i } }
         return -1
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func resetCursorRects() {
-        for i in 0..<Engine.CONSTANTS.count { addCursorRect(rowRect(i), cursor: .pointingHand) }
+        addCursorRect(barRect, cursor: .iBeam)
+        for (e, r) in entries { if case .row = e { addCursorRect(full(r), cursor: .pointingHand) } }
     }
     override func mouseDown(with event: NSEvent) {
-        pressed = rowAt(convert(event.locationInWindow, from: nil))
+        let p = convert(event.locationInWindow, from: nil)
+        if barRect.contains(p) { searchClicked?(); return }
+        pressed = rowAt(p)
         needsDisplay = true
     }
     override func mouseUp(with event: NSEvent) {
@@ -352,7 +456,7 @@ final class ConstDoc: FlippedView {
         let was = pressed
         pressed = -1
         needsDisplay = true
-        if was >= 0 && hit == was { picked?(Engine.CONSTANTS[was].name) }
+        if was >= 0 && hit == was { picked?(items[was].typed) }
     }
 }
 
@@ -542,9 +646,11 @@ final class CalcView: FlippedView, NSTextFieldDelegate {
         expr.cell?.wraps = false
         expr.placeholderAttributedString = NSAttributedString(string: "e.g. 72 km/h to m/s", attributes: [
             .font: W95.font("Courier New", 16), .foregroundColor: W95.placeholder])
-        expr.toolTip = "Numbers can carry units: 3 m/s × 2 s. Convert with “to”: 72 km/h to m/s. ↑/↓ recall earlier lines."
+        expr.toolTip = "Numbers can carry units: 3 m/s × 2 s. Convert with “to”: 72 km/h to m/s. ↑/↓ recall earlier lines. " +
+            "⌘K finds a constant; \\hbar types ħ."
         editor.isFieldEditor = true
         editor.keyHandler = { [weak self] e in self?.handleKey(e) ?? false }
+        expr.delegate = self
 
         ans.font = W95.font("Courier New", 14)
         ans.textColor = W95.dim
@@ -624,12 +730,14 @@ final class CalcView: FlippedView, NSTextFieldDelegate {
         unitsPad.place(key("⌫", "!back", "ctrl"), 9, 2)
         unitsPad.place(key("=", "!eq", "eq"), 9, 3)
 
-        constDoc.picked = { [weak self] name in self?.insertAt(name) }
+        constDoc.picked = { [weak self] name in self?.closeConstSearch(); self?.insertAt(name) }
+        constDoc.searchClicked = { [weak self] in self?.openConstSearch() }
         constPad.contentHeight = { [weak self] _ in self?.constDoc.contentHeight() ?? 0 }
 
         for (i, t) in tabs.enumerated() {
             t.font = W95.font("Tahoma", 12.5, bold: true)
             t.action = { [weak self] in self?.showPad(i); self?.focusExpr() }
+            t.toolTip = ["F1", "F2", "F3 or ⌘K: search the constants"][i]
         }
         showPad(0)
     }
@@ -639,6 +747,7 @@ final class CalcView: FlippedView, NSTextFieldDelegate {
             t.active = i == idx
             t.fore = i == idx ? W95.navy : W95.text
         }
+        if idx != 2 && constDoc.query != nil { constDoc.setQuery(nil); constPad.relayout() }
         keysPad.isHidden = idx != 0
         unitsPad.isHidden = idx != 1
         constPad.isHidden = idx != 2
@@ -847,9 +956,62 @@ final class CalcView: FlippedView, NSTextFieldDelegate {
         if resultShown, let r = lastResult { let o = engine.formatResult(r); result.showValue(o.0, o.1) }
     }
 
+    // MARK: Constants search (⌘K or F3)
+
+    @objc func openConstSearch() {
+        showPad(2)
+        focusExpr()
+        constDoc.setQuery("")
+        constPad.relayout()
+        constPad.scrollToTop()
+    }
+
+    func closeConstSearch() {
+        if constDoc.query == nil { return }
+        constDoc.setQuery(nil)
+        constPad.relayout()
+    }
+
+    @objc func showKeysPad() { closeConstSearch(); showPad(0); focusExpr() }
+    @objc func showUnitsPad() { closeConstSearch(); showPad(1); focusExpr() }
+
+    // While searching, the expression box's keys go to the search
+    func searchKey(_ e: NSEvent) -> Bool {
+        guard let q = constDoc.query else { return false }
+        switch e.keyCode {
+        case 53: closeConstSearch()                                 // escape
+        case 36, 76:                                                // return, enter
+            let c = constDoc.pickedConstant
+            closeConstSearch()
+            if let c = c { insertAt(c.typed) }
+        case 126, 125: constDoc.movePick(e.keyCode == 125 ? 1 : -1) // up, down
+        case 51:                                                    // delete
+            if q.isEmpty { closeConstSearch() } else { constDoc.setQuery(String(q.dropLast())); constPad.relayout() }
+        default:
+            guard let chars = e.characters, let scalar = chars.unicodeScalars.first,
+                  !CharacterSet.controlCharacters.contains(scalar), !(0xF700...0xF8FF).contains(scalar.value) else { return true }
+            constDoc.setQuery(q + chars)
+            constPad.relayout()
+            constPad.scrollToTop()
+        }
+        return true
+    }
+
+    // \hbar becomes ħ as soon as it is typed
+    func controlTextDidChange(_ obj: Notification) {
+        let v = exprText
+        guard v.contains("\\") else { return }
+        let at = min(selection.location, (v as NSString).length)
+        let head = Engine.fromLatex((v as NSString).substring(to: at)), tail = Engine.fromLatex((v as NSString).substring(from: at))
+        if head + tail == v { return }
+        exprText = head + tail
+        selection = NSRange(location: (head as NSString).length, length: 0)
+    }
+
     func handleKey(_ e: NSEvent) -> Bool {
         let mods = e.modifierFlags.intersection([.command, .control])
         if !mods.isEmpty { return false }
+        if searchKey(e) { return true }
         switch e.keyCode {
         case 36, 76: commit(); return true                  // return, enter
         case 53: resetCalcDisplay(); return true            // escape
@@ -1089,6 +1251,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         editItem.submenu = edit
         main.addItem(editItem)
+
+        // The pads from the keyboard: F1 F2 F3, and ⌘K to find a constant
+        let padItem = NSMenuItem()
+        let padMenu = NSMenu(title: "Pad")
+        for (title, sel, key) in [("Keys", #selector(CalcView.showKeysPad), NSF1FunctionKey),
+                                  ("Units", #selector(CalcView.showUnitsPad), NSF2FunctionKey),
+                                  ("Constants", #selector(CalcView.openConstSearch), NSF3FunctionKey)] {
+            let item = padMenu.addItem(withTitle: title, action: sel, keyEquivalent: String(Character(UnicodeScalar(key)!)))
+            item.keyEquivalentModifierMask = []
+            item.target = calc
+        }
+        padMenu.addItem(.separator())
+        padMenu.addItem(withTitle: "Find Constant…", action: #selector(CalcView.openConstSearch), keyEquivalent: "k").target = calc
+        padItem.submenu = padMenu
+        main.addItem(padItem)
 
         let winItem = NSMenuItem()
         let win = NSMenu(title: "Window")

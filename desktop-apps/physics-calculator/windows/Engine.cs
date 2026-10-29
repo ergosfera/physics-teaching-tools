@@ -53,8 +53,10 @@ namespace PhysicsCalculator
 
     class Constant
     {
-        public string Name, Value, Unit, Desc;
-        public Constant(string name, string value, string unit, string desc) { Name = name; Value = value; Unit = unit; Desc = desc; }
+        public string Group, Name, Sym, Value, Unit, Desc;
+        public string[] Alias;
+        // What gets typed: the first other name, else the name
+        public string Typed { get { return Alias.Length > 0 ? Alias[0] : Name; } }
     }
 
     class Engine
@@ -104,32 +106,90 @@ namespace PhysicsCalculator
             P("d", 1e-1), P("h", 1e2), P("k", 1e3), P("M", 1e6), P("G", 1e9), P("T", 1e12), P("P", 1e15) };
         static KeyValuePair<string, double> P(string k, double v) { return new KeyValuePair<string, double>(k, v); }
 
+        // CODATA 2022 (physics.nist.gov/constants); Earth, Moon and Sun: IAU nominal values.
+        // Group, name, symbol, other names, value, unit, description. The symbol is drawn with
+        // "_" starting a subscript; the first other name (else the name) is what gets typed.
+        // h, e and g already mean hour, Euler's number and gram, hence hP, qe and gn.
         public static readonly Constant[] CONSTANTS = {
-            new Constant("gn",     "9.80665",           "m/s²",        "g — standard gravity"),
-            new Constant("G",      "6.67430e-11",       "N·m²/kg²",    "gravitational constant"),
-            new Constant("c",      "299792458",         "m/s",         "speed of light in vacuum"),
-            new Constant("hP",     "6.62607015e-34",    "J·s",         "h — Planck constant"),
-            new Constant("hbar",   "1.054571817e-34",   "J·s",         "ħ — reduced Planck constant"),
-            new Constant("kB",     "1.380649e-23",      "J/K",         "Boltzmann constant"),
-            new Constant("NA",     "6.02214076e23",     "1/mol",       "Avogadro constant"),
-            new Constant("R",      "8.314462618",       "J/(mol·K)",   "molar gas constant"),
-            new Constant("qe",     "1.602176634e-19",   "C",           "e — elementary charge"),
-            new Constant("me",     "9.1093837015e-31",  "kg",          "electron mass"),
-            new Constant("mp",     "1.67262192369e-27", "kg",          "proton mass"),
-            new Constant("mn",     "1.67492749804e-27", "kg",          "neutron mass"),
-            new Constant("ke",     "8.9875517923e9",    "N·m²/C²",     "Coulomb constant"),
-            new Constant("eps0",   "8.8541878128e-12",  "F/m",         "ε₀ — vacuum permittivity"),
-            new Constant("mu0",    "1.25663706212e-6",  "H/m",         "μ₀ — vacuum permeability"),
-            new Constant("sigma",  "5.670374419e-8",    "W/(m²·K⁴)",   "σ — Stefan–Boltzmann constant"),
-            new Constant("Mearth", "5.972e24",          "kg",          "mass of the Earth"),
-            new Constant("Rearth", "6.371e6",           "m",           "mean radius of the Earth"),
-            new Constant("Mmoon",  "7.342e22",          "kg",          "mass of the Moon"),
-            new Constant("Msun",   "1.989e30",          "kg",          "mass of the Sun"),
+            K("Universal",           "c",       "c",       "",          "299792458",         "m/s",       "speed of light in vacuum"),
+            K("Universal",           "G",       "G",       "",          "6.67430e-11",       "N·m²/kg²",  "gravitational constant"),
+            K("Universal",           "hP",      "h",       "",          "6.62607015e-34",    "J·s",       "Planck constant"),
+            K("Universal",           "hbar",    "ħ",       "ħ",         "1.054571817e-34",   "J·s",       "reduced Planck constant"),
+            K("Universal",           "gn",      "g_n",     "g_n",       "9.80665",           "m/s²",      "standard gravity (free fall)"),
+            K("Electromagnetism",    "qe",      "e",       "q_e",       "1.602176634e-19",   "C",         "elementary charge"),
+            K("Electromagnetism",    "eps0",    "ε_0",     "ε₀ ε0 ε_0", "8.8541878188e-12",  "F/m",       "vacuum electric permittivity"),
+            K("Electromagnetism",    "mu0",     "μ_0",     "μ₀ μ0 μ_0", "1.25663706127e-6",  "H/m",       "vacuum magnetic permeability"),
+            K("Electromagnetism",    "ke",      "k_e",     "k_e",       "8.9875517862e9",    "N·m²/C²",   "Coulomb constant, 1/(4πε₀)"),
+            K("Electromagnetism",    "muB",     "μ_B",     "μ_B",       "9.2740100657e-24",  "J/T",       "Bohr magneton"),
+            K("Electromagnetism",    "muN",     "μ_N",     "μ_N",       "5.0507837393e-27",  "J/T",       "nuclear magneton"),
+            K("Atoms and particles", "me",      "m_e",     "m_e",       "9.1093837139e-31",  "kg",        "electron mass"),
+            K("Atoms and particles", "mp",      "m_p",     "m_p",       "1.67262192595e-27", "kg",        "proton mass"),
+            K("Atoms and particles", "mn",      "m_n",     "m_n",       "1.67492750056e-27", "kg",        "neutron mass"),
+            K("Atoms and particles", "m_u",     "m_u",     "",          "1.66053906892e-27", "kg",        "atomic mass constant (1 u)"),
+            K("Atoms and particles", "alpha",   "α",       "α",         "7.2973525643e-3",   "",          "fine-structure constant"),
+            K("Atoms and particles", "a0",      "a_0",     "a₀ a_0",    "5.29177210544e-11", "m",         "Bohr radius"),
+            K("Atoms and particles", "Rinf",    "R_∞",     "R_inf",     "10973731.568157",   "1/m",       "Rydberg constant"),
+            K("Atoms and particles", "lambdaC", "λ_C",     "λ_C",       "2.42631023538e-12", "m",         "Compton wavelength of the electron"),
+            K("Heat and chemistry",  "kB",      "k_B",     "k_B",       "1.380649e-23",      "J/K",       "Boltzmann constant"),
+            K("Heat and chemistry",  "NA",      "N_A",     "N_A",       "6.02214076e23",     "1/mol",     "Avogadro constant"),
+            K("Heat and chemistry",  "R",       "R",       "",          "8.314462618",       "J/(mol·K)", "molar gas constant"),
+            K("Heat and chemistry",  "Faraday", "F",       "",          "96485.33212",       "C/mol",     "Faraday constant"),
+            K("Heat and chemistry",  "Vm",      "V_m",     "V_m",       "22.41396954e-3",    "m³/mol",    "molar volume of an ideal gas at 0 °C, 1 atm"),
+            K("Heat and chemistry",  "sigma",   "σ",       "σ",         "5.670374419e-8",    "W/(m²·K⁴)", "Stefan–Boltzmann constant"),
+            K("Heat and chemistry",  "wien",    "b",       "",          "2.897771955e-3",    "m·K",       "Wien displacement constant"),
+            K("Earth, Moon and Sun", "Mearth",  "M_Earth", "M_Earth",   "5.972e24",          "kg",        "mass of the Earth"),
+            K("Earth, Moon and Sun", "Rearth",  "R_Earth", "R_Earth",   "6.371e6",           "m",         "mean radius of the Earth"),
+            K("Earth, Moon and Sun", "Mmoon",   "M_Moon",  "M_Moon",    "7.342e22",          "kg",        "mass of the Moon"),
+            K("Earth, Moon and Sun", "Rmoon",   "R_Moon",  "R_Moon",    "1.7374e6",          "m",         "mean radius of the Moon"),
+            K("Earth, Moon and Sun", "dmoon",   "d_Moon",  "d_Moon",    "3.844e8",           "m",         "mean Earth–Moon distance"),
+            K("Earth, Moon and Sun", "Msun",    "M_Sun",   "M_Sun",     "1.9884e30",         "kg",        "mass of the Sun"),
+            K("Earth, Moon and Sun", "Rsun",    "R_Sun",   "R_Sun",     "6.957e8",           "m",         "radius of the Sun"),
+            K("Earth, Moon and Sun", "Lsun",    "L_Sun",   "L_Sun",     "3.828e26",          "W",         "luminosity of the Sun"),
         };
+        static Constant K(string group, string name, string sym, string alias, string value, string unit, string desc)
+        {
+            return new Constant { Group = group, Name = name, Sym = sym, Value = value, Unit = unit, Desc = desc,
+                                  Alias = alias == "" ? new string[0] : alias.Split(' ') };
+        }
         static readonly Dictionary<string, Q> CONST_Q = new Dictionary<string, Q>();
         static readonly Dictionary<string, string> CONST_ALIAS = new Dictionary<string, string> {
-            { "π", "pi" }, { "PI", "pi" }, { "E", "e" }, { "ħ", "hbar" }, { "ε0", "eps0" }, { "ε₀", "eps0" },
-            { "μ0", "mu0" }, { "μ₀", "mu0" }, { "σ", "sigma" } };
+            { "π", "pi" }, { "PI", "pi" }, { "E", "e" }, { "µ₀", "mu0" }, { "µ0", "mu0" } };
+
+        // LaTeX names typed with a backslash become symbols: \hbar → ħ, \epsilon_0 → ε_0.
+        // None is the start of another, so each can be swapped as soon as it is complete.
+        static readonly Dictionary<string, string> LATEX = new Dictionary<string, string> {
+            { "alpha", "α" }, { "beta", "β" }, { "gamma", "γ" }, { "delta", "δ" }, { "epsilon", "ε" }, { "varepsilon", "ε" },
+            { "zeta", "ζ" }, { "eta", "η" }, { "theta", "θ" }, { "iota", "ι" }, { "kappa", "κ" }, { "lambda", "λ" },
+            { "mu", "μ" }, { "nu", "ν" }, { "xi", "ξ" }, { "pi", "π" }, { "rho", "ρ" }, { "sigma", "σ" }, { "tau", "τ" },
+            { "upsilon", "υ" }, { "phi", "φ" }, { "varphi", "φ" }, { "chi", "χ" }, { "psi", "ψ" }, { "omega", "ω" },
+            { "Gamma", "Γ" }, { "Delta", "Δ" }, { "Theta", "Θ" }, { "Lambda", "Λ" }, { "Xi", "Ξ" }, { "Pi", "Π" },
+            { "Sigma", "Σ" }, { "Phi", "Φ" }, { "Psi", "Ψ" }, { "Omega", "Ω" }, { "hbar", "ħ" },
+            { "times", "×" }, { "cdot", "·" }, { "div", "÷" }, { "circ", "°" }, { "to", "→" } };
+        public static string FromLatex(string s)
+        {
+            return Regex.Replace(s, @"\\([A-Za-z]+)", m => { string r; return LATEX.TryGetValue(m.Groups[1].Value, out r) ? r : m.Value; });
+        }
+
+        // Constants search. 0 = the name or symbol itself, 1 = starts it, 2 = starts a word
+        // of the description, 3 = inside it, 4 = the group's name
+        static int ConstRank(Constant c, string q)
+        {
+            Func<string, string> norm = t => Regex.Replace(t.ToLowerInvariant(), @"[_\s]", "");
+            string qn = norm(q), ql = q.ToLowerInvariant().Trim();
+            var keys = new[] { c.Name, c.Sym }.Concat(c.Alias).Select(norm).ToList();
+            if (keys.Contains(qn)) return 0;
+            if (keys.Any(k => k.StartsWith(qn, StringComparison.Ordinal))) return 1;
+            string d = c.Desc.ToLowerInvariant();
+            if (Regex.Split(d, @"[^\p{L}\d]+").Any(w => w.StartsWith(ql, StringComparison.Ordinal))) return 2;
+            if (d.Contains(ql)) return 3;
+            return c.Group.ToLowerInvariant().Contains(ql) ? 4 : -1;
+        }
+        public static List<Constant> FindConstants(string q)
+        {
+            if (q.Trim() == "") return CONSTANTS.ToList();
+            return CONSTANTS.Select((c, i) => new { c, i, r = ConstRank(c, q) }).Where(x => x.r >= 0)
+                .OrderBy(x => x.r).ThenBy(x => x.i).Select(x => x.c).ToList();
+        }
 
         static Engine()
         {
@@ -173,7 +233,7 @@ namespace PhysicsCalculator
             DefUnit("gal", 3.785411784e-3, VOL);
             // mass
             DefUnit("t", 1000, MASS);
-            DefUnit("u Da", 1.66053906660e-27, MASS, true);
+            DefUnit("u Da", 1.66053906892e-27, MASS, true);
             DefUnit("lb", 0.45359237, MASS);
             DefUnit("oz", 0.028349523125, MASS);
             // speed
@@ -210,6 +270,7 @@ namespace PhysicsCalculator
 
             CONST_Q["pi"] = new Q(Math.PI);
             CONST_Q["e"] = new Q(Math.E);
+            foreach (var c in CONSTANTS) foreach (var a in c.Alias) CONST_ALIAS[a] = c.Name;
             var boot = new Engine();
             foreach (var c in CONSTANTS) CONST_Q[c.Name] = boot.Evaluate(c.Value + " " + c.Unit).Q;
         }
@@ -447,7 +508,7 @@ namespace PhysicsCalculator
 
         public Result Evaluate(string input)
         {
-            string src = input.Replace("º", "°").Replace("℃", "°C").Replace("℉", "°F");
+            string src = FromLatex(input).Replace("º", "°").Replace("℃", "°C").Replace("℉", "°F");
             toks = Tokenize(src);
             p = 0;
             Q q = ParseExpr();

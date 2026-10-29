@@ -19,7 +19,11 @@ struct Conversion { let v: Double; let label: String }
 struct CalcResult { let q: Q; let conv: Conversion? }
 struct UnitDef { let f: Double; let d: [Double]; let p: Bool; let ang: Bool }
 struct TempDef { let f: Double; let off: Double }
-struct Constant { let name: String; let value: String; let unit: String; let desc: String }
+struct Constant {
+    let group: String, name: String, sym: String, alias: [String], value: String, unit: String, desc: String
+    // What gets typed: the first other name, else the name
+    var typed: String { alias.first ?? name }
+}
 
 final class Engine {
     // ── Settings ──
@@ -103,7 +107,7 @@ final class Engine {
         def("gal", 3.785411784e-3, VOL)
         // mass
         def("t", 1000, MASS)
-        def("u Da", 1.66053906660e-27, MASS, true)
+        def("u Da", 1.66053906892e-27, MASS, true)
         def("lb", 0.45359237, MASS)
         def("oz", 0.028349523125, MASS)
         // speed
@@ -140,28 +144,51 @@ final class Engine {
         ("f", 1e-15), ("p", 1e-12), ("n", 1e-9), ("μ", 1e-6), ("µ", 1e-6), ("u", 1e-6), ("m", 1e-3), ("c", 1e-2),
         ("d", 1e-1), ("h", 1e2), ("k", 1e3), ("M", 1e6), ("G", 1e9), ("T", 1e12), ("P", 1e15)]
 
+    // CODATA 2022 (physics.nist.gov/constants); Earth, Moon and Sun: IAU nominal values.
+    // Group, name, symbol, other names, value, unit, description. The symbol is drawn with
+    // "_" starting a subscript; the first other name (else the name) is what gets typed.
+    // h, e and g already mean hour, Euler's number and gram, hence hP, qe and gn.
     static let CONSTANTS: [Constant] = [
-        Constant(name: "gn", value: "9.80665", unit: "m/s²", desc: "g — standard gravity"),
-        Constant(name: "G", value: "6.67430e-11", unit: "N·m²/kg²", desc: "gravitational constant"),
-        Constant(name: "c", value: "299792458", unit: "m/s", desc: "speed of light in vacuum"),
-        Constant(name: "hP", value: "6.62607015e-34", unit: "J·s", desc: "h — Planck constant"),
-        Constant(name: "hbar", value: "1.054571817e-34", unit: "J·s", desc: "ħ — reduced Planck constant"),
-        Constant(name: "kB", value: "1.380649e-23", unit: "J/K", desc: "Boltzmann constant"),
-        Constant(name: "NA", value: "6.02214076e23", unit: "1/mol", desc: "Avogadro constant"),
-        Constant(name: "R", value: "8.314462618", unit: "J/(mol·K)", desc: "molar gas constant"),
-        Constant(name: "qe", value: "1.602176634e-19", unit: "C", desc: "e — elementary charge"),
-        Constant(name: "me", value: "9.1093837015e-31", unit: "kg", desc: "electron mass"),
-        Constant(name: "mp", value: "1.67262192369e-27", unit: "kg", desc: "proton mass"),
-        Constant(name: "mn", value: "1.67492749804e-27", unit: "kg", desc: "neutron mass"),
-        Constant(name: "ke", value: "8.9875517923e9", unit: "N·m²/C²", desc: "Coulomb constant"),
-        Constant(name: "eps0", value: "8.8541878128e-12", unit: "F/m", desc: "ε₀ — vacuum permittivity"),
-        Constant(name: "mu0", value: "1.25663706212e-6", unit: "H/m", desc: "μ₀ — vacuum permeability"),
-        Constant(name: "sigma", value: "5.670374419e-8", unit: "W/(m²·K⁴)", desc: "σ — Stefan–Boltzmann constant"),
-        Constant(name: "Mearth", value: "5.972e24", unit: "kg", desc: "mass of the Earth"),
-        Constant(name: "Rearth", value: "6.371e6", unit: "m", desc: "mean radius of the Earth"),
-        Constant(name: "Mmoon", value: "7.342e22", unit: "kg", desc: "mass of the Moon"),
-        Constant(name: "Msun", value: "1.989e30", unit: "kg", desc: "mass of the Sun"),
+        K("Universal",           "c",       "c",       "",          "299792458",         "m/s",       "speed of light in vacuum"),
+        K("Universal",           "G",       "G",       "",          "6.67430e-11",       "N·m²/kg²",  "gravitational constant"),
+        K("Universal",           "hP",      "h",       "",          "6.62607015e-34",    "J·s",       "Planck constant"),
+        K("Universal",           "hbar",    "ħ",       "ħ",         "1.054571817e-34",   "J·s",       "reduced Planck constant"),
+        K("Universal",           "gn",      "g_n",     "g_n",       "9.80665",           "m/s²",      "standard gravity (free fall)"),
+        K("Electromagnetism",    "qe",      "e",       "q_e",       "1.602176634e-19",   "C",         "elementary charge"),
+        K("Electromagnetism",    "eps0",    "ε_0",     "ε₀ ε0 ε_0", "8.8541878188e-12",  "F/m",       "vacuum electric permittivity"),
+        K("Electromagnetism",    "mu0",     "μ_0",     "μ₀ μ0 μ_0", "1.25663706127e-6",  "H/m",       "vacuum magnetic permeability"),
+        K("Electromagnetism",    "ke",      "k_e",     "k_e",       "8.9875517862e9",    "N·m²/C²",   "Coulomb constant, 1/(4πε₀)"),
+        K("Electromagnetism",    "muB",     "μ_B",     "μ_B",       "9.2740100657e-24",  "J/T",       "Bohr magneton"),
+        K("Electromagnetism",    "muN",     "μ_N",     "μ_N",       "5.0507837393e-27",  "J/T",       "nuclear magneton"),
+        K("Atoms and particles", "me",      "m_e",     "m_e",       "9.1093837139e-31",  "kg",        "electron mass"),
+        K("Atoms and particles", "mp",      "m_p",     "m_p",       "1.67262192595e-27", "kg",        "proton mass"),
+        K("Atoms and particles", "mn",      "m_n",     "m_n",       "1.67492750056e-27", "kg",        "neutron mass"),
+        K("Atoms and particles", "m_u",     "m_u",     "",          "1.66053906892e-27", "kg",        "atomic mass constant (1 u)"),
+        K("Atoms and particles", "alpha",   "α",       "α",         "7.2973525643e-3",   "",          "fine-structure constant"),
+        K("Atoms and particles", "a0",      "a_0",     "a₀ a_0",    "5.29177210544e-11", "m",         "Bohr radius"),
+        K("Atoms and particles", "Rinf",    "R_∞",     "R_inf",     "10973731.568157",   "1/m",       "Rydberg constant"),
+        K("Atoms and particles", "lambdaC", "λ_C",     "λ_C",       "2.42631023538e-12", "m",         "Compton wavelength of the electron"),
+        K("Heat and chemistry",  "kB",      "k_B",     "k_B",       "1.380649e-23",      "J/K",       "Boltzmann constant"),
+        K("Heat and chemistry",  "NA",      "N_A",     "N_A",       "6.02214076e23",     "1/mol",     "Avogadro constant"),
+        K("Heat and chemistry",  "R",       "R",       "",          "8.314462618",       "J/(mol·K)", "molar gas constant"),
+        K("Heat and chemistry",  "Faraday", "F",       "",          "96485.33212",       "C/mol",     "Faraday constant"),
+        K("Heat and chemistry",  "Vm",      "V_m",     "V_m",       "22.41396954e-3",    "m³/mol",    "molar volume of an ideal gas at 0 °C, 1 atm"),
+        K("Heat and chemistry",  "sigma",   "σ",       "σ",         "5.670374419e-8",    "W/(m²·K⁴)", "Stefan–Boltzmann constant"),
+        K("Heat and chemistry",  "wien",    "b",       "",          "2.897771955e-3",    "m·K",       "Wien displacement constant"),
+        K("Earth, Moon and Sun", "Mearth",  "M_Earth", "M_Earth",   "5.972e24",          "kg",        "mass of the Earth"),
+        K("Earth, Moon and Sun", "Rearth",  "R_Earth", "R_Earth",   "6.371e6",           "m",         "mean radius of the Earth"),
+        K("Earth, Moon and Sun", "Mmoon",   "M_Moon",  "M_Moon",    "7.342e22",          "kg",        "mass of the Moon"),
+        K("Earth, Moon and Sun", "Rmoon",   "R_Moon",  "R_Moon",    "1.7374e6",          "m",         "mean radius of the Moon"),
+        K("Earth, Moon and Sun", "dmoon",   "d_Moon",  "d_Moon",    "3.844e8",           "m",         "mean Earth–Moon distance"),
+        K("Earth, Moon and Sun", "Msun",    "M_Sun",   "M_Sun",     "1.9884e30",         "kg",        "mass of the Sun"),
+        K("Earth, Moon and Sun", "Rsun",    "R_Sun",   "R_Sun",     "6.957e8",           "m",         "radius of the Sun"),
+        K("Earth, Moon and Sun", "Lsun",    "L_Sun",   "L_Sun",     "3.828e26",          "W",         "luminosity of the Sun"),
     ]
+    static func K(_ group: String, _ name: String, _ sym: String, _ alias: String, _ value: String, _ unit: String,
+                  _ desc: String) -> Constant {
+        Constant(group: group, name: name, sym: sym, alias: alias.isEmpty ? [] : alias.components(separatedBy: " "),
+                 value: value, unit: unit, desc: desc)
+    }
 
     static let CONST_Q: [String: Q] = {
         var m: [String: Q] = ["pi": Q(Double.pi), "e": Q(M_E)]
@@ -170,8 +197,50 @@ final class Engine {
         for c in CONSTANTS { m[c.name] = try! boot.evaluate("\(c.value) \(c.unit)").q }
         return m
     }()
-    static let CONST_ALIAS: [String: String] = ["π": "pi", "PI": "pi", "E": "e", "ħ": "hbar", "ε0": "eps0", "ε₀": "eps0",
-                                                "μ0": "mu0", "μ₀": "mu0", "σ": "sigma"]
+    static let CONST_ALIAS: [String: String] = {
+        var m = ["π": "pi", "PI": "pi", "E": "e", "µ₀": "mu0", "µ0": "mu0"]
+        for c in CONSTANTS { for a in c.alias { m[a] = c.name } }
+        return m
+    }()
+
+    // LaTeX names typed with a backslash become symbols: \hbar → ħ, \epsilon_0 → ε_0.
+    // None is the start of another, so each can be swapped as soon as it is complete.
+    static let LATEX: [String: String] = [
+        "alpha": "α", "beta": "β", "gamma": "γ", "delta": "δ", "epsilon": "ε", "varepsilon": "ε", "zeta": "ζ", "eta": "η",
+        "theta": "θ", "iota": "ι", "kappa": "κ", "lambda": "λ", "mu": "μ", "nu": "ν", "xi": "ξ", "pi": "π", "rho": "ρ",
+        "sigma": "σ", "tau": "τ", "upsilon": "υ", "phi": "φ", "varphi": "φ", "chi": "χ", "psi": "ψ", "omega": "ω",
+        "Gamma": "Γ", "Delta": "Δ", "Theta": "Θ", "Lambda": "Λ", "Xi": "Ξ", "Pi": "Π", "Sigma": "Σ", "Phi": "Φ",
+        "Psi": "Ψ", "Omega": "Ω", "hbar": "ħ", "times": "×", "cdot": "·", "div": "÷", "circ": "°", "to": "→"]
+    static let reLatex = try! NSRegularExpression(pattern: "\\\\([A-Za-z]+)")
+    static func fromLatex(_ s: String) -> String {
+        let ns = s as NSString
+        var out = "", last = 0
+        for m in reLatex.matches(in: s, range: NSRange(location: 0, length: ns.length)) {
+            out += ns.substring(with: NSRange(location: last, length: m.range.location - last))
+            out += LATEX[ns.substring(with: m.range(at: 1))] ?? ns.substring(with: m.range)
+            last = m.range.location + m.range.length
+        }
+        return out + ns.substring(from: last)
+    }
+
+    // Constants search. 0 = the name or symbol itself, 1 = starts it, 2 = starts a word
+    // of the description, 3 = inside it, 4 = the group's name
+    static func constRank(_ c: Constant, _ q: String) -> Int {
+        let norm = { (t: String) in t.lowercased().filter { $0 != "_" && !$0.isWhitespace } }
+        let qn = norm(q), ql = q.lowercased().trimmingCharacters(in: .whitespaces)
+        let keys = ([c.name, c.sym] + c.alias).map(norm)
+        if keys.contains(qn) { return 0 }
+        if keys.contains(where: { $0.hasPrefix(qn) }) { return 1 }
+        let d = c.desc.lowercased()
+        if d.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).contains(where: { $0.hasPrefix(ql) }) { return 2 }
+        if d.contains(ql) { return 3 }
+        return c.group.lowercased().contains(ql) ? 4 : -1
+    }
+    static func findConstants(_ q: String) -> [Constant] {
+        if q.trimmingCharacters(in: .whitespaces).isEmpty { return CONSTANTS }
+        return CONSTANTS.enumerated().map { (c: $0.element, i: $0.offset, r: constRank($0.element, q)) }
+            .filter { $0.r >= 0 }.sorted { ($0.r, $0.i) < ($1.r, $1.i) }.map { $0.c }
+    }
 
     func toRad(_ x: Q) -> Double { x.ang ? x.v : angleMode == "deg" ? x.v * Double.pi / 180 : x.v }
 
@@ -377,7 +446,7 @@ final class Engine {
     }
 
     func evaluate(_ input: String) throws -> CalcResult {
-        let src = input.replacingOccurrences(of: "º", with: "°").replacingOccurrences(of: "℃", with: "°C")
+        let src = Engine.fromLatex(input).replacingOccurrences(of: "º", with: "°").replacingOccurrences(of: "℃", with: "°C")
                        .replacingOccurrences(of: "℉", with: "°F")
         toks = try Engine.tokenize(src)
         p = 0
