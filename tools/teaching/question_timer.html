@@ -249,6 +249,10 @@
     /* Lighten, not darken, alternate blocks: a dark overlay turns the
        yellow muddy brown. */
     .segment.light       { background: rgba(255,255,255,0.5); }
+    /* Unused padding slot when an odd count is split over two rows */
+    .segment.blank       { background: var(--face); border-left: none; }
+
+    .bar-row + .bar-row  { margin-top: 10px; }
 
     .tick-labels {
       position: relative;
@@ -464,13 +468,7 @@
             <div id="digits" class="digits">10:00</div>
           </div>
 
-          <div id="progressTrack" class="progress-track">
-            <div class="progress-wrap bevel-sunken">
-              <div id="bar" class="progress-bar"></div>
-              <div id="tickLayer" class="tick-layer"></div>
-            </div>
-            <div id="tickLabels" class="tick-labels"></div>
-          </div>
+          <div id="progressTrack" class="progress-track"></div>
 
           <div id="perQuestionLabel" class="per-question-label"></div>
         </div>
@@ -557,10 +555,7 @@
     const headerTitle      = document.querySelector(".header-title");
     const paceLabel        = document.getElementById("paceLabel");
     const digits           = document.getElementById("digits");
-    const bar              = document.getElementById("bar");
     const progressTrack    = document.getElementById("progressTrack");
-    const tickLayer        = document.getElementById("tickLayer");
-    const tickLabels       = document.getElementById("tickLabels");
     const perQuestionLabel = document.getElementById("perQuestionLabel");
     const btnPlay          = document.getElementById("play");
     const btnPause         = document.getElementById("pause");
@@ -635,10 +630,21 @@
       return Math.max(0, Math.min(1, ms / (initial * 1000)));
     }
 
+    // The ruler can wrap onto two rows like a line of text; the time left
+    // fills the slots in reading order, so the bottom row empties first and
+    // then the top one. `blank` slots pad the start when n is odd.
+    let barLayout = { rows: [], cols: 1, blank: 0, n: 1 };
+
     function drawBar() {
       const ratio = remainingRatio();
-      bar.style.width = (ratio * 100) + "%";
-      bar.style.background = colorForFraction(ratio);
+      const { rows, cols, blank, n } = barLayout;
+      const filled = blank + ratio * n;
+      const color = colorForFraction(ratio);
+      rows.forEach((bar, k) => {
+        const frac = Math.max(0, Math.min(1, (filled - k * cols) / cols));
+        bar.style.width = (frac * 100) + "%";
+        bar.style.background = color;
+      });
     }
 
     let barFrame = null;
@@ -649,35 +655,59 @@
 
     // ---- Question blocks on the bar track ----
     function rebuildTicks(n) {
-      tickLayer.innerHTML = "";
-      tickLabels.innerHTML = "";
+      progressTrack.innerHTML = "";
+      // Past 10 questions the numbers get cramped, so split the ruler into
+      // two rows of half the questions each.
+      const rowCount = n > 10 ? 2 : 1;
+      const cols  = Math.ceil(n / rowCount);
+      const blank = rowCount * cols - n;
       // With many questions the numbers get too small to project, so label
       // fewer blocks and give those the room of a 5-wide block.
-      const labelEvery = n <= 24 ? 1 : 5;
-      progressTrack.style.setProperty("--n", n / labelEvery);
-      for (let i = 0; i < n; i++) {
-        // The bar shrinks from the right edge inward, so blocks number
-        // right-to-left — question 1 is the rightmost block.
-        const q = n - i;
-        const seg = document.createElement("div");
-        seg.className = "segment" + (q % 2 === 1 ? " light" : "");
-        seg.style.left  = (i / n) * 100 + "%";
-        seg.style.width = (1 / n) * 100 + "%";
-        tickLayer.appendChild(seg);
+      const labelEvery = cols <= 24 ? 1 : 5;
+      progressTrack.style.setProperty("--n", cols / labelEvery);
 
-        if (q === 1 || q % labelEvery === 0) {
-          const label = document.createElement("div");
-          label.className = "tick-label";
-          label.dataset.q = q;
-          label.style.left = ((i + 0.5) / n) * 100 + "%";
-          label.textContent = q;
-          tickLabels.appendChild(label);
+      const rows = [];
+      for (let k = 0; k < rowCount; k++) {
+        const row = document.createElement("div");
+        row.className = "bar-row";
+        row.innerHTML =
+          '<div class="progress-wrap bevel-sunken">' +
+            '<div class="progress-bar"></div><div class="tick-layer"></div>' +
+          '</div><div class="tick-labels"></div>';
+        const layer  = row.querySelector(".tick-layer");
+        const labels = row.querySelector(".tick-labels");
+        rows.push(row.querySelector(".progress-bar"));
+
+        for (let c = 0; c < cols; c++) {
+          const slot = k * cols + c;
+          const seg = document.createElement("div");
+          seg.style.left  = (c / cols) * 100 + "%";
+          seg.style.width = (1 / cols) * 100 + "%";
+          layer.appendChild(seg);
+          if (slot < blank) { seg.className = "segment blank"; continue; }
+
+          // The bar shrinks from the right edge inward, so blocks number
+          // right-to-left — question 1 is the last block.
+          const q = n - (slot - blank);
+          seg.className = "segment" + (q % 2 === 1 ? " light" : "");
+
+          if (q === 1 || q % labelEvery === 0) {
+            const label = document.createElement("div");
+            label.className = "tick-label";
+            label.dataset.q = q;
+            label.style.left = ((c + 0.5) / cols) * 100 + "%";
+            label.textContent = q;
+            labels.appendChild(label);
+          }
         }
+        progressTrack.appendChild(row);
       }
+      barLayout = { rows, cols, blank, n };
+      drawBar();
     }
 
     function highlightCurrentQuestion(idx) {
-      for (const label of tickLabels.children) {
+      for (const label of progressTrack.querySelectorAll(".tick-label")) {
         const q = Number(label.dataset.q);
         label.classList.toggle("past", idx > 0 && q < idx);
         label.classList.toggle("current", q === idx);
