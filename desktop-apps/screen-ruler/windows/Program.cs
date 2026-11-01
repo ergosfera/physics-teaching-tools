@@ -15,8 +15,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Screen Ruler")]
 [assembly: AssemblyProduct("Screen Ruler")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Mauricio Mendivelso. MIT License.")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace ScreenRuler
 {
@@ -69,6 +69,12 @@ namespace ScreenRuler
         public static readonly Color ProtractorTint = Color.FromArgb(0xcd, 0xec, 0xcc);
         public static readonly Color Ink = Color.FromArgb(0x1e, 0x1e, 0x22);
         public static readonly Color Marker = Color.FromArgb(0xd0, 0x1c, 0x1c);
+
+        // Extra guides and marks: strong colors that read on every tint (saved by index, same order as the Mac)
+        public static readonly Color[] MarkColors = {
+            Color.FromArgb(0x15, 0x65, 0xd8), Color.FromArgb(0x11, 0x8a, 0x3c), Color.FromArgb(0xe0, 0x7b, 0x00),
+            Color.FromArgb(0x8e, 0x24, 0xaa), Color.FromArgb(0xd8, 0x1b, 0x8c), Color.FromArgb(0x1e, 0x1e, 0x22) };
+        public static readonly string[] MarkColorNames = { "Blue", "Green", "Orange", "Purple", "Magenta", "Black" };
 
         public static Color A(Color c, double alpha) { return Color.FromArgb((int)Math.Round(alpha * 255), c); }
 
@@ -208,6 +214,14 @@ namespace ScreenRuler
         }
     }
 
+    // An extra guide on a ruler (At in screen pixels from 0) or mark on the protractor (At in degrees)
+    class Mark
+    {
+        public double At;
+        public int Color;
+        public Mark(double at, int color) { At = at; Color = color; }
+    }
+
     static class Measure
     {
         public const double MinMajor = 70;     // least spacing between labels, in 96-dpi pixels
@@ -285,6 +299,27 @@ namespace ScreenRuler
         public static string Num(double v) { return v.ToString("R", Inv); }
         public static bool TryNum(string s, out double v) { return double.TryParse(s, NumberStyles.Float, Inv, out v); }
 
+        // Saved as at:color;at:color (an optional last field of a tool's setting, same as on the Mac)
+        public static string MarksText(List<Mark> marks)
+        {
+            var parts = new List<string>();
+            foreach (var m in marks) parts.Add(Num(m.At) + ":" + m.Color.ToString(Inv));
+            return string.Join(";", parts.ToArray());
+        }
+
+        public static List<Mark> ParseMarks(string s, int max)
+        {
+            var marks = new List<Mark>();
+            foreach (string part in s.Split(';'))
+            {
+                var f = part.Split(':');
+                double at, c;
+                if (f.Length != 2 || !TryNum(f[0], out at) || !TryNum(f[1], out c) || marks.Count >= max) continue;
+                marks.Add(new Mark(at, Math.Min(Skin.MarkColors.Length - 1, Math.Max(0, (int)c))));
+            }
+            return marks;
+        }
+
         public static int SelfTest()
         {
             int fails = 0;
@@ -324,6 +359,11 @@ namespace ScreenRuler
             check(Cross(new PointF(0, 0), new PointF(1, 0), new PointF(5, -3), new PointF(0, 1), out t, out s) &&
                   near(t, 5) && near(s, 3), "cross");
             check(!Cross(new PointF(0, 0), new PointF(1, 1), new PointF(0, 1), new PointF(2, 2), out t, out s), "parallel");
+            var saved = ParseMarks("120.5:2;300:0", 8);
+            check(saved.Count == 2 && near(saved[0].At, 120.5) && saved[0].Color == 2 && saved[1].Color == 0, "marks parse");
+            check(MarksText(saved) == "120.5:2;300:0", "marks text");
+            check(ParseMarks("bad;1:99;2:0", 8).Count == 2 && ParseMarks("1:99", 8)[0].Color == 5, "marks bad input");
+            check(ParseMarks("1:0;2:0;3:0", 2).Count == 2, "marks limit");
             Console.WriteLine(fails == 0 ? "Self-test passed" : "Self-test: " + fails + " failed");
             return fails;
         }
@@ -436,7 +476,7 @@ namespace ScreenRuler
         }
     }
 
-    enum Part { None, Body, Marker, Knob, Grip, Arm, Rim }
+    enum Part { None, Body, Marker, Knob, Grip, Arm, Rim, Mark }
 
     // A ruler or the protractor in its own layered window: drawn in its own coordinates (x along the
     // baseline, y down), rotated by Angle degrees counterclockwise about Origin (screen pixels).
@@ -463,6 +503,12 @@ namespace ScreenRuler
         protected float grabValue;
         protected PanelForm app;
         Rectangle frame;
+
+        // Extra guides (ruler) or marks (protractor)
+        public const int MaxMarks = 8;
+        public readonly List<Mark> Marks = new List<Mark>();
+        protected Mark grabbedMark;
+        PointF menuAt;
 
         protected Tool(PanelForm app)
         {
@@ -491,6 +537,10 @@ namespace ScreenRuler
         public abstract Color Tint { get; }
         public abstract string[] Readouts();
         public abstract string Serialize();
+        public abstract string MarkName { get; }
+        public abstract string MarkReading(Mark m);
+        protected abstract Mark MarkAt(PointF p);
+        protected abstract double MarkValue(PointF p);
 
         public bool Flipped { get { return Math.Abs(Measure.Norm180(Angle)) > 90; } }
         public float S(float v) { return v * K; }
@@ -681,11 +731,15 @@ namespace ScreenRuler
             base.OnMouseUp(e);
             if (e.Button == MouseButtons.Right)
             {
-                if (Hit(ToLocal(Mouse)) != Part.None) BuildMenu().Show(Control.MousePosition);
+                var at = ToLocal(Mouse);
+                if (Hit(at) == Part.None) return;
+                menuAt = at;
+                BuildMenu().Show(Control.MousePosition);
                 return;
             }
             if (Grabbed == Part.None) return;
             Grabbed = Part.None;
+            grabbedMark = null;
             Capture = false;
             app.Changed(true);
         }
@@ -723,6 +777,52 @@ namespace ScreenRuler
             return m;
         }
 
+        // On a guide or mark: its color and Remove. Anywhere else on the tool: add one here.
+        protected void AddMarkItems(ContextMenuStrip m)
+        {
+            var over = MarkAt(menuAt);
+            if (over == null)
+            {
+                double at = MarkValue(menuAt);
+                m.Items.Add(new ToolStripMenuItem("Add " + MarkName.ToLowerInvariant() + " here", null, delegate { AddMark(at); })
+                    { Enabled = Marks.Count < MaxMarks });
+                return;
+            }
+            for (int i = 0; i < Skin.MarkColors.Length; i++)
+            {
+                int pick = i;
+                var swatch = new Bitmap(16, 16);
+                using (var g = Graphics.FromImage(swatch))
+                using (var b = new SolidBrush(Skin.MarkColors[i]))
+                    g.FillRectangle(b, 2, 2, 12, 12);
+                m.Items.Add(new ToolStripMenuItem(Skin.MarkColorNames[i], swatch, delegate { over.Color = pick; Render(); app.Changed(true); })
+                    { Checked = over.Color == i });
+            }
+            m.Items.Add(new ToolStripMenuItem("Remove this " + MarkName.ToLowerInvariant(), null, delegate { RemoveMark(over); }));
+        }
+
+        void AddMark(double at)
+        {
+            if (Marks.Count >= MaxMarks) return;
+            // The first color not in use yet
+            int color = Marks.Count % Skin.MarkColors.Length;
+            for (int i = Skin.MarkColors.Length - 1; i >= 0; i--)
+            {
+                int c = i;
+                if (!Marks.Exists(delegate(Mark x) { return x.Color == c; })) color = c;
+            }
+            Marks.Add(new Mark(at, color));
+            Render();
+            app.Changed(true);
+        }
+
+        public void RemoveMark(Mark mark)
+        {
+            Marks.Remove(mark);
+            Render();
+            app.Changed(true);
+        }
+
         protected void AddBaseItems(ContextMenuStrip m)
         {
             if (m.Items.Count > 0) m.Items.Add(new ToolStripSeparator());
@@ -757,6 +857,8 @@ namespace ScreenRuler
 
         public override string Title { get { return "Ruler " + (Index + 1); } }
         public override Color Tint { get { return Skin.Tints[Index]; } }
+        public override string MarkName { get { return "Guide"; } }
+        public override string MarkReading(Mark m) { return Measure.Format(m.At / UnitPixels, Unit); }
 
         RectangleF Body { get { return new RectangleF(-S(ZeroMargin), 0, Length + S(ZeroMargin + EndMargin), S(Height_)); } }
         public override RectangleF LocalBounds
@@ -788,11 +890,28 @@ namespace ScreenRuler
         {
             if (!Body.Contains(p)) return Part.None;
             if (Math.Abs(p.X - MarkerAt) <= S(6) && p.X <= Length + S(6)) return Part.Marker;
+            if (MarkAt(p) != null) return Part.Mark;
             var k = KnobAt;
             if (Math.Sqrt((p.X - k.X) * (p.X - k.X) + (p.Y - k.Y) * (p.Y - k.Y)) <= S(15)) return Part.Knob;
             if (p.X >= Length + S(40)) return Part.Grip;
             return Part.Body;
         }
+
+        // The nearest guide within reach of a point on the ruler
+        protected override Mark MarkAt(PointF p)
+        {
+            if (!Body.Contains(p)) return null;
+            Mark best = null;
+            double reach = S(6);
+            foreach (var m in Marks)
+            {
+                double d = Math.Abs(p.X - m.At);
+                if (d <= reach) { best = m; reach = d; }
+            }
+            return best;
+        }
+
+        protected override double MarkValue(PointF p) { return Math.Min(Length, Math.Max(0, p.X)); }
 
         protected override Cursor CursorFor(Part r)
         {
@@ -804,6 +923,22 @@ namespace ScreenRuler
         {
             base.Begin(region, g);
             grabValue = region == Part.Grip ? Length - grabLocal.X : MarkerAt - grabLocal.X;
+            if (region == Part.Mark)
+            {
+                grabbedMark = MarkAt(grabLocal);
+                grabValue = (float)grabbedMark.At - grabLocal.X;
+            }
+        }
+
+        // Where a dragged marker or guide lands; with Shift, on the nearest tick
+        float Slide(float m, bool shift)
+        {
+            if (shift)
+            {
+                double step = Measure.Plan(Unit, UnitPixels, K).Step * UnitPixels;
+                m = (float)(Math.Round(m / step) * step);
+            }
+            return Math.Min(Length, Math.Max(0, m));
         }
 
         public override void Drag(PointF g, bool shift)
@@ -812,18 +947,17 @@ namespace ScreenRuler
             switch (Grabbed)
             {
                 case Part.Marker:
-                    float m = x + grabValue;
-                    if (shift)     // snap to the nearest tick
-                    {
-                        double step = Measure.Plan(Unit, UnitPixels, K).Step * UnitPixels;
-                        m = (float)(Math.Round(m / step) * step);
-                    }
-                    MarkerAt = Math.Min(Length, Math.Max(0, m));
+                    MarkerAt = Slide(x + grabValue, shift);
+                    Render();
+                    break;
+                case Part.Mark:
+                    grabbedMark.At = Slide(x + grabValue, shift);
                     Render();
                     break;
                 case Part.Grip:
                     Length = Math.Min(MaxLength, Math.Max(S(MinLength), x + grabValue));
                     MarkerAt = Math.Min(MarkerAt, Length);
+                    foreach (var m in Marks) m.At = Math.Min(m.At, Length);
                     Relayout();
                     break;
                 default:
@@ -871,20 +1005,17 @@ namespace ScreenRuler
                 Label(g, info, fInfo, Skin.A(Skin.Ink, 0.8), new PointF(Flipped ? Length : S(4), S(62)), true);
             }
 
-            // The red marker: a line across the ruler and the reading from 0
-            using (var p = new Pen(Skin.Marker, S(1.5f)))
-                g.DrawLine(p, MarkerAt, 0, MarkerAt, S(Height_ - 1));
-            using (var br = new SolidBrush(Skin.Marker))
-                g.FillPolygon(br, new[] { new PointF(MarkerAt - S(6), S(Height_ - 1)), new PointF(MarkerAt + S(6), S(Height_ - 1)),
-                                          new PointF(MarkerAt, S(Height_ - 9)) });
+            // The guides, then the red marker on top: a line across the ruler and the reading from 0
             using (var fRead = Px("Consolas", 12, true))
             {
-                string r = Reading;
-                float w = g.MeasureString(r, fRead, PointF.Empty, StringFormat.GenericTypographic).Width;
-                bool right = MarkerAt + S(8) + w <= Length + S(EndMargin - 4);
-                var tag = new RectangleF(right ? MarkerAt + S(5) : MarkerAt - S(9) - w, S(39), w + S(4), S(15));
-                Skin.FillRound(g, tag, S(2), Skin.A(Color.White, 0.8));
-                Label(g, r, fRead, Skin.Marker, new PointF(tag.X + tag.Width / 2, tag.Y + tag.Height / 2), false);
+                var taken = new List<RectangleF>();
+                var redTag = TagFor(g, Reading, MarkerAt, fRead, taken);
+                foreach (var m in Marks)
+                {
+                    string r = MarkReading(m);
+                    DrawMarker(g, (float)m.At, Skin.MarkColors[m.Color], r, TagFor(g, r, (float)m.At, fRead, taken), fRead);
+                }
+                DrawMarker(g, MarkerAt, Skin.Marker, Reading, redTag, fRead);
             }
 
             DrawKnob(g, KnobAt, S(12));
@@ -907,9 +1038,35 @@ namespace ScreenRuler
                 }
         }
 
+        // A place for a reading beside its line: the first of two rows where it overlaps no other reading
+        RectangleF TagFor(Graphics g, string text, float at, Font f, List<RectangleF> taken)
+        {
+            float w = g.MeasureString(text, f, PointF.Empty, StringFormat.GenericTypographic).Width;
+            bool right = at + S(8) + w <= Length + S(EndMargin - 4);
+            var tag = new RectangleF(right ? at + S(5) : at - S(9) - w, S(39), w + S(4), S(15));
+            var lower = new RectangleF(tag.X, S(55), tag.Width, tag.Height);
+            if (taken.Exists(delegate(RectangleF o) { return o.IntersectsWith(tag); }) &&
+                !taken.Exists(delegate(RectangleF o) { return o.IntersectsWith(lower); })) tag = lower;
+            taken.Add(tag);
+            return tag;
+        }
+
+        void DrawMarker(Graphics g, float at, Color c, string text, RectangleF tag, Font f)
+        {
+            using (var p = new Pen(c, S(1.5f)))
+                g.DrawLine(p, at, 0, at, S(Height_ - 1));
+            using (var br = new SolidBrush(c))
+                g.FillPolygon(br, new[] { new PointF(at - S(6), S(Height_ - 1)), new PointF(at + S(6), S(Height_ - 1)),
+                                          new PointF(at, S(Height_ - 9)) });
+            Skin.FillRound(g, tag, S(2), Skin.A(Color.White, 0.8));
+            Label(g, text, f, c, new PointF(tag.X + tag.Width / 2, tag.Y + tag.Height / 2), false);
+        }
+
         protected override ContextMenuStrip BuildMenu()
         {
             var m = new ContextMenuStrip();
+            AddMarkItems(m);
+            m.Items.Add(new ToolStripSeparator());
             foreach (Unit u in Units.All)
             {
                 if (u == Unit.Sm) m.Items.Add(new ToolStripSeparator());
@@ -981,7 +1138,8 @@ namespace ScreenRuler
         public override string Serialize()
         {
             return string.Join(",", new[] { Measure.Num(Origin.X), Measure.Num(Origin.Y), Measure.Num(Angle),
-                Measure.Num(Length), Measure.Num(MarkerAt), Units.Key(Unit), Measure.Num(MetersPerPixel) });
+                Measure.Num(Length), Measure.Num(MarkerAt), Units.Key(Unit), Measure.Num(MetersPerPixel) }) +
+                (Marks.Count > 0 ? "," + Measure.MarksText(Marks) : "");
         }
 
         public static Ruler Parse(PanelForm app, string s, int index)
@@ -990,7 +1148,7 @@ namespace ScreenRuler
             var f = s.Split(',');
             double x, y, a, l, m, k;
             Unit u;
-            if (f.Length != 7 || !Measure.TryNum(f[0], out x) || !Measure.TryNum(f[1], out y) || !Measure.TryNum(f[2], out a) ||
+            if (f.Length < 7 || f.Length > 8 || !Measure.TryNum(f[0], out x) || !Measure.TryNum(f[1], out y) || !Measure.TryNum(f[2], out a) ||
                 !Measure.TryNum(f[3], out l) || !Measure.TryNum(f[4], out m) || !Units.Parse(f[5], out u) ||
                 !Measure.TryNum(f[6], out k)) return null;
             var r = new Ruler(app, index);
@@ -1000,6 +1158,12 @@ namespace ScreenRuler
             r.MarkerAt = (float)Math.Min(r.Length, Math.Max(0, m));
             r.MetersPerPixel = Math.Max(0, k);
             r.Unit = Units.Scaled(u) && r.MetersPerPixel <= 0 ? Unit.Cm : u;
+            if (f.Length == 8)
+                foreach (var g in Measure.ParseMarks(f[7], MaxMarks))
+                {
+                    g.At = Math.Min(r.Length, Math.Max(0, g.At));
+                    r.Marks.Add(g);
+                }
             return r;
         }
 
@@ -1016,21 +1180,22 @@ namespace ScreenRuler
 
         public override string Title { get { return "Protractor"; } }
         public override Color Tint { get { return Skin.ProtractorTint; } }
+        public override string MarkName { get { return "Mark"; } }
+        public override string MarkReading(Mark m) { return Measure.Angle(m.At); }
 
         float ArmLength { get { return Radius + S(36); } }
         PointF KnobAt { get { return new PointF(Radius + S(24), S(Bar) / 2); } }
-        PointF ArmEnd
+        PointF Polar(double degrees, float length)
         {
-            get
-            {
-                double r = Arm * Math.PI / 180;
-                return new PointF(ArmLength * (float)Math.Cos(r), -ArmLength * (float)Math.Sin(r));
-            }
+            double r = degrees * Math.PI / 180;
+            return new PointF(length * (float)Math.Cos(r), -length * (float)Math.Sin(r));
         }
+        PointF ArmEnd { get { return Polar(Arm, ArmLength); } }
 
         public override RectangleF LocalBounds
         {
-            get { return new RectangleF(-Radius - S(48), -Radius - S(50), 2 * Radius + S(96), Radius + S(50) + S(Bar + 2)); }
+            // Room for the readings of the marks, beyond the rim
+            get { return new RectangleF(-Radius - S(84), -Radius - S(68), 2 * Radius + S(168), Radius + S(68) + S(Bar + 2)); }
         }
 
         static float Len(float x, float y) { return (float)Math.Sqrt(x * x + y * y); }
@@ -1041,6 +1206,7 @@ namespace ScreenRuler
             if (Len(p.X - e.X, p.Y - e.Y) <= S(11)) return Part.Arm;
             float len = Len(e.X, e.Y), t = (p.X * e.X + p.Y * e.Y) / len;
             if (t > S(20) && t <= len && Math.Abs(p.X * e.Y - p.Y * e.X) / len <= S(5)) return Part.Arm;
+            if (MarkAt(p) != null) return Part.Mark;
             var k = KnobAt;
             if (Len(p.X - k.X, p.Y - k.Y) <= S(14)) return Part.Knob;
             float r = Len(p.X, p.Y);
@@ -1049,10 +1215,35 @@ namespace ScreenRuler
             return Part.None;
         }
 
+        // The nearest mark whose line or dot is within reach of a point
+        protected override Mark MarkAt(PointF p)
+        {
+            Mark best = null;
+            float reach = float.MaxValue;
+            foreach (var m in Marks)
+            {
+                var e = Polar(m.At, ArmLength);
+                float len = Len(e.X, e.Y), t = (p.X * e.X + p.Y * e.Y) / len;
+                float d = Len(p.X - e.X, p.Y - e.Y) <= S(9) ? 0 :
+                          t > S(20) && t <= len ? Math.Abs(p.X * e.Y - p.Y * e.X) / len : float.MaxValue;
+                if (d <= S(4) && d < reach) { best = m; reach = d; }
+            }
+            return best;
+        }
+
+        // The angle of a point seen from the center, 0…180°
+        protected override double MarkValue(PointF p)
+        {
+            double a = Math.Atan2(-p.Y, p.X) * 180 / Math.PI;
+            if (a < -90) a = 180; else if (a < 0) a = 0;
+            return Math.Min(180, Math.Max(0, a));
+        }
+
         public override void Begin(Part region, PointF g)
         {
             base.Begin(region, g);
             grabValue = Radius - Len(grabLocal.X, grabLocal.Y);
+            if (region == Part.Mark) grabbedMark = MarkAt(grabLocal);
         }
 
         public override void Drag(PointF g, bool shift)
@@ -1061,10 +1252,10 @@ namespace ScreenRuler
             switch (Grabbed)
             {
                 case Part.Arm:
-                    double a = Math.Atan2(-p.Y, p.X) * 180 / Math.PI;
-                    if (a < -90) a = 180; else if (a < 0) a = 0;
+                case Part.Mark:
+                    double a = MarkValue(p);
                     if (shift) a = Math.Round(a / 5) * 5;
-                    Arm = Math.Min(180, Math.Max(0, a));
+                    if (Grabbed == Part.Arm) Arm = a; else grabbedMark.At = a;
                     Render();
                     break;
                 case Part.Rim:
@@ -1114,6 +1305,21 @@ namespace ScreenRuler
                 g.DrawLine(pen, 0, -S(8), 0, S(8));
             }
 
+            // The marks, each a colored line from the center with its angle beyond the rim
+            using (var fMark = Px("Consolas", 12, true))
+                foreach (var m in Marks)
+                {
+                    Color c = Skin.MarkColors[m.Color];
+                    var end = Polar(m.At, ArmLength);
+                    using (var p = new Pen(c, S(1.5f))) g.DrawLine(p, 0, 0, end.X, end.Y);
+                    using (var b = new SolidBrush(c)) g.FillEllipse(b, end.X - S(6), end.Y - S(6), S(12), S(12));
+                    string text = Measure.Angle(m.At);
+                    var at = Polar(m.At, ArmLength + S(24));
+                    float w = g.MeasureString(text, fMark, PointF.Empty, StringFormat.GenericTypographic).Width + S(6);
+                    Skin.FillRound(g, new RectangleF(at.X - w / 2, at.Y - S(8), w, S(16)), S(2), Skin.A(Color.White, 0.85));
+                    Label(g, text, fMark, c, at, false);
+                }
+
             // The arm, from the center, and the angle it makes with the baseline
             float ar = S(30);
             if (Arm > 0.05)
@@ -1139,10 +1345,18 @@ namespace ScreenRuler
             DrawKnob(g, KnobAt, S(11));
         }
 
+        protected override ContextMenuStrip BuildMenu()
+        {
+            var m = new ContextMenuStrip();
+            AddMarkItems(m);
+            AddBaseItems(m);
+            return m;
+        }
+
         public override string Serialize()
         {
             return string.Join(",", new[] { Measure.Num(Origin.X), Measure.Num(Origin.Y), Measure.Num(Angle),
-                Measure.Num(Radius), Measure.Num(Arm) });
+                Measure.Num(Radius), Measure.Num(Arm) }) + (Marks.Count > 0 ? "," + Measure.MarksText(Marks) : "");
         }
 
         public static Protractor Parse(PanelForm app, string s)
@@ -1150,13 +1364,19 @@ namespace ScreenRuler
             if (s == null) return null;
             var f = s.Split(',');
             var v = new double[5];
-            if (f.Length != 5) return null;
+            if (f.Length < 5 || f.Length > 6) return null;
             for (int i = 0; i < 5; i++) if (!Measure.TryNum(f[i], out v[i])) return null;
             var p = new Protractor(app);
             p.Origin = new PointF((float)v[0], (float)v[1]);
             p.Angle = Measure.Norm180(v[2]);
             p.Radius = (float)Math.Min(MaxRadius, Math.Max(MinRadius, v[3]));
             p.Arm = Math.Min(180, Math.Max(0, v[4]));
+            if (f.Length == 6)
+                foreach (var m in Measure.ParseMarks(f[5], MaxMarks))
+                {
+                    m.At = Math.Min(180, Math.Max(0, m.At));
+                    p.Marks.Add(m);
+                }
             return p;
         }
 
@@ -1171,6 +1391,7 @@ namespace ScreenRuler
         class Row
         {
             public Tool Tool;
+            public Mark Mark;
             public string Name;
             public string[] Values;
             public bool Swatch;
@@ -1261,6 +1482,7 @@ namespace ScreenRuler
             if (r != null) { Rulers.Add(r); Rulers.Sort(delegate(Ruler a, Ruler b) { return a.Index.CompareTo(b.Index); }); }
             var p = t as Protractor;
             if (p != null) ProtractorTool = p;
+            t.Relayout();     // a restored tool's window must start where the tool is, not at the form's default place
             t.Show();
         }
 
@@ -1367,7 +1589,10 @@ namespace ScreenRuler
         {
             rows.Clear();
             foreach (var r in Rulers)
+            {
                 rows.Add(new Row { Tool = r, Name = r.Title, Values = r.Readouts(), Swatch = true, Tint = r.Tint });
+                AddMarkRows(r);
+            }
             for (int i = 0; i < Rulers.Count; i++)
                 for (int j = i + 1; j < Rulers.Count; j++)
                     rows.Add(new Row
@@ -1376,11 +1601,21 @@ namespace ScreenRuler
                         Values = new[] { Measure.Angle(Measure.Between(Rulers[i].Angle, Rulers[j].Angle)) }
                     });
             if (ProtractorTool != null)
+            {
                 rows.Add(new Row { Tool = ProtractorTool, Name = "Protractor", Values = ProtractorTool.Readouts(), Swatch = true,
                                    Tint = ProtractorTool.Tint });
+                AddMarkRows(ProtractorTool);
+            }
             var want = new Size(S(Width_), S(TopPad + Math.Max(1, rows.Count) * RowH + 16));
             if (ClientSize != want) ClientSize = want;
             Invalidate();
+        }
+
+        void AddMarkRows(Tool t)
+        {
+            for (int i = 0; i < t.Marks.Count; i++)
+                rows.Add(new Row { Tool = t, Mark = t.Marks[i], Name = t.MarkName + " " + (i + 1),
+                                   Values = new[] { t.MarkReading(t.Marks[i]), "" }, Swatch = true, Tint = Skin.MarkColors[t.Marks[i].Color] });
         }
 
         Rectangle RcRuler { get { return new Rectangle(S(8), S(8), S(92), S(26)); } }
@@ -1429,7 +1664,10 @@ namespace ScreenRuler
                 case HitKind.AddProtractor: AddProtractor(); break;
                 case HitKind.About: ShowAbout(); break;
                 case HitKind.Row: rows[row].Tool.Activate(); break;
-                case HitKind.Close: Remove(rows[row].Tool); break;
+                case HitKind.Close:
+                    if (rows[row].Mark != null) rows[row].Tool.RemoveMark(rows[row].Mark);
+                    else Remove(rows[row].Tool);
+                    break;
             }
         }
 
@@ -1625,7 +1863,7 @@ namespace ScreenRuler
             Controls.Add(icon);
 
             Controls.Add(new Label { Text = "Screen Ruler", Location = new Point(76, 16), AutoSize = true, Font = new Font("Segoe UI Semibold", 12F) });
-            Controls.Add(new Label { Text = "Version 1.0  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
+            Controls.Add(new Label { Text = "Version 1.1  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
             Controls.Add(new Label
             {
                 Text = "Free software, provided \"as is\", without warranty of any kind. Don't rely on its " +
