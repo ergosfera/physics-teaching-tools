@@ -71,7 +71,7 @@ final class TimerWindow: NSWindow {
 // MARK: - Timer view
 
 final class TimerView: NSView, NSViewToolTipOwner {
-    enum Hit: Equatable { case none, close, min, pin, gear, seg(Int), main, reset }
+    enum Hit: Equatable { case none, close, min, pin, gear, end, seg(Int), main, reset }
     enum State { case idle, running, paused, finished }
 
     let cfg: Settings
@@ -80,6 +80,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
     var banked: TimeInterval = 0       // time already counted before the current run
     var runStart: TimeInterval = 0     // uptime when the current run began
     var finishAt: TimeInterval = 0
+    var endDate: Date?                 // set while counting to a clock time instead of a duration
     var beepsLeft = 0
     var nextBeep: TimeInterval = 0
     var sel = -1
@@ -97,6 +98,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
     let rcMin = NSRect(x: 224, y: 0, width: 28, height: 26)
     let rcPin = NSRect(x: 196, y: 0, width: 28, height: 26)
     let rcGear = NSRect(x: 168, y: 0, width: 28, height: 26)
+    let rcEnd = NSRect(x: 140, y: 0, width: 28, height: 26)
     let rcBar = NSRect(x: 14, y: 86, width: 252, height: 8)
     let rcMain = NSRect(x: 46, y: 100, width: 90, height: 24)
     let rcReset = NSRect(x: 144, y: 100, width: 90, height: 24)
@@ -140,6 +142,8 @@ final class TimerView: NSView, NSViewToolTipOwner {
     var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
 
     func remaining() -> TimeInterval {
+        // Counting to a clock time follows the wall clock, so it stays right after sleep.
+        if let e = endDate { return max(0, e.timeIntervalSinceNow) }
         switch state {
         case .idle: return cfg.duration
         case .finished: return 0
@@ -167,7 +171,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
     }
 
     func start() {
-        total = cfg.duration
+        total = endDate?.timeIntervalSinceNow ?? cfg.duration
         guard total > 0 else { NSSound.beep(); return }
         banked = 0
         runStart = now
@@ -179,7 +183,10 @@ final class TimerView: NSView, NSViewToolTipOwner {
     func mainAction() {
         switch state {
         case .idle, .finished: start()
-        case .running: banked += now - runStart; state = .paused
+        case .running:
+            // Pausing lets go of the clock time: resuming continues from what was left.
+            if endDate != nil { banked = total - remaining(); endDate = nil } else { banked += now - runStart }
+            state = .paused
         case .paused: runStart = now; state = .running
         }
         needsDisplay = true
@@ -188,11 +195,13 @@ final class TimerView: NSView, NSViewToolTipOwner {
     func reset() {
         banked = 0
         beepsLeft = 0
+        endDate = nil
         state = .idle
         needsDisplay = true
     }
 
     func finish() {
+        endDate = nil
         state = .finished
         finishAt = now
         beepsLeft = cfg.sound ? 3 : 0
@@ -203,7 +212,11 @@ final class TimerView: NSView, NSViewToolTipOwner {
     @objc func tick() {
         switch state {
         case .running:
-            if total - banked - (now - runStart) <= 0 { finish() }
+            if remaining() <= 0 { finish() }
+            needsDisplay = true
+        case .idle where endDate != nil:
+            // Nobody pressed Start before the clock time passed: go back to the set duration.
+            if remaining() <= 0 { endDate = nil }
             needsDisplay = true
         case .finished:
             let t = now - finishAt
@@ -241,7 +254,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "Countdown Timer",
-            .applicationVersion: "1.0",
+            .applicationVersion: "1.1",
             .version: "",
             .credits: credits,
             NSApplication.AboutPanelOptionKey(rawValue: "Copyright"): "© 2026 Mauricio Mendivelso · MIT License",
@@ -297,9 +310,11 @@ final class TimerView: NSView, NSViewToolTipOwner {
                 warn.runModal()
                 continue
             }
+            let before = cfg.duration
             cfg.hours = num(fH, cfg.hours, 0, 99)
             cfg.minutes = num(fM, cfg.minutes, 0, 59)
             cfg.seconds = num(fS, cfg.seconds, 0, 59)
+            if state == .idle && cfg.duration != before { endDate = nil }
             cfg.yellowPct = y
             cfg.redPct = r
             cfg.sound = cSound.state == .on
@@ -310,9 +325,57 @@ final class TimerView: NSView, NSViewToolTipOwner {
         }
     }
 
+    @objc func openEndTime() {
+        guard state == .idle || state == .finished else { return }
+        let view = FlippedView(frame: NSRect(x: 0, y: 0, width: 320, height: 60))
+        let title = NSTextField(labelWithString: "Count down until")
+        title.font = NSFont.boldSystemFont(ofSize: 13)
+        title.frame.origin = NSPoint(x: 0, y: 3)
+        title.sizeToFit()
+        view.addSubview(title)
+        let picker = NSDatePicker()
+        picker.datePickerStyle = .textFieldAndStepper
+        picker.datePickerElements = .hourMinute
+        picker.dateValue = endDate ?? Date().addingTimeInterval(cfg.duration)
+        picker.sizeToFit()
+        picker.frame.origin = NSPoint(x: 130, y: 0)
+        view.addSubview(picker)
+        let note = NSTextField(labelWithString: "A time that has already passed today means tomorrow.")
+        note.frame.origin = NSPoint(x: 0, y: 38)
+        note.sizeToFit()
+        view.addSubview(note)
+
+        let alert = NSAlert()
+        alert.messageText = "End time"
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+        alert.accessoryView = view
+        alert.window.initialFirstResponder = picker
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        if state == .finished { reset() }
+        // A time that has already passed today means tomorrow.
+        let cal = Calendar.current
+        let c = cal.dateComponents([.hour, .minute], from: picker.dateValue)
+        endDate = cal.nextDate(after: Date(), matching: DateComponents(hour: c.hour, minute: c.minute, second: 0),
+                               matchingPolicy: .nextTime)
+        sel = -1
+        needsDisplay = true
+    }
+
     // MARK: Editing the time (only before starting)
 
+    // Editing the digits while an end time is set: carry on from what they show, as a plain duration.
+    func releaseEndTime() {
+        guard endDate != nil else { return }
+        let s = max(0, Int((remaining() - 1e-9).rounded(.up)))
+        endDate = nil
+        cfg.hours = s / 3600
+        cfg.minutes = (s / 60) % 60
+        cfg.seconds = s % 60
+    }
+
     func step(_ s: Int, _ delta: Int) {
+        releaseEndTime()
         let maxV = s == 0 ? 99 : 59
         var v = cfg[s] + delta
         if v > maxV { v = 0 }
@@ -322,6 +385,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
     }
 
     func typeDigit(_ d: Int) {
+        releaseEndTime()
         if sel < 0 { sel = 0; typed = 0 }
         cfg[sel] = typed == 0 ? d : cfg[sel] * 10 + d
         typed += 1
@@ -341,6 +405,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         default: break
         }
         if ch.lowercased() == "r" { reset(); return }
+        if ch.lowercased() == "e" { openEndTime(); return }
         guard state == .idle else { super.keyDown(with: e); return }
         if ch.count == 1, let d = Int(ch) { typeDigit(d); return }
         let shift = e.modifierFlags.contains(.shift)
@@ -350,7 +415,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         case 123: sel = max(0, sel - 1); typed = 0                                     // left
         case 124: sel = sel < 0 ? 0 : min(2, sel + 1); typed = 0                       // right
         case 48: sel = shift ? max(0, sel - 1) : (sel < 0 ? 0 : min(2, sel + 1)); typed = 0  // tab
-        case 51, 117: if sel >= 0 { cfg[sel] = 0; typed = 0 }                          // delete
+        case 51, 117: if sel >= 0 { releaseEndTime(); cfg[sel] = 0; typed = 0 }        // delete
         default: super.keyDown(with: e); return
         }
         needsDisplay = true
@@ -363,6 +428,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         if rcMin.contains(p) { return .min }
         if rcPin.contains(p) { return .pin }
         if rcGear.contains(p) { return .gear }
+        if rcEnd.contains(p) { return .end }
         if rcMain.contains(p) { return .main }
         if rcReset.contains(p) { return .reset }
         if state == .idle {
@@ -380,7 +446,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
                                        options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
                                        owner: self, userInfo: nil))
         removeAllToolTips()
-        for r in [rcClose, rcMin, rcPin, rcGear, rcMain, rcReset] + segRects {
+        for r in [rcClose, rcMin, rcPin, rcGear, rcEnd, rcMain, rcReset] + segRects {
             addToolTip(r, owner: self, userData: nil)
         }
     }
@@ -391,6 +457,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         case .min: return "Minimize"
         case .pin: return cfg.topMost ? "Always on top: ON (click to turn off)" : "Always on top: OFF (click to turn on)"
         case .gear: return "Settings"
+        case .end: return state == .running || state == .paused ? "Reset first to set an end time" : "Set an end time (E)"
         case .seg: return "Scroll, or click and type, to set the time"
         case .main: return mainLabel + " (Space)"
         case .reset: return "Reset (R)"
@@ -433,6 +500,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         case .min: minimizeWindow()
         case .pin: toggleTopMost()
         case .gear: openSettings()
+        case .end: openEndTime()
         case .main: sel = -1; mainAction()
         case .reset: reset()
         default: break
@@ -455,6 +523,9 @@ final class TimerView: NSView, NSViewToolTipOwner {
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let m = NSMenu()
+        if state == .idle || state == .finished {
+            m.addItem(withTitle: "Set End Time…", action: #selector(openEndTime), keyEquivalent: "")
+        }
         let top = m.addItem(withTitle: "Always on top", action: #selector(toggleTopMost), keyEquivalent: "")
         top.state = cfg.topMost ? .on : .off
         let snd = m.addItem(withTitle: "Sound at the end", action: #selector(toggleSound), keyEquivalent: "")
@@ -479,6 +550,12 @@ final class TimerView: NSView, NSViewToolTipOwner {
     // MARK: Drawing
 
     static let cornerRadius: CGFloat = 10
+    static let clockFormat: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .none
+        f.timeStyle = .short
+        return f
+    }()
 
     func drawText(_ s: String, font: NSFont, color: NSColor, in r: NSRect, alignLeft: Bool = false) {
         let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
@@ -514,8 +591,10 @@ final class TimerView: NSView, NSViewToolTipOwner {
         shape.addClip()
 
         // Title bar
-        let title = state == .idle ? "Timer" : "Timer  ·  " + Self.fmt(total)
-        drawText(title, font: titleFont, color: Palette.dim, in: NSRect(x: 12, y: 0, width: 150, height: 26), alignLeft: true)
+        let title = endDate.map { "Until " + Self.clockFormat.string(from: $0) }
+            ?? (state == .idle ? "Timer" : "Timer  ·  " + Self.fmt(total))
+        drawText(title, font: titleFont, color: Palette.dim, in: NSRect(x: 12, y: 0, width: 126, height: 26), alignLeft: true)
+        iconButton(rcEnd, "clock", .end, endDate != nil ? Palette.text : Palette.dim)
         iconButton(rcGear, "gearshape", .gear, Palette.dim)
         iconButton(rcPin, cfg.topMost ? "pin.fill" : "pin", .pin, cfg.topMost ? Palette.text : Palette.dim)
         iconButton(rcMin, "minus", .min, Palette.dim)
@@ -555,9 +634,9 @@ final class TimerView: NSView, NSViewToolTipOwner {
         }
 
         // Buttons
-        let canStart = state != .idle || cfg.duration > 0
+        let canStart = state != .idle || endDate != nil || cfg.duration > 0
         button(rcMain, mainLabel, .main, canStart ? Palette.text : Palette.dim)
-        button(rcReset, "Reset", .reset, state == .idle ? Palette.dim : Palette.text)
+        button(rcReset, "Reset", .reset, state == .idle && endDate == nil ? Palette.dim : Palette.text)
 
         NSGraphicsContext.restoreGraphicsState()
         Palette.border.setStroke()
