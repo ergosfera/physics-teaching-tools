@@ -146,6 +146,7 @@ How it works:
 - **Set Scale…**: lay the ruler along a length you know (a map's scale bar, an object in a photo), put the marker at its end and type its real length.
 - **Correct Screen Size…**: when centimeters on screen don't match a real ruler (projectors often report no size), hold a real ruler against the screen, put the marker on a length you can read and type it.
 - The protractor's arm reads the angle from its baseline. Where two rulers cross, the angle between them is shown, and the panel lists every reading.
+- **Colored guides and marks**: right-click a ruler for **Add Guide Here**, or the protractor for **Add Mark Here** (up to 8 each). Each one shows its own reading, here and in the panel. Right-click one to change its color or remove it.
 - Closing the panel quits; the tools come back where they were.
 
 | Action | Mouse | Keyboard (on a tool you clicked) |
@@ -156,6 +157,7 @@ How it works:
 | Make a ruler longer or shorter | Drag its far end (the three lines) | — |
 | Read a length | Drag the red marker (Shift: snap to ticks) | — |
 | Read an angle | Drag the protractor's red arm (Shift: 5° steps); drag its rim to resize | — |
+| Move a guide or mark | Drag it (Shift: ticks on a ruler, 5° steps on the protractor) | — |
 | Units, scale, screen size, remove | Right-click a tool | Delete removes the tool |
 
 ## Screen Shapes
