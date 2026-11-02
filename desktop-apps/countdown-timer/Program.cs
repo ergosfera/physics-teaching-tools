@@ -15,8 +15,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Countdown Timer")]
 [assembly: AssemblyProduct("Countdown Timer")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Mauricio Mendivelso. MIT License.")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace CountdownTimer
 {
@@ -153,7 +153,7 @@ namespace CountdownTimer
 
     class TimerForm : Form
     {
-        enum Hit { None, Close, Min, Pin, Gear, Seg0, Seg1, Seg2, Main, Reset }
+        enum Hit { None, Close, Min, Pin, Gear, End, Seg0, Seg1, Seg2, Main, Reset }
         enum State { Idle, Running, Paused, Finished }
 
         [DllImport("user32.dll")] static extern bool ReleaseCapture();
@@ -166,12 +166,15 @@ namespace CountdownTimer
 
         const string GlyphClose = "", GlyphMin = "", GlyphPin = "", GlyphPinned = "", GlyphGear = "";
 
+        const string GlyphClock = "";
+
         readonly Settings cfg;
         readonly float k;
         State state = State.Idle;
         readonly Stopwatch sw = new Stopwatch();
         readonly Stopwatch finishClock = new Stopwatch();
         TimeSpan total, banked;
+        DateTime? endUtc;   // set while counting to a clock time instead of a duration
         int sel = -1, typed;
         int beepsLeft;
         long nextBeepMs;
@@ -251,6 +254,7 @@ namespace CountdownTimer
         Rectangle RcMin { get { return R(224, 0, 28, 26); } }
         Rectangle RcPin { get { return R(196, 0, 28, 26); } }
         Rectangle RcGear { get { return R(168, 0, 28, 26); } }
+        Rectangle RcEnd { get { return R(140, 0, 28, 26); } }
         Rectangle RcBar { get { return R(14, 86, 252, 8); } }
         Rectangle RcMain { get { return R(46, 100, 90, 24); } }
         Rectangle RcReset { get { return R(144, 100, 90, 24); } }
@@ -298,6 +302,9 @@ namespace CountdownTimer
             miTop.Checked = TopMost;
             miSound = new ToolStripMenuItem("Sound at the end", null, delegate { cfg.Sound = !cfg.Sound; miSound.Checked = cfg.Sound; cfg.Save(); });
             miSound.Checked = cfg.Sound;
+            var miEnd = new ToolStripMenuItem("Set end time...", null, delegate { OpenEndTime(); });
+            menu.Opening += delegate { miEnd.Enabled = state == State.Idle || state == State.Finished; };
+            menu.Items.Add(miEnd);
             menu.Items.Add(miTop);
             menu.Items.Add(miSound);
             menu.Items.Add(new ToolStripMenuItem("Settings...", null, delegate { OpenSettings(); }));
@@ -314,9 +321,10 @@ namespace CountdownTimer
 
         TimeSpan Remaining()
         {
-            if (state == State.Idle) return cfg.Duration;
+            if (state == State.Idle && !endUtc.HasValue) return cfg.Duration;
             if (state == State.Finished) return TimeSpan.Zero;
-            var r = total - banked - sw.Elapsed;
+            // Counting to a clock time follows the wall clock, so it stays right after sleep.
+            var r = endUtc.HasValue ? endUtc.Value - DateTime.UtcNow : total - banked - sw.Elapsed;
             return r < TimeSpan.Zero ? TimeSpan.Zero : r;
         }
 
@@ -344,7 +352,7 @@ namespace CountdownTimer
 
         void Start()
         {
-            total = cfg.Duration;
+            total = endUtc.HasValue ? endUtc.Value - DateTime.UtcNow : cfg.Duration;
             if (total <= TimeSpan.Zero) { SystemSounds.Beep.Play(); return; }
             banked = TimeSpan.Zero;
             sw.Reset();
@@ -365,7 +373,9 @@ namespace CountdownTimer
                     break;
                 case State.Running:
                     sw.Stop();
-                    banked += sw.Elapsed;
+                    // Pausing lets go of the clock time: resuming continues from what was left.
+                    if (endUtc.HasValue) { banked = total - Remaining(); endUtc = null; }
+                    else banked += sw.Elapsed;
                     sw.Reset();
                     state = State.Paused;
                     break;
@@ -383,6 +393,7 @@ namespace CountdownTimer
             sw.Reset();
             banked = TimeSpan.Zero;
             beepsLeft = 0;
+            endUtc = null;
             state = State.Idle;
             UpdateTip();
             Invalidate();
@@ -391,6 +402,7 @@ namespace CountdownTimer
         void Finish()
         {
             sw.Stop();
+            endUtc = null;
             state = State.Finished;
             finishClock.Reset();
             finishClock.Start();
@@ -404,7 +416,13 @@ namespace CountdownTimer
         {
             if (state == State.Running)
             {
-                if (total - banked - sw.Elapsed <= TimeSpan.Zero) Finish();
+                if (Remaining() <= TimeSpan.Zero) Finish();
+                Invalidate();
+            }
+            else if (state == State.Idle && endUtc.HasValue)
+            {
+                // Nobody pressed Start before the clock time passed: go back to the set duration.
+                if (Remaining() <= TimeSpan.Zero) { endUtc = null; UpdateTip(); }
                 Invalidate();
             }
             else if (state == State.Finished)
@@ -448,7 +466,9 @@ namespace CountdownTimer
             using (var dlg = new SettingsForm(cfg, TopMost))
             {
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                var before = cfg.Duration;
                 dlg.ApplyTo(cfg);
+                if (state == State.Idle && cfg.Duration != before) endUtc = null;
                 miSound.Checked = cfg.Sound;
                 SetTopMost(dlg.AlwaysOnTop);
                 if (state == State.Finished) DoReset();
@@ -456,10 +476,41 @@ namespace CountdownTimer
             }
         }
 
+        void OpenEndTime()
+        {
+            if (state == State.Running || state == State.Paused) return;
+            DateTime shown = endUtc.HasValue ? endUtc.Value.ToLocalTime() : DateTime.Now.Add(cfg.Duration);
+            using (var dlg = new EndTimeForm(shown))
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                if (state == State.Finished) DoReset();
+                // A time that has already passed today means tomorrow.
+                DateTime now = DateTime.Now;
+                DateTime end = now.Date.AddHours(dlg.Picked.Hour).AddMinutes(dlg.Picked.Minute);
+                if (end <= now) end = end.AddDays(1);
+                endUtc = end.ToUniversalTime();
+                sel = -1;
+                UpdateTip();
+                Invalidate();
+            }
+        }
+
         // ---- Editing the time (only before starting) ----
+
+        // Editing the digits while an end time is set: carry on from what they show, as a plain duration.
+        void ReleaseEndTime()
+        {
+            if (!endUtc.HasValue) return;
+            long s = (long)Math.Ceiling(Remaining().TotalSeconds - 1e-9);
+            endUtc = null;
+            cfg[0] = (int)(s / 3600);
+            cfg[1] = (int)((s / 60) % 60);
+            cfg[2] = (int)(s % 60);
+        }
 
         void Step(int s, int delta)
         {
+            ReleaseEndTime();
             int max = s == 0 ? 99 : 59;
             int v = cfg[s] + delta;
             if (v > max) v = 0;
@@ -470,6 +521,7 @@ namespace CountdownTimer
 
         void TypeDigit(int d)
         {
+            ReleaseEndTime();
             if (sel < 0) { sel = 0; typed = 0; }
             cfg[sel] = typed == 0 ? d : cfg[sel] * 10 + d;
             typed++;
@@ -488,6 +540,7 @@ namespace CountdownTimer
 
             if (keyData == Keys.Space || keyData == Keys.Enter) { sel = -1; MainAction(); return true; }
             if (keyData == Keys.R) { DoReset(); return true; }
+            if (keyData == Keys.E) { OpenEndTime(); return true; }
             if (keyData == Keys.Escape) { sel = -1; Invalidate(); return true; }
             if (!idle) return base.ProcessCmdKey(ref msg, keyData);
 
@@ -505,7 +558,7 @@ namespace CountdownTimer
                 case Keys.Tab: sel = sel < 0 ? 0 : Math.Min(2, sel + 1); typed = 0; Invalidate(); return true;
                 case Keys.Shift | Keys.Tab: sel = sel <= 0 ? 0 : sel - 1; typed = 0; Invalidate(); return true;
                 case Keys.Back:
-                case Keys.Delete: if (sel >= 0) { cfg[sel] = 0; typed = 0; Invalidate(); } return true;
+                case Keys.Delete: if (sel >= 0) { ReleaseEndTime(); cfg[sel] = 0; typed = 0; Invalidate(); } return true;
             }
             return base.ProcessCmdKey(ref msg, keyData);
         }
@@ -518,6 +571,7 @@ namespace CountdownTimer
             if (RcMin.Contains(p)) return Hit.Min;
             if (RcPin.Contains(p)) return Hit.Pin;
             if (RcGear.Contains(p)) return Hit.Gear;
+            if (RcEnd.Contains(p)) return Hit.End;
             if (RcMain.Contains(p)) return Hit.Main;
             if (RcReset.Contains(p)) return Hit.Reset;
             if (state == State.Idle)
@@ -580,6 +634,7 @@ namespace CountdownTimer
                 case Hit.Min: WindowState = FormWindowState.Minimized; break;
                 case Hit.Pin: SetTopMost(!TopMost); break;
                 case Hit.Gear: OpenSettings(); break;
+                case Hit.End: OpenEndTime(); break;
                 case Hit.Main: sel = -1; MainAction(); break;
                 case Hit.Reset: DoReset(); break;
             }
@@ -615,6 +670,7 @@ namespace CountdownTimer
                 case Hit.Min: t = "Minimize"; break;
                 case Hit.Pin: t = TopMost ? "Always on top: ON (click to turn off)" : "Always on top: OFF (click to turn on)"; break;
                 case Hit.Gear: t = "Settings"; break;
+                case Hit.End: t = state == State.Running || state == State.Paused ? "Reset first to set an end time" : "Set an end time (E)"; break;
                 case Hit.Seg0:
                 case Hit.Seg1:
                 case Hit.Seg2: t = "Scroll, or click and type, to set the time"; break;
@@ -640,9 +696,11 @@ namespace CountdownTimer
             var center = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding;
 
             // Title bar
-            string title = state == State.Idle ? "Timer" : "Timer  ·  " + Fmt(total);
-            TextRenderer.DrawText(g, title, fTitle, new Rectangle(S(10), 0, S(155), S(26)), Palette.Dim,
+            string title = endUtc.HasValue ? "Until " + endUtc.Value.ToLocalTime().ToString("t")
+                : state == State.Idle ? "Timer" : "Timer  ·  " + Fmt(total);
+            TextRenderer.DrawText(g, title, fTitle, new Rectangle(S(10), 0, S(128), S(26)), Palette.Dim,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis);
+            DrawIconButton(g, RcEnd, GlyphClock, Hit.End, endUtc.HasValue ? Palette.Text : Palette.Dim);
             DrawIconButton(g, RcGear, GlyphGear, Hit.Gear, Palette.Dim);
             DrawIconButton(g, RcPin, TopMost ? GlyphPinned : GlyphPin, Hit.Pin, TopMost ? Palette.Text : Palette.Dim);
             DrawIconButton(g, RcMin, GlyphMin, Hit.Min, Palette.Dim);
@@ -682,9 +740,9 @@ namespace CountdownTimer
             }
 
             // Buttons
-            bool canStart = state != State.Idle || cfg.Duration > TimeSpan.Zero;
+            bool canStart = state != State.Idle || endUtc.HasValue || cfg.Duration > TimeSpan.Zero;
             DrawButton(g, RcMain, MainLabel(), Hit.Main, canStart ? Palette.Text : Palette.Dim);
-            DrawButton(g, RcReset, "Reset", Hit.Reset, state == State.Idle ? Palette.Dim : Palette.Text);
+            DrawButton(g, RcReset, "Reset", Hit.Reset, state == State.Idle && !endUtc.HasValue ? Palette.Dim : Palette.Text);
         }
 
         void DrawIconButton(Graphics g, Rectangle r, string glyph, Hit h, Color fg)
@@ -809,6 +867,49 @@ namespace CountdownTimer
         }
     }
 
+    class EndTimeForm : Form
+    {
+        readonly DateTimePicker picker;
+
+        public DateTime Picked { get { return picker.Value; } }
+
+        public EndTimeForm(DateTime shown)
+        {
+            SuspendLayout();
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            Font = new Font("Segoe UI", 9F);
+            Text = "End time";
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            ShowInTaskbar = false;
+            StartPosition = FormStartPosition.CenterParent;
+            ClientSize = new Size(340, 136);
+
+            Controls.Add(new Label { Text = "Count down until", Location = new Point(14, 17), AutoSize = true, Font = new Font("Segoe UI Semibold", 9F) });
+            picker = new DateTimePicker
+            {
+                Format = DateTimePickerFormat.Custom,
+                CustomFormat = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern,
+                ShowUpDown = true,
+                Value = shown,
+                Location = new Point(130, 14),
+                Width = 100
+            };
+            Controls.Add(picker);
+            Controls.Add(new Label { Text = "A time that has already passed today means tomorrow.", Location = new Point(14, 54), AutoSize = true });
+
+            var ok = new Button { Text = "OK", Location = new Point(164, 94), Size = new Size(80, 28), DialogResult = DialogResult.OK };
+            var cancel = new Button { Text = "Cancel", Location = new Point(250, 94), Size = new Size(80, 28), DialogResult = DialogResult.Cancel };
+            Controls.Add(ok);
+            Controls.Add(cancel);
+            AcceptButton = ok;
+            CancelButton = cancel;
+            ResumeLayout(false);
+        }
+    }
+
     class AboutForm : Form
     {
         const string License =
@@ -851,7 +952,7 @@ namespace CountdownTimer
             Controls.Add(icon);
 
             Controls.Add(new Label { Text = "Countdown Timer", Location = new Point(76, 16), AutoSize = true, Font = new Font("Segoe UI Semibold", 12F) });
-            Controls.Add(new Label { Text = "Version 1.0  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
+            Controls.Add(new Label { Text = "Version 1.1  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
             Controls.Add(new Label
             {
                 Text = "Free software, provided \"as is\", without warranty of any kind.\r\n" +

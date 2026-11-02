@@ -39,7 +39,7 @@ macOS may block them. Open **System Settings → Privacy & Security** and click 
 
 ## Countdown Timer
 
-- Set hours, minutes and seconds, then start.
+- Set hours, minutes and seconds, then start. Or give the time it should end, like 14:30, and it works out how long that is.
 - A bar shrinks as time runs out and turns from green to yellow to red, at percentages you choose.
 - Optional "always on top" keeps the timer visible over other windows.
 - Optional sound when the time is up.
@@ -47,11 +47,14 @@ macOS may block them. Open **System Settings → Privacy & Security** and click 
 | Action | Mouse | Keyboard |
 |---|---|---|
 | Set the time | Click hours, minutes or seconds, then type or scroll | Type digits; arrows move and change the fields |
+| Set the end time | Clock button in the top bar or right-click → Set end time | E |
 | Start / pause / resume | **Start** button | Space or Enter |
 | Reset | **Reset** button | R |
 | Always on top | Pin button in the top bar | — |
 | Settings (time, color levels, sound) | Gear button or right-click → Settings | ⌘, on Mac |
 | About and license | Right-click → About | — |
+
+A countdown to an end time ends at that time whenever you press **Start**. A time that has already passed today means tomorrow. Pausing lets go of the end time: resuming continues from what was left.
 
 Move the window by dragging any empty area.
 
