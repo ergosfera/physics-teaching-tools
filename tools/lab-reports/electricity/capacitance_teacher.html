@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Parallel-Plate Capacitor Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="../lab-teacher.css">
+</head>
+<body>
+<script src="../lab-teacher.js"></script>
+<script src="capacitance_common.js"></script>
+<script>
+// Parallel-Plate Capacitor: the parts specific to this lab. Everything else comes from ../lab-teacher.js.
+// Each group has its own plates (size and metal) and finds, with the same paper, how C depends on d, on A
+// and on the material. The class puts the groups together: the slope of C vs 1/d against the plate area,
+// every measurement on one C vs A/d line, κ by material, and κ of paper by plate metal.
+const EPS0 = CAP.EPS0;
+const PRED_SEP = { double: 'Doubles', same: 'Stays the same', half: 'Drops to half', quarter: 'Drops to a quarter' };
+const PRED_AREA = { double: 'Doubles', same: 'Stays the same', half: 'Drops to half' };
+const PRED_DIEL = { bigger: 'Bigger', same: 'The same', smaller: 'Smaller' };
+const PRED_METAL = { different: 'Different (better conductor, bigger C)', same: 'About the same' };
+const METALS = { copper: 'Copper', aluminum: 'Aluminum', pcb: 'Circuit board', other: 'Other metal' };
+
+function modelTest(t) {
+  const pred = num(t.pred), meas = num(t.meas);
+  if (!t.locked || !isFinite(pred) || !isFinite(meas) || meas === 0) return NaN;
+  return Math.abs(pred - meas) / Math.abs(meas) * 100;
+}
+// Fit y = k·x through the origin (no plates, or no area over the distance, means no capacitance)
+function fitOrigin(p) {
+  const n = p.length;
+  if (n < 2) return null;
+  const sxx = p.reduce((a, q) => a + q.x * q.x, 0);
+  if (!(sxx > 0)) return null;
+  const k = p.reduce((a, q) => a + q.x * q.y, 0) / sxx;
+  const ssr = p.reduce((a, q) => a + (q.y - k * q.x) ** 2, 0), my = p.reduce((a, q) => a + q.y, 0) / n;
+  const syy = p.reduce((a, q) => a + (q.y - my) ** 2, 0);
+  return { n, k, b: 0, sk: Math.sqrt(ssr / (n - 1) / sxx), r2: syy > 0 ? 1 - ssr / syy : 1 };
+}
+// The class: one point per group, slope of C vs 1/d (= ε·A) against the plate area A. Its slope is ε of paper.
+const areaPoints = groups => groups.filter(G => G.sepFit && G.A > 0).map(G => ({ x: G.A, y: G.sepFit.k, e: G.sepFit.sk, G }));
+const areaFitClass = groups => { const p = areaPoints(groups); return p.length >= 3 ? fitOrigin(p) : null; };
+// Every measurement with paper: C − C₀ against A/d. Slope is ε of paper; vacuum would be ε₀.
+const collapsePoints = G => [...G.sepPts.map(p => ({ x: G.A * p.x, y: p.y, tip: `${p.n} sheets, full overlap` })),
+  ...(G.dArea > 0 ? G.areaPts.map(p => ({ x: p.x / G.dArea, y: p.y, tip: `x = ${fmt(p.xc)} cm, ${num(G.s.area?.n)} sheets` })) : [])].filter(p => isFinite(p.x));
+const collapseFit = groups => { const p = groups.flatMap(collapsePoints); return p.length >= 3 ? fitOrigin(p) : null; };
+const matKey = m => m.mat === 'other' ? (m.name ? 'Other: ' + m.name.toLowerCase().slice(0, 14) : 'Other') : CAP.MATS[m.mat] || m.mat;
+
+// ── Plots ───────────────────────────────────────────────────
+// series: [{ pts: [{x, y, e?, tip?}] in SI, fit?, color, name }]; o.xs scales x for display.
+// o.ref draws a dashed reference line y = o.ref · x (in SI), labeled o.refLabel. Both axes include the origin.
+function plotXY(svg, series, o, W = 720, H = 420) {
+  const M = { l: 76, r: 20, t: 18, b: 50 }, xs = o.xs || 1;
+  const all = series.flatMap(s => s.pts);
+  const xv = all.map(p => p.x * xs), yv = all.flatMap(p => [p.y + (p.e || 0), p.y - (p.e || 0)]);
+  const xMax = Math.max(...xv, 0) || 10, yMax = Math.max(...yv, 0) || 100;
+  const xStep = niceStep(xMax - Math.min(0, ...xv), 6), yStep = niceStep(yMax - Math.min(0, ...yv), 6);
+  const x0 = Math.floor(Math.min(0, ...xv) / xStep) * xStep, x1 = Math.ceil(xMax * 1.03 / xStep) * xStep;
+  const y0 = Math.floor(Math.min(0, ...yv) / yStep) * yStep, y1 = Math.ceil(yMax * 1.03 / yStep) * yStep;
+  const X = v => M.l + (v - x0) / (x1 - x0) * (W - M.l - M.r);
+  const Y = v => H - M.b - (v - y0) / (y1 - y0) * (H - M.t - M.b);
+  let s = `<defs><clipPath id="clip-${svg.id}"><rect x="${M.l}" y="${M.t}" width="${W - M.l - M.r}" height="${H - M.t - M.b}"/></clipPath></defs>`;
+  for (let v = x0; v <= x1 + 1e-9 * xStep; v += xStep) s += `<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${M.t}" y2="${H - M.b}"/><text x="${X(v)}" y="${H - M.b + 18}" text-anchor="middle">${fmt(v)}</text>`;
+  for (let v = y0; v <= y1 + 1e-9 * yStep; v += yStep) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  s += `<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="${M.t}" y2="${H - M.b}"/><line class="axis" x1="${M.l}" x2="${W - M.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 8}" text-anchor="middle">${o.xl}</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">${o.yl}</text>`;
+  if (o.ref) {
+    const yEnd = o.ref * x1 / xs, xr = yEnd > y1 ? y1 / o.ref * xs : x1;
+    s += `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(x1)}" y2="${Y(yEnd)}" stroke="var(--text)" stroke-width="1.5" stroke-dasharray="6 4" opacity=".6" clip-path="url(#clip-${svg.id})"/>`;
+    if (o.refLabel) s += `<text x="${X(xr) - 6}" y="${Y(o.ref * xr / xs) - 8}" text-anchor="end">${esc(o.refLabel)}</text>`;
+  }
+  series.forEach(sr => {
+    if (!sr.fit) return;
+    const f = xd => sr.fit.k * xd / xs + sr.fit.b;
+    s += `<line x1="${X(x0)}" y1="${Y(f(x0))}" x2="${X(x1)}" y2="${Y(f(x1))}" stroke="${sr.color}" stroke-width="${sr.wide ? 3 : 2}" stroke-opacity=".8" clip-path="url(#clip-${svg.id})"/>`;
+  });
+  series.forEach(sr => sr.pts.forEach(p => {
+    const c = p.color || sr.color;
+    if (p.e > 0) s += `<line x1="${X(p.x * xs)}" x2="${X(p.x * xs)}" y1="${Y(p.y - p.e)}" y2="${Y(p.y + p.e)}" stroke="${c}" stroke-width="1.5"/>`;
+    s += `<circle cx="${X(p.x * xs)}" cy="${Y(p.y)}" r="${p.big ? 7 : 5}" fill="${c}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(p.name || sr.name)}${p.tip ? ' · ' + esc(p.tip) : ''}</title></circle>`;
+    if (p.label) s += `<text x="${X(p.x * xs) + 9}" y="${Y(p.y) - 8}">${esc(p.label)}</text>`;
+  }));
+  if (!all.length) s += `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No data yet</text>`;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+}
+
+// Categories side by side: one dot per group's value, a bar at the median. o.ref: dashed line at that y.
+function plotCats(svg, cats, o, W = 720, H = 420) {
+  const M = { l: 60, r: 16, t: 18, b: 66 };
+  cats = cats.filter(c => c.items.length);
+  if (!cats.length) { svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No results yet</text>`; return; }
+  const vals = cats.flatMap(c => c.items.map(i => i.v));
+  const hi = Math.max(o.ref || 0, ...vals), step = niceStep(hi, 6), y1 = Math.ceil(hi * 1.08 / step) * step;
+  const Y = v => H - M.b - v / y1 * (H - M.t - M.b);
+  const bw = (W - M.l - M.r) / cats.length, X = i => M.l + bw * (i + 0.5);
+  let s = '';
+  for (let v = 0; v <= y1 + 1e-9; v += step) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">${o.yl}</text>`;
+  if (o.ref) s += `<line x1="${M.l}" x2="${W - M.r}" y1="${Y(o.ref)}" y2="${Y(o.ref)}" stroke="var(--text)" stroke-width="1.5" stroke-dasharray="6 4" opacity=".6"/><text x="${W - M.r - 4}" y="${Y(o.ref) - 6}" text-anchor="end">${esc(o.refLabel || '')}</text>`;
+  cats.forEach((c, i) => {
+    const x = X(i), med = median(c.items.map(it => it.v)), w = Math.min(bw * 0.7, 120);
+    s += `<line x1="${x - w / 2}" x2="${x + w / 2}" y1="${Y(med)}" y2="${Y(med)}" stroke="var(--text)" stroke-width="3" stroke-linecap="round"/>`;
+    s += `<text x="${x + w / 2 + 4}" y="${Y(med) + 4}" class="lbl">${fmt(med)}</text>`;
+    c.items.forEach((it, j) => {
+      const dx = c.items.length > 1 ? (j / (c.items.length - 1) - 0.5) * w * 0.8 : 0;
+      s += `<circle cx="${x + dx}" cy="${Y(it.v)}" r="6" fill="${it.color}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(it.tip)}</title></circle>`;
+    });
+    s += `<text x="${x}" y="${H - M.b + 20}" text-anchor="middle" class="lbl">${esc(c.name)}</text>`;
+    s += `<text x="${x}" y="${H - M.b + 36}" text-anchor="middle" font-size="11">${c.items.length} result${c.items.length === 1 ? '' : 's'}</text>`;
+  });
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+}
+
+// Every group's C vs 1/d with its fit
+function plotSep(svg, groups, W, H) {
+  plotXY(svg, groups.map(G => ({ pts: G.sepPts.map(p => ({ ...p, tip: `${p.n} sheets` })), fit: G.sepFit, color: G.color, name: label(G) + ' · ' + G.plates })),
+    { xl: '1/d (1/m)', yl: 'C − C₀ (pF)' }, W, H);
+}
+// Area integration: slope of C vs 1/d against plate area
+function plotArea(svg, groups, W, H, labels = true) {
+  const cf = areaFitClass(groups);
+  const pts = areaPoints(groups).map(p => ({ x: p.x, y: p.y, e: p.e, color: p.G.color, big: true, name: label(p.G),
+    label: labels ? p.G.plates : '', tip: `A = ${fmt(p.x * 1e4)} cm², slope = ${fmt(p.y)} ± ${fmt(p.e, 2)} pF·m` }));
+  plotXY(svg, [{ pts, fit: cf, color: 'var(--text)', name: 'Class', wide: true }],
+    { xs: 1e4, xl: 'Plate area A (cm²)', yl: 'Slope of C vs 1/d (pF·m)', ref: EPS0, refLabel: 'vacuum (ε₀)' }, W, H);
+}
+// Every measurement with paper on one line
+function plotCollapse(svg, groups, W, H) {
+  plotXY(svg, [...groups.map(G => ({ pts: collapsePoints(G), color: G.color, name: label(G) + ' · ' + G.plates })),
+    { pts: [], fit: collapseFit(groups), color: 'var(--text)', wide: true }],
+    { xl: 'A / d (m)', yl: 'C − C₀ (pF)', ref: EPS0, refLabel: 'vacuum: C = ε₀·A/d' }, W, H);
+}
+function plotMats(svg, groups, W, H) {
+  const cats = {};
+  groups.forEach(G => G.mats.filter(m => isFinite(m.kappa)).forEach(m => {
+    const k = matKey(m);
+    (cats[k] = cats[k] || []).push({ v: m.kappa, color: G.color, tip: `${label(G)}: ${m.name || k}, t = ${fmt(m.t * 1e3)} mm, κ = ${fmt(m.kappa)}` });
+  }));
+  const order = Object.keys(cats).sort((a, b) => median(cats[b].map(i => i.v)) - median(cats[a].map(i => i.v)));
+  plotCats(svg, order.map(k => ({ name: k, items: cats[k] })), { yl: 'Dielectric constant κ', ref: 1, refLabel: 'vacuum κ = 1' }, W, H);
+}
+function plotMetal(svg, groups, W, H) {
+  const cats = {};
+  groups.filter(G => isFinite(G.kSep)).forEach(G => {
+    (cats[G.metal] = cats[G.metal] || []).push({ v: G.kSep, color: G.color, tip: `${label(G)}: ${G.plates}, κ paper = ${fmt(G.kSep)}` });
+  });
+  plotCats(svg, Object.keys(METALS).filter(k => cats[k]).map(k => ({ name: METALS[k], items: cats[k] })), { yl: 'κ of paper (from C vs 1/d)', ref: 1, refLabel: 'vacuum' }, W, H);
+}
+function plotDetailArea(svg, G) {
+  plotXY(svg, [{ pts: G.areaPts.map(p => ({ ...p, tip: `x = ${fmt(p.xc)} cm` })), fit: G.areaFit, color: G.color, name: label(G) }],
+    { xs: 1e4, xl: 'Overlap area A (cm²)', yl: 'C − C₀ (pF)' }, 640, 380);
+}
+
+function classTiles(on) {
+  const af = areaFitClass(on), cf = collapseFit(on);
+  const mats = new Set(on.flatMap(G => G.mats.filter(m => isFinite(m.kappa)).map(matKey)));
+  return `<div class="tile"><div class="k">Class ε of paper (slope vs A)</div><div class="v">${af ? fmt(af.k) : '—'} <small>pF/m</small></div><div class="s">${af ? `κ = ${fmt(af.k / EPS0)} ± ${fmt(af.sk / EPS0, 2)} · R² ${af.r2.toFixed(3)}` : 'needs 3 groups with results'}</div></div>
+    <div class="tile"><div class="k">All measurements, C vs A/d</div><div class="v">${cf ? fmt(cf.k / EPS0) : '—'} <small>= κ paper</small></div><div class="s">${cf ? `${cf.n} points · R² ${cf.r2.toFixed(3)}` : 'no data yet'}</div></div>
+    <div class="tile"><div class="k">Materials measured</div><div class="v">${mats.size}</div><div class="s">${[...mats].slice(0, 5).join(', ') || '—'}</div></div>`;
+}
+
+LabTeacher({
+  id: 'capacitance',
+  title: 'Parallel-Plate Capacitor',
+  icon: '⚡',
+  studentPage: 'capacitance_lab.html',
+  tagline: 'Plates of different sizes and metals · C against d, A and the dielectric · the class puts every capacitor on one line',
+
+  errors: {
+    air: 'Air gaps / pressing', leads: 'Leads moved (C₀)', align: 'Alignment / overlap', thick: 'Thickness imprecise',
+    edge: 'Fringing at the edges', meter: 'Meter resolution', hand: 'Hands on the plates',
+  },
+  questions: [
+    { id: 'prediction', title: 'Predictions: twice the separation, twice the area, glass, another metal', get: s => s.prediction?.why, chart: 'pred' },
+    { id: 'sepdisc', title: 'Is C vs d a straight line? What happens when d doubles?', get: s => s.discuss?.sep },
+    { id: 'sep', title: 'C vs 1/d is a line: what does it mean? Why does slope ÷ A belong to the paper?', get: s => s.answers?.sep },
+    { id: 'area', title: 'How does C depend on the area? Does ε agree with the separation part?', get: s => s.answers?.area },
+    { id: 'diel', title: 'Ranking of the materials by κ, and the result they trust least', get: s => s.answers?.diel },
+    { id: 'law', title: 'Their formula: C = …', get: s => s.answers?.law },
+    { id: 'predcheck', title: 'Were the predictions right?', get: s => s.answers?.predcheck },
+    { id: 'others', title: 'How will other plates (sizes, metals) compare with theirs?', get: s => s.answers?.others },
+    { id: 'errors', title: 'Sources of error', get: s => s.conclusion?.errtext, chart: 'errors' },
+    { id: 'conclusion', title: 'Conclusion', get: s => s.conclusion?.text },
+    { id: 'roles', title: 'How did the group share the work?', get: s => s.conclusion?.roles },
+  ],
+  questionChart(q) {
+    const tally = (key, names) => {
+      const counts = {}; GROUPS.forEach(G => { const c = G.s.prediction?.[key]; if (c) counts[c] = (counts[c] || 0) + 1; });
+      return `<div class="bars">${Object.keys(names).map(c => bar(names[c], counts[c] || 0)).join('')}</div>`;
+    };
+    return `<div class="muted" style="font-size:.8rem">Twice the separation, C…</div>${tally('sep', PRED_SEP)}
+      <div class="muted" style="font-size:.8rem;margin-top:8px">Twice the area, C…</div>${tally('area', PRED_AREA)}
+      <div class="muted" style="font-size:.8rem;margin-top:8px">Glass as thick as the paper, C is…</div>${tally('diel', PRED_DIEL)}
+      <div class="muted" style="font-size:.8rem;margin-top:8px">Plates of another metal, C is…</div>${tally('metal', PRED_METAL)}`;
+  },
+  answerPrefix: (q, s) => q.id === 'prediction' && s.prediction?.sep
+    ? [PRED_SEP[s.prediction.sep], PRED_AREA[s.prediction.area], PRED_DIEL[s.prediction.diel], PRED_METAL[s.prediction.metal]].filter(Boolean).join(' · ') + '.' : '',
+
+  analyze(s) {
+    const a = CAP.analyze(s), p = s.plates || {};
+    const metal = p.metal || 'other';
+    return { ...a, metal, plates: `${METALS[metal] || '?'} ${isFinite(a.L) && isFinite(a.W) ? fmt(a.L) + '×' + fmt(a.W) : ''}`.trim(), test: modelTest(s.test || {}) };
+  },
+  checks(G) {
+    const s = G.s, out = [];
+    if (G.sepPts.length < 5) out.push(['Only ' + G.sepPts.length + ' separations', 'red']);
+    if (!(G.t > 0)) out.push(['No paper thickness', 'red']);
+    else if (G.t < 30e-6 || G.t > 0.3e-3) out.push(['t = ' + fmt(G.t * 1e3) + ' mm?', '']);
+    if (!isFinite(G.C0)) out.push(['No C₀', 'red']);
+    if (G.sepFit && G.sepFit.r2 < 0.97) out.push(['Low R² (C vs 1/d)', '']);
+    if (isFinite(G.kSep) && G.kSep < 1) out.push(['κ paper < 1?', 'red']);
+    else if (isFinite(G.kSep) && G.kSep > 8) out.push(['κ paper = ' + fmt(G.kSep) + '?', '']);
+    if (G.areaPts.length < 4) out.push(['Only ' + G.areaPts.length + ' overlaps', 'red']);
+    if (isFinite(G.kSep) && isFinite(G.kArea) && Math.abs(G.kArea - G.kSep) / G.kSep > 0.25) out.push(['κ (area) ≠ κ (separation)', '']);
+    const ok = G.mats.filter(m => isFinite(m.kappa));
+    if (ok.length < 3) out.push(['Only ' + ok.length + ' materials', '']);
+    if (ok.some(m => m.kappa < 1)) out.push(['A material with κ < 1', 'red']);
+    const c = s.conclusion || {}, kr = num(c.kappa);
+    if (isFinite(kr) && isFinite(G.kSep)) {
+      const r = kr / G.kSep;
+      if (r > 50 || r < 0.02) out.push(['Reported κ: units?', 'red']);
+      else if (Math.abs(r / EPS0 - 1) < 0.15) out.push(['Reported ε, not κ = ε/ε₀', 'red']);
+      else if (Math.abs(r - 1) > 0.15) out.push(['Reported κ ≠ graph', '']);
+    }
+    if (G.sepFit && !(num(c.dkappa) > 0)) out.push(['No uncertainty', '']);
+    if (!s.test?.locked) out.push(['Model test not done', '']);
+    return out;
+  },
+
+  summaryHtml: `
+    <div class="two">
+      <div class="card">
+        <h3>Area: the slope of C vs 1/d against the plate area</h3>
+        <svg class="plot" id="area-plot" viewBox="0 0 720 420"></svg>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">Each point is one group and its plates; the bars are the uncertainty of its slope. The slope is ε·A, so bigger plates give steeper lines. The solid line is the fit of all groups through the origin: its slope is ε of the paper. The dashed line is what vacuum would give (ε₀).</div>
+      </div>
+      <div class="card">
+        <h3>Material: κ by dielectric</h3>
+        <svg class="plot" id="mat-plot" viewBox="0 0 720 420"></svg>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">One dot per group and material; the bar is the median. Sorted from the largest κ.</div>
+      </div>
+    </div>
+    <div class="two" style="margin-top:18px">
+      <div class="card">
+        <h3>Every capacitor on one line: C against A/d</h3>
+        <svg class="plot" id="collapse-plot" viewBox="0 0 720 420"></svg>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">Every paper measurement of every group (separation and area parts), whatever the plates. If C = κε₀A/d, they all fall on one line through the origin with slope κε₀.</div>
+      </div>
+      <div class="card">
+        <h3>Does the metal matter? κ of paper by plate metal</h3>
+        <svg class="plot" id="metal-plot" viewBox="0 0 720 420"></svg>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">Same paper, different metals. If the medians agree within the spread, the metal doesn't matter.</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <h3>All groups: C against 1/d</h3>
+      <svg class="plot" id="all-plot" viewBox="0 0 720 420"></svg>
+      <div class="legend" id="legend"></div>
+    </div>`,
+  renderSummary(on) {
+    const tests = GROUPS.map(G => G.test).filter(isFinite), fits = GROUPS.filter(G => G.sepFit);
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Reports</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'}</div></div>
+      ${classTiles(on)}
+      <div class="tile"><div class="k">Median R² (C vs 1/d)</div><div class="v">${fits.length ? median(fits.map(G => G.sepFit.r2)).toFixed(3) : '—'}</div><div class="s">how linear C vs 1/d is</div></div>
+      <div class="tile"><div class="k">Model tests within 10%</div><div class="v">${tests.filter(e => e <= 10).length}<small>/${tests.length}</small></div><div class="s">predicted vs measured C</div></div>`;
+    plotArea(document.getElementById('area-plot'), on);
+    plotMats(document.getElementById('mat-plot'), on);
+    plotCollapse(document.getElementById('collapse-plot'), on);
+    plotMetal(document.getElementById('metal-plot'), on);
+    plotSep(document.getElementById('all-plot'), on);
+  },
+
+  resultsHead: '<th>Plates (cm)</th><th>A (cm²)</th><th>t (mm)</th><th>n</th><th>Slope C vs 1/d (pF·m)</th><th>R²</th><th>κ paper (d)</th><th>κ paper (A)</th><th>Other materials κ</th><th>κ reported</th><th>Model test</th>',
+  resultsRow(G) {
+    const f = G.sepFit, c = G.s.conclusion || {};
+    const others = G.mats.filter(m => isFinite(m.kappa) && m.mat !== 'paper').map(m => `${esc(matKey(m))} ${fmt(m.kappa, 2)}`).join(' · ');
+    return `<td>${esc(G.plates)}</td><td>${fmt(G.A * 1e4)}</td><td>${fmt(G.t * 1e3)}</td><td>${G.sepPts.length}</td>
+      <td>${f ? `<b>${fmt(f.k)}</b> <span class="muted">± ${fmt(f.sk, 2)}</span>` : '—'}</td>
+      <td>${f ? f.r2.toFixed(3) : '—'}</td>
+      <td>${isFinite(G.kSep) ? `<b>${fmt(G.kSep)}</b> <span class="muted">± ${fmt(G.dkSep, 2)}</span>` : '—'}</td>
+      <td>${isFinite(G.kArea) ? fmt(G.kArea) : '—'}</td>
+      <td>${others || '<span class="muted">—</span>'}</td>
+      <td>${c.kappa ? esc(c.kappa) + (c.dkappa ? ` <span class="muted">± ${esc(c.dkappa)}</span>` : '') : '<span class="muted">—</span>'}</td>
+      <td>${isFinite(G.test) ? fmt(G.test, 2) + '% off' : '<span class="muted">—</span>'}</td>`;
+  },
+
+  slides(on) {
+    const legend = `<div class="legend">${on.map(G => `<span class="chip"><i style="background:${G.color}"></i>${esc(label(G))} · ${esc(G.plates)}</span>`).join('')}</div>`;
+    return [
+      { html: `<h2>Separation: every group's C against 1/d</h2>
+        <div class="plot-wrap"><svg class="plot" id="show-sep"></svg></div>${legend}`,
+        draw: () => plotSep(document.getElementById('show-sep'), on) },
+      { html: `<h2>Area: why are the slopes different? Slope against plate area</h2>
+        <div class="tiles">${classTiles(on)}</div>
+        <div class="plot-wrap"><svg class="plot" id="show-area"></svg></div>`,
+        draw: () => plotArea(document.getElementById('show-area'), on) },
+      { html: `<h2>Every capacitor on one line: C against A/d</h2>
+        <div class="plot-wrap"><svg class="plot" id="show-collapse"></svg></div>${legend}`,
+        draw: () => plotCollapse(document.getElementById('show-collapse'), on) },
+      { html: `<h2>Material: the dielectric constant κ</h2>
+        <div class="plot-wrap"><svg class="plot" id="show-mat"></svg></div>`,
+        draw: () => plotMats(document.getElementById('show-mat'), on) },
+      { html: `<h2>Does the metal of the plates matter?</h2>
+        <div class="plot-wrap"><svg class="plot" id="show-metal"></svg></div>`,
+        draw: () => plotMetal(document.getElementById('show-metal'), on) },
+    ];
+  },
+
+  detail(G) {
+    const s = G.s, f = G.sepFit, af = G.areaFit, t = s.test || {}, c = s.conclusion || {}, st = s.setup || {}, u = esc(st.cunit || 'nF');
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">Plates</div><div class="v" style="font-size:1.1rem">${esc(G.plates)} cm</div><div class="s">A = ${fmt(G.A * 1e4)} cm² · set ${esc(s.plates?.label || '—')}</div></div>
+        <div class="tile"><div class="k">C vs 1/d</div><div class="v">${f ? fmt(f.k) : '—'} <small>pF·m</small></div><div class="s">± ${f ? fmt(f.sk, 2) : '—'} · R² ${f ? f.r2.toFixed(4) : '—'} · b ${f ? fmt(f.b) : '—'} pF</div></div>
+        <div class="tile"><div class="k">κ of paper</div><div class="v">${fmt(G.kSep)}</div><div class="s">separation ± ${fmt(G.dkSep, 2)} · area ${fmt(G.kArea)} · reported ${esc(c.kappa || '—')} ± ${esc(c.dkappa || '—')}</div></div>
+        <div class="tile"><div class="k">Paper and leads</div><div class="v" style="font-size:1.1rem">t = ${fmt(G.t * 1e3)} mm</div><div class="s">${esc(st.stack || '—')} mm for ${esc(st.N || '—')} sheets · C₀ = ${fmt(G.C0)} pF</div></div>
+        <div class="tile"><div class="k">Model test</div><div class="v">${isFinite(G.test) ? fmt(G.test, 2) + '<small>% off</small>' : '—'}</div><div class="s">${esc(t.n || '—')} sheets, x ${esc(t.x || '—')} cm: predicted ${esc(t.pred || '—')}, measured ${esc(t.meas || '—')} ${u}</div></div>
+        ${sentTile(G)}
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="two">
+        <div class="card"><h3>Separation: C − C₀ against 1/d</h3><svg class="plot" id="detail-plot"></svg></div>
+        <div class="card"><h3>Separation readings (${u})</h3>
+          <div class="table-wrap"><table class="t"><thead><tr><th>Sheets</th><th>Reading</th><th>d (mm)</th><th>C − C₀ (pF)</th></tr></thead><tbody>
+          ${G.sepPts.map(p => `<tr><td>${fmt(p.n)}</td><td>${fmt((p.y + G.C0) / G.cu, 4)}</td><td>${fmt(p.d * 1e3)}</td><td>${fmt(p.y)}</td></tr>`).join('')}
+          </tbody></table></div></div>
+      </div>
+      <div class="two">
+        <div class="card"><h3>Area: C − C₀ against the overlap (${esc(s.area?.n || '—')} sheets)</h3><svg class="plot" id="detail-area"></svg>
+          <div class="muted" style="font-size:.8rem">${af ? `slope ${fmt(af.k * 1e-4)} pF/cm² · R² ${af.r2.toFixed(4)} · b ${fmt(af.b)} pF` : ''}</div></div>
+        <div class="card"><h3>Materials</h3>
+          <div class="table-wrap"><table class="t"><thead><tr><th>Material</th><th>t (mm)</th><th>C − C₀ (pF)</th><th>κ</th></tr></thead><tbody>
+          ${G.mats.filter(m => m.mat || isFinite(m.y)).map(m => `<tr><td>${esc(CAP.MATS[m.mat] || '—')}${m.name ? ' · ' + esc(m.name) : ''}</td><td>${fmt(m.t * 1e3)}</td><td>${fmt(m.y)}</td><td><b>${fmt(m.kappa)}</b></td></tr>`).join('')}
+          </tbody></table></div></div>
+      </div>
+      <div class="answers">
+        ${detailAnswer('Prediction: ' + [PRED_SEP[s.prediction?.sep], PRED_AREA[s.prediction?.area], PRED_DIEL[s.prediction?.diel], PRED_METAL[s.prediction?.metal]].map(x => x || '—').join(' · '), s.prediction?.why)}
+        ${detailAnswer('Is C vs d a straight line?', s.discuss?.sep)}
+        ${detailAnswer('Meaning of C vs 1/d and slope ÷ A', s.answers?.sep)}
+        ${detailAnswer('Area', s.answers?.area)}
+        ${detailAnswer('Materials ranking', s.answers?.diel)}
+        ${detailAnswer('Their formula: C = …', s.answers?.law)}
+        ${detailAnswer('Were the predictions right?', s.answers?.predcheck)}
+        ${detailAnswer('How will other plates compare?', s.answers?.others)}
+        ${detailAnswer(errorsTitle(c), c.errtext)}
+        ${detailAnswer('Conclusion', c.text)}
+        ${detailAnswer('How they shared the work', c.roles)}
+      </div>`;
+  },
+  drawDetail: G => { plotSep(document.getElementById('detail-plot'), [G], 640, 380); plotDetailArea(document.getElementById('detail-area'), G); },
+
+  computed: G => ({
+    area_m2: G.A, t_m: G.t, C0_pF: G.C0, sep_fit_pF_m: G.sepFit, kappa_paper_sep: isFinite(G.kSep) ? G.kSep : null,
+    area_fit_pF_m2: G.areaFit, kappa_paper_area: isFinite(G.kArea) ? G.kArea : null,
+    kappas: G.mats.filter(m => isFinite(m.kappa)).map(m => ({ material: matKey(m), name: m.name, t_mm: m.t * 1e3, kappa: m.kappa })),
+    model_test_percent_off: isFinite(G.test) ? G.test : null,
+  }),
+  csv: {
+    head: ['session', 'group', 'students', 'metal', 'L_cm', 'W_cm', 'A_cm2', 't_mm', 'C0_pF', 'n_sep', 'slope_pF_m', 'slope_unc', 'R2', 'kappa_paper_sep', 'kappa_paper_area', 'kappa_glass', 'kappa_plastic', 'kappa_fabric', 'kappa_cardboard', 'kappa_reported', 'dkappa_reported', 'law', 'model_test_pct_off'],
+    rows: G => {
+      const f = G.sepFit || {}, c = G.s.conclusion || {};
+      const kOf = mat => { const v = G.mats.filter(m => m.mat === mat && isFinite(m.kappa)).map(m => m.kappa); return v.length ? median(v) : ''; };
+      return [[G.s.session, G.s.group, who(G), G.metal, G.L, G.W, G.A * 1e4, G.t * 1e3, G.C0, G.sepPts.length, f.k, f.sk, f.r2, G.kSep, G.kArea,
+        kOf('glass'), kOf('plastic'), kOf('fabric'), kOf('cardboard'), c.kappa, c.dkappa, G.s.answers?.law, G.test]];
+    },
+  },
+
+  demo() {
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz',
+      'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva', 'Camila Torres', 'Daniel Ramírez', 'Sara Medina', 'Felipe Ríos'];
+    const PLATES = [['copper', 10, 10], ['aluminum', 15, 10], ['pcb', 15, 15], ['copper', 20, 15], ['aluminum', 20, 20], ['pcb', 10, 10], ['copper', 15, 15], ['aluminum', 25, 20]];
+    const texts = {
+      sepdisc: ['No, it is a curve: C goes down fast at first and then slowly. From 2 to 4 sheets C went from 1.62 to 0.83 nF, about half, so C looks inversely proportional to d.',
+        'It is not straight, it goes down.'],
+      sep: ['C is inversely proportional to d, C = k/d. The slope is ε·A, so dividing by the area leaves ε, which depends only on what is between the plates, here the paper.',
+        'The slope is how much C changes. Dividing by the area gives the paper value.'],
+      area: ['C grows in proportion to the overlap area, R² was 0.998. The ε from this part was 23 pF/m and from the separation 24 pF/m, close, and it should be the same paper.',
+        'C goes up with more area. The values are a bit different.'],
+      diel: ['Glass had the largest κ (about 6), then plastic and paper (about 2.5 to 3), then fabric (1.7). Glass makes the biggest capacitor. We trust fabric least because it squashes and has a lot of air.',
+        'Glass was biggest, fabric smallest.'],
+      predcheck: ['We predicted half for twice the separation and it was: 1 sheet gave 3.2 nF and 2 sheets 1.6 nF. We predicted glass would be the same but its κ was more than twice the paper, so we were wrong.',
+        'Some predictions were right and some were wrong.'],
+      others: ['Bigger plates will have a steeper line of C against 1/d, in proportion to their area, but the κ of paper should be the same for everyone because it is the same paper. The metal should not matter.',
+        'Bigger plates have bigger capacitance.'],
+      conclusion: ['The capacitance is inversely proportional to the separation (C vs 1/d had R² = 0.997), proportional to the overlap area, and proportional to the dielectric constant of the material: C = κε₀A/d. For paper κ = 2.6 ± 0.1. Our model test was 4% off, so we are confident.',
+        'The capacitance depends on the distance, the area and the material.'],
+      roles: ['One of us built the capacitor and pressed the book, the other read the meter, and we wrote the answers together.', 'We took turns.'],
+    };
+    const reports = [];
+    for (let gi = 1; gi <= 8; gi++) {
+      const good = gi !== 4 && gi !== 7, [metal, L, W] = PLATES[gi - 1], A = L * W * 1e-4;
+      const kP = 2.6 * rnd(0.95, 1.05) * (gi === 4 ? 0.8 : 1), N = 100, stack = 10 * rnd(0.97, 1.03), t = stack / N * 1e-3;
+      const C0 = rnd(12, 25), unit = gi === 5 ? 'pF' : 'nF', cu = CAP.UNIT[unit], fringe = 4 * (L + W) / 20;
+      const read = (k, a, d) => { const c = k * EPS0 * a / d + fringe + C0 + rnd(-1, 1) * (good ? 0.006 : 0.03) * k * EPS0 * a / d; return (c / cu).toFixed(unit === 'pF' ? 0 : 3); };
+      const sep = [1, 2, 3, 4, 6, 8].slice(0, gi === 7 ? 4 : 6).map(n => ({ n: String(n), C: read(kP, A, n * t) }));
+      const area = { n: '2', rows: [1, 0.85, 0.7, 0.55, 0.4, 0.25].map(fr => ({ x: (L * fr).toFixed(1), C: read(kP, W * L * fr * 1e-4, 2 * t) })) };
+      const mats = [
+        { mat: 'paper', name: '1 sheet', t: (t * 1e3).toFixed(3), C: read(kP, A, t) },
+        { mat: 'glass', name: 'window glass', t: rnd(2, 3).toFixed(2), C: '' },
+        { mat: 'plastic', name: 'acetate sheet', t: rnd(0.15, 0.25).toFixed(2), C: '' },
+        { mat: 'fabric', name: 'cotton', t: rnd(0.4, 0.6).toFixed(2), C: '' },
+      ];
+      if (gi % 2) mats.push({ mat: 'cardboard', name: 'cereal box', t: rnd(0.4, 0.6).toFixed(2), C: '' });
+      const KM = { glass: 6.5, plastic: 3.0, fabric: 1.7, cardboard: 2.2 };
+      mats.forEach(m => { if (!m.C) m.C = read(KM[m.mat] * rnd(0.9, 1.1), A, num(m.t) * 1e-3); });
+      const s0 = { setup: { L: String(L), W: String(W), N: String(N), stack: stack.toFixed(2), cunit: unit, C0: (C0 / cu).toFixed(unit === 'pF' ? 0 : 3) }, sep, area, mats };
+      const an = CAP.analyze(s0);
+      const pick = k => good ? texts[k][0] : texts[k][1];
+      const tx = L * 0.6, model = kP * EPS0 * W * tx * 1e-4 / (5 * t) + C0;
+      reports.push({
+        schema: 1, lab: 'capacitance', id: 'demo' + gi, session: 'DEMO', group: String(gi), students: [names[gi * 2 - 2], names[gi * 2 - 1]],
+        plates: { metal, label: String.fromCharCode(64 + gi) },
+        prediction: { sep: ['half', 'half', 'double', 'half', 'quarter', 'half', 'same', 'half'][gi - 1], area: gi === 3 ? 'half' : 'double', diel: gi % 3 ? 'same' : 'bigger', metal: gi % 2 ? 'different' : 'same',
+          why: 'The plates store charge and with more paper the charges are farther apart, so they attract less and the capacitor stores less charge.' },
+        ...s0, discuss: { sep: pick('sepdisc') },
+        answers: { sep: pick('sep'), area: pick('area'), diel: pick('diel'), law: good ? 'κ·ε₀·A/d' : 'ε·A/d', predcheck: pick('predcheck'), others: pick('others') },
+        test: { n: '5', x: tx.toFixed(1), pred: (model * (gi === 6 ? 1.25 : rnd(0.96, 1.04)) / cu).toFixed(unit === 'pF' ? 0 : 3), locked: gi !== 7, meas: gi === 7 ? '' : read(kP, W * tx * 1e-4, 5 * t) },
+        conclusion: { kappa: isFinite(an.kSep) ? (gi === 3 ? fmt(an.epsSep) : fmt(an.kSep)) : '', dkappa: gi === 5 || !isFinite(an.dkSep) ? '' : fmt(an.dkSep, 2),
+          errors: ['air', 'leads', 'align', 'thick', 'edge', 'meter', 'hand'].filter(() => Math.random() < 0.4),
+          errtext: gi === 2 ? 'The reading kept changing while we held the book, and the paper curled at the edges.' : '', text: pick('conclusion'), roles: pick('roles') },
+        startedAt: new Date().toISOString(), submittedAt: new Date(Date.now() - (9 - gi) * 60000).toISOString(),
+      });
+    }
+    return reports;
+  },
+});
+</script>
+</body>
+</html>

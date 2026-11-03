@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Parallel-Plate Capacitor Lab</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔋</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950;
+    --green-soft: rgba(63,185,80,.12);
+    --amber: #d29922;
+    --amber-soft: rgba(210,153,34,.14);
+    --red: #f85149;
+    --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #0969da;
+    --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37;
+    --green-soft: rgba(26,127,55,.09);
+    --amber: #9a6700;
+    --amber-soft: rgba(154,103,0,.10);
+    --red: #cf222e;
+  }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.5; min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.3px; }
+  header h1 span { color: var(--accent); }
+  .progress { flex: 1; min-width: 140px; display: flex; gap: 4px; }
+  .progress i { flex: 1; height: 6px; border-radius: 3px; background: var(--surface2); border: 1px solid var(--border); }
+  .progress i.done { background: var(--green); border-color: var(--green); }
+  .progress i.current { background: var(--accent); border-color: var(--accent); }
+  .save-state { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .pill-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 20px; padding: 5px 12px; font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer;
+  }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  .intro { color: var(--muted); font-size: .92rem; margin-bottom: 20px; }
+  .intro b { color: var(--text); }
+
+  /* ── STEPS ── */
+  .step {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .step-head {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-head .num {
+    width: 30px; height: 30px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; font-weight: 800; font-size: .9rem;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .step.done .num { background: var(--green); border-color: var(--green); color: #fff; }
+  .step.active .num { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step-head h2 { font-size: 1.02rem; font-weight: 700; flex: 1; }
+  .step-head .status { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .step.done .status { color: var(--green); }
+  .step-body { padding: 18px; display: grid; gap: 16px; }
+  .step-lock { display: none; padding: 14px 18px; color: var(--muted); font-size: .88rem; }
+  .step.locked .step-body { display: none; }
+  .step.locked .step-lock { display: block; }
+  .step.locked .step-head { border-bottom: none; opacity: .6; }
+
+  p.lead { font-size: .93rem; }
+  ul.tips { font-size: .86rem; color: var(--muted); padding-left: 20px; display: grid; gap: 3px; }
+  ul.tips b { color: var(--text); }
+
+  /* ── FORM ── */
+  label.f { display: grid; gap: 5px; font-size: .82rem; font-weight: 600; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; font: inherit; font-size: .95rem; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  input[readonly] { background: var(--surface2); color: var(--muted); }
+  .q { display: grid; gap: 6px; }
+  .q .qt { font-size: .93rem; font-weight: 600; }
+  .q .qt em { font-style: normal; color: var(--accent); }
+  .wc { font-size: .72rem; color: var(--muted); text-align: right; }
+  .wc.ok { color: var(--green); }
+
+  .choices { display: grid; gap: 6px; }
+  .choices label {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: .92rem;
+  }
+  .choices label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px; }
+  .checks label { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; cursor: pointer; }
+  .checks input { margin-top: 4px; }
+
+  .btn {
+    font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;
+    border-radius: 8px; padding: 9px 16px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text);
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .row-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .note {
+    border-radius: 8px; padding: 10px 14px; font-size: .88rem;
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+  }
+  .note.warn { background: var(--amber-soft); border-left-color: var(--amber); }
+  .note.good { background: var(--green-soft); border-left-color: var(--green); }
+  .discuss {
+    border: 1px dashed var(--accent); border-radius: 10px; padding: 14px; display: grid; gap: 8px;
+    background: var(--accent-soft);
+  }
+  .discuss .tag { font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table.data { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  table.data th {
+    text-align: left; font-size: .74rem; color: var(--muted); font-weight: 700;
+    padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  table.data td { padding: 4px 6px; border-bottom: 1px solid var(--border); }
+  table.data td.calc { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; white-space: nowrap; }
+  table.data td.idx { color: var(--muted); width: 28px; text-align: center; }
+  table.data input { padding: 6px 8px; min-width: 70px; }
+  table.data tr.bad td.calc { color: var(--red); }
+  .del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: 2px 6px; }
+  .del:hover { color: var(--red); }
+
+  /* ── PLOT ── */
+  .plot { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+  .plot text { fill: var(--muted); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .plot .axis { stroke: var(--muted); stroke-width: 1; }
+  .plot .grid { stroke: var(--border); stroke-width: 1; }
+  .plot .pt { fill: var(--accent); stroke: var(--bg); stroke-width: 1.5; }
+  .plot .fit { stroke: var(--green); stroke-width: 2.2; stroke-dasharray: 7 4; }
+  .plot .lbl { fill: var(--text); font-weight: 600; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+  .stat .k { font-size: .72rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .stat .v { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat .v small { font-size: .8rem; color: var(--muted); font-weight: 600; }
+  .eq { font-family: Consolas, 'Courier New', monospace; font-size: .95rem; }
+
+  .inline-k { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 700; }
+  .inline-k input { width: 110px; }
+
+  .summary { display: grid; gap: 4px; font-size: .9rem; }
+  .summary div::before { content: '○ '; color: var(--muted); }
+  .summary div.ok::before { content: '✓ '; color: var(--green); font-weight: 800; }
+
+  .diagram { max-width: 260px; margin: 0 auto; display: block; }
+  .diagram text { fill: var(--text); font-size: 13px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .setup-grid { display: grid; grid-template-columns: 1fr 220px; gap: 16px; align-items: start; }
+  @media (max-width: 620px) { .setup-grid { grid-template-columns: 1fr; } }
+
+  /* ── LAB GUIDE ── */
+  dialog.guide {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+    width: min(780px, 94vw); max-height: 90vh; margin: auto; padding: 0;
+  }
+  dialog.guide::backdrop { background: rgba(0,0,0,.55); }
+  .guide-head { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .guide-head h2 { font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .guide-body { padding: 18px; display: grid; gap: 18px; font-size: .92rem; }
+  .guide-body h3 { font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .guide-body ol, .guide-body ul { padding-left: 22px; display: grid; gap: 6px; }
+  .guide-body li b { color: var(--text); }
+  .guide-cols { display: grid; grid-template-columns: 1fr 230px; gap: 18px; align-items: start; }
+  .guide-cols.wide-fig { grid-template-columns: 1fr 280px; }
+  .guide-materials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .guide-cols, .guide-cols.wide-fig, .guide-materials { grid-template-columns: 1fr; } }
+  .guide-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .guide-box .bt { font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  .guide-fig { width: 100%; height: auto; display: block; }
+  .guide-fig text { fill: var(--text); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .guide-foot { padding: 0 18px 18px; display: flex; justify-content: flex-end; }
+  .guide-link { background: none; border: none; color: var(--accent); font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer; padding: 0; text-align: left; justify-self: start; }
+  .guide-link:hover { text-decoration: underline; }
+
+
+  /* ── HOW-TO LISTS (instructions where they are used) ── */
+  ol.howto { padding-left: 22px; display: grid; gap: 6px; font-size: .9rem; }
+  ol.howto li::marker { color: var(--accent); font-weight: 800; }
+  ol.howto b { color: var(--text); }
+
+  footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
+  footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+
+  .sub3 { font-size: .95rem; font-weight: 700; }
+  .plot-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  td select { min-width: 110px; padding: 6px 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="pill-btn" href="../../../index.html#lab-reports" style="text-decoration:none">← Lab Reports</a>
+  <h1>⚡ <span>Parallel-Plate Capacitor</span> Lab</h1>
+  <div class="progress" id="progress"></div>
+  <span class="save-state" id="save-state">Saved on this computer</span>
+  <button class="pill-btn" data-guide>📋 Lab guide</button>
+  <button class="pill-btn" id="theme-toggle">☀ Light</button>
+</header>
+
+<main>
+  <p class="intro"><span data-team>Work <b>with your partner</b> through the steps in order.</span><span data-solo hidden>Measure with your group, but <b>write this report on your own</b>, in your own words. Go through the steps in order.</span> Each step unlocks the next one. Your work is saved on this computer as you type, so a reload won't lose it. When you finish, send the report to your teacher.</p>
+
+  <!-- 1 TEAM -->
+  <section class="step" data-step="1">
+    <div class="step-head"><span class="num">1</span><h2>Your team and your plates</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="q">
+        <div class="qt">Who writes this report? Do what your teacher told you.</div>
+        <div class="choices">
+          <label><input type="radio" name="mode" value="group"> Our group: one report for the whole group</label>
+          <label><input type="radio" name="mode" value="individual"> Just me: my own report, in my own words</label>
+        </div>
+      </div>
+      <div class="grid2">
+        <label class="f">Class / session code<input type="text" data-bind="session" id="session-input" placeholder="e.g. 11A"></label>
+        <label class="f">Group number<input type="text" inputmode="numeric" data-bind="group" placeholder="e.g. 4"></label>
+      </div>
+      <div class="grid2">
+        <label class="f"><span data-team>Student 1</span><span data-solo hidden>Your name</span><input type="text" data-bind="students.0" placeholder="Full name"></label>
+        <label class="f" data-team>Student 2<input type="text" data-bind="students.1" placeholder="Full name"></label>
+      </div>
+      <div class="grid2">
+        <label class="f">Your plates are made of
+          <select data-bind="plates.metal">
+            <option value="">Choose…</option>
+            <option value="copper">Copper</option>
+            <option value="aluminum">Aluminum</option>
+            <option value="pcb">Copper on bakelite (circuit board)</option>
+            <option value="other">Other metal</option>
+          </select>
+        </label>
+        <label class="f">Plate set label (if it has one)<input type="text" data-bind="plates.label" placeholder="e.g. B"></label>
+      </div>
+      <div class="note warn" id="pcb-note" hidden><b>Circuit-board plates:</b> only one side is copper; the other side is bakelite, an insulator. Always put the <b>copper sides facing each other</b>, with the material between them, and clip the leads onto the copper. If a bakelite side faces the paper, you add a thick extra insulator and C drops a lot.</div>
+    </div>
+  </section>
+
+  <!-- 2 PREDICT -->
+  <section class="step" data-step="2">
+    <div class="step-head"><span class="num">2</span><h2>Predict before you measure</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">You will make a capacitor: two metal plates with sheets of paper between them, and measure its capacitance C with the multimeter. Before touching anything, <b>discuss with your partner</b>:</p>
+      <div class="q">
+        <div class="qt">With <em>twice as many sheets</em> of paper between the plates (twice the separation d), C will…</div>
+        <div class="choices">
+          <label><input type="radio" name="pred-sep" value="double"> double</label>
+          <label><input type="radio" name="pred-sep" value="same"> stay the same</label>
+          <label><input type="radio" name="pred-sep" value="half"> drop to half</label>
+          <label><input type="radio" name="pred-sep" value="quarter"> drop to a quarter</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">If the plates overlap over <em>twice the area</em>, C will…</div>
+        <div class="choices">
+          <label><input type="radio" name="pred-area" value="double"> double</label>
+          <label><input type="radio" name="pred-area" value="same"> stay the same</label>
+          <label><input type="radio" name="pred-area" value="half"> drop to half</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">You replace the paper with a sheet of <em>glass</em> just as thick. C will be…</div>
+        <div class="choices">
+          <label><input type="radio" name="pred-diel" value="bigger"> bigger</label>
+          <label><input type="radio" name="pred-diel" value="same"> the same: only the distance matters</label>
+          <label><input type="radio" name="pred-diel" value="smaller"> smaller</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">Another group has plates of the same size made of a <em>different metal</em>. With the same paper, their C will be…</div>
+        <div class="choices">
+          <label><input type="radio" name="pred-metal" value="different"> different: a better conductor gives a bigger C</label>
+          <label><input type="radio" name="pred-metal" value="same"> about the same: the metal doesn't matter</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">Why do you think so? Write the reasons you both agree on.</div>
+        <textarea data-bind="prediction.why" data-min="10"></textarea>
+        <div class="wc" data-wc="prediction.why"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 PREPARE -->
+  <section class="step" data-step="3">
+    <div class="step-head"><span class="num">3</span><h2>Measure the plates, the paper and the leads</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="setup-grid">
+        <div style="display:grid;gap:14px">
+          <h3 class="sub3">a · The plates</h3>
+          <ol class="howto">
+            <li>Measure the <b>length L</b> and the <b>width W</b> of your plate with a ruler, in centimeters. If your two plates have different sizes, measure the <b>smaller</b> one: only the part where they face each other counts.</li>
+          </ol>
+          <div class="grid2">
+            <label class="f">Length L (cm)<input type="text" inputmode="decimal" data-bind="setup.L" placeholder="e.g. 15.0"></label>
+            <label class="f">Width W (cm)<input type="text" inputmode="decimal" data-bind="setup.W" placeholder="e.g. 10.0"></label>
+          </div>
+          <div class="note" id="area-note">Type L and W to get the plate area A = L·W.</div>
+        </div>
+        <svg class="diagram" id="setup-fig" viewBox="0 0 280 220" aria-label="Two metal plates with sheets of paper between them, a book on top, and the multimeter leads clipped to each plate"></svg>
+      </div>
+
+      <h3 class="sub3">b · The thickness of one sheet of paper</h3>
+      <ol class="howto">
+        <li>One sheet is too thin to measure. Take a <b>stack</b> of the same paper (the one your teacher gave you), at least 50 sheets, squeeze it gently and measure its thickness with the caliper or ruler.</li>
+        <li>Count the sheets in the stack. The page divides to get the thickness t of one sheet.</li>
+      </ol>
+      <div class="grid2">
+        <label class="f">Number of sheets in the stack<input type="text" inputmode="numeric" data-bind="setup.N" placeholder="e.g. 100"></label>
+        <label class="f">Thickness of the stack (mm)<input type="text" inputmode="decimal" data-bind="setup.stack" placeholder="e.g. 10.2"></label>
+        <label class="f">One sheet t (mm)<input type="text" id="t-out" readonly></label>
+      </div>
+      <div id="t-warn"></div>
+
+      <h3 class="sub3">c · The multimeter and the leads</h3>
+      <ol class="howto">
+        <li>Turn the multimeter to <b>capacitance</b> (the symbol ⊣⊢ or <b>F</b>). Choose the unit it shows.</li>
+        <li>Clip one lead to each plate and hold the plates <b>far apart</b> (more than 30 cm, not touching anything metal). The meter still shows a small value: that is the capacitance of the leads themselves, <b>C₀</b>. Write it. It will be subtracted from every reading.</li>
+        <li>If your meter has a <b>REL</b> (relative) button and you pressed it here to zero the reading, write 0.</li>
+        <li>Don't move the leads around during the lab: C₀ changes when they do.</li>
+      </ol>
+      <div class="grid2">
+        <label class="f">The meter shows
+          <select data-bind="setup.cunit">
+            <option value="nF">nF (nanofarads)</option>
+            <option value="pF">pF (picofarads)</option>
+            <option value="µF">µF (microfarads)</option>
+          </select>
+        </label>
+        <label class="f">Leads only, C₀ (<span data-unit>nF</span>)<input type="text" inputmode="decimal" data-bind="setup.C0" placeholder="e.g. 0.015"></label>
+      </div>
+      <div class="note">1 nF = 1000 pF and 1 µF = 1000 nF. Your capacitor will be a few hundred to a few thousand pF (about 0.1 to 5 nF): if the meter has ranges, use the smallest one that shows the value.</div>
+      <div id="c0-warn"></div>
+    </div>
+  </section>
+
+  <!-- 4 SEPARATION -->
+  <section class="step" data-step="4">
+    <div class="step-head"><span class="num">4</span><h2>Change the separation d</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <ol class="howto">
+        <li>Put the bottom plate on the table, then <b>1 sheet</b> of paper, then the top plate <b>exactly on top</b> (full overlap). The paper must stick out on every side, so the plates never touch.</li>
+        <li>Put the <b>book</b> on top and press it the same way every time: the air between the sheets changes the reading.</li>
+        <li>Wait until the reading is steady and type it. Then use <b>2, 3, 4, 6 and 8 sheets</b>, the same way. Separation d = number of sheets × t.</li>
+        <li>Keep <b>5 sheets unused</b>: you'll need it in step 7.</li>
+      </ol>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>#</th><th>Sheets n</th><th>Reading C (<span data-unit>nF</span>)</th><th>d (mm)</th><th>1/d (1/m)</th><th>C − C₀ (pF)</th><th></th></tr></thead>
+          <tbody id="sep-body"></tbody>
+        </table>
+      </div>
+      <div class="row-btns">
+        <button class="btn" id="sep-add">+ Add measurement</button>
+        <span class="save-state" id="sep-n"></span>
+      </div>
+      <div id="sep-warn"></div>
+      <svg class="plot" id="plot-d" viewBox="0 0 640 380"></svg>
+      <div class="discuss" id="discuss-sep" hidden>
+        <span class="tag">💬 Stop and discuss</span>
+        <div class="qt" style="font-weight:600">Look at the graph of C against d. Is it a straight line? Find two points where d doubles: what happens to C? Which kind of relation is it?</div>
+        <textarea data-bind="discuss.sep" data-min="8"></textarea>
+        <div class="wc" data-wc="discuss.sep"></div>
+        <div class="save-state" id="inv-hint">A second graph will appear once you've answered.</div>
+      </div>
+      <div id="inv-box" hidden style="display:grid;gap:14px">
+        <p class="lead">Now the same data against <b>1/d</b>:</p>
+        <svg class="plot" id="plot-inv" viewBox="0 0 640 380"></svg>
+        <div class="stats" id="sep-stats"></div>
+        <div class="note"><span class="eq" id="sep-eq"></span><br><span style="font-size:.82rem;color:var(--muted)">R² measures how close the points are to a straight line: 1 means perfectly straight.</span></div>
+        <div class="note" id="sep-eps"></div>
+        <div class="q">
+          <div class="qt">C against 1/d is a straight line. What does that tell you about how C depends on d? The slope is in pF·m: why does dividing it by the plate area A give a number that belongs to the <em>paper</em>, and not to your plates?</div>
+          <textarea data-bind="answers.sep" data-min="15"></textarea>
+          <div class="wc" data-wc="answers.sep"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 AREA -->
+  <section class="step" data-step="5">
+    <div class="step-head"><span class="num">5</span><h2>Change the overlap area A</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <ol class="howto">
+        <li>Use the same number of sheets the whole time (2 or 3 is a good choice) and type it below.</li>
+        <li>Slide the top plate <b>along its length</b>, keeping its sides lined up with the bottom plate, so that only part of it faces the bottom plate. Measure the <b>overlap x</b>: how many centimeters of the top plate's length are over the bottom plate.</li>
+        <li>Book on top, read C. Start at full overlap (x = L) and go down to about a quarter: <b>5 or 6 positions</b>. The overlap area is A = W·x.</li>
+        <li>The paper must stay under the whole overlap, and the plates must never touch.</li>
+      </ol>
+      <label class="f" style="max-width:280px">Sheets of paper for this whole part<input type="text" inputmode="numeric" data-bind="area.n" placeholder="e.g. 2"></label>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>#</th><th>Overlap x (cm)</th><th>Reading C (<span data-unit>nF</span>)</th><th>A = W·x (cm²)</th><th>C − C₀ (pF)</th><th></th></tr></thead>
+          <tbody id="area-body"></tbody>
+        </table>
+      </div>
+      <div class="row-btns">
+        <button class="btn" id="area-add">+ Add measurement</button>
+        <span class="save-state" id="area-n"></span>
+      </div>
+      <div id="area-warn"></div>
+      <svg class="plot" id="plot-area" viewBox="0 0 640 380"></svg>
+      <div class="stats" id="area-stats"></div>
+      <div class="note" id="area-eps"></div>
+      <div class="q">
+        <div class="qt">How does C depend on the overlap area? Is the ε of the paper you get here close to the one from step 4? Should it be? Explain.</div>
+        <textarea data-bind="answers.area" data-min="15"></textarea>
+        <div class="wc" data-wc="answers.area"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 DIELECTRICS -->
+  <section class="step" data-step="6">
+    <div class="step-head"><span class="num">6</span><h2>Change the material between the plates</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <ol class="howto">
+        <li>Plates exactly on top of each other (full overlap). Put <b>one layer</b> of a material between them: glass, plastic sheet, fabric, cardboard… It must cover the whole plate.</li>
+        <li>Measure the <b>thickness t</b> of that layer with the caliper. For a thin sheet, measure a folded stack of several layers and divide.</li>
+        <li>Book on top (for glass, press gently with your hand instead), read C. Do <b>at least 3 materials</b>, including <b>1 sheet of paper</b>.</li>
+      </ol>
+      <div class="note">The materials have different thicknesses, so comparing the readings is not enough. The page finds the <b>dielectric constant</b> κ of each material: how many times bigger C is than with <b>vacuum</b> (or air) of the same thickness, using C = κ·ε₀·A/d with ε₀ = 8.85 pF/m.</div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>#</th><th>Material</th><th>Which one</th><th>Thickness t (mm)</th><th>Reading C (<span data-unit>nF</span>)</th><th>C − C₀ (pF)</th><th>κ</th><th></th></tr></thead>
+          <tbody id="mat-body"></tbody>
+        </table>
+      </div>
+      <div class="row-btns">
+        <button class="btn" id="mat-add">+ Add material</button>
+        <span class="save-state" id="mat-n"></span>
+      </div>
+      <div id="mat-warn"></div>
+      <svg class="plot" id="plot-mat" viewBox="0 0 640 300"></svg>
+      <div class="q">
+        <div class="qt">Rank your materials from the largest κ to the smallest. With the same plates and the same thickness, which one makes the biggest capacitor? Which result do you trust least, and why?</div>
+        <textarea data-bind="answers.diel" data-min="15"></textarea>
+        <div class="wc" data-wc="answers.diel"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Put steps 4, 5 and 6 together: write one formula for the capacitance in terms of κ, ε₀, A and d.</div>
+        <div class="inline-k">C = <input type="text" data-bind="answers.law" style="width:200px" placeholder="your formula"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 TEST -->
+  <section class="step" data-step="7">
+    <div class="step-head"><span class="num">7</span><h2>Test your model</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <ol class="howto">
+        <li>Build a capacitor you have <b>not measured</b>: <b>5 sheets</b> of paper (you kept it unused) and an overlap x that you did not use in step 5.</li>
+        <li>Use your formula, the κ of paper from step 4 and your measurements to <b>calculate</b> the reading the meter will show, in <span data-unit>nF</span>. Remember that the meter also shows C₀.</li>
+        <li><b>Lock your prediction before</b> you build it. Then build it and read the meter.</li>
+      </ol>
+      <div class="grid2">
+        <label class="f">Sheets n<input type="text" inputmode="numeric" data-bind="test.n" id="test-n"></label>
+        <label class="f">Overlap x (cm)<input type="text" inputmode="decimal" data-bind="test.x" id="test-x"></label>
+        <label class="f">Your predicted reading (<span data-unit>nF</span>)<input type="text" inputmode="decimal" data-bind="test.pred" id="test-pred"></label>
+      </div>
+      <div class="row-btns"><button class="btn primary" id="lock-pred">🔒 Lock prediction</button><span class="save-state" id="lock-msg"></span></div>
+      <div id="test-measure" hidden>
+        <label class="f">Now build it. Measured reading (<span data-unit>nF</span>)<input type="text" inputmode="decimal" data-bind="test.meas"></label>
+      </div>
+      <div id="test-result"></div>
+      <div class="note">When you finish: turn the multimeter off, put the paper back in its stack and the glass in its box.</div>
+    </div>
+  </section>
+
+  <!-- 8 CONCLUDE -->
+  <section class="step" data-step="8">
+    <div class="step-head"><span class="num">8</span><h2>Conclude</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="q">
+        <div class="qt">Report the dielectric constant of paper from your graph of C against 1/d, with its uncertainty:</div>
+        <div class="inline-k">κ<sub>paper</sub> = <input type="text" inputmode="decimal" data-bind="conclusion.kappa"> ± <input type="text" inputmode="decimal" data-bind="conclusion.dkappa"></div>
+        <div id="k-hint"></div>
+      </div>
+      <div class="q">
+        <div class="qt">In step 2 you predicted that twice the separation makes C <em id="q-pred-sep">…</em>, twice the area makes it <em id="q-pred-area">…</em>, and glass makes it <em id="q-pred-diel">…</em>. Were you right? Use your data as evidence.</div>
+        <textarea data-bind="answers.predcheck" data-min="15"></textarea>
+        <div class="wc" data-wc="answers.predcheck"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Other groups have plates of other sizes and other metals, with the same paper. How do you expect their slope of C against 1/d, and their κ of paper, to compare with yours? Your class will check this together.</div>
+        <textarea data-bind="answers.others" data-min="15"></textarea>
+        <div class="wc" data-wc="answers.others"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Which sources of error affected your measurements most? Discuss and choose.</div>
+        <div class="checks" id="err-checks"></div>
+        <textarea data-bind="conclusion.errtext" placeholder="Other sources of error, or how you could reduce them (optional)" style="min-height:60px"></textarea>
+      </div>
+      <div class="q">
+        <div class="qt">Conclusion: how does the capacitance depend on the separation, on the area, and on the material between the plates? State your formula, your values, and how confident you are. Use R² and your model test as evidence.</div>
+        <textarea data-bind="conclusion.text" data-min="30" style="min-height:120px"></textarea>
+        <div class="wc" data-wc="conclusion.text"></div>
+      </div>
+      <div class="q">
+        <div class="qt"><span data-team>How did you share the work?</span><span data-solo hidden>How did your group share the work, and what did you do yourself?</span> (Who built the capacitor, who read the meter, who measured, who wrote…)</div>
+        <textarea data-bind="conclusion.roles" data-min="5" style="min-height:60px"></textarea>
+        <div class="wc" data-wc="conclusion.roles"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 SUBMIT -->
+  <section class="step" data-step="9">
+    <div class="step-head"><span class="num">9</span><h2>Send your report</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="summary" id="summary"></div>
+      <div class="row-btns">
+        <button class="btn primary" id="send">📤 Send to teacher</button>
+        <button class="btn" id="download">⬇ Download backup file</button>
+        <button class="btn" id="next-group">👥 New report for the next group</button>
+      </div>
+      <div id="send-status"></div>
+    </div>
+  </section>
+</main>
+
+<dialog class="guide" id="guide">
+  <div class="guide-head"><h2>📋 Lab guide: Parallel-Plate Capacitor</h2><button class="pill-btn" data-guide-close>Close</button></div>
+  <div class="guide-body">
+    <p class="note">Read this together before you start. It tells you what you'll do in this lab; the detailed instructions are inside each step of the report. You can open it again at any moment with the <b>📋 Lab guide</b> button at the top.</p>
+
+    <section>
+      <h3>Goal</h3>
+      <p>Two metal plates separated by an insulator make a <b>capacitor</b>: it stores charge, and its <b>capacitance C</b> says how much charge it stores for each volt. Find out how C depends on the <b>separation d</b> between the plates, on the <b>area A</b> where they face each other, and on the <b>material</b> between them (the dielectric). Each group has plates of a different size or metal, so together the class can check that the law works for every capacitor.</p>
+    </section>
+
+    <section class="guide-cols wide-fig">
+      <div>
+        <h3>What you'll do</h3>
+        <ol>
+          <li><b>Predict</b> (step 2): what happens to C with more paper, more area, glass, or another metal.</li>
+          <li><b>Measure</b> (step 3): the plates, the thickness of one sheet of paper, and the capacitance of the leads alone.</li>
+          <li><b>Change d</b> (step 4): 1, 2, 3 … 8 sheets of paper. Graph C against d, then against 1/d.</li>
+          <li><b>Change A</b> (step 5): slide one plate so they overlap less.</li>
+          <li><b>Change the material</b> (step 6): glass, plastic, fabric… and find the dielectric constant κ of each one.</li>
+          <li><b>Test your model</b> (step 7): calculate C for a new capacitor, then build it and measure.</li>
+          <li><b>Conclude and send</b> (steps 8 and 9). Then your class puts all the groups together.</li>
+        </ol>
+      </div>
+      <svg class="guide-fig" id="guide-fig" viewBox="0 0 280 220" aria-label="Setup: two metal plates with a few sheets of paper between them, a book pressing on top, and the leads of a multimeter clipped to each plate">
+        <line x1="4" y1="176" x2="276" y2="176" stroke="var(--muted)" stroke-width="2"/>
+        <rect x="20" y="166" width="170" height="7" rx="1" fill="#c87533" stroke="var(--text)" stroke-width=".8"/>
+        <rect x="12" y="163" width="186" height="3" fill="#f4f1e8" stroke="var(--muted)" stroke-width=".5"/>
+        <rect x="12" y="160" width="186" height="3" fill="#f4f1e8" stroke="var(--muted)" stroke-width=".5"/>
+        <rect x="12" y="157" width="186" height="3" fill="#f4f1e8" stroke="var(--muted)" stroke-width=".5"/>
+        <rect x="20" y="150" width="170" height="7" rx="1" fill="#c87533" stroke="var(--text)" stroke-width=".8"/>
+        <rect x="50" y="112" width="110" height="38" rx="3" fill="var(--accent)" fill-opacity=".25" stroke="var(--accent)"/>
+        <text x="105" y="135" text-anchor="middle" fill="var(--accent)" font-weight="700">book</text>
+        <rect x="204" y="14" width="66" height="84" rx="8" fill="var(--surface2)" stroke="var(--text)"/>
+        <rect x="211" y="22" width="52" height="22" rx="3" fill="var(--bg)" stroke="var(--muted)"/>
+        <text x="258" y="38" text-anchor="end" font-size="12" fill="var(--green)">1.32 nF</text>
+        <circle cx="237" cy="66" r="12" fill="none" stroke="var(--muted)" stroke-width="1.5"/>
+        <line x1="237" y1="66" x2="230" y2="57" stroke="var(--muted)" stroke-width="2"/>
+        <circle cx="222" cy="88" r="3.5" fill="#e5534b"/><circle cx="252" cy="88" r="3.5" fill="#222" stroke="var(--muted)"/>
+        <path d="M188,153 C200,150 214,130 222,92" fill="none" stroke="#e5534b" stroke-width="2.2"/>
+        <rect x="183" y="149" width="9" height="9" rx="1" fill="#e5534b"/>
+        <path d="M21,170 C2,150 10,90 70,86 S200,84 252,92" fill="none" stroke="#333" stroke-width="2.2"/>
+        <rect x="17" y="167" width="9" height="9" rx="1" fill="#333" stroke="var(--muted)" stroke-width=".6"/>
+        <line x1="203" y1="157" x2="203" y2="166" stroke="var(--green)" stroke-width="1.4"/>
+        <text x="208" y="166" font-size="11" fill="var(--green)" font-weight="700">d</text>
+                <text x="105" y="196" text-anchor="middle" font-size="11">two metal plates with paper between them</text>
+        <text x="237" y="112" text-anchor="middle" font-size="11">multimeter</text>
+      </svg>
+    </section>
+
+    <section>
+      <h3>Materials</h3>
+      <div class="guide-materials">
+        <div class="guide-box"><div class="bt">Each group</div>
+          <ul>
+            <li>Two metal plates (note their label, if they have one)</li>
+            <li>A multimeter that measures capacitance, and two leads with clips</li>
+            <li>Sheets of paper (all groups use the <b>same paper</b>) and a stack of it to measure</li>
+            <li>A sheet of glass, of plastic, a piece of fabric, cardboard…</li>
+            <li>A ruler, a caliper, a heavy book, and this page open on one computer</li>
+          </ul>
+        </div>
+        <div class="guide-box"><div class="bt">Check before you start</div>
+          <ul>
+            <li>The plates are flat, clean and not bent: bent plates leave air gaps</li>
+            <li>The paper and the other materials are <b>bigger than the plates</b>, so the plates can never touch</li>
+            <li>Circuit-board plates: the <b>copper sides face each other</b></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="note warn"><b>Safety:</b> handle the glass by its faces and don't press hard on it; tell your teacher at once if it breaks. Plate edges can be sharp. The meter uses a tiny voltage, so the plates are safe to touch, but don't touch them while it reads: your hand changes the reading.</div>
+  </div>
+  <div class="guide-foot"><button class="btn primary" data-guide-close>Got it, let's start</button></div>
+</dialog>
+
+
+<dialog class="guide" id="who-dlg">
+  <div class="guide-head"><h2>👋 Whose report is this?</h2></div>
+  <div class="guide-body">
+    <p>This computer already has a report for this lab:</p>
+    <div class="note" id="who-cur"></div>
+    <p>Is it yours? If not, start a new report. The one already here is <b>kept on this computer</b>, so it is not lost.</p>
+    <div class="row-btns">
+      <button class="btn primary" id="who-continue">Yes, it's ours: continue</button>
+      <button class="btn" id="who-new">No, start a new report</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="guide" id="arch-dlg">
+  <div class="guide-head"><h2>🗂 Earlier reports on this computer</h2><button class="pill-btn" id="arch-close">Close</button></div>
+  <div class="guide-body">
+    <p class="note">Reports that earlier groups left on this computer. If one was not sent, download it and give the file to your teacher.</p>
+    <div id="arch-list" style="display:grid;gap:8px"></div>
+  </div>
+</dialog>
+
+<footer>
+  Parallel-Plate Capacitor Lab · Ergosfera Teaching Tools · <button id="reset">Start a new report</button> · <button id="arch-open" hidden>Earlier reports on this computer</button>
+</footer>
+
+<script src="../lab-closing.js"></script>
+<script src="../lab-privacy.js"></script>
+<script src="capacitance_common.js"></script>
+<script>
+// ── Config from the link the teacher shares ─────────────────
+const LAB_ID = 'capacitance';
+const params = new URLSearchParams(location.search);
+const API = params.get('api') || '';
+const LINK_SESSION = params.get('session') || '';
+const LINK_MODE = ['group', 'individual'].includes(params.get('mode')) ? params.get('mode') : '';
+const STORE = 'lab_' + LAB_ID + '_' + (LINK_SESSION || 'default');
+
+const MIN_SEP = 5, MIN_AREA = 4, MIN_MATS = 3;
+const ERRORS = [
+  ['air', 'Air gaps between the sheets (not pressed the same every time)'],
+  ['leads', 'Leads moved, so C₀ changed'],
+  ['align', 'Plates not lined up, or overlap not measured precisely'],
+  ['thick', 'Thickness of the paper or the materials not precise'],
+  ['edge', 'Field at the edges of the plates (fringing), bigger for large d'],
+  ['meter', 'Meter resolution or unsteady readings'],
+  ['hand', 'Hands touching the plates while reading'],
+];
+const PRED_SEP = { double: 'double', same: 'stay the same', half: 'drop to half', quarter: 'drop to a quarter' };
+const PRED_AREA = { double: 'double', same: 'stay the same', half: 'drop to half' };
+const PRED_DIEL = { bigger: 'bigger', same: 'the same', smaller: 'smaller' };
+
+// ── State ───────────────────────────────────────────────────
+function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+const emptyRows = (n, mk) => Array.from({ length: n }, mk);
+function blank() {
+  return {
+    schema: 1, lab: LAB_ID, id: rid(), session: LINK_SESSION, mode: LINK_MODE, group: '', students: ['', ''],
+    plates: { metal: '', label: '' },
+    prediction: { sep: '', area: '', diel: '', metal: '', why: '' },
+    setup: { L: '', W: '', N: '', stack: '', cunit: 'nF', C0: '' },
+    sep: emptyRows(3, () => ({ n: '', C: '' })),
+    discuss: { sep: '' },
+    area: { n: '', rows: emptyRows(3, () => ({ x: '', C: '' })) },
+    mats: [{ mat: 'paper', name: '1 sheet', t: '', C: '' }, { mat: '', name: '', t: '', C: '' }, { mat: '', name: '', t: '', C: '' }],
+    answers: { sep: '', area: '', diel: '', law: '', predcheck: '', others: '' },
+    test: { n: '5', x: '', pred: '', locked: false, meas: '' },
+    conclusion: { kappa: '', dkappa: '', errors: [], errtext: '', text: '', roles: '' },
+    startedAt: new Date().toISOString(), unlocked: 1, sent: null,
+  };
+}
+let S = blank();
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+  if (saved && saved.lab === LAB_ID && saved.schema === 1) S = Object.assign(blank(), saved);
+} catch (e) {}
+if (LINK_SESSION) S.session = LINK_SESSION;
+if (LINK_MODE) S.mode = LINK_MODE;
+
+let saveTimer;
+function save() {
+  S.savedAt = new Date().toISOString();
+  try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {}
+  const el = document.getElementById('save-state');
+  el.textContent = 'Saving…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { el.textContent = 'Saved on this computer ✓'; }, 400);
+}
+
+function getPath(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), S); }
+function setPath(path, v) {
+  const keys = path.split('.'); let o = S;
+  keys.slice(0, -1).forEach(k => { o = o[k]; });
+  o[keys[keys.length - 1]] = v;
+}
+
+// ── Helpers ─────────────────────────────────────────────────
+const num = CAP.num, fmt = CAP.fmt;
+const words = s => String(s || '').trim().split(/\s+/).filter(Boolean).length;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const A = () => CAP.analyze(S);   // everything derived from the raw data (capacitance_common.js)
+
+// ── Steps: completion rules ─────────────────────────────────
+const DONE = {
+  1: () => S.mode && S.group.trim() && S.students[0].trim() && (S.mode === 'individual' || S.students[1].trim()) && S.session.trim() && S.plates.metal,
+  2: () => S.prediction.sep && S.prediction.area && S.prediction.diel && S.prediction.metal && words(S.prediction.why) >= 10,
+  3: () => { const a = A(); return a.A > 0 && a.t > 0 && isFinite(a.C0); },
+  4: () => A().sepPts.length >= MIN_SEP && words(S.discuss.sep) >= 8 && words(S.answers.sep) >= 15,
+  5: () => A().areaPts.length >= MIN_AREA && words(S.answers.area) >= 15,
+  6: () => A().mats.filter(m => isFinite(m.kappa)).length >= MIN_MATS && words(S.answers.diel) >= 15 && S.answers.law.trim().length >= 3,
+  7: () => S.test.locked && isFinite(num(S.test.meas)),
+  8: () => isFinite(num(S.conclusion.kappa)) && isFinite(num(S.conclusion.dkappa)) && words(S.answers.predcheck) >= 15 && words(S.answers.others) >= 15 && words(S.conclusion.text) >= 30 && words(S.conclusion.roles) >= 5,
+  9: () => !!S.sent,
+};
+const NSTEPS = 9;
+
+function refresh() {
+  let firstOpen = 1;
+  while (firstOpen < NSTEPS && DONE[firstOpen]()) firstOpen++;
+  S.unlocked = Math.max(S.unlocked || 1, firstOpen);
+
+  const prog = document.getElementById('progress');
+  prog.innerHTML = '';
+  document.querySelectorAll('.step').forEach(sec => {
+    const i = +sec.dataset.step;
+    const done = !!DONE[i]();
+    const locked = i > S.unlocked;
+    sec.classList.toggle('done', done);
+    sec.classList.toggle('locked', locked);
+    sec.classList.toggle('active', !done && !locked);
+    sec.querySelector('.status').textContent = done ? '✓ Done' : locked ? '🔒' : 'In progress';
+    sec.querySelector('.step-lock').textContent = '🔒 Finish step ' + (i - 1) + ' to unlock this one.';
+    const dot = document.createElement('i');
+    if (done) dot.className = 'done'; else if (!locked) dot.className = 'current';
+    prog.appendChild(dot);
+  });
+
+  document.querySelectorAll('[data-wc]').forEach(el => {
+    const path = el.dataset.wc;
+    const min = +document.querySelector(`[data-bind="${path}"]`).dataset.min;
+    const w = words(getPath(path));
+    el.textContent = w + (w === 1 ? ' word' : ' words') + ' · at least ' + min;
+    el.classList.toggle('ok', w >= min);
+  });
+  document.querySelectorAll('[data-unit]').forEach(el => { el.textContent = S.setup.cunit; });
+  document.getElementById('pcb-note').hidden = S.plates.metal !== 'pcb';
+
+  const a = A();
+  refreshSetup(a);
+  refreshSep(a);
+  refreshArea(a);
+  refreshMats(a);
+  refreshTest(a);
+  refreshConclusion(a);
+  refreshSummary();
+}
+
+// ── Generic bindings ────────────────────────────────────────
+document.querySelectorAll('[data-bind]').forEach(el => {
+  const path = el.dataset.bind;
+  el.value = getPath(path) ?? '';
+  el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { setPath(path, el.value); save(); refresh(); });
+});
+if (LINK_SESSION) document.getElementById('session-input').readOnly = true;
+
+function applyMode() {
+  const solo = S.mode === 'individual';
+  document.querySelectorAll('[data-solo]').forEach(el => { el.hidden = !solo; });
+  document.querySelectorAll('[data-team]').forEach(el => { el.hidden = solo; });
+}
+document.querySelectorAll('input[name=mode]').forEach(r => {
+  r.checked = r.value === S.mode;
+  r.disabled = !!LINK_MODE;
+  r.addEventListener('change', () => { S.mode = r.value; applyMode(); save(); refresh(); });
+});
+applyMode();
+
+[['pred-sep', 'sep'], ['pred-area', 'area'], ['pred-diel', 'diel'], ['pred-metal', 'metal']].forEach(([name, key]) => {
+  document.querySelectorAll(`input[name=${name}]`).forEach(r => {
+    r.checked = r.value === S.prediction[key];
+    r.addEventListener('change', () => { S.prediction[key] = r.value; save(); refresh(); });
+  });
+});
+
+const errBox = document.getElementById('err-checks');
+ERRORS.forEach(([id, text]) => {
+  const lab = document.createElement('label');
+  lab.innerHTML = `<input type="checkbox" value="${id}"> <span>${esc(text)}</span>`;
+  const cb = lab.querySelector('input');
+  cb.checked = S.conclusion.errors.includes(id);
+  cb.addEventListener('change', () => {
+    S.conclusion.errors = ERRORS.map(e => e[0]).filter(k => errBox.querySelector(`input[value=${k}]`).checked);
+    save(); refresh();
+  });
+  errBox.appendChild(lab);
+});
+
+document.getElementById('setup-fig').innerHTML = document.getElementById('guide-fig').innerHTML;
+const warnHtml = list => list.map(w => `<div class="note warn">${w}</div>`).join('');
+
+// ── Step 3 ──────────────────────────────────────────────────
+function refreshSetup(a) {
+  document.getElementById('area-note').innerHTML = a.A > 0
+    ? `Plate area A = L·W = <b>${fmt(a.A * 1e4)} cm²</b> = ${fmt(a.A)} m².`
+    : 'Type L and W to get the plate area A = L·W.';
+  document.getElementById('t-out').value = a.t > 0 ? fmt(a.t * 1e3) + ' mm' : '';
+  document.getElementById('t-warn').innerHTML = a.t > 0 && (a.t < 30e-6 || a.t > 0.3e-3)
+    ? warnHtml([`One sheet ${fmt(a.t * 1e3)} mm thick is unusual: printer paper is about 0.1 mm. Check the stack thickness (in <b>mm</b>) and the number of sheets.`]) : '';
+  document.getElementById('c0-warn').innerHTML = a.C0 > 300
+    ? warnHtml([`C₀ = ${fmt(a.C0)} pF is large for two leads. Check the unit, and that the plates were far apart and not touching anything.`]) : '';
+}
+
+// ── Editable tables (separation, area, materials) ───────────
+function makeTable({ body, rows, cols, blankRow, calc, onEnterNext }) {
+  const tb = document.getElementById(body);
+  function render() {
+    tb.innerHTML = '';
+    rows().forEach((row, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="idx">${i + 1}</td>` + cols.map(c => c.options
+        ? `<td><select data-i="${i}" data-k="${c.k}">${c.options.map(([v, t]) => `<option value="${v}"${row[c.k] === v ? ' selected' : ''}>${t}</option>`).join('')}</select></td>`
+        : `<td><input type="text" ${c.text ? '' : 'inputmode="decimal"'} data-i="${i}" data-k="${c.k}" value="${esc(row[c.k])}" placeholder="${c.ph || ''}"></td>`).join('')
+        + calc.map((_, j) => `<td class="calc" data-c="${j}"></td>`).join('')
+        + `<td><button class="del" title="Delete row" data-del="${i}">×</button></td>`;
+      tb.appendChild(tr);
+    });
+  }
+  const onEdit = e => {
+    const t = e.target;
+    if (t.dataset.i == null) return;
+    rows()[+t.dataset.i][t.dataset.k] = t.value;
+    save(); refresh();
+  };
+  tb.addEventListener('input', onEdit);
+  tb.addEventListener('change', e => { if (e.target.tagName === 'SELECT') onEdit(e); });
+  tb.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.target.dataset.i == null) return;
+    e.preventDefault();
+    const i = +e.target.dataset.i, inputs = cols.filter(c => !c.options).map(c => c.k), k = inputs.indexOf(e.target.dataset.k);
+    if (k < inputs.length - 1) return tb.querySelector(`[data-i="${i}"][data-k="${inputs[k + 1]}"]`).focus();
+    if (i === rows().length - 1) add();
+    tb.querySelector(`[data-i="${i + 1}"][data-k="${inputs[0]}"]`).focus();
+  });
+  tb.addEventListener('click', e => {
+    const i = e.target.dataset.del;
+    if (i == null) return;
+    const r = rows()[+i];
+    if (cols.some(c => !c.options && String(r[c.k] || '').trim()) && !confirm('Delete row ' + (+i + 1) + '?')) return;
+    rows().splice(+i, 1);
+    if (!rows().length) rows().push(blankRow());
+    render(); save(); refresh();
+  });
+  function add() { rows().push(blankRow()); render(); save(); refresh(); }
+  // Fill the calculated cells: calc[j](row, i) → text; bad(row) marks the row red
+  function fill(bad) {
+    [...tb.rows].forEach((tr, i) => {
+      const row = rows()[i];
+      calc.forEach((f, j) => { tr.querySelector(`[data-c="${j}"]`).textContent = f(row, i); });
+      tr.classList.toggle('bad', !!(bad && bad(row)));
+    });
+  }
+  return { render, add, fill, focusLast: () => tb.querySelector(`[data-i="${rows().length - 1}"]`).focus() };
+}
+
+const cf = () => CAP.UNIT[S.setup.cunit] || 1000;
+const netPF = C => { const c = num(C), a = A(); return isFinite(c) && isFinite(a.C0) ? c * cf() - a.C0 : NaN; };
+
+// ── Step 4: separation ──────────────────────────────────────
+const sepT = makeTable({
+  body: 'sep-body', rows: () => S.sep, blankRow: () => ({ n: '', C: '' }),
+  cols: [{ k: 'n', ph: 'sheets' }, { k: 'C' }],
+  calc: [
+    r => { const d = num(r.n) * A().t; return d > 0 ? fmt(d * 1e3) : ''; },
+    r => { const d = num(r.n) * A().t; return d > 0 ? fmt(1 / d) : ''; },
+    r => { const c = netPF(r.C); return isFinite(c) ? fmt(c) : ''; },
+  ],
+});
+document.getElementById('sep-add').addEventListener('click', () => { sepT.add(); sepT.focusLast(); });
+
+function statsHtml(list) {
+  return list.map(([k, v, u]) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}${u ? ` <small>${u}</small>` : ''}</div></div>`).join('');
+}
+function epsNote(eps, what) {
+  return isFinite(eps)
+    ? `<b>ε of the paper</b> = ${what} = <b>${fmt(eps)} pF/m</b>. For vacuum, ε₀ = ${CAP.EPS0} pF/m, so the paper's <b>dielectric constant</b> is κ = ε / ε₀ = <b>${fmt(eps / CAP.EPS0)}</b>.`
+    : '';
+}
+
+function refreshSep(a) {
+  sepT.fill(r => netPF(r.C) < 0 || num(r.n) < 0);
+  const pts = a.sepPts, warns = [];
+  if (S.sep.some(r => netPF(r.C) < 0)) warns.push('A reading smaller than C₀. Check the unit and the value of C₀ in step 3.');
+  const ns = S.sep.map(r => num(r.n)).filter(isFinite);
+  if (new Set(ns).size < ns.length) warns.push('Two rows have the same number of sheets. That\'s fine for a repeat, but you need 5 <b>different</b> separations.');
+  if (!(a.t > 0) || !isFinite(a.C0)) warns.push('Finish step 3 (paper thickness and C₀) to see the calculated columns.');
+  document.getElementById('sep-warn').innerHTML = warnHtml(warns);
+  document.getElementById('sep-n').textContent = pts.length + ' valid measurement' + (pts.length === 1 ? '' : 's') + (pts.length < MIN_SEP ? ` · at least ${MIN_SEP} needed` : '');
+
+  CAP.plot(document.getElementById('plot-d'), pts.map(p => ({ x: p.d * 1e3, y: p.y })), null,
+    { xl: 'Separation d (mm)', yl: 'C − C₀ (pF)', empty: 'Your points will appear here as you measure' });
+  const showDiscuss = pts.length >= 3;
+  document.getElementById('discuss-sep').hidden = !showDiscuss;
+  const reveal = showDiscuss && words(S.discuss.sep) >= 8;
+  document.getElementById('inv-hint').hidden = reveal;
+  document.getElementById('inv-box').hidden = !reveal;
+  if (!reveal) return;
+  const f = a.sepFit;
+  CAP.plot(document.getElementById('plot-inv'), pts, f, { xl: '1/d (1/m)', yl: 'C − C₀ (pF)' });
+  document.getElementById('sep-stats').innerHTML = f ? statsHtml([
+    ['Slope', fmt(f.k), 'pF·m'], ['Uncertainty of slope', '± ' + fmt(f.sk, 2), 'pF·m'], ['Intercept', fmt(f.b), 'pF'], ['R²', isFinite(f.r2) ? f.r2.toFixed(4) : '—'],
+  ]) : '';
+  document.getElementById('sep-eq').textContent = f ? `C − C₀ = ${fmt(f.k)} pF·m · (1/d) ${f.b < 0 ? '−' : '+'} ${fmt(Math.abs(f.b))} pF` : '';
+  document.getElementById('sep-eps').innerHTML = f && a.A > 0
+    ? epsNote(a.epsSep, `slope ÷ A = ${fmt(f.k)} pF·m ÷ ${fmt(a.A)} m²`) + ` <span style="font-size:.82rem;color:var(--muted)">(± ${fmt(a.dkSep, 2)} from the uncertainty of the slope)</span>`
+    : 'Measure more separations to get the slope.';
+}
+
+// ── Step 5: area ────────────────────────────────────────────
+const areaT = makeTable({
+  body: 'area-body', rows: () => S.area.rows, blankRow: () => ({ x: '', C: '' }),
+  cols: [{ k: 'x', ph: 'cm' }, { k: 'C' }],
+  calc: [
+    r => { const x = num(r.x), w = num(S.setup.W); return x > 0 && w > 0 ? fmt(x * w) : ''; },
+    r => { const c = netPF(r.C); return isFinite(c) ? fmt(c) : ''; },
+  ],
+});
+document.getElementById('area-add').addEventListener('click', () => { areaT.add(); areaT.focusLast(); });
+
+function refreshArea(a) {
+  areaT.fill(r => netPF(r.C) < 0 || num(r.x) > num(S.setup.L) + 0.05);
+  const warns = [];
+  if (!(num(S.area.n) > 0)) warns.push('Type the number of sheets you use in this part.');
+  if (S.area.rows.some(r => num(r.x) > num(S.setup.L) + 0.05)) warns.push(`An overlap longer than the plate (L = ${esc(S.setup.L)} cm)? Check x.`);
+  document.getElementById('area-warn').innerHTML = warnHtml(warns);
+  const pts = a.areaPts, f = a.areaFit;
+  document.getElementById('area-n').textContent = pts.length + ' valid measurement' + (pts.length === 1 ? '' : 's') + (pts.length < MIN_AREA ? ` · at least ${MIN_AREA} needed` : '');
+  CAP.plot(document.getElementById('plot-area'), pts, pts.length >= 3 ? f : null,
+    { xs: 1e4, xl: 'Overlap area A (cm²)', yl: 'C − C₀ (pF)', empty: 'Your points will appear here as you measure' });
+  document.getElementById('area-stats').innerHTML = f && pts.length >= 3 ? statsHtml([
+    ['Slope', fmt(f.k * 1e-4), 'pF/cm²'], ['Intercept', fmt(f.b), 'pF'], ['R²', f.r2.toFixed(4)], ['Separation d', fmt(a.dArea * 1e3), 'mm'],
+  ]) : '';
+  document.getElementById('area-eps').innerHTML = f && pts.length >= 3 && a.dArea > 0
+    ? epsNote(a.epsArea, `slope × d = ${fmt(f.k)} pF/m² × ${fmt(a.dArea)} m`) + (isFinite(a.epsSep) ? ` In step 4 you got κ = ${fmt(a.epsSep / CAP.EPS0)}.` : '')
+    : 'The slope and the ε of the paper appear here once you have 3 points.';
+  document.getElementById('area-eps').hidden = false;
+}
+
+// ── Step 6: materials ───────────────────────────────────────
+const matT = makeTable({
+  body: 'mat-body', rows: () => S.mats, blankRow: () => ({ mat: '', name: '', t: '', C: '' }),
+  cols: [{ k: 'mat', options: [['', 'Choose…'], ...Object.entries(CAP.MATS)] }, { k: 'name', text: true, ph: 'e.g. window glass' }, { k: 't', ph: 'mm' }, { k: 'C' }],
+  calc: [
+    r => { const c = netPF(r.C); return isFinite(c) ? fmt(c) : ''; },
+    (r, i) => { const m = A().mats[i]; return m && isFinite(m.kappa) ? fmt(m.kappa) : ''; },
+  ],
+});
+document.getElementById('mat-add').addEventListener('click', () => { matT.add(); matT.focusLast(); });
+
+function refreshMats(a) {
+  matT.fill(r => netPF(r.C) < 0);
+  const ok = a.mats.filter(m => isFinite(m.kappa)), warns = [];
+  if (ok.some(m => m.kappa < 1)) warns.push('κ smaller than 1 means less than vacuum, which is impossible. Check the thickness (in <b>mm</b>), the unit of C, and that the material covers the whole plate.');
+  if (S.mats.some(r => r.mat && num(r.C) > 0 && !(num(r.t) > 0))) warns.push('Type the thickness of each material to get its κ.');
+  if (!ok.some(m => m.mat === 'paper')) warns.push('Include one sheet of paper: it links this part to steps 4 and 5.');
+  document.getElementById('mat-warn').innerHTML = warnHtml(warns);
+  document.getElementById('mat-n').textContent = ok.length + ' material' + (ok.length === 1 ? '' : 's') + ' with κ' + (ok.length < MIN_MATS ? ` · at least ${MIN_MATS} needed` : '');
+  CAP.barsKappa(document.getElementById('plot-mat'), ok.map(m => ({ name: (CAP.MATS[m.mat] || m.mat) + (m.name ? ' · ' + m.name : ''), v: m.kappa })));
+}
+
+// ── Step 7 ──────────────────────────────────────────────────
+document.getElementById('lock-pred').addEventListener('click', () => {
+  if (!confirm('Lock your prediction? You won\'t be able to change it afterward.')) return;
+  S.test.locked = true; save(); refresh();
+});
+function refreshTest(a) {
+  const t = S.test, pred = num(t.pred), meas = num(t.meas), locked = t.locked;
+  ['test-n', 'test-x', 'test-pred'].forEach(id => { document.getElementById(id).readOnly = locked; });
+  const lockBtn = document.getElementById('lock-pred');
+  lockBtn.disabled = locked || !(num(t.n) > 0 && num(t.x) > 0 && pred > 0);
+  lockBtn.hidden = locked;
+  document.getElementById('lock-msg').textContent = locked ? '🔒 Prediction locked' : '';
+  document.getElementById('test-measure').hidden = !locked;
+  const out = document.getElementById('test-result');
+  if (!locked || !isFinite(meas)) { out.innerHTML = ''; return; }
+  const diff = (pred - meas) / meas * 100, good = Math.abs(diff) <= 10;
+  out.innerHTML = `<div class="note ${good ? 'good' : 'warn'}">
+    Predicted <b>${fmt(pred)} ${esc(S.setup.cunit)}</b>, measured <b>${fmt(meas)} ${esc(S.setup.cunit)}</b>.
+    Your prediction is off by <b>${fmt(Math.abs(diff), 2)}%</b>.
+    ${good ? 'Your model works well! 🎯' : 'That is a big difference. Check your calculation (units! A in m², d in m, ε₀ = 8.85 pF/m gives pF) and whether you added C₀, and talk about what could cause it.'}
+  </div>`;
+}
+
+// ── Step 8 ──────────────────────────────────────────────────
+function refreshConclusion(a) {
+  document.getElementById('q-pred-sep').textContent = PRED_SEP[S.prediction.sep] || '…';
+  document.getElementById('q-pred-area').textContent = PRED_AREA[S.prediction.area] || '…';
+  document.getElementById('q-pred-diel').textContent = PRED_DIEL[S.prediction.diel] || '…';
+  const k = num(S.conclusion.kappa), kg = a.epsSep / CAP.EPS0, msgs = [];
+  if (k > 0 && isFinite(kg)) {
+    const r = k / kg;
+    if (r > 50 || r < 0.02) msgs.push('Your κ is very far from the one of your graph. κ has <b>no units</b>: it is ε ÷ ε₀.');
+    else if (Math.abs(r - 1) > 0.15) msgs.push(`Your graph of C against 1/d gives κ = ${fmt(kg)}. Check your value.`);
+  }
+  if (isFinite(k) && k < 1) msgs.push('κ can\'t be smaller than 1.');
+  document.getElementById('k-hint').innerHTML = warnHtml(msgs);
+}
+
+// ── Step 9: submit ──────────────────────────────────────────
+function payload() {
+  const { unlocked, sent, guideSeen, ...data } = S;
+  const a = A();
+  return {
+    ...data, area_m2: a.A, t_m: a.t, C0_pF: a.C0,
+    sep_fit: a.sepFit, eps_sep_pF_m: a.epsSep, area_fit: a.areaFit, eps_area_pF_m: a.epsArea,
+    kappas: a.mats.filter(m => isFinite(m.kappa)).map(m => ({ mat: m.mat, name: m.name, kappa: m.kappa })),
+    submittedAt: new Date().toISOString(), client: 'capacitance_lab/1',
+  };
+}
+function refreshSummary() {
+  const names = ['Team and plates', 'Prediction', 'Plates, paper and leads', 'Separation', 'Area', 'Materials', 'Model test', 'Conclusion'];
+  document.getElementById('summary').innerHTML = names.map((n, i) => `<div class="${DONE[i + 1]() ? 'ok' : ''}">${n}</div>`).join('');
+  document.getElementById('send').disabled = !API;
+  const st = document.getElementById('send-status');
+  if (!API && !st.dataset.msg) st.innerHTML = '<div class="note warn">This link has no connection to your teacher. Use <b>Download backup file</b> and hand the file in, or ask your teacher for the class link.</div>';
+  else if (S.sent && !st.dataset.msg) st.innerHTML = `<div class="note good">Sent at ${new Date(S.sent).toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`;
+}
+function setStatus(html) { const st = document.getElementById('send-status'); st.dataset.msg = '1'; st.innerHTML = html; }
+
+document.getElementById('send').addEventListener('click', async () => {
+  const missing = [1, 2, 3, 4, 5, 6, 7, 8].filter(i => !DONE[i]());
+  if (missing.length && !confirm('Steps ' + missing.join(', ') + ' are not complete. Send anyway?')) return;
+  const btn = document.getElementById('send');
+  btn.disabled = true; setStatus('<div class="note">Sending…</div>');
+  const body = JSON.stringify(payload());
+  let ok = false, unconfirmed = false, closed = null;
+  try {
+    const r = await fetch(API, { method: 'POST', body });
+    const j = await r.json();
+    if (j.closed) closed = j;   // the teacher has closed this activity: don't send it again blind
+    if (!j.ok) throw new Error(j.error || 'server error');
+    ok = true;
+  } catch (e) {
+    if (!closed) try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; unconfirmed = true; } catch (e2) {}
+  }
+  btn.disabled = false;
+  if (ok) {
+    S.sent = new Date().toISOString(); save();
+    setStatus(`<div class="note good">✓ Sent${unconfirmed ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+  } else if (closed) {
+    setStatus(labClosing.refused(closed));
+  } else {
+    setStatus('<div class="note warn">Could not send: check the internet connection and try again. If it keeps failing, use <b>Download backup file</b> and give the file to your teacher.</div>');
+  }
+  refresh();
+});
+
+document.getElementById('download').addEventListener('click', () => downloadReport(S));
+
+
+// ── Theme (shared with the tools index) ─────────────────────
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  document.getElementById('theme-toggle').textContent = light ? '☽ Dark' : '☀ Light';
+  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+applyTheme(savedTheme === 'light');
+document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
+
+// ── Lab guide: opens by itself the first time, and from the header anytime ──
+const guide = document.getElementById('guide');
+function openGuide() { if (!guide.open) guide.showModal(); }
+document.querySelectorAll('[data-guide]').forEach(b => b.addEventListener('click', openGuide));
+document.querySelectorAll('[data-guide-close]').forEach(b => b.addEventListener('click', () => guide.close()));
+guide.addEventListener('click', e => { if (e.target === guide) guide.close(); });
+guide.addEventListener('close', () => { if (!S.guideSeen) { S.guideSeen = true; save(); } });
+if (!S.guideSeen) openGuide();
+
+
+// ── Several groups on one computer: a report already here is kept, never overwritten ──
+const ARCHIVE = STORE + '_archive', ACK = 'ack_' + STORE;
+function readArchive() { try { return JSON.parse(localStorage.getItem(ARCHIVE) || '[]'); } catch (e) { return []; } }
+const hasWork = r => !!(String(r.group || '').trim() || String((r.students || [])[0] || '').trim());
+const reportWho = r => ['Group ' + (String(r.group || '').trim() || '?'),
+  (r.mode === 'individual' ? [(r.students || [])[0]] : r.students || []).filter(s => s && s.trim()).join(' & ')].filter(Boolean).join(' · ');
+const reportWhen = r => (r.savedAt ? 'last saved ' + new Date(r.savedAt).toLocaleString() : '') ;
+function ack() { try { sessionStorage.setItem(ACK, S.id); } catch (e) {} }
+// Download any report (this one or an earlier one) as a backup file
+function downloadReport(r) {
+  const keep = S;
+  let body;
+  S = Object.assign(blank(), r);
+  try { body = JSON.stringify(payload(), null, 2); } finally { S = keep; }
+  const tag = [r.session, 'group' + (r.group || 'X'), r.mode === 'individual' ? (r.students || [])[0] : ''].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
+  a.download = `${LAB_ID}_${tag}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function newReport() {
+  let wait = 0;
+  if (hasWork(S)) {
+    const list = readArchive();
+    list.unshift({ ...S, archivedAt: new Date().toISOString() });
+    try { localStorage.setItem(ARCHIVE, JSON.stringify(list.slice(0, 12))); }
+    catch (e) {
+      alert('This computer has no room to keep a copy, so the report will be downloaded as a file. Give that file to your teacher.');
+      downloadReport(S); wait = 1500;
+    }
+  }
+  try { localStorage.removeItem(STORE); sessionStorage.removeItem(ACK); } catch (e) {}
+  setTimeout(() => location.reload(), wait);
+}
+function confirmNew() {
+  if (hasWork(S) && !S.sent && !confirm('This report was not sent yet. It will be kept on this computer, so it is not lost. Start a new report?')) return;
+  newReport();
+}
+
+const whoDlg = document.getElementById('who-dlg');
+whoDlg.addEventListener('cancel', e => e.preventDefault());
+document.getElementById('who-continue').addEventListener('click', () => { ack(); whoDlg.close(); });
+document.getElementById('who-new').addEventListener('click', confirmNew);
+document.getElementById('next-group').addEventListener('click', confirmNew);
+document.getElementById('reset').addEventListener('click', confirmNew);
+let acked = null; try { acked = sessionStorage.getItem(ACK); } catch (e) {}
+if (hasWork(S) && acked !== S.id) {
+  document.getElementById('who-cur').innerHTML = `<b>${esc(reportWho(S))}</b>` +
+    (reportWhen(S) ? ' · ' + reportWhen(S) : '') + (S.sent ? ' · sent to the teacher ✓' : ' · <b>not sent yet</b>');
+  if (guide.open) guide.close();
+  whoDlg.showModal();
+} else ack();
+
+const archDlg = document.getElementById('arch-dlg');
+function renderArchive() {
+  const list = readArchive();
+  document.getElementById('arch-open').hidden = !list.length;
+  document.getElementById('arch-open').textContent = `Earlier reports on this computer (${list.length})`;
+  document.getElementById('arch-list').innerHTML = list.map((r, i) => `
+    <div class="note${r.sent ? ' good' : ' warn'}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <span style="flex:1;min-width:200px"><b>${esc(reportWho(r))}</b>${r.session ? ' · session ' + esc(r.session) : ''}<br>
+      <span style="font-size:.8rem">${esc(reportWhen(r))}${r.sent ? ' · sent ✓' : ' · not sent'}</span></span>
+      <button class="btn" data-arch="${i}">⬇ Download</button>
+    </div>`).join('');
+}
+document.getElementById('arch-open').addEventListener('click', () => { renderArchive(); archDlg.showModal(); });
+document.getElementById('arch-close').addEventListener('click', () => archDlg.close());
+document.getElementById('arch-list').addEventListener('click', e => {
+  const i = e.target.dataset.arch;
+  if (i != null) downloadReport(readArchive()[+i]);
+});
+renderArchive();
+
+
+sepT.render(); areaT.render(); matT.render();
+refresh();
+labPrivacy.init({ api: API, live: false });
+labClosing.watch(API, LAB_ID, S.session);
+</script>
+</body>
+</html>

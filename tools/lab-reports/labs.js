@@ -66,6 +66,12 @@ const LAB_TOPICS = [
         student: 'electricity/equipotential_lab.html',
         teacher: 'electricity/equipotential_teacher.html',
       },
+      {
+        id: 'capacitance', icon: '🔋', title: 'Parallel-Plate Capacitor',
+        desc: 'Make a capacitor with two metal plates and sheets of paper, and measure C with the multimeter. Change the separation, the overlap area and the material between the plates (glass, plastic, fabric…). Then the class puts every group\'s plates on one line: C = κε₀A/d.',
+        student: 'electricity/capacitance_lab.html',
+        teacher: 'electricity/capacitance_teacher.html',
+      },
     ],
   },
 ];
