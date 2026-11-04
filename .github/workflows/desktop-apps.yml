@@ -27,6 +27,11 @@ on:
       - '.github/workflows/desktop-apps.yml'
   workflow_dispatch:
 
+# A newer push cancels the runs still going, so an old build never publishes over a newer one
+concurrency:
+  group: desktop-apps-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   timer-mac:
     runs-on: macos-latest
@@ -553,11 +558,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          gh release view citorio -R "$REPO" > /dev/null 2>&1 || \
-            gh release create citorio -R "$REPO" --latest=false --title "Citorio" \
-              --notes "Every so often a small window pops up with a quote, then hides again. 1,315 quotes in Spanish; add your own categories as text files. Mac: download Citorio.dmg. Windows: download Citorio.exe."
-          gh release upload citorio dist/* -R "$REPO" --clobber
-          gh release edit citorio -R "$REPO" --draft=false
+          # Start fresh each time: a stale release, a hidden draft or a missing tag can't get in the way
+          gh release delete citorio -R "$REPO" --yes --cleanup-tag > /dev/null 2>&1 || true
+          gh release create citorio dist/* -R "$REPO" --latest=false --title "Citorio" --target "$GITHUB_SHA" \
+            --notes "Every so often a small window pops up with a quote, then hides again. 1,315 quotes in Spanish; add your own categories as text files. Mac: download Citorio.dmg. Windows: download Citorio.exe."
 
   release-diskled:
     if: github.event_name != 'pull_request'
@@ -579,8 +583,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          gh release view disk-led -R "$REPO" > /dev/null 2>&1 || \
-            gh release create disk-led -R "$REPO" --latest=false --title "Disk LED" \
-              --notes "The hard-disk activity light of an old PC, next to the clock: blinks when the drives read or write, SSDs included. Mac: download DiskLED.dmg. Windows: download DiskLED.exe."
-          gh release upload disk-led dist/* -R "$REPO" --clobber
-          gh release edit disk-led -R "$REPO" --draft=false
+          # Start fresh each time: a stale release, a hidden draft or a missing tag can't get in the way
+          gh release delete disk-led -R "$REPO" --yes --cleanup-tag > /dev/null 2>&1 || true
+          gh release create disk-led dist/* -R "$REPO" --latest=false --title "Disk LED" --target "$GITHUB_SHA" \
+            --notes "The hard-disk activity light of an old PC, next to the clock: blinks when the drives read or write, SSDs included. Mac: download DiskLED.dmg. Windows: download DiskLED.exe."
