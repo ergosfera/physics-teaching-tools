@@ -10,6 +10,7 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 - **Screen Shapes**: lines, rectangles, circles and guide lines that float over the screen and measure what's under them.
 - **Reading Window**: shades the screen except a clear window that follows the pointer, to help focus while reading.
 - **Net LEDs**: green and red lights next to the clock that blink with download and upload traffic, with a live graph.
+- **Disk LED**: the hard-disk activity light of an old PC, next to the clock: it blinks when the drives read or write, SSDs included.
 - **Notepad 95** (macOS): a plain-text editor that looks and works like the Windows 95 Notepad.
 - **Paint 95** (macOS): a bitmap painter that looks and works like the Windows 95 Paint.
 - **Clock Bar**: the date and time in bold, outlined letters on a see-through bar that stays on top.
@@ -26,6 +27,7 @@ Download the file for your system from the app's release page:
 [Screen Shapes](https://github.com/ergosfera/physics-teaching-tools/releases/tag/screen-shapes) ·
 [Reading Window](https://github.com/ergosfera/physics-teaching-tools/releases/tag/reading-window) ·
 [Net LEDs](https://github.com/ergosfera/physics-teaching-tools/releases/tag/net-leds) ·
+[Disk LED](https://github.com/ergosfera/physics-teaching-tools/releases/tag/disk-led) ·
 [Notepad 95](https://github.com/ergosfera/physics-teaching-tools/releases/tag/notepad-95) ·
 [Paint 95](https://github.com/ergosfera/physics-teaching-tools/releases/tag/paint-95) ·
 [Clock Bar](https://github.com/ergosfera/physics-teaching-tools/releases/tag/clock-bar) ·
@@ -219,6 +221,29 @@ Two lamps like the activity LEDs on an old modem, in the Mac menu bar or the Win
 | Speeds, start at login, quit | Right-click (or Control-click on Mac) the lights | — |
 | Speeds next to the lights (Mac) | Right-click → Show Speeds in Menu Bar | — |
 
+## Disk LED
+
+The hard-disk activity light from the front of an old PC, in the Mac menu bar or the Windows system tray.
+It blinks with every burst of reading or writing on the drives, SSDs included, and glows brighter with more data.
+
+- It reads the drives' own activity counters 30 times a second: IOKit's block-storage statistics on a Mac, and each physical drive's
+  performance counters on Windows (the ones Task Manager uses; no administrator rights needed). All drives are counted together.
+- SSD operations take microseconds, so each burst keeps the lamp lit for a moment, which brings back the flicker of the old LEDs.
+  Like them, it doesn't blink for files the system already has in memory.
+- One lamp (amber, red, green or blue) or two: green for reading, red for writing.
+- **Busy** is the share of time the drives spent working; near 100 % for a while means the drives are the bottleneck.
+  Windows also shows the **queue**, the operations waiting their turn.
+- A live graph of the last 60 seconds: reading above the line, writing below.
+- **Drive sounds** (off at first): soft synthesized clicks with the activity, like a hard disk seeking.
+
+| Action | Mouse | Keyboard (graph) |
+|---|---|---|
+| Show / hide the graph | Click the lamp | Esc hides it |
+| Keep the graph open | Drag it away from the menu bar or tray | — |
+| Speeds, busy, lamp style, drive sounds, start at login, quit | Right-click (or Control-click on Mac) the lamp | — |
+
+`DiskLED --watch 10` (Mac) prints the read and write speeds and the busy share twice a second, to check the counters.
+
 ## Clock Bar
 
 The date and time, like **April 5  2:34**, on a see-through bar that stays on top of everything:
@@ -349,10 +374,10 @@ liability arising from its use. See [LICENSE](LICENSE) for the full terms.
 ## Building from source
 
 - **Windows:** run `powershell -ExecutionPolicy Bypass -File <app>\build.ps1`
-  (`countdown-timer\build.ps1`, `physics-calculator\windows\build.ps1`, `field-timer\windows\build.ps1`, `sticky-notes\build.ps1`, `screen-ruler\windows\build.ps1`, `screen-shapes\windows\build.ps1`, `reading-window\windows\build.ps1` or `citorio\windows\build.ps1`).
+  (`countdown-timer\build.ps1`, `physics-calculator\windows\build.ps1`, `field-timer\windows\build.ps1`, `sticky-notes\build.ps1`, `screen-ruler\windows\build.ps1`, `screen-shapes\windows\build.ps1`, `reading-window\windows\build.ps1`, `citorio\windows\build.ps1` or `disk-led\windows\build.ps1`).
   It uses the C# compiler included with Windows, so nothing needs to be installed.
 - **macOS:** install the Xcode Command Line Tools (`xcode-select --install`), then run
-  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh`, `field-timer/mac/build.sh`, `sticky-notes-mac/build.sh`, `screen-ruler/mac/build.sh`, `screen-shapes/mac/build.sh`, `reading-window/mac/build.sh`, `notepad-95/mac/build.sh`, `paint-95/mac/build.sh` or `citorio/mac/build.sh`.
+  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh`, `field-timer/mac/build.sh`, `sticky-notes-mac/build.sh`, `screen-ruler/mac/build.sh`, `screen-shapes/mac/build.sh`, `reading-window/mac/build.sh`, `notepad-95/mac/build.sh`, `paint-95/mac/build.sh`, `citorio/mac/build.sh` or `disk-led/mac/build.sh`.
   Notepad 95 and Paint 95 share their Windows 95 look from `win95-kit/Win95Kit.swift`. Each creates the app and a `.dmg` in its `build/` folder.
 
 ## License

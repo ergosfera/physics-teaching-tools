@@ -34,3 +34,7 @@ desktop-apps/citorio/windows/Citorio.exe
 desktop-apps/citorio/windows/app.ico
 desktop-apps/citorio/windows/quote-preview.png
 desktop-apps/citorio/mac/build/
+desktop-apps/disk-led/windows/DiskLED.exe
+desktop-apps/disk-led/windows/app.ico
+desktop-apps/disk-led/windows/graph-preview.png
+desktop-apps/disk-led/mac/build/

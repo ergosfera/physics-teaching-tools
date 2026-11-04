@@ -11,6 +11,7 @@
 #   "paint-95":           Paint95.dmg (Mac only)
 #   "clock-bar":          ClockBar.dmg (Mac) and ClockBar.exe (Windows)
 #   "citorio":            Citorio.dmg (Mac) and Citorio.exe (Windows)
+#   "disk-led":           DiskLED.dmg (Mac) and DiskLED.exe (Windows)
 # Pull requests only build the apps, so a broken build shows up before it reaches main.
 name: Desktop apps
 
@@ -254,6 +255,26 @@ jobs:
         with:
           name: citorio-windows
           path: desktop-apps/citorio/windows/Citorio.exe
+
+  diskled-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./desktop-apps/disk-led/mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: diskled-mac
+          path: desktop-apps/disk-led/mac/build/DiskLED.dmg
+
+  diskled-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop-apps/disk-led/windows/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: diskled-windows
+          path: desktop-apps/disk-led/windows/DiskLED.exe
 
   release-timer:
     if: github.event_name != 'pull_request'
@@ -537,3 +558,29 @@ jobs:
               --notes "Every so often a small window pops up with a quote, then hides again. 1,315 quotes in Spanish; add your own categories as text files. Mac: download Citorio.dmg. Windows: download Citorio.exe."
           gh release upload citorio dist/* -R "$REPO" --clobber
           gh release edit citorio -R "$REPO" --draft=false
+
+  release-diskled:
+    if: github.event_name != 'pull_request'
+    needs: [diskled-mac, diskled-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: diskled-windows
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: diskled-mac
+          path: dist
+      - name: Publish to the disk-led release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release view disk-led -R "$REPO" > /dev/null 2>&1 || \
+            gh release create disk-led -R "$REPO" --latest=false --title "Disk LED" \
+              --notes "The hard-disk activity light of an old PC, next to the clock: blinks when the drives read or write, SSDs included. Mac: download DiskLED.dmg. Windows: download DiskLED.exe."
+          gh release upload disk-led dist/* -R "$REPO" --clobber
+          gh release edit disk-led -R "$REPO" --draft=false
