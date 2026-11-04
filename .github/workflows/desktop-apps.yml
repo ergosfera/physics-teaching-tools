@@ -555,7 +555,7 @@ jobs:
         run: |
           gh release view citorio -R "$REPO" > /dev/null 2>&1 || \
             gh release create citorio -R "$REPO" --latest=false --title "Citorio" \
-              --notes "Every so often a small window pops up with a quote, then hides again. 1,316 quotes in Spanish; add your own categories as text files. Mac: download Citorio.dmg. Windows: download Citorio.exe."
+              --notes "Every so often a small window pops up with a quote, then hides again. 1,315 quotes in Spanish; add your own categories as text files. Mac: download Citorio.dmg. Windows: download Citorio.exe."
           gh release upload citorio dist/* -R "$REPO" --clobber
           gh release edit citorio -R "$REPO" --draft=false
 
