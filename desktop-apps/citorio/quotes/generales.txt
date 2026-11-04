@@ -1,0 +1,2083 @@
+# name: Generales
+# icon: 📜 🦉 🖋️ 🌍 ⏳ 🔭 📖 🎭 🗝️ 🕯️ 🧭 💡 🎩 ⚖️ 🪶 🏛️ 🎲 🧠 🗿 📯 🌙
+# Citorio quote list. Quotes are separated by a line with only %.
+# A last line starting with — (or --) is the author.
+
+Trabajo: Uno de los procesos por los cuales A adquiere propiedad de B.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+La constancia es la virtud por la que todas las otras dan su fruto
+— Arturo Graf
+%
+Elige la mejor manera de vivir, la costumbre te la hará agradable
+— Pitágoras
+%
+La vida es simplemente un mal cuarto de hora formado por momentos exquisitos
+— Oscar Wilde
+%
+La vida del hombre es un breve paseo entre el germen y la momia
+— Marco Aurelio
+%
+La vida es como una leyenda: no importa que sea larga, sino que esté bien narrada
+— Lucio Anneo Séneca
+%
+Nunca comiences una demostración con nada más específico que "¡Miren esto!"
+%
+La experiencia es un billete de lotería comprado después del sorteo
+— Gabriela Mistral
+%
+El que no valora la vida no se la merece
+— Leonardo da Vinci
+%
+Todos encontrarían su propia vida mucho más interesante, si dejaran de compararla con la vida de los demás
+— Henry Fonda
+%
+La vida no es sino una continua sucesión de oportunidades para sobrevivir
+— Gabriel García Márquez
+%
+No podemos arrancar una página del libro de nuestra vida, pero podemos tirar todo el libro al fuego
+— Aurore Dupin (George Sand)
+%
+La vida es aquello que te va sucediendo mientras tú te empeñas en hacer otros planes
+— John Lennon
+%
+El cine y la vida son como la arcilla: están esperando a que les demos forma
+— Shirley MacLaine
+%
+La felicidad tiene los ojos cerrados
+— Paul Valéry
+%
+Hay que darle un sentido a la vida, por el hecho mismo de que carece de sentido
+— Henry Miller
+%
+Recuerda que eres tan bueno como lo mejor que hayas hecho en tu vida
+— Billy Wilder
+%
+La verdad es un ácido corrosivo que salpica casi siempre al que la maneja
+— Santiago Ramón y Cajal
+%
+Lo opuesto de una formulación correcta es una formulación falsa. Pero lo opuesto de una verdad profunda puede ser muy bien otra verdad profunda.
+— Niels Henrik David Bohr
+%
+- Supongo que no habrás olvidado cómo conquistar a una chica
+- Ya lo recordaré... es como volver a tocar el piano
+— Humphrey Bogart en "Sabrina"
+%
+Lo malo de quienes se creen en posesión de la verdad es que cuando tienen que demostrarlo no aciertan ni una
+— Camilo José Cela
+%
+Nunca es igual saber la verdad sobre uno mismo que tener que escucharla por otro
+— Aldous Huxley
+%
+Si los arquitectos hiciesen edificios de la misma forma en que los programadores escriben programas, entonces el primer pájaro carpintero que pasase por aquí destruiría la civilización
+— Gerald Weinberg
+%
+Un cínico es un hombre que sabe el precio de todas las cosas e ignora aún el valor de una sola
+— Oscar Wilde
+%
+Si recoges a un perro hambriento y le haces próspero, no te morderá. Esa es la principal diferencia entre un perro y un hombre.
+— Mark Twain
+%
+¿Por qué es que nos regocijamos con un nacimiento y lloramos en un funeral? Porque no somos la persona involucrada.
+— Mark Twain
+%
+No nos hace falta valor para emprender ciertas cosas porque sean difíciles, sino que son difíciles porque nos falta valor para emprenderlas
+— Lucio Anneo Séneca
+%
+Si tu mal tiene remedio, ¿por qué te afliges? Si no lo tiene, ¿por qué te afliges?
+— Proverbio inglés
+%
+Un hombre feliz es aquel que durante el día, por su trabajo, y a la noche, por su cansancio, no tiene tiempo de pensar en sus cosas
+— Gary Cooper
+%
+1.) Si la documentación debería, existir, no existe.
+2.) Si la documentación existe, es obsoleta.
+3.) Sólo la documentación para programas sin interés transgrede las dos primeras leyes.
+%
+Los vestidos hacen al hombre. La gente desnuda tiene poca o no influencia en la sociedad.
+— Mark Twain
+%
+Para ser grande hace falta un 99 por 100 de talento, un 99 por 100 de disciplina y un 99 por 100 de trabajo
+— William Faulkner
+%
+La inactividad sólo apetece cuando tenemos demasiado que hacer
+— Noël Coward
+%
+Si uno no puede explicar lo que ha estado haciendo, su trabajo carecerá de valor
+— Erwin Schrödinger
+%
+Cada pueblo tiene la ingenua convicción de ser la mejor ocurrencia de Dios
+— Theodor Heuss
+%
+Para las personas creyentes, Dios está al principio; para los científicos, al final de todas las reflexiones
+— Max Planck
+%
+Tenemos bastante religión como para odiarnos, pero no suficiente para amarnos
+— Jonathan Swift
+%
+Contraponer la ciencia con la religión es cosa de gente poco experta en uno y otro tema
+— Paul Sabatier
+%
+El cristianismo podría ser bueno, si alguien intentara practicarlo
+— George Bernard Shaw
+%
+Es mucho más fácil sugerir soluciones cuando no se sabe nada acerca del problema
+%
+Las religiones, como las luciérnagas, necesitan de oscuridad para brillar
+— Arthur Schopenhauer
+%
+La ley básica del capitalismo es tú o yo, no tú y yo
+— Karl Liebknecht
+%
+El poder es como un explosivo: o se maneja con cuidado, o estalla
+— Enrique Tierno Galván
+%
+La dictadura es el sistema de gobierno en el que lo que no está prohibido es obligatorio
+— Enrique Jardiel Poncela
+%
+El mejor gobierno no es aquel que hace más felices a los hombres, sino aquel que hace felices al mayor número de personas
+— Jacques Duclos
+%
+El nacionalismo es una enfermedad infantil. Es el sarampión de la humanidad.
+— Albert Einstein
+%
+Los paranoicos también son gente; tienen sus propios problemas. Es fácil criticar pero, si todo el mundo te odiase, tú también serías un paranoico.
+— D.J.Hicks
+%
+Un buen consejo es algo que un hombre da cuando es demasiado viejo como para dar un mal ejemplo
+— La Rochefoucauld
+%
+Un banquero es un tipo que te presta su paraguas cuando el sol brilla y quiere que se la devuelvas en el momento que empieza a llover
+— Mark Twain
+%
+En cada error que se achaca a un ordenador siempre se encuentran al menos dos errores humanos, incluyendo el de echarle la culpa al ordenador
+%
+Para determinar cuánto llevará el escribir y probar un programa, toma tu mejor estimación, multiplícala por dos, suma uno y conviértela a las unidades inmediatamente superiores
+%
+Si haces a la gente pensar que piensan, te amarán; pero si los haces pensar realmente, te odiarán
+%
+La historia tiene la misma relación con la verdad que la teología con la religión -- O sea, ninguna en absoluto
+— Lazarus Long
+%
+Incluso la moderación debería no ser practicada en exceso
+%
+Yo amo a la Humanidad; es la gente lo que no puedo soportar
+— Linus van Pelt
+%
+Valor es el miedo de ser tomado por un cobarde
+— Horace Smith
+%
+Todo programa hace algo perfectamente bien, aunque no sea exactamente lo que queremos que haga
+— R.S.Pressmann
+%
+Lo importante no es lo que nos hace el destino, sino lo que nosotros hacemos de él
+— Florence Nightingale
+%
+Es propio del varón sabio, luego de haber dispuesto lo que está en su mano con toda la posible industria y diligencia, de mostrarse resignado con lo que se le diere la fortuna
+— Juan Luis Vives
+%
+Lo que se considera ceguera del destino es en realidad propia miopía
+— William Faulkner
+%
+Hay gente tan sumamente pobre que solamente tiene dinero
+— Anónimo
+%
+Al cumplir los setenta años me he impuesto la siguiente regla de vida: no fumar mientras duermo, no dejar de fumar mientras estoy despierto y no fumar más de un tabaco a la vez
+— Mark Twain
+%
+Siempre que enseñes, enseña a la vez a dudar de lo que enseñas
+— José Ortega y Gasset
+%
+El éxito tiene muchos padres, pero el fracaso es huérfano
+— John Fitzgerald Kennedy
+%
+Es totalmente cierto que el vino gana con la edad: cuanto más viejo me voy haciendo, más me gusta
+— Anónimo
+%
+En la mayoría de los hombres, las dificultades son hijas de la pereza
+— Samuel Johnson
+%
+El militar es una planta a la que hay que cuidar con esmero para que no dé sus frutos
+— Jacques Tati
+%
+Nunca se miente tanto como antes de las elecciones, durante la guerra y después de la cacería
+— Otto von Bismarck
+%
+Ningún hombre es tan tonto para desear la guerra y no la paz; pues en la paz, los hijos llevan a sus padres a la tumba, y en la guerra son los padres quienes llevan a sus hijos a la tumba
+— Herodoto
+%
+La historia del mundo es la suma de aquello que hubiera sido evitable
+— Bertrand Russell
+%
+Lo malo de hacer sugerencias inteligentes es que uno corre el riesgo de que se le asigne para llevarlas a cabo
+— Anónimo
+%
+La sabiduría viene de escuchar; de hablar, el arrepentimiento
+— Proverbio italiano
+%
+Lo que quiere el sabio lo busca en sí mismo; el vulgo lo busca en los demás
+— Confucio
+%
+Ningún tonto se queja de serlo, no les debe ir tan mal
+— Noel Clarasó
+%
+La más estricta justicia no creo que sea siempre la mejor política
+— Abraham Lincoln
+%
+El hombre honrado es el que mide su derecho por su deber
+— Jean-Baptiste-Henri Lacordaire
+%
+La libertad es el derecho de escoger a las personas que tendrán la obligación de limitárnosla
+— Harry Truman
+%
+El hombre nunca ha encontrado una definición para la palabra libertad
+— Abraham Lincoln
+%
+La libertad, por lo que respecta a las clases sociales inferiores de cada país, es poco más que la elección entre trabajar o morirse de hambre
+— Samuel Johnson
+%
+Para instalar una buena biblioteca particular se necesitan dos cosas: un amplio círculo de amigos y una mala memoria
+— Georg Thomalia
+%
+Los malos libros provocan malas costumbres y las malas costumbres provocan buenos libros
+— René Descartes
+%
+Muchas personas están demasiado educadas para hablar con la boca llena, pero no se preocupan por hacerlo con la cabeza hueca
+— Orson Welles
+%
+La indignación moral es la estrategia tipo para dotar al idiota de dignidad
+— Marshall McLuhan
+%
+La humanidad tiene una moral doble: una, que predica y no practica, y otra, que practica pero no predica
+— Bertrand Russell
+%
+En este mundo no hay nada cierto, salvo la muerte y los impuestos
+— Benjamin Franklin
+%
+En realidad los seguros de vida son seguros de muerte
+— Ramón Gómez de la Serna
+%
+Mejor es morir de una vez que vivir temiendo la vida
+— Esopo
+%
+El fondo del corazón está más lejos que el fin del mundo
+— Proverbio danés
+%
+La matemática es el alfabeto con el que Dios escribió el mundo
+— Galileo Galilei
+%
+En tu lucha contra el resto del mundo, te aconsejo que te pongas del lado del resto del mundo
+— Franz Kafka
+%
+No debemos tomar la terquedad de nuestros prejuicios como valor para defender nuestras opiniones
+— Anónimo
+%
+La demoscopia descansa en la errónea presunción de que las personas en general tienen una opinión
+— Totó
+%
+Sólo los pesimistas forjan el hierro mientras está caliente. Los optimistas confían en que no se enfríe.
+— Peter Bamm
+%
+El pesimista se queja del viento; el optimista espera que cambie; el realista ajusta las velas
+— William George Ward
+%
+El optimista cree en los demás y el pesimista sólo cree en sí mismo
+— Gilbert Keith Chesterton
+%
+Un pesimista es un optimista con experiencia
+— François Truffaut
+%
+Un optimista ve una oportunidad en toda calamidad, un pesimista ve una calamidad en toda oportunidad
+— Winston Churchill
+%
+El silencio escuda y suele encubrir la falta de ingenio y torpeza de la lengua
+— Fernando de Rojas
+%
+Pensamientos tontos los tenemos todos, pero el sabio se los calla
+— Wilhelm Busch
+%
+Por muchos idiomas que se dominen, cuando uno se corta al afeitarse, siempre se utiliza la lengua materna
+— Eddie Constantine
+%
+Si la gente sólo hablara cuando tuviera algo que decir, el ser humano perdería muy pronto el uso del lenguaje
+— William Somerset Maugham
+%
+La idea que no trata de convertirse en palabras es una mala idea; la palabra que no trata, de convertirse en acción es, a su vez, una mala palabra
+— Giblert Keith Chesterton
+%
+Si los que hablan mal de mí supieran exactamente lo que yo pienso de ellos, aún hablarían peor
+— Sacha Guitry
+%
+Todos quieren la paz, y para asegurarla, fabrican más armas que nunca
+— Antonio Mingote
+%
+Para hacer la paz se necesitan por lo menos dos, mas para hacer la guerra basta uno sólo
+— Neville Chamberlain
+%
+No existe nada bueno ni malo; es el pensamiento humano el que lo hace aparecer todo así
+— William Shakespeare
+%
+Un hombre con pereza es un reloj sin cuerda
+— Jaime Luciano Balmes
+%
+No hay que menospreciar el ancho de banda ofrecido por un camión cargado con cintas corriendo calle abajo
+— A.S.Tanenbaum
+%
+Cuanto más conozco a los hombres, más me gusta mi perro
+— Diógenes
+%
+Gobernar no es mandar, por mucha mayoría que se tenga
+— Juan Luis Cebrián
+%
+Catolicismo, s: Religión clásica que supone una forma evolucionada de politeísmo.
+%
+Historiador, s: Chismoso de altos vuelos.
+%
+Perseverancia, s: Virtud inferior que permite al mediocre alcanzar un éxito sin gloria.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Ojo por ojo, y el mundo acabará ciego
+— Mahatma Gandhi
+%
+La modestia es la virtud de los que no tienen otra
+— Alvaro de Laiglesia
+%
+Lo que hace falta es tratar de someter a las circunstancias, no someterse a ellas
+— Horacio
+%
+El hombre prudente no se vale jamás de la palabra para el sarcasmo ni para la difamación
+— Franklin
+%
+El consejo sin ayuda no sirve de nada
+— Esopo
+%
+El estado estacionario de los discos es lleno
+— Ken Thompson
+%
+De hombres es equivocarse; de locos persistir en el error
+— Cicerón
+%
+El erotismo, al fin y al cabo, es menos perverso que la hipocresía
+— Kim Basinger
+%
+Como no me he preocupado de nacer, no me preocupo de morir
+— Federico García Lorca
+%
+Nunca estás a salvo hasta que te encuentras a dos metros bajo tierra
+— Spencer Tracy
+%
+La única manera de conservar la salud es comer lo que no quieres, beber lo que no te gusta, y hacer lo que preferirías no hacer
+— Mark Twain
+%
+Los madrileños hemos llegado a un punto en que la única ilusión es encontrar aparcamiento
+— Forges
+%
+[Madrid:] La única capital europea donde la calidad de vida se logra huyendo
+— Forges
+%
+El mayor castigo para quienes no se interesan por la política es que serán gobernados por personas que sí se interesan
+— Arnold Tonybee
+%
+El corazón del hombre es una rueda de molino que trabaja sin cesar; si nada echáis a moler, corréis el riesgo de que se triture a sí misma
+— Martín Lutero
+%
+Sólo sé que no sé nada
+— Sócrates
+%
+Pensar mal para dispensarnos de hacer bien es el pesimismo de los espíritus mezquinos. Pensar mal y hacer bien es pesimismo de gran señor.
+— Jacinto Benavente
+%
+Si a cada cual se tratase como merece, ¿quién evitaría los zurriagazos?
+— William Shakespeare
+%
+Nunca perdáis contacto con el suelo, porque así tendréis una idea aproximada de vuestra estatura
+— Antonio Machado
+%
+Razonar y convencer, ¡qué difícil, largo y trabajoso! ¿Sugestionar? ¡Qué fácil, rápido y barato!
+— Santiago Ramón y Cajal
+%
+No es que tenga miedo de morirme. Es tan sólo que no quiero estar allí cuando suceda.
+— Woody Allen
+%
+El único error de Dios fué no dotar al hombre de dos vidas: una para ensayar y otra para actuar
+— Vittorio Gassman
+%
+Cuando el carro se ha roto, muchos os dirán por dónde no se debía pasar
+— Proverbio turco
+%
+No hay señal más segura de ánimo pequeño que el estar contento de todo
+— Giovanni Papini
+%
+El que chismorrea contigo de los defectos ajenos, chismorrea con otros de los tuyos
+— Denis Diderot
+%
+Y fortuna que se canta
+siempre se la lleva el aire
+— José Zorrilla
+
+  (O lo que es lo mismo:)
+
+Máxima admirable: no hablar de las cosas hasta después de que estén hechas / Montesquieu
+%
+Cuando apuntas con el dedo, recuerda que otros tres dedos te señalan a a tí
+— Proverbio inglés
+%
+La ironía es una tristeza que no puede llorar y sonríe
+— Jacinto Benavente
+%
+¿No será ésa la elegancia, el olvido total de lo que llevamos puesto?
+— Marcel Proust
+%
+Pesa las opiniones, no las cuentes
+— Séneca
+%
+Quienes opinan que el dinero todo lo puede, sin duda están dispuestos a todo por dinero
+— E. Pierre Beauchêne
+%
+Prueba a ser tal como dicen de tí tus aduladores
+— Horacio
+%
+Sólo cerrando las puertas detrás de uno se abren ventanas al porvenir
+— Françoise Sagan
+%
+Un hombre sin defectos es un tonto o un hipócrita del que debemos desconfiar
+— Joseph Joubert
+%
+Los cobardes mueren muchas veces antes de su verdadera muerte; los valientes gustan la muerte sólo una vez
+— William Shakespeare
+%
+Asusta pensar que acaso las admiraciones más sinceras que tenemos son las de las personas que no nos han comprendido
+— Benito Pérez Galdós
+%
+Ser natural es la más difícil de las poses
+— Oscar Wilde
+%
+Las obras de arte se dividen en dos categorías: las que me gustan y las que no me gustan. No conozco ningún otro criterio.
+— Anton Chéjov
+%
+La imaginación consuela a los hombres de lo que no pueden ser. El humor los consuela de lo que son.
+— Winston Churchill / (También atribuída a Oscar Wilde, y a Francis Bacon)(?)
+%
+Sólo podemos dar una opinión imparcial sobre las cosas que no nos interesan; sin duda por eso mismo las opiniones imparciales carecen siempre de valor
+— Oscar Wilde
+%
+Desconfíen del rencor de los solitarios que dan la espalda al amor, a la ambición, a la sociedad. Se vengarán un día de haber renunciado a todo eso.
+— E.M.Cioran
+%
+Un caballero se avergüenza de que sus palabras sean mejores que sus hechos
+— Miguel de Cervantes
+%
+Lo malo de decir lo que uno siente es que muchas veces siente uno haberlo dicho
+— Puck
+%
+La talla de las estatuas disminuye alejándose de ellas; la de los hombres, aproximándose
+— Alphonse Karr
+%
+Todo acto de bondad es una demostración de poderío
+— Miguel de Unamuno
+%
+La libertad no hace felices a los hombres; los hace, sencillamente, hombres
+— Manuel Azaña
+%
+El recuerdo es el único paraíso del cual no podemos ser expulsados
+— Johan Paul Fr. Ritcher
+%
+Los bolsillos de los gobernantes deben ser de cristal
+— Enrique Tierno Galván
+%
+Así como la desgracia hace discurrir más, la felicidad quita todo deseo de análisis; por eso es doblemente deseable
+— Pío Baroja
+%
+Primero el hombre aprende en la vida a andar y hablar. Más tarde, a sentarse tranquilo y mantener la boca cerrada.
+— Marcel Pagnol
+%
+El que busca un amigo sin defectos se queda sin amigos
+— Proverbio turco
+%
+Un hombre tiene que tener siempre el nivel de la dignidad por encima del nivel del miedo
+— Eduardo Chillida
+%
+Dentro de cien años, todos calvos
+— Proverbio español
+%
+Para gobernar hay que saber aprovecharse de los vicios de los hombres, no de sus virtudes
+— Napoleón Bonaparte
+%
+Lo que no se sabe expresar es que no se sabe
+— Friedrich Engels
+%
+Cuidaos del que colecciona citas, porque os las soltará en el futuro
+%
+Las citas son la sabiduría del tonto
+%
+Cuando los elefantes luchan, la hierba es la que sufre
+— Proverbio africano
+%
+Si quieres conocerte, observa la conducta de los demás. Si quieres comprender a los demás, mira en tu propio corazón.
+— Friedrich von Schiller
+%
+No hay nada nuevo bajo el sol, pero cuántas cosas viejas hay que no conocemos
+— Ambrose Bierce
+%
+El no admirarse procede del saber en los menos; que, en los más, del no advertir
+— Baltasar Gracián
+%
+Los hombres casados son horriblemente aburridos cuando son buenos maridos; y abobinablemente presuntuosos cuando no lo son
+— Oscar Wilde
+%
+La ambición suele llevar a los hombres a ejecutar los menesteres más viles; por eso para trepar se adopta la misma postura que para arrastrarse
+— Jonathan Swift
+%
+Un amigo es uno que lo sabe todo de tí y a pesar de ello te quiere
+— Elbert Hubbard
+%
+Es el cambio, no el amor, lo que hace avanzar el mundo. El amor sólo lo mantiene habitado.
+— Anónimo
+%
+No quiso la lengua castellana que de casado a cansado hubiese más de una letra de diferencia
+— Félix Lope de Vega y Carpio
+%
+Lo malo de una mujer con el corazón roto es que empieza a repartir los pedazos
+— Anónimo
+%
+El amor es como la luna: cuando no crece es que mengua
+— Anónimo
+%
+El matrimonio es al amor lo que el vinagre al vino. El tiempo hace que pierda su sabor.
+— Lord Byron
+%
+Flirtear es el arte de hacer caer a una mujer en tus brazos sin caer tú en sus manos
+— Sacha Guitry
+%
+La fantasía, aislada de la razón, sólo produce monstruos imposibles. Unida a ella, en cambio, es la madre del arte y fuente de sus deseos.
+— Francisco de Goya
+%
+La verdad es hija del tiempo, no de la autoridad
+— Francis Bacon
+%
+Los que divulgan la calumnia y los que la escuchan, si valiera mi opinión, deberían ser colgados; los divulgadores, por la lengua, y los oyentes, por las orejas
+— Tito Maccio Plauto
+%
+Si murmurar la verdad aún puede ser la justicia de los débiles, la calumnia no puede ser nunca más que la venganza de los cobardes
+— Jacinto Benavente
+%
+Las personas son como la luna. Siempre tienen un lado oscuro que no enseñan a nadie.
+— Mark Twain
+%
+Es difícil ser bueno y fuerte a la vez. Y, por lo común, cuanto más fuerte se es menos razón se tiene.
+— Enrique Tierno Galván
+%
+Todo lo que una persona puede imaginar, otras podrán hacerlo realidad
+— Julio Verne
+%
+Se puede confiar en las malas personas, no cambian jamás
+— William Faulkner
+%
+Un héroe no es más valiente que cualquier otra persona, solamente es valiente cinco minutos más
+— Ralph Waldo Emerson
+%
+Algunas personas son amables sólo porque no se atreven a ser de otra forma
+— William Faulkner
+%
+Las personas debemos el progreso a los insatisfechos
+— Aldous Huxley
+%
+El carácter de cada hombre es el árbitro de su fortuna
+— Publilio Siro
+%
+Todas las personas nacen como original; la mayoría mueren como copia
+— Anónimo (pintada)
+%
+Muchas personas son como los relojes: indican una hora y tocan otra
+— Proverbio danés
+%
+La persona que no comete nunca una tontería nunca hará nada interesante
+— Proverbio inglés
+%
+El hombre no revela mejor su propio carácter que cuando describe el carácter de otro
+— Jean Paul Richter
+%
+La tradición es la personalidad de los imbéciles
+— Maurice Ravel
+%
+Lo que hoy ha empezado como ciencia ficción, mañana será terminado como reportaje
+— Arthur C.Clarke
+%
+La tecnología no nos ahorra tiempo, pero sí lo reparte de otra manera
+— Helman Nahr
+%
+La violencia es miedo de las ideas de las demás y poca fe en las propias
+— Forges
+%
+A los tímidos y a los indecisos todos les resulta imposible, porque así se lo parece
+— Sir Walter Scott
+%
+El hombre que tiene miedo sin peligro inventa el peligro para justificar su miedo
+— Alain Emile Chartier
+%
+Un cobarde es una persona en la que el instinto de conservación aún funciona con normalidad
+— Ambrose Bierce
+%
+La conciencia no nos impide cometer pecados, pero desgraciadamente sí disfrutar de ellos
+— Salvador de Madariaga
+%
+La pereza viaja tan despacio que la pobreza no tarda en alcanzarla
+— Benjamin Franklin
+%
+Dios lucha del lado del que cuenta con más cañones
+— Napoleón Bonaparte
+%
+El mejor medio de engañarse consiste en creese más astuto que los demás
+— La Rochefoucauld
+%
+Es más fácil escribir un programa incorrecto que entender uno correcto
+%
+Un puritano es alguien que está mortalmente temeroso de que alguien en alguna parte se lo esté pasando bien
+%
+Un conservador es uno que es demasiado cobarde para pelear y demasiado gordo para correr
+— Elbert Hubbard
+%
+Un glagotropo sin turnabella es como un cuopiro sin fenilon
+%
+Una gallina es sólo la forma en que huevo hace otro huevo
+%
+Un liberal es uno demasiado pobre para ser capitalista y demasiado rico para ser comunista
+%
+Una palmadita en la espalda está a sólo unos centímetros de una patada en el trasero
+%
+Una peseta ahorrada es una ridiculez
+%
+Una cosa no es necesariamente cierta porque un hombre muera por ella
+%
+Una mujer sin un hombre es como un pez sin una bicicleta
+%
+Al b.ent., pocas pal.bastan
+%
+Incorporar más gente a un proyecto de software retrasado sólo conseguirá retrasarlo aún más
+%
+Si pensaste que ayer fué un mal día, espera a ver qué pasa hoy
+%
+Actúa siempre correctamente. Esto satisfará a algunos y desconcertará a los demás
+%
+Dile siempre a una mujer que es guapa, especialmente si no lo es
+%
+Un desintegrador atómico es una buena arma, pero puede apuntar en los dos sentidos
+%
+Una idea no es responsable de la gente que cree en ella
+%
+Un juguete irrompible es útil para romper otros juguetes
+%
+Cualquier sistema que depende de la fiabilidad es poco fiable
+%
+Todo es posible, a menos que no lo sea
+%
+Ten cuidado con tus deseos, podrían hacerse realidad
+%
+Sé alegre mientras estés vivo
+%
+Sé amable con tus inferiores, si puedes encontrar alguno
+%
+Antes de pedirle dinero a un amigo, decide cuál necesitas más
+%
+Ten cuidado con la gente que conoce la respuesta antes de entender la pregunta
+%
+CCoommpprruueebbaa  llaa  ooppcciióónn  ddee  eeccoo  llooccaall......
+%
+La caridad bien entendida empieza por uno mismo, y generalmente acaba ahí
+%
+Confianza es el sentimiento que tienes antes de entender la situación
+%
+Contar en binario es lo mismo que contar en decimal si sólo tienes pulgares
+%
+Haz ver que ya has alcanzado tu máximo nivel de incompetencia
+%
+"¡Darth Vader! Sólo tú podrías ser tan osado"
+%
+Entrega ayer, codifica hoy, piensa mañana
+%
+Disimula tus sentimientos cuando pones a tus parientes en un avión a su casa
+%
+No creas en los milagros - confía en ellos
+%
+No cuentes grandes mentiras. Las pequeñas pueden ser igual de efectivas.
+%
+No subestimes el poder de La Fuerza
+%
+¿Enamorado yo? En absoluto, estoy casado
+%
+Nunca des un portazo al salir, puede que quieras volver
+%
+Cada uno soporta su propia cruz
+%
+La economía es extremadamente útil como empleo para los economistas
+%
+Excreto ergo sum
+%
+Experiencia es lo que hace que una persona cometa nuevos errores en vez de viejos
+%
+Los experimentos deberían ser reproducibles. Todos deberían fallar de la misma forma.
+%
+Los hechos no dejan de existir porque los ignoremos
+%
+Amigos: Gente que cogen prestados mis libros y les ponen vasos húmedos encima
+%
+Genio es el talento de un hombre que está muerto
+%
+Quien no crea que el pasado puede cambiarse, es que aún no ha escrito sus memorias
+%
+Quien es bueno haciendo excusas es raramente bueno para cualquier otra cosa
+%
+Quien rie el último probablemente no ha entendido la broma
+%
+La historia se repite a sí misma; los historiadores se repiten uno a otro
+%
+"Te sugiero una nueva estrategia, R2. Deja ganar al wookie."
+%
+La gente suficientemente lista para dar buenos consejos es usualmente suficientemente lista para no darlos
+%
+Filosofía: respuestas ininteligibles a problemas insolubles
+%
+El poder no corrompe, sólo desvela
+%
+La nieve y la adolsecencia son los únicos problemas que desaparecen si se ignoran el tiempo suficiente
+%
+Tanstaafl. Nadie da nada por nada.
+— R.A.Heinlein, en "La Luna es una Cruel amante"
+%
+"El programa es completamente perfecto, por tanto el ordenador debe funcionar mal"
+%
+Aquellos que no recuerdan el pasado están condenados a repetirlo
+%
+La violencia es el último recurso del incompetente
+— Salvor Hardin (Isaac Asimov), en 'Fundación'
+%
+Los jóvenes piensan que los viejos son tontos; pero los viejos saben que los jóvenes son tontos
+%
+Los ordenadores no son fiables, pero los humanos lo son menos
+%
+Ley del Mantenimiento Informático: Lo que funciona, ni tocallo
+%
+En este mundo, la verdad puede esperar; está acostumbrada a ello
+%
+Ríe, y el mundo te ignorará. Llorar no ayuda mucho, tampoco.
+%
+No digas que conoces a un hombre hasta que hayas repartido una herencia con él
+%
+No duermas con alguien que tenga peores problemas que los tuyos
+%
+Los viejos soldados nunca mueren. Los jóvenes lo hacen.
+%
+En América puedes salir a las ondas y jugar con los políticos, y los políticos pueden salir a las ondas y jugar con la gente
+— Groucho Marx
+%
+La democracia es la sospecha continua de que más de la mitad de la gente tiene razón más de la mitad del tiempo
+%
+Confía en Alá, pero ata tu camello de todas formas
+%
+Cuando la única herramienta disponible es un martillo, uno tiende a tratar todo como si fuese un clavo
+%
+Un optimista cree que este es el mejor de los mundos posibles. Un pesimista teme que esto sea cierto.
+%
+Sé bueno. Si no puedes ser bueno, diviértete.
+%
+No fuerces las cosas; usa un martillo más grande
+%
+La educación es lo que queda después de olvidar todo lo que se ha aprendido
+%
+Si crees que a nadie le importa que estés vivo, prueba a no pagar un par de letras del coche
+— Earl Wilson
+%
+No confíes en ningún ordenador que no puedas tirar por la ventana
+— Steve Wozniak
+%
+No atribuyas a la malicia lo que puede ser explicado por simple estupidez
+%
+No puedo quejarme, pero a veces aún lo hago
+— Joe Walsh
+%
+Un embajador es un hombre de virtud al que se le manda fuera a mentir por su país; un periodista es un hombre sin virtud que miente en casa por sí mismo
+— Sir Henry Wotton
+%
+Cualquier estructura social humana se ha desarrollado para asegurar la supervivencia de esa estructura... para el detrimento de sus componentes humanos
+— T.N.Thompson
+%
+Los ricos harían cualquier cosa por los pobres excepto bajarse de sus espaldas
+— Karl Marx
+%
+La justicia es incidental a la ley y el orden
+— J.Edgar Hoover
+%
+Creo que Dios sobreestimó su habilidad cuando creó al hombre
+— Oscar Wilde
+%
+Lo más incomprensible acerca del mundo es...que es comprensible, al menos en parte
+— Albert Einstein
+%
+Un físico es la forma en que los átomos saben acerca de los átomos
+— George Wald
+%
+Yo quiero, o bien menos corrupción, o más oportunidades de participar en ella
+— "Ashleigh Brilliant"
+%
+Si no puedes aprender a hacerlo bien, aprende a disfrutar haciéndolo malamente
+— "Ashleigh Brilliant"
+%
+No tengo ninguna solución, pero ciertamente admiro el problema
+— "Ashleigh Brilliant"
+%
+Puede que sea afortunado en ir tan despacio, puesto que puedo estar yendo en la dirección equivocada
+— "Ashleigh Brilliant"
+%
+Para estar seguro de darle al blanco, dispara primero y llama a lo que dés "el blanco"
+— "Ashleigh Brilliant"
+%
+América es el único país que fué desde el barbarismo a la decadencia sin pasar por la civilización entre medias
+— Oscar Wilde, o John O'Hara
+%
+Si algún aborigen diseñase un test de inteligencia, probablemente nadie en la civilización lo pasaría
+— Stanley Gant
+%
+El auténtico conocimiento es conocer la extensión de la propia ignorancia
+— Confucio
+%
+Los fabricantes de software están haciendo todo lo que pueden para hacer sus productos más "amigables para el usuario"...Su mejor aproximación, hasta ahora, ha sido coger todos los viejos folletos y estampar las palabras "user-friendly" en la portada.
+— Bill Gates
+%
+Primera Ley de la Civilización: La Civilización avanza ampliando el número de operaciones importantes que uno puede hacer sin necesidad de pensar en ellas
+%
+No bebo agua. Los peces hacen el amor en ella.
+— W.C. Fields
+%
+Dios hace funcionar al electromagnetismo acorde con la teoría de ondas los lunes, miércoles y viernes; pero recuerda que el diablo hace funcionar al electromagnetismo acorde con la teoría cuántica los martes, jueves y sábados
+— William Bragg
+%
+El hombre más rico es aquél que sus placeres son más baratos
+— Thoreau
+%
+Dile a alguien que hay trescientos mil millones de estrellas en el universo, y te creerá. Dile que un banco está recién pintado, y tendrá que tocarlo para estar seguro.
+%
+La revolución es el opio de los intelectuales
+— "Oh, Lucky Man"(?)
+%
+Realmente odio a esta maldita máquina; nunca hace lo que yo quiero sino sólo lo que yo le digo que haga
+— Un usuario de ordenadores
+%
+A alguna gente le gustan tanto mis consejos que los enmarcan y los cuelgan en la pared en vez de usarlos
+— Gordon R. Dickson
+%
+La civilización es un movimiento, no una condición; es un viaje, no un puerto
+— Tonybee
+%
+Hay cosas tan serias que sólo puedes bromear acerca de ellas
+— Heisenberg
+%
+Malditos antepasados... nos han robado nuestras mejores ideas
+— Ben Jonson
+%
+No sé con qué armas se hará la Tercera Guerra Mundial, pero la Cuarta Guerra Mundial se hará con palos y piedras
+— Albert Einstei
+%
+"El siguiente viernes no será tu día afortunado. De hecho, no tendrás un día afortunado este año"
+%
+La conciencia es lo que duele cuando todo lo demás se siente tan bien
+%
+El matrimonio es una institución tal que los que están dentro quieren salir, y los que están fuera quieren entrar
+— Ralph Emerson
+%
+Si alguien me hubiese dicho que algún día sería Papa, habría estudiado más
+— Juan Pablo I
+%
+A todas las vírgenes: Gracias por nada
+— Pintada
+%
+El suicidio es la forma más sincera de autocrítica
+— Pintada
+%
+Estadísticamente, la esterilidad no es hereditaria
+%
+La muerte es hereditaria
+— Ian Browne
+%
+Si el cerebro humano fuese suficientemente simple como para que lo entendiésemos, seríamos demasiado simples para entenderlo
+— Pat Bahn
+%
+Apuesto a que podría dejar de jugar
+— Pintada
+%
+Rehúso admitir que tengo más de 52 años, aunque eso haga a mis dos hijos ilegítimos
+— Mary Astor
+%
+Quiero ser lo que era cuando empecé a ser lo que soy ahora
+— Pintada
+%
+Cuanto menos segura está la gente más dogmática es
+— J.K.Galbraith
+%
+Mi triste convicción es que la gente sólo puede ponerse de acuerdo acerca de cosas en que no están realmente interesados
+— Bertrand Russell
+%
+La mejor audiencia es inteligente, bien educada y un poco borracha
+— Allen W.Barkley
+%
+Cómo voy a creer en Dios si la semana pasada me enrollé la lengua en el carro de una máquina de escribir eléctrica
+— Woody Allen
+%
+Cuando uno es tan grande como yo, es difícil ser humilde
+— Muhammed Ali (Cassius Clay)
+%
+Si sólo tuviese un poco de humildad, yo sería perfecto
+— Ted Turner
+%
+No quiero a ningún pelota a mi alrededor. Quiero que todos me digan la verdad, aunque les cueste su trabajo.
+— Samuel Goldwyn
+%
+Lady Astor: Si yo fuese tu mujer, envenenaría tu té
+Winston Churchill: Si yo fuese tu marido, lo bebería
+%
+Los Auténticos Programadores no escriben ninguna especificación - los usuarios deberían considerarse afortunados de conseguir algún programa, y tomar lo que se les dá
+— Steve Woodford
+%
+Los Auténticos Programadores no documentan su código. Si fué difícil de escribir, debería ser difícil de entender.
+— Steve Woodford
+%
+Los programas de los Auténticos Programadores nunca funcionan a la primera. Pero si los tiras en la máquina pueden parchearse hasta que funcionen en "sólo unas pocas" sesiones de debugging de 30 horas
+— Steve Woodfort
+%
+Los Auténticos Programadores no documentan. La documentación es para idiotas que no pueden leer los listados del código objeto.
+— Steve Woodford
+%
+Los Auténticos Arogramadores no escriben en PASCAL, o BLISS, o Ada, o cualquier otro de esos lenguajes de programación para mariquitas. Tipado estricto es para gente de poca memoria.
+— Steve Woodford
+%
+Si no lo puedes hacer en FORTRAN, hazlo en ensamblador. Si no puedes hacerlo en ensamblador, es que no vale la pena hacerlo.
+— Steve Woodford
+%
+Los Auténticos Programadores no tienen miedo de usar el GOTO, y pueden escribir bucles DO de cinco páginas de largo sin desorientarse
+— Steve Woodford
+%
+Los Auténticos Programadores no necesitan comentarios - el código es obvio
+— Steve Woodford
+%
+Para conseguir que hacer algo, un comité debería consistir en no más de tres miembros, dos de los cuales están ausentes
+— Robert Copeland
+%
+El comunismo es como la prohibición; es una buena idea pero no funcionará
+— Will Rogers
+%
+Una conferencia es una reunión de gente importante que individualmente no pueden hacer nada, pero juntos pueden decidir que nada puede hacerse
+— Fred Allen
+%
+Con el congreso, cada vez que hacen una broma es una broma, y cada vez que hacen una ley es una broma
+— Will Rogers
+%
+Lector, supongamos que fuese usted un idiota, y supongamos que fuese usted un miembro del congreso. Pero me estoy repitiendo.
+— Mark Twain
+%
+La conciencia es la voz interior que nos avisa de que alguien puede estar mirando
+— H.L. Mencken
+%
+Los "Tories" no están siempre equivocados, pero siempre están equivocados en el momento adecuado
+— Lady Violet Bonham Carter
+%
+Un conservador es uno que admira a los radicales un siglo después de que estén muertos
+— Anónimo
+%
+Un conservador es alguien que cree en la reforma. Pero no ahora.
+— Mort Sahl
+%
+Contrato: Un acuerdo que es vinculante sólo para la parte más debil
+— Frederick Sawyer
+%
+Nunca he encontrado, en una larga experiencia en política, que el criticismo sea inhibido por la ignorancia
+— Harold Macmillan
+%
+Un crítico es una persona que sorprende al autor informándole de lo que quería decir
+— Wilson Mizner
+%
+El amor es el único truco sucio que nos hacen para conseguir la continuación de la especie
+— W.Somertet Maugham
+%
+Cuando un hombre le regala flores a su mujer sin una razón especial, hay una razón
+— Molly McGee
+%
+El macho es un animal doméstico que, si es tratado con firmeza y amabilidad, puede ser entrenado para hacer la mayoría de las cosas
+— Jilly Cooper
+%
+Yo pido sólo tres cosas de un hombre: que sea guapo, despiadado y estúpido
+— Dorothy Parker
+%
+En al menos un tema, hombres y mujeres están de acuerdo: ambos desconfían de las mujeres
+— H.L.Mencken
+%
+La edad madura es cuando podemos hacer tanto como siempre - pero perferiríamos no tener que hacerlo
+%
+La edad madura es cuando siempre que vas de vacaciones llevas un jersey
+— Denis Norden
+%
+El dinero no lo es todo; usualmente no es ni siquiera suficiente
+%
+El dinero es mejor que la pobreza, aunque sólo sea por razones financieras
+— Woody Allen
+%
+Cinismo: el torpe sustituto de la inteligencia del intelectual
+— Russel Lynes
+%
+Si mi doctor me dijese que sólo me quedan seis minutos de vida, no me pondría melancólico.
+Escribiría un poco más rápido.
+— Isaac Asimov
+%
+"O este hombre está muerto, o mi reloj se ha parado"
+— Groucho Marx
+%
+La democracia consiste en escoger tus dictadores después de que te hayan dicho lo que tú querías oir
+— Alan Coren
+%
+Democracia es un dispositivo que asegura que seremos gobernados no mejor de lo que merecemos
+— George Bernard Shaw
+%
+Muchos hombres deben su éxito a su primera mujer y su segunda mujer a su éxito
+— Jim Backus
+%
+Un perro es la una cosa en la tierra que te quiere más que lo que tú te quieres a tí mismo
+— Josh Billings
+%
+Sus orejas hacían que pareciese como un taxi con las puertas abiertas
+— Howard Hughes
+%
+Benditos los jóvenes, porque heredarán la deuda nacional
+— Herbert Hoover
+%
+Es una recesión cuando tu vecino pierde su trabajo. Es una depresión cuando tú pierdes el tuyo.
+— Harry S.Truman
+%
+El ahorro es algo muy bueno. Especialmente si tus padres lo han hecho por tí.
+— Winston Churchill
+%
+La educación (...) ha producido una vasta población capaz de leer pero incapaz de distinguir lo que vale la pena ser leído
+— G.M.Trevelyan
+%
+Vota por el que prometa menos. Será el que menos te decepcione.
+— Bernard M.Baruch
+%
+Me gustan los paseos largos, en especial cuando los hace gente que me molesta
+— Fred Allen
+%
+Me hicheron falta quince años para descubrir que no tenía talento para escribir, pero no podía abandonar porque para entonces era demasiado famoso
+— Robert Benchley
+%
+¿Es el hombre uno de las meteduras de patas de Dios, o es dios una de las meteduras de pata del Hombre?
+— Frederich Wilhelm Nietzsche
+%
+Si Hitler invadiese el infierno haría al menos una referencia favorable al Diablo en la cámara de los comunes
+— Winston Churchill
+%
+¡Odio las labores de la casa! Haces las camas, lavas los platos... y seis meses después tienes que empezar desde el principio otra vez
+— Joan Rivers
+%
+Va a ser divertido ver cuánto pueden los mansos mantener la Tierra después de que la hereden
+— Kin Hubbard
+%
+Los mansos heredarán la Tierra... El resto de nosotros iremos a las estrellas
+%
+Un idealista es uno que, cuando se da cuenta que una rosa huele mejor que una berza, concluye que también hará una mejor sopa
+— H.L.Mencken
+%
+Todo el mundo tiene el derecho de pronunciar los nombres extranjeros como desee
+— Winston Churchill
+%
+Un jurado consiste en doce personas escogidas para decidir quién tiene el mejor abogado
+— Robert Frost
+%
+Libertad significa responsabilidad. Por eso es por lo que la mayoría de los hombres la temen.
+— George Bernard Shaw
+%
+un poco de imprecisión a veces ahorra toneladas de explicaciones
+— H.H.Munro
+%
+La vida es una enfermedad hereditaria
+— Pintada
+%
+Uno debería creer siempre lo que se lee en los periódicos; eso los hace más interesantes
+— Rose Macaulay
+%
+Un editor es uno que separa el trigo de la paja e imprime la paja
+— Aldai Stevenson
+%
+En los tiempos antiguos los hombres tenían el potro de tortura, ahora tienen la prensa
+— Oscar Wilde
+%
+La vejez es la parodia de la vida
+— Simone de Beauvoir
+%
+El mayor problema con la vejez es el temor de que pueda durar mucho
+— A.J.P. Taylor
+%
+Es una pena, toda la gente que sabe como llevar el país esrán ocupados conduciendo taxis o cortando el pelo
+— George Burns
+%
+El shareware seguirá siendo un método de marketing viable mientras que los usuarios (que no pueden vivir sin shareware) se den cuenta de que los autores no pueden vivir sin sus cuotas de registro
+— Jim Harrer, Mustang Software
+%
+La felicidad es buena salud, y mala memoria
+%
+La gente mayor no debería comer comidas sanas. Necesitan todos los conservantes que puedan obtener.
+%
+Hay dos cosas que ningún hombre admitirá que no puede hacer bien: conducir, y el amor
+%
+Un siquiatra es un hombre que va al Follies Bergère, y mira a la audiencia
+%
+Es impresionante la cantidad de cosas que resulta "difícil de comprender a los ciudadanos", según la gente que trata de convencer a los ciudadanos de algo
+%
+Me gusta que los hombres se comporten como hombres - fuertes e infantiles
+— Françoise Sagan
+%
+He vendido las memorias de mi vida amorosa a los hermanos Parker, y van a hacer un juego de ellas
+— Woody Allen
+%
+Nunca llegarás a nada
+— El maestro de escuela de Albert Einstein
+%
+Cuando dudes, sonríe - Eso siempre hace que la gente se pregunte qué es lo que estás pensando
+%
+Un político honesto es uno que, cuando lo compras, permanece comprado
+%
+Ocultamos algo siempre a la mayoría de los hombres y muchas veces nosotros mismos no sabemos qué ocultamos
+— Maeterlinck
+%
+Las religiones cambian; la cerveza y el vino permanecen
+— Hervey Allen
+%
+Detrás de cada hombre con éxito hay una mujer sorprendida
+%
+Tacto es el raro talento de no proclamar que uno tenía razón desde el principio
+%
+Un hombre necesita una mujer porque, tarde o temprano, algo ocurrirá de lo que no puede culpar al gobierno
+%
+Nota en el parabrisas de un coche mal aparcado:
+	"He dado la vuelta a la plaza 10 veces, no puedo encontrar sitio para aparcar. Perdónanos nuestros pecados - Reverendo J.Mitchell"
+Dos horas después, el Reverendo volvió y encontró esta nota junto con una multa:
+	"He estado dando vueltas a la plaza 10 años. Si no le multo, pierdo mi trabajo. No nos lleves a la tentación - Guardia de tráfico"
+— Occurido en una calle de Edimburgo
+%
+El hombre que cree que es mas astuto que su mujer está casado con una mujer lista
+— En un despacho de abogados de divorcios
+%
+Un intelectual es un hombre que usa más palabras de las necesarias para contar más de lo que sabe
+— En un tablón de anuncios en la Universidad de Cambridge
+%
+Si no ve lo que busca, está usted en la tienda adecuada
+— Cartel en una óptica
+%
+El problema con américa es que hay demasiados espacios abiertos, rodeados de dientes
+— Charles Luckman
+%
+El problema con los niños es que no son retornables
+— Quentin Crisp
+%
+Los niños empiezan amando a sus padres; después de un tiempo, los juzgan; raramente, si es que ocurre, los perdonan
+— Oscar Wilde
+%
+Preguntarle a un escritor en activo qué piensa acerca de los críticos es como preguntarle a una farola qué piensa de los perros
+— John Osborne
+%
+Cuidado con los patos cuánticos (¡Quarck! ¡Quarck! ¡Quarck!)
+%
+Un escritorio es una papelera con cajones
+%
+En el principio, se creó el Universo. Esto ha hecho enfadar a un montón de gente y ha sido ampliamente considerado como una mala jugada.
+%
+El servicio más importante prestado por la prensa es el de educar a la gente en aproximarse con desconfianza a la palabra impresa
+%
+El mejor profeta del futuro es el pasado
+%
+Es asombrosa la cantidad de cosas que "el pueblo de este país no entiende", según los políticos
+%
+El mayor despeñadero, la confianza
+— Quevedo
+%
+Aunque el dinero no puede comprar la felicidad, ciertamente le deja a uno escoger su propia forma de miseria
+%
+Es mejor estar callado y ser tomado por tonto que hablar y despejar todas las dudas
+— Abraham Lincoln
+%
+La mente humana funciona normalmente a sólo el 10% de su capacidad - el resto es consumido por el sistema operativo
+%
+Recursivo, adj: Véase "recursivo"
+%
+¿Cuál es la forma más popular de control de natalidad?
+  El dolor de cabeza
+%
+Un hombre sin Dios es como un pez sin bicicleta
+%
+El hombre es el mejor ordenador que podemos poner en una nave espacial... y el único que puede ser producido en masa con trabajo no especializado
+— Wernher von Braun
+%
+Hay dos tipos de personas: los que dividen a la gente en dos tipos, y los que no.
+%
+Dios hizo el mundo en seis días, y al séptimo le arrestaron
+%
+De acuerdo con las últimas cifras oficiales, el 43% de todas las estadísticas son totalmente inútiles
+%
+Hoy tú serás un ganador. Peléate con un niño de cuatro años.
+%
+Hoy conocerás a una chica guapa, simpática, sin compromiso y a la que le gustes. Y que viva en un eucalipto.
+%
+Eres listo, guapo y maravilloso, pero gastas demasiado tiempo leyendo esta clase de basura.
+%
+En tanto que las leyes de la matemática se refieren a la realidad, no son ciertas; en tanto que son ciertas, no se refieren a la realidad.
+— Albert Einstein
+%
+Anuncios: La parte más sincera de un periódico
+— Thomas Jefferson
+%
+Bebé: Un ruido con suciedad dentro
+%
+Un bebé es un conducto alimentario con una fuerte voz en un extremo y sin responsabilidad en el otro
+%
+Es más fácil que te perdonen que que te den permiso
+%
+Mayoría: La cualidad que distingue a un crimen de una ley
+%
+Cuando alguien te diga que quiere un lenguaje de programación en el cual necesite sólo decir lo que quiere hacer, dale un chupa-chups.
+%
+Manejar el fracaso es fácil: Trabaja duro para mejorar. El éxito también es sencillo de manejar: Has solucionado el problema que no era. Trabaja duro para mejorar.
+%
+Investigación es lo que hago cuando no sé lo que hago
+— Wernher von Braun
+%
+Ningún hombre es una isla, pero algunos somos largas penínsulas
+%
+La televisión es chicle para los ojos
+— Anónimo
+%
+ANOTHER GLITCH IN THE CALL
+(Cantar con la música de "El Muro", de Pink Ployd)
+
+We don't need no indirection
+We don't need no flow control
+No data typing on declarations
+Did you leave the list alone?
+	Hey! Hacker! Leave those lists alone!
+Coro:
+	All in all, it's just a pure-LISP function call
+	All in all, it's just a pure-LISP function call
+%
+La virtud es su propio castigo
+%
+Un auténtico patriota es aquél al que le ponen una multa y se regocija de lo bien que funciona el sistema
+%
+Cualquiera que no disminuye su velocidad cuando ve a la policía está probablemente aparcado
+%
+Muéstrame un hombre que que es un buen perdedor y te enseñaré a un hombre que está jugando al golf con su jefe
+%
+Si te parece que todas las citas de este programa son pésimo humor americano, a ver dónde me encuentras programas con 5.000 y 2.000 citas en español para saquear, tío listo
+— Javier Cámara Melgosa
+%
+MacDonald tiene el don de comprimir la mayor cantidad de palabras en la menor cantidad de pensamientos
+— Winston Churchill
+%
+¿Es usted político, o lo de mentir le viene de familia?
+— Towanda/Iggy, en 'Tomates Verdes Fritos'
+%
+El que dice que algo no puede hacerse nunca debería interrumpir al que está haciéndolo
+%
+Uno nunca aprende realmente a decir tacos hasta que aprende a conducir
+%
+Sólo sé que no sé nada. Y además, cada vez sé menos.
+%
+La castidad es su propio castigo
+— Pintada
+%
+Un soltero vive como un rey y muere como un mendigo
+— L.S.Lowry
+%
+Las mujeres son un problema, pero si aún no lo has adivinado, son el tipo de problema con el que disfruto peleando
+— Warren Beatty
+%
+Cuando un diplomático dice sí, quiere decir quizás.
+Cuando dice quizás, quiere decir no.
+Cuando dice no, no es un diplomático.
+
+Cuando una dama dice no, quiere decir quizás.
+Cuando dice quizás, quiere decir sí.
+Pero cuando dice sí, no es una dama.
+— Otto von Bismark
+%
+Hicimos la civilización para impresionar a nuestras novias
+— Orson Welles
+%
+Uno debería estar siempre enamorado. Esa es la razón por la que uno nunca debería casarse.
+— Oscar Wilde
+%
+Sólo los hombres que no están interesados en mujeres se interesan en las ropas de las mujeres: los hombres a los que les gustan las mujeres nunca notan qué llevan puesto
+— Anatole France
+%
+Si tomamos el matrimonio en su mínimo, podemos verlo como una especie de amistad reconocida por la policía
+— Robert Louis Stevenson
+%
+El matrimonio es un plato tapado
+— Proverbio suizo
+%
+El matrimonio es como una jaula. Los pájaros fuera se desesperan para entrar y los de dentro se desesperan para salir
+— Montaigne
+%
+Si te casas lo lamentarás. Si no te casas, también lo lamentarás.
+— Soren Kierkegaard
+%
+Casarse por segunda vez supone el triunfo de la esperanza sobre la experiencia
+— Dr.Samuel Johnson
+%
+He pensado a veces en casarme - y entonces lo he pensado mejor
+— Noel Coward
+%
+Cuando la gente está de acuerdo conmigo siempre pienso que debo estar equivocado
+— Oscar Wilde
+%
+El amor es ciego,pero el matrimonio le restaura la vista
+— George Christoph Lichtenberg
+%
+No importa mucho con quien te cases, porque puedes estar seguro de que a la mañana siguiente encontrarás que fué otra persona
+%
+Las cadenas del matrimonio son tan pesadas que hacen falta dos para llevarlas, y a veces tres
+— Alejandro Dumas, hijo
+%
+El trabajo en grupo es esencial; te permite echarle la culpa a algún otro
+%
+Si entiendes lo que estás haciendo, no estás aprendiendo nada
+%
+Las grandes diferencias entre UNIX y VMS:
+Para hacer cualquier cosa en UNIX, necesitas conocer un críptico comando; para hacer cualquier cosa en VMS, necesitas conocer una oscura opción del SET
+%
+Empecemos por comprometernos con la verdad, a ver las cosas como son y a contarlas como son, a buscar la verdad, a hablar la verdad y a vivir con la verdad
+— Richard Nixom, 1968
+%
+Irán es una isla de estabilidad en una de las más zonas volátiles del mundo
+— Jimmy Carter, 1977
+%
+Si cuentas la verdad no tienes que recordar nada
+%
+Un lugar de trabajo limpio, pulcro y ordenado es una segura señal de una mente enferma
+%
+En boca cerrada no entran moscas
+— Proverbio español
+%
+Un tipo que esté siempre declarando que no es tonto usualmente tiene sus sospechas
+— Wilson Mizner
+%
+Una gran parte de la gente cree que está pensando cuando está simplemente recolocando sus prejuicios
+— William James
+%
+Una hipotética paradoja: ¿Qué ocurriría en una batalla entre un grupo de seguridad del "Enterprise", que siempre mueren en seguida que aparecen, y un escuadrón de Tropas de Asalto Imperiales, que no pueden acertar ni a la parte ancha de un planeta?
+— Tom Galloway
+%
+Para construir la Estrella de la Muerte II, los Imperiales seguro que recurrieron a contratistas independientes. Los Rebeldes los asesinaron cuando destruyeron la Estrella, lo cual fué un crimen y una injusticia
+— Mal resumen de un diálogo de la película "Clercks"
+%
+Un hombre puede hacer lo que quiera, pero no querer lo que quiera
+— Arthur Schopenhauer
+%
+Un hombre pinta con su cerebro y no con sus manos
+— Miguel Angel
+%
+Un hombre nunca te cuenta nada hasta que le contradices
+— George Bernard Shaw
+%
+Un matemático es una máquina de convertir café en teoremas
+%
+Una nación (...) es sólo una sociedad para odiar extranjeros
+— Olaf Stapledon
+%
+Una pintura en un museo probablemente oye más comentarios estúpidos que cualquier otra cosas en el mundo
+— Edmond & Jules Goncourt
+%
+Una muerte es una tragedia; un millón una estadística
+— Josef Stalin
+%
+Un año trabajando en Inteligencia Artificial es suficiente para hacer que uno crea en Dios
+%
+La publicidad puede describirse como la ciencia de inmovilizar a la inteligencia humana el tiempo suficiente para obtener dinero de ella
+— Stephen Leacock
+%
+Actúa siempre correctamente. Esto le gustará a algunos y desconcertará a los demás
+— Mark Twain
+%
+Otra victoria así contra los Romanos, y estamos acabados
+— Pirro
+%
+Sé razonable. Hazlo como yo te digo.
+— Cualquiera
+%
+Los ordenadores son como los dioses del Antiguo Testamento; montones de reglas y ninguna piedad
+— Joseph Campbell
+%
+La confesión es buena para tu alma, pero mala para tu carrera
+%
+Todo debería hacerse tan simple como sea posible, pero no más simple
+— Albert Einstein
+%
+Poca gente puede ser feliz a menos que odien a alguna otra persona, nación o credo
+— Bertrand Russell
+%
+Desde el punto de vista de la investigación en sistemas operativos, Unix es -si no está ya muerto- ciertamente algo ya viejo, y está claro que la gente debería mirar más allá de él
+— Dennits Ritchie, coinventor de Unix
+%
+La actividad furiosa no es sustituto del entendimiento
+— H.H.Williams
+%
+Dios no juega a los dados
+— Albert Einstein
+
+Dios no sólo juega a los dados, sino que además los tira donde no puedan verse / Stephen Hawking
+%
+Dios, dame serenidad para aceptar las cosas que no puedo cambiar, valor para cambiar las cosas que puedo, y sabiduría para conocer la diferencia
+— Reinhold Niebhur
+%
+La mitad del dinero que gasto en publicidad se desperdicia, y el problema es que no sé que mitad es
+— John Wanamaker
+%
+Para saber algo no basta con haberlo aprendido
+— Séneca
+%
+El que quiera gobernar a otros primero ha de ser señor de sí mismo
+%
+El que tiene un porqué para vivir puede soportar casi cualquier cómo
+— Friedrich Nietzsche
+%
+El que tiene imaginación sin aprendizaje tiene alas pero no pies
+%
+El que teme preguntar está avergonzado de aprender
+— Proverbio danés
+%
+Hogar es el sitio donde tu ordenador vive y dirige tu vida
+— "Chrome Cowboy", sobiloff@Thor.acc.stolaf.edu
+%
+How high I am
+How much I see
+How far I reach
+Depends on me
+%
+Creo que nuestro Padre Celestial inventó al hombre porque estaba decepcionado del mono
+— Mark Twain
+%
+Me encanta el olor del napalm en la mañana
+— En "Apocalypse Now"
+%
+Usted no está pensando, meramente está siendo lógico
+— Neils Borh a Einstein durante un debate sobre Mecánica Cuántica
+%
+Vivo en esa soledad que es tan dolorosa en la juventud, pero deliciosa en los años de madurez
+— Albert Einstein
+%
+Soy un gran creyente en la suerte. Cuanto más duro trabajo más suerte tengo.
+— Thomas Jefferson
+%
+Estoy haciendo una película casera llamada "La Cosa Que Creció En Mi Frigorífico"
+%
+No soy mala, es que me han dibujado así
+— Jessica Rabbit, en "Quién engañó a Roger Rabbit"
+%
+Si debbugging [depuración] es el proceso de eliminar errores, entonces la programación debe ser el proceso de ponerlos
+%
+Haz siempre lo que consideres correcto. Y si no, al menos aconséjalo a los demás; quedarás muy bien.
+%
+Complejo de inferioridad: una condena del jurado de tus miedos
+%
+El que no seas paranoico no significa que todo el mundo no esté contra tí
+%
+No sólo el universo es más extraño de lo que pensamos, es más extraño de lo que podemos pensar
+— Werner Heisenberg
+%
+Una bolsa de dinero es más fuerte que dos bolsas de verdad
+— Proverbio danés
+%
+La constante de una persona es la variable de otra
+— Susan Gerhart
+%
+El nuestro es un mundo donde la gente no sabe lo que quiere y está deseosa de ir hasta el infierno para obtenerlo
+%
+Recuerda siempre, que no sólo tienes el derecho de ser un individuo, sino la obligación de serlo
+— Eleanor Roosevelt
+%
+La escultura es con lo que chocas cuando retrocedes para mirar a una pintura
+— Ed Reinhart
+%
+Francamente, querida: no me importa lo más mínimo
+— Red Buttler(Clark Gable), en "Lo que el viento se llevó"
+%
+¡Extrañas mujeres distribuyendo espadas dentro de charcas no es una base para un sistema de gobierno!
+— Monty Python, en "Los caballeros de la tabla cuadrada"
+%
+Los hombres desaprueban, por lo común, lo que son incapaces de ejecutar
+— Cristina de Suecia
+%
+Con la filosofía es igual que con el amor. Tú no sabes para qué sirve estar enamorado, sólo sabes si lo estás o no.
+— Jostein Gaarder
+%
+¡Camarero, no hay una mosca en mi sopa!
+— La rana Gustavo
+%
+Cuando invito a una mujer a cenar espero que me mire. Ese es el precio que tiene que pagar.
+— Groucho Marx
+%
+Cuando uno no sabe bailar, dice que el suelo está húmedo
+— Proverbio malayo
+%
+Cuando uno trata de impresionar, lo más probable es que ésa sea la impresión que dé
+%
+En todas partes cuecen habas
+— Proverbio español
+%
+Errare umanum est
+%
+El dinero no comprará la felicidad, pero te permitirá ser infeliz en sitios bonitos
+%
+Optimista aquél que cree poder resolver un atasco de tráfico tocando el claxon
+%
+Cuando uno confiesa sus debilidades es para ocultar otros defectos
+— Alberto Ruíz-Gallardón
+%
+Dios da las nueces, pero no las casca
+— Proverbio alemán
+%
+Para que un hombre consiga todo lo que se espera de él debe verse a sí mismo más grande de lo que es
+— Johann von Goethe
+%
+La filosofía detrás de muchos anuncios se basa en la vieja observación de que cada hombre es en realidad dos: el hombre que es y el hombre que le gustaría ser
+— William Feather, "The Bussiness of Life" (1949)
+%
+¡Sonríe! Estás en La Cámara Oculta
+%
+Hay muy poco futuro en tener razón cuando tu jefe no la tiene
+%
+Cuando todo lo demás falla, lee las instrucciones
+%
+Mi mente es mi mejor regalo pero también mi peor enemigo
+— P.S.Cairns
+%
+Para USTED yo soy un ateo; para Dios, soy la Leal Oposición
+— Woody Allen
+%
+Cuando alguien dice "teóricamente", realmente quiere decir "realmente no"
+— Dave Parnas
+%
+Debido a circunstancias ajenas a nuestra voluntad, eres el señor de tu destino y el capitán de tu alma
+%
+No dejes que tu sentido de la moral te impida hacer lo que es correcto
+— Salvor Hardin, "Fundación"
+%
+La conciencia no te impide hacer las cosas, sólo te impide disfrutarlas
+%
+La felicidad no es algo que experimentas; es algo que recuerdas
+— Oscar Levant
+%
+La razón es, y debe ser, el esclavo de las pasiones
+— David Hume
+%
+Las universidades están llenas de conocimiento. Los alumnos que empiezan traen un poco y los que terminan no llevan nada. Así, el conocimiento se acumula.
+— Abbott Lowell
+%
+Una buena educación no es tanto lo que prepara al hombre para triunfar en el mundo, sino más bien lo que le hace capaz de resistir fracasos
+— Bernard Iddindgs Bell
+%
+Todo lo que los buenos profesores parecen tener en común es el gusto por la materia que imparten, una satisfacción evidente en despertar ese gusto en sus alumnos y una habilidad para convencerles de que lo que están aprendiendo es sumamente importante
+— Joseph Epstein
+%
+La única manera racional que existe para enseñar es ser un ejemplo. Si no se puede ayudar en ese sentido, por lo menos se es un contraejemplo.
+— Albert Einstein
+%
+Tímido e irresoluto como era, jamás se oponía a la voluntad ajena, pero pronto se desinteresaba por el trabajo y lo abandonaba
+— Italo Calvino, en "El Barón Rampante"
+%
+Y al carpintero le entraba la duda de si construir máquinas buenas estaba por encima de las posibilidades humanas, mientras que las únicas que realmente podían funcionar con exactitud y carácter práctico eran los patíbulos y los tormentos
+— Italo Calvino, en "El vizconde demediado"
+%
+Un cínico es un hombre que, cuando huele flores, busca un ataúd alrededor
+— H.L. Mencken
+%
+Teorema de Ginsberg:
+i) No puedes ganar
+ii) No puedes hacer tablas
+iii) Ni siquiera puedes dejar el juego...
+
+Comentario de Freeman al Teorema de Ginsberg:
+Cada filosofía importante que intenta hacer que la vida parezca con sentido se basa en la negación de una parte del Teorema de Ginsberg:
+1. El capitalismo se basa en la asunción de que puedes ganar
+2. El socialismo se basa en la asunción de que puedes hacer tablas
+3. Los misticismos se basan en la asunción de que puedes dejar el juego
+%
+Cualquiera puede odiar. Lo que cuesta es querer.
+— George Gallup
+%
+Nos juzgamos a nosotros mismos por lo que nos sentimos capaces de hacer, mientras que los demás nos juzgan por lo que hemos hecho
+— Henry Wadsworth Longfellow
+%
+La ansiedad es un pequeño arroyo de miedo corriendo a través de la mente. Si se la fomenta, abre un canal en el cual todos los demás pensamientos son arrastrados.
+— Arthur Somers Roche
+%
+Aunque viajemos alrededor de todo el mundo para encontrar la belleza, debemos llevarla con nosotros o no la encontraremos
+— Ralph Waldo Emerson
+%
+Un aburrido es uno que, cuando le preguntas cómo esta, te lo cuenta
+— Bert Leston Taylor
+%
+Un aburrido es uno que te priva de la soledad sin ofrecerte compañía
+— Gian Vincenzo Gravina
+%
+"Cambio" es ciencífico, "progreso" es ético; el cambio es indudable, mientras que el progreso es un tema de controversia
+— Bertrand Russell
+%
+Si Colón hubiera tenido un comité asesor probablemente aún estaría en el embarcadero
+— Juez Arthur Goldberg
+%
+Ella había perdido el arte de la conversación, pero no, desafortunadamente, la capacidad de hablar
+— George Bernard Shaw
+%
+Fíjate en acerca de qué la gente es cínica, y podrás descubrir lo que les falta
+— George S.Patton
+%
+La gente siempre está dispuesta a admitir la capacidad de un hombre despues de que él lo ha conseguido
+— Bob Edwards
+%
+La publicidad ha hecho más para provocar la intranquilidad social del siglo XX que ningún otro factor aislado
+— Clare Barnes, Jr.
+%
+Nada es tan capaz de socavar la confianza de uno en un producto como saber que el comercial que lo vende ha sido aprobado por la compañía que lo fabrica
+— Franklin P.Jones
+%
+Poca gente al principio del siglo diecinueve necesitaba un anunciante para decirles lo que querían
+— John Kenneth Galbraith
+%
+Puedes conocer los ideales de una nación a partir de su publicidad
+— Norman Douglas
+%
+Si los anunciantes gastasen la misma cantidad de dinero mejorando su producto como lo hacen anunciándolo no tendrían que anunciarlo
+— Will Rogers
+%
+En juzgar a los demás, la gente hará horas extras sin cobrar nada
+— Charles Edwin Carruthers
+%
+Para escapar a las críticas: no hagas nada, no digas nada, no seas nada
+— Elbert Hubbard
+%
+La inteligencia parece ser lo que permite a alguien pasar sin educación. La educación parece ser lo que permite a alguien pasar sin el uso de su inteligencia.
+— A.E.Wiggan
+%
+Es más fácil luchar por los principios de uno que vivir de acuerdo con ellos
+— Alfred Adler o Adlai E. Stevenson
+%
+A menudo la prueba del valor no es morir sino vivir
+— Conte Vittorio Alfieri
+%
+Es un pequeño paso para el hombre, un salto gigantesco para lahumanidad
+— Neil Armstrong (en la Luna, el 20 de Julio de 1969)
+%
+Soledad: Un buen sitio para visitar, pero un mal sitio para quedarse
+— Josh Billings (Henry Wheeler Shaw)
+%
+Un experto es uno que ha cometido todos los errores que pueden cometerse, en un campo reducido
+— Niels Bohr
+%
+El ajedrez es un desperdicio de la inteligencia humana casi tan elaborado como cualquiera que se pueda encontrar fuera de una agencia publicitaria
+— Raymond Chandler
+%
+Coexistencia: Lo que el granjero hace con el pavo hasta el Día de Acción de Gracias
+— Mike Connolly
+%
+Esperar algo a cambio de nada es la forma más popular de esperanza
+— Arnold Glasow
+%
+Las mujeres normales saben más acerca de los hombres que las maravillosas. Pero las mujeres maravillosas no necesitan saber acerca de hombres. Son los hombres los que tienen que saber acerca de mujeres maravillosas.
+— Katherine Hepburn
+%
+Una mujer tiene que ser el doble de buena que un hombre para ir la mitad de lejos
+— Fannie Hurst
+%
+La ciencia se suicida cuando adopta un credo
+— Thomas Henry Huxley
+%
+Varias excusas son siempre menos convincentes que una
+— Aldous Huxley
+%
+Pon tres granos de arena dentro de una gran catedral, y la catedral estará más repleta de arena de lo que el espacio lo está con estrellas
+— Sir James Jeans
+%
+Una persona no revela más claramente su carácter que con la broma que le molesta
+— G.C. Lichtenberg
+%
+Cree el ladrón que todos son de su condición
+— Proverbio español
+%
+En política la estupidez no es un impedimento
+— Napoleón
+%
+No necesito un amigo que cambia cuando yo cambio y que asiente cuando yo asiento; mi sombra hace éso mucho mejor
+— Plutarco
+%
+El político de más éxito es el que dice lo que todo el mundo está pensando, más a menudo y en voz más alta
+— Theodore Roosvelt
+%
+Ayuda Externa: poner impuestos a los pobres de países ricos para el beneficio de los ricos de países pobres
+— Bernard Rosenberg
+%
+Un vestido no tiene sentido a menos que inspire a los hombres el querer quitártelo
+— Francoise Sagan
+%
+La capacidad de aceptar responsabilidades es la medida del hombre
+— Roy L.Smith
+(Y de la mujer, probablemente)
+%
+Si eres felíz, has conseguido el éxito
+%
+Inmortalidad: Un destino peor que la muerte
+— Edgar A.Shoaff
+%
+¿Por qué ser un hombre cuando uno puede ser un éxito?
+— Bertold Brecht
+%
+La más excitante frase de oir en ciencia, la que anuncia nuevos descubrimientos, no es "Eureka!" (¡lo encontré!), sino "Qué curioso..."
+— Isaac Asimov
+%
+Es difícil producir un documental de televisión que es a la vez incisivo y profundo cuando cada doce minutos uno es interrumpido por doce conejos danzantes cantando acerca de papel higiénico
+— R.Serling
+%
+El hombre razonable se adapta al mundo; el no razonable persiste en tratar de adaptar el mundo a sí mismo. Por tanto todo progreso depende del hombre no razonable.
+— George Bernard Shaw
+%
+No vayas por ahí diciendo que el mundo te debe una vida. El mundo no te debe nada. Él estaba aquí antes.
+— Mark Twain
+%
+Un auténtico patriota es uno al que le ponen una multa y se alegra de que el sistema funcione
+%
+El hombre es un animal racional que siempre se enfada cuando se le pide que actúe de acuerdo con los dictados de la razón
+— Oscar Wilde
+%
+He encontrado que la mejor forma de dar un consejo a tus hijos es averiguar qué quieren y entonces aconsejarles que lo hagan
+— Harry S. Truman
+%
+El agnosticismo simplemente significa que una persona no dirá que sabe o cree aquello para lo que no tiene bases para sostener que cree
+— Thomas Henry Huxley
+%
+Una nación es una sociedad unida por una ilusión acerca de sus ancestros y por un odio común hacia sus vecinos
+%
+Si quieres saberlo todo acerca de mí, sólo mira a la superficie de mis cuadros; está todo allí, no hay nada más
+— Andy Warhol
+%
+Los solteros saben más acerca de las mujeres que los casados; si no fuese así, ellos también estarán
+— H.L. Mencken
+%
+Un gobierno que lo promete todo debe pagar sus facturas con el dinero de todos
+— Strom Thurmond
+%
+Existe la siguiente diferencia entre felicidad y sabiduría, que el que se cree la persona más feliz, realmente lo es; pero quien se cree el más sabio, es generalmente el mayor tonto
+— C. C. Colton
+%
+La felicidad es como el maná; ha de ser recogida en granos, y disfrutada cada día. No se conservará; no puede ser acumulada; ni tenemos que salir de nosotros mismos o ir a lugares remotos para conseguirla, puesto que ha llovido de un cielo, en nuestra misma puerta
+— Tyron Edwards
+%
+No es el lugar, ni la condición, sino la mente sola la que puede hacerle a uno feliz o miserable
+— Roger L'Estrange
+%
+El matrimonio es esa relación entre hombre y mujer en la cual la independencia es igual, la dependencia mutua, y la obligación recíproca
+— Louis K. Anspacher
+%
+El amor es una pasión sin ninguna relación con nuestros méritos
+— Paul Eldridge
+%
+La dificultad del matrimonio es que nos enamoramos de una personalidad, pero debemos vivir con un carácter
+— Peter Devries
+%
+El cerebro es un paquete de ideas arrugadas que llevamos en la cabeza
+— Ramón Gómez de la Serna
+%
+No es fácil para una idea el meterse dentro de una cabeza llena de prejuicios
+%
+Estar inactivo requiere un gran sentido de la identidad personal
+— Robert Louis Stevenson
+%
+Ser lo que somos y convertirnos en lo que somos capaces de ser es la única finalidad en la vida
+— Robert Louis Stevenson
+%
+Si no quieres que nadie se entere, no lo hagas
+— Proverbio chino
+%
+Una de las mayores pruebas de mediocridad es no saber reconocer la superioridad allí donde ella se encuentre
+— Jean Baptiste Say
+%
+Dado que la vida es acción y pasión, es necesario para un hombre que comparta la pasión y acción de su tiempo, o se arriesga a no haber vivido
+— Oliver Wendell Holmes, Jr.
+%
+Las acciones de una persona son los mejores intérpretes de sus pensamientos
+— John Locke
+%
+(Acerca de la publicidad:)Pero de nuevo la pregunta práctica es, ¿cuanta mentira para el beneficio privado debe permitir la ley?
+— Carl L. Becker
+%
+Nadie es tan tonto que no pueda a veces dar un buen consejo a otro, y nadie es tan sabio que no pueda fácilmente equivocarse si no toma más consejo que el suyo. El que es enseñado sólo por sí mismo tiene a un tonto por maestro
+— Ben Johnson
+%
+Para mí, la vejez es siempre diez años más viejo de lo que soy
+— Andre Bernard Buruch
+%
+La Naturaleza está llena de fenómenos, y a veces pone una cabeza vieja sobre hombros jóvenes, y otras pone un corazón joven y ardiente bajo ochenta inviernos
+— Ralph Waldo Emerson
+%
+El que no quiere andar con los hombres, tiene que habérselas con los fantasmas interiores
+— Amado Nervo
+%
+Si tuviera que vivir mi vida de nuevo me gustaría cometer más errores esta vez. Me relajaría. Me desentumecería. Sería más tonta de lo que lo he sido en este viaje. Tomaría menos cosas en serio. Correría mas riesgos. Treparía a más montañas y atravesaría más ríos. Comería más helados y menos alubias. Tal vez tendría más problemas reales, pero tendría menos imaginarios. Sabes, soy una de esas personas que viven prudente y cuerdamente hora tras hora, día tras día. Oh, he tenido mis momentos, y si tuviera que hacerlo de nuevo, tendría más. De hecho, trataría de no hacer nada más. Sólo momentos, uno tras otro, en vez de vivir tantos años por delante de cada día. He sido una de esas personas que nunca sale sin un termómetro, una botella de agua caliente, un chubasquero, y un paracaídas. Si tuviera que hacerlo de nuevo, viajaría más ligera. Si tuviera que vivir mi vida, empezaría descalza en primavera y seguiría así hasta finales de otoño. Iría a más bailes. Montaría en más tiovivos, cogería más margaritas.
+— Nadine Stair / 85 años, Louisville, Kentucky
+%
+Puedes juzgar tu edad por la cantidad de dolor que sientes al entrar en contacto con una nueva idea
+%
+El esclavo no tiene más que un maestro; el hombre ambicioso tiene tantos como pueden ayudarle a hacer su fortuna
+— Jean De La Bruyere
+%
+Todo el mundo puede enfadarse, éso es fácil; pero estar enfadado con la persona correcta, y en el grado adecuado, y en el momento adecuado, eso no está dentro de la capacidad de todos y no es fácil
+— Aristóteles
+%
+Si eres paciente en un momento de ira, escaparás a cien días de tristeza
+— Proverbio chino
+%
+Mejor colorado una vez que verde para siempre
+— Proverbio español
+%
+Cuando alguien está enfadado y no quiere admitirlo, siempre se enfurece
+— Thomas C. Haliburton
+%
+La ira, si no se restringe, es frecuentemente más perjudicial para nosotros que el daño que provoca
+— Séneca
+%
+En el futuro, los ordenadores pueden llegar a pesar no más de 1'5 toneladas
+— Popular Mechanics, prediciendo la marcha imparable de la ciencia, 1949
+%
+Creo que puede haber un mercado mundial para tal vez cinco ordenadores
+— Thomas Watson, Director General de IBM, 1943
+%
+He viajado a lo largo y ancho de este país y hablado con la mejor gente, y puedo asegurarte que el procesamiento de datos es una moda que no durará más allá de fin de año
+— El editor encargado de libros de negocios de Prentice Hall, 1957
+%
+Pero ¿para qué vale?
+— Ingeniero de la División de Sistemas Avanzados de Ordenadores de IBM, 1968, comentando el microchip
+%
+No hay razón para que alguien desee tener un ordenador en su casa
+— Ken Olson, predidente, director general y fundador de Digital Equipment Corp, 1977
+%
+Este 'teléfono' tiene demasiados inconvenientes para ser seriamente considerado como un medio de comunicación. El aparato inherentemente no tiene valor para nosotros.
+— Informe interno de Western Union, 1876
+%
+La music box sin hilos no tiene valor comercial imaginable. ¿Quién pagaría por un mensaje mandado a nadie en particular?
+— Los asociados de David Sarnoff en respuesta a sus requerimientos para invertir en la radio en los años 20
+%
+El concepto es interesante y bien formado, pero para merecer más de una 'C' [un aprobado], la idea debe ser factible
+— Profesor de gestión de la Universidad de Yale en respuesta al trabajo de Fred Smith proponiendo un servicio de reparto de la noche a la mañana fiable (Simth fundó la Federal Express Corp.)
+%
+¿Quíen demonios querría oir hablar a los actores?
+— H.M. Warner, Warner Brothers, 1927
+%
+Estoy contento de que sea Clark Gable quien se va a dar el testarazo y no Gary Cooper
+— Gary Cooper acerca de su decisión de no ser el protagonista de "Lo que el Viento se Llevó"
+%
+No nos gusta su sonido, y la música de guitarra está pasando de moda
+— Decca Recording Co. rechazando a los Beatles, 1962
+%
+Las máquinas voladoras más pesadas que el aire son una imposibilidad
+— Lord Kelvin, presidente de la Royal Society, 1895
+%
+Si lo hubiese pensado no habría hecho el experimento. La literatura estaba llena de ejemplos que decían que no se podía hacer eso.
+— Spencer Silver acerca de el trabajo que llevó al adhesivo único para los Post-It de 3M
+%
+Así que fuimos a Atari y les dijimos "Hey, tenemos esta cosa fantástica, construída incluso con algunos de sus componentes, ¿qué piensan de financiarnos? O se lo damos. Nosotros sólo queremos hacerlo. Páguennos, trabajaremos para ustedes." Y dijeron, "No". Así que fuimos a Hewlett Packard, y dijeron, "Hey, no os necesitamos; no habéis ido aún a la universidad"
+— El fundador de Apple Steve Jobs, acerca de los intentos de interesar a Atari y HP en su, y de Steve Wozniak, proyecto de ordenador personal
+%
+El profesor Goddard no conoce la relación entre acción y reacción y la necesidad de tener algo mejor que el vacío contra lo que reaccionar. Parece carecer del conocimiento básico que se imparte diariamente en nuestras escuelas.
+— Editorial de 1921 del New York Times acerca del trabajo revolucionario de cohetes de Robert Goddard
+%
+¿Perforar por petróleo? ¿Quiere decir perforar en el suelo para sondear y encontrar petróleo? Está usted loco.
+— Perforadores a los que Edwin L.Drake trató de contratar para su proyecto de perforar por petróleo en 1859
+%
+La bolsa ha alcanzado lo que parece ser una meseta permanentemente alta
+— Irving Fisher, Profesor de Economía de la Universidad de Yale, 1929
+%
+Los aeroplanos son juguetes interesantes pero sin valor militar
+— Mariscal Ferdinand Foch, Profesor de Estrategia, Ecole Superieure de Guerre
+%
+Todo lo que podía ser inventado ha sido inventado
+— Charles H. Duell, Comisionado de la Oficina de Patentes de los EEUU, 1899
+%
+La teoría de los gérmenes de Louis Pasteur es ficción ridícula
+— Pierre Pachet, Profesor de Fisiología en Toulouse, 1872
+%
+El abdomen, el pecho, y el cerebro estarán siempre cerrados a la intrusión del cirujano sabio y humano
+— Sir John Eric Ericksen, cirujano británico, nombrado Cirujano Extraordinario" de la Reina Victoria, 1873
+%
+640K deberían ser suficientes para cualquiera
+— Bill Gates, 1981
+%
+Octavio, es muy posible que cuando tú mueras dejes de existir sin haber vivido nunca
+— Marco Antonio a Octavio, en "Cleopatra"
+%
+Y ahora, a las puertas del pueblo desierto en que nos hemos convertido, olemos el enebro quemado, las falsas ilusiones quemadas y la quemada convivencia. Contemplamos, vaciados de semtido, nuestros enseres, nuestro futuro, nuestra aparente libertad. Porque lo único que valía de nosotros se ha esfumado; lo que brillaba en nuestro interior nos ha vuelto la espalda; la esperanza que nos alentaba reside en otro sitio.
+— Antonio Gala
+%
+Un montón de buenos argumentos se echan a perder por un tonto que sabe de qué está hablando
+— Autor desconocido
+%
+Cuán vano es sentarse a escribir cuando no te has levantado para vivir
+— Henry David Thoreau
+%
+Para entender el corazón y la mente de una persona, no mires a lo que ya ha conseguido sino a lo que aspira a hacer
+— Kahlil Gibran
+%
+Cuando un hombre asume la confianza pública, debería considerarse a sí mismo como propiedad pública
+— Thomas Jefferson
+%
+El que crea sólo lo que puede comprender totalmente tiene o una cabeza muy grande o un credo muy pequeño
+— C. C. Colton
+%
+Nacemos creyendo. Un hombre da creencias, lo mismo que un árbol da manzanas.
+— Ralph Waldo Emerson
+%
+Si debes contarme tus opiniones, cuéntame tus creencias. Yo ya tengo suficientes dudas por mí mismo.
+— Johann Wolfgang Von Goethe
+%
+Si no tienes sólidas creencias no puedes construir una vida estable. Las creencias son como los cimientos de un edificio, y son los cimientos sobre los que construir tu vida.
+— Alfred A. Montapert
+%
+Los libros son como un espejo. Si un imbécil se mira en ellos, no puedes esperar que salga un ángel.
+— Arthur Schoenhauer
+%
+La vida es toda una pieza. Las personas se equivocan si piensan que pueden ser inhumanos explotadores en su vida de negocios, y amantes maridos y padres en casa. Porque el éxito sin amor es en todas partes un frío y afilado asesino de la felicidad humana.
+— Smiley Blanton
+%
+Cuando se deja de soñar se deja de vivir
+— Malcolm S. Forbes
+%
+Es un muy grave error el pensar que el placer de ver y descubrir puede ser promovido mediante la coerción y el sentido del deber
+— Albert Einstein
+%
+Estoy completamente seguro de que en veinte años a partir de ahora contemplaremos la educación tal y como se practica en la mayoría de escuelas hoy y nos maravillaremos de haber podido tolerar algo tan primitivo
+— John W. Gardner
+%
+Una educación universitaria nunca hizo daño a nadie dispuesto a aprender después de haberla tenido
+%
+Una persona tiene entusiasmo durante 30 minutos, otro durante 30 días, pero es quien lo tiene durante 30 años quien hace de su vida un éxito
+— Edward B. Butler
+%
+El mundo pertenece al entusiasta que se mantiene sereno
+— William McFee
+%
+Aquellos que desesperan en sobresalir por la distinción de sus virtudes son felices si otros pueden ser rebajados a su propio nivel
+— Benjamin Franklin
+%
+Hay muchas rutas hacia el odio, pero la envidia es la más corta de todas
+%
+Avanzamos en nuestro trayecto sólo cuando hacemos frente a nuestra meta, cuando tenemos confianza y creemos que vamos a conseguirla
+— Orison Swett Marden
+%
+Nadie se equivoca tan a menudo como los que no admiten cuándo están equivocados
+— François, Duc De La Rochefoucauld
+%
+Siempre estamos demasiado ocupados para nuestros hijos; nunca les damos el tiempo o interés que se merecen. Les colmamos de regalos; pero el regalo más precioso, nuestra asociación personal, que tanto significa para ellos, se la damos de mala gana
+— Mark Twain
+%
+Haz lo que temes, y el miedo desaparecerá
+— David Schwartz
+%
+El mundo está lleno de tontos y el que no quiera ver a ninguno no sólo debe encerrarse a sí mismo sólo, sino que además debe romper su espejo
+— Boileau
+%
+Cualquier tonto puede criticar, condenar y quejarse, y la mayoría de tontos lo hacen
+— Benjamin Franklin
+%
+Perdónate poco a tí mismo, y mucho a los otros
+— Leighton
+%
+La auténtica libertad individual no puede existir sin seguridad económica e independencia. La gente hambrienta y sin trabajo son la materia prima de la cual se hacen los dictadores.
+— Franklin D. Roosevelt
+%
+Lo que parece generosidad a menudo no es mas que ambición disfrazada, que pasa por alto un pequeño interés para asegurar uno grande
+— La Rochefoucauld
+%
+El que da lo que igualmente tiraría, da sin generosidad, porque la esencia de la generosidad es el sacrificio propio
+— Henry Taylor
+%
+Quien chismorrea contigo chismorreará acerca de tí
+— Proverbio turco
+%
+Parece de hecho que la segunda parte de la vida de un hombre está hecha de nada más que de los hábitos que ha acumulado durante la primera mitad
+— Feodor Dostoyevsky
+%
+Se sabe con precisión sólo cuando se sabe poco; con el conocimiento la duda aumenta
+— Johann Wolfgang Von Goethe
+%
+Si quieres algo bueno, búscalo en tí mismo
+— Epicteto
+%
+La prueba más clara de sabiduría es una alegría continua
+— Michel E.de Montaigne
+%
+El carácter de cada hombre es el árbitro de su fortuna
+— Publilio Siro
+%
+Estudiad como si fuérais a vivir siempre; vivid como si fuerais a morir mañana
+— San Isidoro de Sevilla
+%
+Dios no habría alcanzado nunca el gran público sin la ayuda del Diablo
+— Jean Cocteau
+%
+El problema de la juventud de hoy es que ya no forma uno parte de ella
+— Salvador Dalí
+%
+¿Hay nada tan seguro, decidido, desdeñoso, contemplativo, grave, serio, como el asno?
+— Michel E. de Montaigne
+%
+Todos los hombres pueden caer en un error, pero sólo los necios perseveran en él
+— Cicerón
+%
+La importancia del matrimonio no se deriva de que los adultos produzcan niños, sino de que los niños produzcan adultos
+— Peter de Vries
+%
+Un hombre sin pasiones está tan cerca de la estupidez que sólo le falta abrir la boca para caer en ella
+— Séneca
+%
+El hombre está siempre dispuesto a negar todo aquello que no comprende
+— Blaise Pascal
+%
+¿Por qué tenía que tocarme precisamente a mí ser como yo?
+— Felipe (Quino)
+%
+Qué desastre; hasta mis debilidades son más fuertes que yo
+— Felipe (Quino)
+%
+La vida es linda, lo malo es que muchos confunden linda con fácil
+— Felicidad (Quino)
+%
+Justo a mí me tenía que tocar ser como yo
+— Felipe (Quino)
+%
+Por mucho que se mire el calendario no aparecen más fiestas
+— Alicia Díaz Marlasca
+%
+No puede usted imaginarse el trabajo extra que tenía cuando era un dios
+— Hirohito, emperador del Japón
+%
+A veces eres el parabrisas... ¡y a veces eres el insecto!
+— Mark Knopfler
+%
+La felicidad es la única validación de la vida; donde la felicidad falla, le existencia resulta una insana y lamentable experiencia
+— George Santayana
+%
+No es tanto la grandeza de las intenciones de un hombre lo que lo hace independiente, como la pequeñez de sus deseos
+— William Cobbett
+%
+La peor cosa que uno puede hacer es no intentar, ser consciente de lo que uno quiere y no ceder a ello, gastar años en silencioso dolor preguntándose si algo podría haberse materializado - nunca sabiéndolo
+— David Viscott
+%
+Cuando Hitler atacó a los judíos yo no era judío, por tanto, no me afectó. Y cuando Hitler atacó a los católicos, yo no era católico, por tanto, no me afectó. Y cuando Hitler atacó a los sindicatos y a los industrialistas, yo no era un miembro de los sindicatos y no me afectó. Entonces, Hitler me atacó a mí y a la Iglesia Protestante - y no quedaba nadie para ser afectado.
+— Martin Niemöller, en el Congreso de los EEUU, 1968
+%
+Houston, aquí la Base de la Tranquilidad, el Eagle ha aterrizado
+— Neil Armstrong (en la Luna, el 20 de julio de 1969)
+%
+Lo peor de no estar casado es [cuando se tiene] la gripe
+— El señor Casamajó (Javier Sardá)

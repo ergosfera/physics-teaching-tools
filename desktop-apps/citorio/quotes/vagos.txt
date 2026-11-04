@@ -1,0 +1,22 @@
+# name: De vagos
+# icon: 😴
+# Citorio quote list. Quotes are separated by a line with only %.
+# A last line starting with — (or --) is the author.
+
+El trabajo es lo más divertido, podríamos pasarnos horas observándolo
+— Anónimo (pintada)
+%
+Te preocupas demasiado por tu trabajo. No lo hagas. No te pagan lo suficiente como para que te preocupes.
+%
+Desperdiciar el tiempo es una parte importante de la vida
+%
+La ambición es una pobre excusa para no tener el suficiente sentido común como para ser perezoso
+%
+Todo hombre es, o confía llegar a ser un holgazán
+— Samuel Johnson
+%
+No bebas café por la mañana o te mantendrá despierto hasta el mediodía
+%
+Si no lo consigues a la primera, abandona. No tiene sentido ser un tonto estúpido.
+%
+Cuarta ley de la Inercia de Smith: Un cuerpo en reposo tiende a mirar la televisión

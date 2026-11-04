@@ -1,0 +1,763 @@
+# name: Divertidas
+# icon: 😄
+# Citorio quote list. Quotes are separated by a line with only %.
+# A last line starting with — (or --) is the author.
+
+Cleptómano: Ladrón rico.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+No os toméis la vida demasiado en serio; de todas maneras no saldréis vivos de ésta
+— Bernard Fontenelle
+%
+La probabilidad de que alguien te esté mirando es proporcional a la estupidez de tu acción
+%
+El dinero es la raíz de todos los males, y todos necesitamos raíces
+— Andy Capp
+%
+¡Socorro! ¡Estoy atrapado detrás de una ventana!
+%
+[Esta cita ha sido deliberadamente dejada en blanco]
+%
+Un diplomático es alguien que puede decirte que te vayas al carajo de forma que estarás ansioso por empezar el viaje
+%
+Es imposible hacer nada "a prueba de tontos" porque los tontos son muy ingeniosos
+— Roger Berg
+%
+¿Cuántos ejecutivos hacen falta para cambiar una bombilla?
+Cinco. Uno para cambiar la bombilla y cuatro para quitarle la escalera de debajo de los pies.
+— Rev. Lowell's Treasury of Humor: He Who Laughs, Lasts
+%
+Construye un sistema que pueda usar hasta un tonto, y sólo un tonto querrá usarlo
+— Steve Woodford
+%
+El primer 90% de un proyecto ocupa el 90% del tiempo, y el 10% final ocupa el otro 90%
+%
+Todo lo que es bueno en la vida es o ilegal, o inmoral, o engorda.
+Cualquier cosa que no caiga en una de esas categorías causa cáncer en las ratas.
+%
+Benditos Aquellos Que Van Por Ahí Dando Vueltas, porque serán conocidos como Ruedas
+%
+Ambidextro: Capaz de coger con igual habilidad un bolsillo de la mano derecha o de la izquierda.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Berza: Vegetal de huerta de jardín aproximadamente tan grande y sabia como la cabeza de un hombre (...)
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+La meta de la ingeniería mecánica es construir mejores ratoneras.
+La de la ingeniería genética, construir mejores ratones.
+%
+La Genética explica por qué te pareces a tu padre, y si no es así, por qué deberías.
+%
+Los niños a menudo le citan erróneamente a uno. De hecho, usualmente repiten palabra por palabra aquello que uno no debería haber dicho.
+%
+Sólo me fío de las estadísticas que he manipulado
+— Winston Churchill
+%
+Los que no saben escribir, escriben manuales.
+%
+Nunca llames a un hombre tonto. Pídele prestado.
+%
+La moral se esgrime cuando se está en la oposición; la política, cuando se ha obtenido el poder
+— José Luis Aranguren
+%
+Un profesor es uno que habla en los sueños de algún otro
+%
+El cerebro es un órgano maravilloso; empieza a trabajar desde el momento en que uno se levanta por la mañana y no para hasta que uno llega al trabajo
+— Robert Frost
+%
+El político debe ser capaz de predecir lo que va a pasar mañana, el mes próximo y el año que viene, y de explicar después por qué no ha ocurrido
+— Winston Churchill
+%
+En caso de ataque atómico, la ley federal prohibiendo la oración en las escuelas será temporalmente cancelada
+%
+El hombre moderno es el eslabón perdido entre los monos y el ser humano
+%
+La gravedad es mentira; la Tierra chupa
+%
+La nostalgia no es lo que era
+%
+- ¿Qué es un año-hombre en IBM?
+- 730 personas tratando de acabar un proyecto antes de mediodía
+%
+"Hay tres posibilidades: El panel solar del Pioneer se ha desviado del sol; hay un gran meteoro bloqueando la transmisión; o alguien ha cargado Star Trek 3.2 en nuestro procesador de video"
+%
+Antónimo: La palabra que significa lo contrario que la que estás intentando recordar
+%
+Conversación: Competición vocal en la que al que está cogiendo aliento se le llama oyente
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+La democracia es una forma de gobierno en la que está permitido hablar en alto de lo que el país podría hacer con una gestión de primera clase
+%
+La diplomacia es el arte de decir "perrito mono" hasta que puedas encontrar una piedra
+%
+Un diplomático es un hombre capaz de convencer a su mujer de que parecería gorda con un abrigo de pieles
+%
+La experiencia es esa cosa maravillosa que te permite reconocer un error cuando vuelves a cometerlo
+%
+You can make it foolproof, but you can't make it damnfoolproof
+
+(Juego de palabras intraducible)
+%
+Los papeles vitales demuestran su vitalidad moviéndose espontáneamente de donde tú los dejaste a donde no puedes encontrarlos
+%
+La ciencia es cierta; no te dejes engañar por los hechos.
+%
+Nunca compruebes una condición de error que no sabes como manejar
+%
+Cómo de largo es un minuto depende de en qué lado de la puerta del baño estás
+%
+Justicia: Decisión a tu favor.
+%
+La mentira es un pobre sustituto de la verdad, pero el único descubierto hasta la fecha
+— Elbert Hubbard
+%
+La predestinación estaba condenada desde el principio
+%
+La cinta aislante es como la Fuerza. Tiene un lado luminoso, un lado oscuro, y mantiene el universo unido...
+— Carl Zwanzig
+%
+Cuando Dios dió a los seres humanos los cerebros, Él no tenía la intención de garantizarlos
+%
+Lo que hace que nos sintamos tan enfadados con la gente que nos supera es que ellos se creen más listos que nosotros
+%
+La televisión es un invento que permite que seas entretenido en tu sala de estar por gente que no tendrías en tu casa
+— David Frost
+%
+El dinero no puede hacer que seamos felices, pero es lo único que compensa de no serlo
+— Jacinto Benavente
+%
+El dinero es como un sexto sentido; sin él no podríamos desarrollar los otros cinco
+— William Somerset Maugham
+%
+No pongas tu interés en el dinero, pero pon tu dinero a interés
+— Oliver Wendell Holmes
+%
+Si alguna vez ven saltar por la ventana a un banquero suizo, salte detrás. Seguro que hay algo que ganar.
+— Voltaire
+%
+Algo debo haber hecho mal o no sería tan famoso
+— Robert Louis Stevenson
+%
+Me maravillo a menudo de que la historia resulte tan pesada, porque gran parte de ella debe ser pura invención
+— Jane Austen
+%
+No hay nada repartido más equitativamente en el mundo que la razón: todos están convencidos de tener suficiente
+— René Descartes
+%
+Inteligencia militar son dos términos contradictorios
+— Groucho Marx
+%
+Encuentro la televisión muy educativa. Cada vez que alguien la enciende, me retiro a otra habitación y leo un libro.
+— Groucho Marx
+%
+Los fallos de los cocineros se tapan con las salsas, los de los arquitectos con flores y los del médico, con tierra
+— Anónimo
+%
+Los hombres entienden las discusiones como el arte de hacer callar al adversario; las mujeres, como el arte de no dejar la posibilidad de hablar
+— Fritz Eckhardt
+%
+Si no casca, no es Windows
+%
+Abdicación, s: Acto mediante el cual un soberano demuestra percibir la alta temperatura del trono.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Alianza, s: En política internacional, la unión de dos ladrones, cada uno de los cuales ha metido tanto la mano en el bolsillo del otro que no pueden separase para robar a un tercero.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Baco, s: Cómoda deidad inventada por los antiguos como excusa para emborracharse.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Caníbal, s: Gastrónomo de la vieja escuela, que conserva los gustos simples y la dieta natural de la época pre-porcina.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Cañón, s: Instrumento usado en la rectificación de las fronteras.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Carcaj, s: Vaina portátil en la que el antiguo estadista y el abogado aborigen transportaban sus argumentos más livianos.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Cetro, s: Bastón de mando de un rey, signo y símbolo de su autoridad. Originariamente era una maza con que el soberano reprendía a su bufón y vetaba las medidas ministeriales, rompiendo los huesos a sus proponentes.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Cita, s: Repetición errónea de palabras ajenas.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Cómplice, s: El que con pleno conocimiento de causa se asocia al crimen de otro; como un abogado que defiende a un criminal, sabiéndolo culpable. Este punto de vista no ha merecido hasta ahora la aprobación de los abogados porque nadie les ofreció honorarios para que lo aprobasen.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Confidente, s: Aquel a quien A confía los secretos de B, que le fueron confiados por C.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Conocido, s: Persona a quien conocemos lo bastante para pedirle dinero prestado, pero no lo suficiente para prestarle. Grado de amistad que llamamos superficial cuando su objeto es pobre y oscuro, e íntimo cuando es rico y famoso.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Compromiso, s: Arreglo de intereses en conflicto que da a cada adversario la satisfacción de pensar que ha conseguido lo que no debió conseguir, y que no le han despojado de nada salvo lo que en justicia le correspondía.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Desobedecer, s: Celebrar con una ceremonia apropiada la madurez de una orden.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Elocuencia, s: Arte oral de persuadir a los tontos de que lo blanco es blanco. Incluye el don de hacer creer que cualquier color es blanco.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Ermitaño, s: Persona cuyos vicios y locuras no se ejercen en sociedad.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Etnología, s: Ciencia que estudia las distintas tribus del Hombre: por ejemplo, ladrones, asaltantes, estafadores, burros, lunáticos, idiotas y etnólogos.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Fiesta, s: Celebración religiosa generalmente caracterizada por la glotonería y la ebriedad, que suele realizarse para honrar a alguien que se distinguió por ser un santo y un abstemio (...)
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Frontera, s: En geografía política, línea imaginaria entre dos naciones que separa los derechos imaginarios de la una, de los derechos imaginarios de la otra.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Ignorante, s: Persona desprovista de ciertos conocimientos que usted posee, y sabedora de otras cosas que usted ignora.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Intimidad, s: Relación a que son providencialmente arrastrados los necios a fin de destruirse.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Mano, s: Instrumento singular que se usa al extremo de un brazo humano, y que por lo general se encuentra metida en un bolsillo ajeno.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Médico, s: Alguien a quien lanzamos nuestras súplicas cuando estamos enfermos, y nuestros perros cuando nos hemos curado.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Mitología, s: Conjunto de creencias de un pueblo primitivo, relativas a su origen, héroes y dioses, por oposición a la historia verdadera que inventa más tarde.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Olímpico, adj: Relativo a una montaña de Tesalia, antaño habitada por los dioses, y ahora depósito de diarios amarillos, botellas de cerveza y destripadas latas de sardinas que atestiguan la presencia del turista y de su apetito.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Quiromancia, s: Método número 947 (según la clasificación de Mibleshaw) de obtener dinero con engaños. Consiste en 'leer el carácter' en las líneas de las manos. El carácter puede realmente leerse de este modo, ya que cada mano exhibida al quiromántico lleva escrita en sus líneas la palabra 'tonto'. El engaño consiste en no decirlo en voz alta.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Receta, s: Adivinanza, realizada por el médico, de lo que prolongará mejor la situación con menor daño para el paciente.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Rezar, v.i: Pedir que las leyes del universo sean anuladas en beneficio de un sólo peticionante, confesadamente indigno.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Vidente, s: Persona, por lo general mujer, que tiene la facultad de ver lo que resulta invisible para su cliente: o sea, que es un tonto.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+¿Morir yo, querido doctor? ¡Será la última cosa que haga!
+— Lord Palmerston, en su lecho de muerte
+%
+El cuerpo, si se le trata bien, puede durar toda la vida
+— Noel Clarasó
+%
+La mosca que no quiere ser cazada está más segura cuando se posa en el cazamoscas
+— Georg Ch. Lichtenberg
+%
+Los científicos tratan de hacer posible lo imposible. Los políticos, a menudo, se afanan en hacer imposible lo posible.
+— Bertrand Russell
+%
+El dinero no da la felicidad, pero aplaca los nervios
+— Jeanne Bourgeois, "Mistinguett"
+%
+Lo malo de la ópera es que se despierta uno sobresaltado en algunos momentos
+— Oscar Pin
+%
+Las conferencias de desarme son los ejercicios contra incendios de los pirómanos
+— John Osborne
+%
+El primero que comparó a una mujer con una flor fué un poeta; el segundo, un imbécil
+— Voltaire
+%
+Cuando un hombre dice que aprueba algo en principio, quiere decir que no tiene la menor intención de llevarlo a la práctica
+— Otto von Bismark
+%
+Amor: un juego en el cual hay dos que pierden; el hombre y la mujer, y sólo uno que gana: la especie.
+— Abate Prévost
+%
+La verdad es lo más valioso que tenemos; economicémosla
+— Mark Twain
+%
+Cuando muera quiero que me incineren y que el diez por ciento de mis cenizas sean vertidas sobre mi empresario
+— Groucho Marx
+%
+La culpa la tiene sólo el tiempo. Todos los hombres se tornan buenos, pero ¡tan despacio!...
+— Robert Browning
+%
+Ser hombre es ya por sí mismo una circunstancia atenuante
+— Pitigrilli
+%
+Los músicos son terriblemente irracionales. Siempre quieren que uno sea totalmente mudo en el preciso momento en que uno desea ser completamente sordo
+— Oscar Wilde
+%
+La obra clásica es un libro que todo el mundo admira, pero que nadie lee
+— Ernest Hemingway
+%
+Los jóvenes de hoy aman el lujo, tienen manías y desprecian la autoridad. Responden a sus padres, cruzan las piernas y tiranizan a sus maestros.
+— Sócrates
+%
+La mejor fuente de información son las personas que han prometido no contárselo a otros
+— Marcel Mart
+%
+La Botánica no es una ciencia; es el arte de insultar a las flores en griego y en latín
+— Jean-Baptiste-Alphonse Karr
+%
+En la ciencia uno se trata de explicar lo que no se sabía antes de manera que se entienda. En literatura uno se comporta justo al contrario.
+— Paul Dirac
+%
+"El propósito principal de la instrucción DATA es asignar nombres a constantes; en vez de referirnos a pi como 3.141592653589793 cada vez que aparezca, podemos asignar este valor a la variable PI y usarla en vez de la forma más larga de la constante. Esto también hace más fácil modificar el programa, en caso de que el valor de pi cambiase."
+— Manual de FORTRAN para ordenadores Xerox
+%
+Lo de "Hogar, dulce hogar" debe haberlo escrito un soltero
+%
+Bigamia es tener una esposa de más. Monogamia es lo mismo.
+%
+Celebra el día de Aníbal. Toma un elefante para comer.
+%
+Ideas verdes incoloras duermen furiosamente
+%
+Hazte tus propias oportunidades. Haz chantaje a un directivo.
+%
+La muerte ha probado tener un 99% de eficacia en las ratas de laboratorio
+%
+No te cases por dinero, puedes pedirlo prestado más barato
+%
+Conduce a la defensiva - cómprate un tanque
+%
+Generalmente, evito la tentación a menos que no pueda resistitla
+%
+Una imagen vale más que cien palabras (ver diagrama adjunto)
+%
+Opera es cuando le clavan un puñal en la espalda a alguien y en vez de sangrar, canta
+%
+Para averiguar los defectos de una chica, habla bien de ella a sus amigas
+%
+Sincero, adj: Tonto e iletrado
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+De la historia podemos aprender que no aprendemos nada de la historia
+%
+ESPACIO RESERVADO PARA SU PUBLICIDAD
+   Al menos una persona mira aquí todos los días
+  Tlf 0726662948293
+%
+Ignorancia es cuando no sabes algo y va otro y lo averigua
+%
+Un estudiante que cambia el curso de la historia está, probablemente, haciendo un examen
+%
+La función de la hélice de un avión es como ventilador para mantener al piloto fresco. Apágala y verás como suda.
+%
+2B or not 2B : FF
+%
+#define QUESTION (0x2B || !0x2B)
+— Shakespeare
+%
+Dios es Real, a menos que se declare como Integer
+%
+E=mc^5...no...E=mc^4...no...E=mc^3...no...bah, a la porra
+%
+Hay un hecho significativamente importante acerca de nuestra nave espacial la Tierra, y es que no traía manual de instrucciones
+— R. Buckminster Fuller
+%
+California es un sitio estupendo para vivir - si eres una naranja
+— Fred Allen
+%
+Estadísticamente, el celibato no es hereditario
+%
+Barómetro, n: Ingenioso instrumento que indica qué tipo de tiempo estamos teniendo
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+La meta de la Informática es construir algo que dure al menos hasta que hayamos acabado de construírla
+%
+¿Por qué cayó el Imperio Romano?
+¿Cómo se dice "automatización de las oficinas" en latín?
+%
+Dios nos da parientes; gracias a Él que podemos escoger a nuestros amigos
+%
+El tío estaba por toda la calle y tuve que hacer algunas maniobras bruscas antes de atropellarle
+— Parte de accidente automovilístico
+%
+La causa directa del accidente fué un tipo bajito en un coche pequeño con una boca muy grande
+— Parte de accidente automovilístico
+%
+Estaba convencido de que el vejete no llegaría nunca al otro lado de la calzada cuando le atropellé
+— Parte de accidente automovilístico
+%
+El peaton no sabía en qué dirección correr, así que le pasé por encima
+— Parte de accidente automovilístico
+%
+El peatón choco contra mi coche y se metió debajo
+— Parte de accidente automovilístico
+%
+Para evitar chocar con el parachoques del coche de delante, atropellé al peaton
+— Parte de accidente automovilístico
+%
+Un coche invisible que salió de la nada me dió un golpe y desapareció
+— Parte de accidente automovilístico
+%
+Llevaba 40 años conduciendo cuando me dormí al volante
+— Parte de accidente automovilístico
+%
+Cuando llegué al cruce apareció de pronto una señal donde nunca había habido una señal de stop antes y no pude parar a tiempo
+— Parte de accidente automovilístico
+%
+Había estado todo el dia comprando plantas y cuando llegué al cruce, un arbusto surgió de pronto oscureciendo mi vision y no pude ver el coche que venía
+— Parte de accidente automovilístico
+%
+Volviendo a casa me metí en la casa que no es y choque contra el arbol que no tengo
+— Parte de accidente automovilístico
+%
+Saqué el coche del arcen, miré a mi suegra y me fuí de cabeza al terraplén
+— Parte de accidente automovilístico
+%
+El poste se estaba acercando y, cuando maniobré para salirme de su camino, choqué de frente
+— Parte de accidente automovilístico
+%
+Choqué contra un camion estacionado que venía en dirección contraria
+— Parte de accidente automovilístico
+%
+Un camión retrocedió a través de mi parabrisas y le dió a mi mujer en la cara
+— Parte de accidente automovilístico
+%
+El otro coche chocó con el mio, sin previo aviso de sus intenciones
+— Parte de accidente automovilístico
+%
+Mi coche estaba correctamente aparcado cuando, retrocediendo, le dió al otro coche
+— Parte de accidente automovilístico
+%
+Creí que el cristal de la ventanilla estaba bajado, pero me dí cuenta de que estaba subido cuando saqué la cabeza a traves de ella
+— Parte de accidente automovilístico
+%
+Conferencia: Un medio de traspasar información de las notas del conferenciante a las notas del estudiante sin pasar por las mentes de ninguno de ellos
+— Pintada
+%
+Mi complejo de inferioridad no es tan bueno como el tuyo
+— Pintada
+%
+Los viejos pescadores nunca mueren, es que huelen así
+— Pintada
+%
+No solía acabar nada, pero ahora
+— Pintada
+%
+Mi tío Fred murió por envenenamiento con amianto - nos tomó seis meses el incinerarlo
+— Pintada
+%
+Si tus padres no tuvieron hijos, hay muchas posibilidades de que tú tampoco los tengas
+— Clarence Day
+%
+Errar es humano, pero para fastidiar realmente las cosas se necesita un ordenador
+%
+EN DIOS CONFÍO
+	El resto, que pague en metálico
+%
+Nunca conocí la auténtica felicidad hasta que me casé. Y para entonces ya era demasiado tarde.
+— Max Kauffmann
+%
+La primera parte de nuestro matrimonio fué muy feliz. Pero entonces, volviendo de la ceremonia...
+— Henny Youngman
+%
+Siempre que un hombre hace una cosa completamente estúpida, es siempre por el más noble de los motivos
+— Oscar Wilde
+%
+No he hablado con mi suegra desde hace dieciocho meses - no me gusta interrumpirla
+— Ken Dodd
+%
+Cultura es aproximadamente todo lo que nosotros hacemos y los monos no
+— Lord Raglan
+%
+Charles Darwin era un naturalista que escribió el órgano de las especies
+— Respuesta a un examen
+%
+La teoría de la evolución fué muy objetada porque hacía pensar al hombre
+— Respuesta a un examen
+%
+Las líneas paralelas nunca se cruzan, a menos que dobles una o ambas de ellas
+— Respuesta a un examen
+%
+Los símbolos algebraicos se usan cuando no sabes de qué estás hablando
+— Respuesta a un examen
+%
+Un ejemplo de reproducción animal es el granjero que emparejó un toro que daba mucha leche con un toro con buena carne
+— Respuesta a un examen
+%
+Creemos que los reptiles descienden de los anfibios por generación espontánea y el estudio de las rocas
+— Respuesta a un examen
+%
+Por auto-polinización, el granjero puede obtener un rebaño de ovejas de pelo largo
+— Respuesta a un examen
+%
+Propagación vegetativa es el proceso por el cual un individuo manufactura a otro individuo por accidente
+— Respuesta a un examen
+%
+La sangre fluye hacia abajo por una pierna y hacia arriba por otra
+— Respuesta a un examen
+%
+Una persona debería tomar un baño una vez en el verano, y no tan a menudo en invierno
+— Respuesta a un examen
+%
+Los humanos son más inteligentes que las bestias porque el cerebro humano tiene más convulsiones
+— Respuesta a un examen
+%
+(Para cuando sangra la nariz:)
+Poner la nariz mucho más abajo que el cuerpo
+— Respuesta a un examen
+%
+(En caso de mordedura de perro:)
+Poner al perro en cuarentena durante varios días. Si [el mordido] no se ha recuperado, matar al perro.
+— Respuesta a un examen
+%
+Antes de hacer una transfusión de sangre, averiguar si la sangre es afirmativa o positiva
+— Respuesta a un examen
+%
+Cuando el agua se congela uno puede caminar sobre ella. Eso es lo que Cristo hizo hace mucho en invierno.
+— Respuesta a un examen
+%
+Cuando huelas un gas inodoro, probablemente sea monóxido de carbono
+— Respuesta a un examen
+%
+Si no vas a los funerales de la gente, ellos no irán al tuyo
+%
+El alemán es el lenguaje más extravagantemente feo. Suena como alguien usando una bolsa para el mareo en un 747.
+— William Rushton
+%
+Es un magnífico reloj de oro de bolsillo. Estoy orgulloso de él. Mi abuelo, en su lecho de muerte, me vendió este reloj.
+— Woody Allen
+%
+Le dijo a ella que sus medias estaban arrugadas. El problema era que ella no llevaba medias.
+%
+Me dí cuenta de que era un niño no deseado cuando ví que mis juguetes de baño eran una tostadora y una radio
+— Joan Rivers
+%
+Nunca subestimes a una mujer, a menos que hables de su edad o su peso
+%
+No podrían acertarle ni a un elefante a esta dist...
+— Últimas palabras del general John Sedgwick
+%
+Yo antes era esquizofrénico, pero ahora ya estamos bien.
+%
+To be is to do
+— Hegel
+To do is to be / Marx
+Do be do be do / Sinatra
+%
+Dios no ha muerto; está vivo y trabajando en un proyecto mucho menos ambicioso
+%
+Conducir con una mano en el volante y la otra mano en la chica no satisface ni a la policía de tráfico ni a la chica
+— En una autoescuela de Glasgow
+%
+Los maridos que pidan colores mezclados especialmente deben traer una autorización firmada de sus esposas
+— En una tienda de pinturas en Los Angeles
+%
+Divorcios 85 dólares. ¡Satisfacción garantizada o le devolvemos a su cónyuge!
+— En una oficina de abogados en California
+%
+Cualquier tecnología suficientemente avanzada es indistinguible de la magia
+— Arthur C.Clarke
+
+Cualquier tecnología suficientemente avanzada es indistinguible de una demo amañada / Anónimo
+%
+He sido seducido por el lado chocolatado de la Fuerza
+%
+Hay una teoría que dice que si alguien en algún momento descubre exactamente para qué sirve el Universo y por qué está ahí, éste desaparecerá instantáneamente para ser reemplazado por algo aún más extraño e inexplicable. Hay otra teoría que dice que eso ya ha ocurrido.
+— Douglas Adams, 'La Guía del Autoestopista Galáctico'
+%
+Navegar es bonito, lo malo es la limpieza de las cubiertas
+— Noé
+%
+Hay tres tipos de mentiras: Mentiras, mentiras gordas, y estadísticas
+— Disraeli
+%
+Toda la carne es hierba
+— Isiah
+Fúmate a un amigo hoy.
+%
+Kernigham & Ritchie programan habitualmente en Pascal en un Macintosh
+%
+Que el médico tenga un nombre para lo que te pasa no quiere decir que sepa lo que és
+%
+La justicia militar es a la justicia lo que la música militar es a la música
+— Groucho Marx
+%
+ACUARIO (del 20 de enero al 18 de febrero):
+
+Eres simplemente perfecto. A los Acuario les gusta recolectar citas y dichos de todo tipo.
+%
+Un doctor, un arquitecto y un informático estaban discutiendo acerca de qué profesión era la más vieja. Y va el doctor y dice:
+- La medicina es claramente la más vieja, puesto que Eva fué hecha de la costilla de Adán, y esto fué una proeza quirúrgica.
+	Y dice el arquitecto:
+- Pero si te fijas en el Jardín en sí, al principio sólo había el Caos y la nada, y de ahí se crearon el Jardín y el mundo. Así que Dios fué un arquitecto.
+	Y va el informático y dice:
+- Sí, pero ¿de dónde creéis que vinieron el Caos y la nada?
+%
+Ken Thompson [el creador del editor UNIX 'ed'] tiene un coche que él mismo ayudó a diseñar. A diferencia de la mayoría de los coches, no tiene velocímetro, ni marcador de gasolina, ni ninguna de las estúpidas luces que acosan al conductor moderno. En vez de eso, si el conductor comete algún error, una "?" gigante se enciende en el centro del salpicadero. "Normalmente, el conductor experimentado", dice, "sabe qué es lo que va mal"
+%
+¿Cuántos técnicos de hardware hacen falta para cambiar una bombilla?
+Ninguno: "Lo arreglaremos en el software
+
+¿Cuántos ingenieros de software hacen falta para cambiar una bombilla?
+Ninguno: "Lo documentaremos en el manual"
+%
+¿No es extraño que la misma gente que se ríe de los videntes se tome la economía en serio?
+%
+¿Es que te alegras de verme, o es que tienes un conejo en el bolsillo?
+— La chica, en '¿Quién engaño a Roger Rabbit?'
+%
+Nosotros en la industria sabemos que detrás de cada guionista de éxito hay una mujer. Y detrás de ella está la mujer de él.
+— Groucho Marx
+%
+Fué parcialmente mi culpa que nos divorciásemos. Yo tenía una tendencia a poner a mi mujer bajo un pedestal.
+— Woody Allen
+%
+Una vasectomía significa no tener que decir nunca "lo siento"
+%
+Lamento decir que en el FBI no tenemos ningún poder para actuar en casos de intimidad oral-genital, a menos que ello haya obstruído de alguna forma el comercio interestatal
+— J.Edgar Hoover
+%
+Ríete de tus problemas; todos los demás ya lo hacen
+%
+Cualquier error lo suficientemente avanzado es indistinguible de una funcionalidad añadida
+%
+Lo bonito de los estándares es que hay tantos para escoger...
+— Andrew S.Tanenbaum
+%
+El compilador de Algol usado en el Instituto de Tecnología Case, después de encontrar 25 errores en el fuente (ej. como escribir BEGIN como BEGNI), imprimía "En este punto, le sugerimos que pruebe releyendo el manual"
+%
+APL es un lenguaje de sólo escritura - puedes escribir programas en él, pero ¡prueba a leerlos!
+%
+Se conoce a los motoristas felices por las manchas de insectos en sus dientes
+%
+Se ha descubierto recientemente que la investigación causa cáncer en las ratas de laboratorio
+%
+LOS LENGUAJES DE PROGRAMACIÓN MENOS CONOCIDOS - 17: SARTRE
+
+Llamado así por el reciente filósofo existencialista, SARTRE es un lenguaje extremadamente no estructurado. Las sentencias en SARTRE no tienen una función; simplemente son. Así a los programadores de SARTRE se les deja definir sus propias funciones. Los programadores de SARTRE tienden a ser aburridos y depresivos, y no son divertidos en las fiestas.
+%
+Últimas palabras famosas (I):
+  1) "No te preocupes, sé cómo manejarlo"
+  2) "¿Tú y cuantos más?"
+  3) "Si fueses tan listo como te crees, no serías policía"
+%
+Últimas palabras famosas (II):
+  1) "No lo desenchufes, lo arreglo en un momento"
+  2) "Tomemos el atajo, él no puede vernos desde allí"
+  3) "¿Qué pasa si pones esos dos cables jun..?"
+%
+Últimas palabras famosas (III):
+  1) "No necesitamos hacer la reserva"
+  2) "Siempre hace sol allí en esta época del año"
+  3) "No te preocupes, no está cargada"
+  4) "Nunca serían tan estúpidos como para hacerle jefe a él"
+%
+"Le devuelvo éste por otro lado buen papel para escribir porque alguien ha escrito un montón de tonterías por todo él y ha puesto el nombre de usted arriba
+— Profesor de inglés, Universidad de Ohio
+%
+Hasta un niño de cinco años lo entendería. ¡Manden a alguien a por un niño de cinco años!
+— Groucho Marx
+%
+Levantáos, vagos - la tierra para el que la trabaja
+— Pintada en un cementerio
+%
+Tu manuscrito es a la vez bueno y original; pero la parte que es buena no es original, y la parte que es original no es buena
+— Samuel Johnson
+%
+Que las Pulgas de un Millar de Camellos infesten tus Zonas Erógenas
+%
+La originalidad es el fino arte de recordar lo que has oído pero olvidando dónde lo oíste
+— Laurence Peter
+%
+No hay truco en ser unhumorista cuando tienes a todo el gobierno trabajando para tí
+— Will Rogers
+%
+Un evento, una vez que ha ocurrido, puede hacerse aparecer inevitable por un historiador competente
+— Lee Simonson
+%
+s pds lr sto, ú pds btnr n ben trbjo cm prgdor d ordnres
+%
+No creo en la astrología. Pero soy un Acuario, y los Acuarios no creen en la astrología.
+— James R.F.Quirk
+%
+Bucle infinito, n: ver Infinito, bucle
+Infinito, bucle: ver Bucle infinito
+— Random Shack Data Processing Dictionary
+%
+Tan pronto como empezamos a programar, encontramos para nuestra sorpresa que no iba a ser tan fácil conseguir programas correctos como habíamos pensado. La depuración tenía que ser descubierta. Puedo recordar el momento exacto en que me dí cuenta de que una gran parte de mi vida a partir de entonces iba a gastarse en encontrar errores en mis propios programas
+— Maurice Wilkes descubre la depuración, 1949
+%
+Hardware: La parte de un sistema informático que se puede patear o apalear
+— Bob Bringhurst
+%
+La química orgánica es la química de los compuestos de carbono. La bioquímica es el estudio de los compuestos de carbono que se arrastran.
+— Mike Adams
+%
+En la Fuerza si Yoda es tan poderoso, ¿construir una frase con las palabras en el orden correcto por qué no puede?
+%
+Tu número de la suerte es el 3552664958674928. Búscalo en todas partes.
+%
+Nunca olvido una cara, pero en su caso estaré encantado en hacer una excepción
+— Groucho Marx
+%
+Esos son mis principios, y si no le gustan... bueno, tengo otros.
+— Groucho Marx
+%
+Cualquiera que diga que puede ver a través de las mujeres se está perdiendo un montón de cosas
+— Groucho Marx
+%
+Tiene miedo de que si se va se convierta en el alma de la fiesta
+— Groucho Marx
+%
+La sabiduría me persigue, pero yo soy más rápido
+— Inscripción en una mesa de una Universidad Española
+%
+Impresora: Broma del peor gusto. Una impresora consiste de tres partes principales: la carcasa, la bandeja para papel atascado y la luz roja parpadeando.
+— Bob Bringhurst
+%
+Manual de Referencia: Objeto que eleva el monitor hasta el nivel de los ojos. También se usa para compensar esas patas de mesa cortas.
+— Bob Bringhurst
+%
+User-friendly: De, o perteneciente a cualquier característica, dispositivo o concepto que tiene todo el sentido del mundo para un programador.
+— Bob Bringhurst
+%
+Usuarios: Término colectivo para aquellos que están mirando a un monitor sin hacer nada. Los usuarios se dividen en tres tipos: Novatos, intermedios y expertos.
+
+ Usuarios novatos: Gente que tiene miedo de romper el ordenador con sólo pulsar una tecla
+- Usuarios intermedios: Gente que no sabe cómo arreglar su ordenador después de que se rompiese con sólo pulsar una tecla
+- Usuarios expertos: Gente que rompe los ordenadores de otros.
+— Bob Bringhurst
+%
+El señor y la señora Ivers estaban empujando su carrito por el pasillo del supermercado cuando vieron a una pareja de ancianos cogidos de la mano. La Sra. Ivers dijo:
+- Mira, esos parecen una pareja felizmente casada
+- No estés tan segura, querida - dijo el Sr. Ivers -. Probablemente ellos estén diciendo lo mismo de nosotros.
+— Rev. Lowell's Treasury of Humor: He Who Laughs, Lasts
+%
+La última voz audible antes de la explosión del mundo será la de un experto que diga: es técnicamente imposible
+— Peter Ustinov
+%
+¡Hay en la vida tantas cosas más importantes que el dinero! ¡Pero cuestan tanto!
+— Groucho Marx
+%
+LAS 10 RAZONES PRINCIPALES POR LAS QUE LOS ORDENADORES SON MASCULINOS:
+
+10. Tienen un montón de datos pero no se enteran de nada
+9. Siempre hay un modelo mejor a la vuelta de la esquina
+8. Parecen guapos y brillantes hasta que los llevas a casa
+7. Siempre es necesario tener un backup
+6. Harán todo lo que tú les digas si pulsas los botones adecuados
+5. La mejor parte de tenerlos son los juegos a los que puedes jugar
+4. Para obtener su atención, debes encenderlos
+3. Las luces están encendidas pero no hay nadie en casa
+2. Las grandes sobrecargas de energía les noquean durante toda la noche
+1. El tamaño es importante
+%
+LAS 10 RAZONES PRINCIPALES POR LAS QUE LOS ORDENADORES SON FEMENINOS:
+
+10. Picky, picky, picky (???)
+9. Oyen lo que dices, pero no lo que quieres decir
+8. La belleza es sólo superficial
+7. Cuando les preguntas qué les pasa, te dicen que nada
+6. Pueden producir resultados incorrectos a velocidad alarmante
+5. Siempre están volviendo frases simples en grandes asuntos
+4. La cháchara ("Smalltalk") es importante
+3. Uno hace la misma cosa durante años, y de pronto es incorrecta
+2. Te hacen sacar la basura ("garbage")
+1. Olvídate de un punto y se vuelven locas ("period": punto/regla)
+%
+Elizabeth Margaret Braddock: Mr. Churchill, está usted borracho.
+Winston Churchill: Y usted, señora, es fea. Pero yo estaré sobrio mañana.

@@ -13,6 +13,7 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 - **Notepad 95** (macOS): a plain-text editor that looks and works like the Windows 95 Notepad.
 - **Paint 95** (macOS): a bitmap painter that looks and works like the Windows 95 Paint.
 - **Clock Bar**: the date and time in bold, outlined letters on a see-through bar that stays on top.
+- **Citorio**: every so often a small window pops up with a quote, then hides again. Comes with 1,315 quotes in Spanish; add your own categories as text files.
 
 ## Download and install
 
@@ -27,7 +28,8 @@ Download the file for your system from the app's release page:
 [Net LEDs](https://github.com/ergosfera/physics-teaching-tools/releases/tag/net-leds) ·
 [Notepad 95](https://github.com/ergosfera/physics-teaching-tools/releases/tag/notepad-95) ·
 [Paint 95](https://github.com/ergosfera/physics-teaching-tools/releases/tag/paint-95) ·
-[Clock Bar](https://github.com/ergosfera/physics-teaching-tools/releases/tag/clock-bar) (Notepad 95 and Paint 95: Mac only).
+[Clock Bar](https://github.com/ergosfera/physics-teaching-tools/releases/tag/clock-bar) ·
+[Citorio](https://github.com/ergosfera/physics-teaching-tools/releases/tag/citorio) (Notepad 95 and Paint 95: Mac only).
 
 **Windows (10 or 11):** double-click the `.exe`. No installation is needed.
 The apps aren't signed with a paid certificate, so the first time Windows may show
@@ -233,6 +235,46 @@ The time is on a 12-hour clock without AM/PM.
 | Month calendar | Click it (Esc or a click elsewhere closes it) |
 | Size, lock position, start at login, quit | Right-click (or Control-click on Mac) it |
 
+## Citorio
+
+Every so often a small window pops up over whatever you are doing with a quote, then hides again.
+It lives in the notification area by the clock (Windows) or in the menu bar (Mac), and the window stays on top without taking the keyboard.
+A tribute to **Citorio 1.1** (1995–96) for Windows 3.1 by **Javier Cámara Melgosa**, itself based on *Pundit* (1990) by Jeff Bienstadt;
+the 1,315 quotes in Spanish that it comes with are the ones he collected and translated. The program itself is new.
+
+- Longer quotes stay up longer (10 to 40 seconds), then it hides for a minute; all three times are adjustable. Moving the mouse over a quote holds it.
+- Quotes are set in a serif font (Georgia unless you pick another), with an icon for each category.
+- A quote doesn't come back until 60 % of the others have been shown, like the original.
+- **Never hide** goes straight from one quote to the next, for a projector.
+- Made for school: the original's category of sex jokes is left out, along with other quotes with sexual content, vulgar language, or that make fun of a religion, a people or women.
+
+**Your own quotes.** The quotes are plain-text files in `Documents/Citorio`, one per category; Citorio puts its nine built-in lists there
+on first launch and reads the folder again before each quote. Add a `.txt` file to add a category, edit one to add quotes. In a file:
+
+```
+# name: Física
+# icon: 🔭
+Si he visto más lejos es porque estoy sentado sobre los hombros de gigantes.
+— Isaac Newton
+%
+La imaginación es más importante que el conocimiento.
+— Albert Einstein
+```
+
+Quotes are separated by a line with only `%`; a last line starting with `—` or `--` is the author. Lines starting with `#` at the top are notes,
+and `# name:` / `# icon:` set the category's name (otherwise the file name) and icon (several icons separated by spaces are used in turn).
+A file without any `%` line has one quote per line, with the author after ` — ` or ` -- `. Files are read as UTF-8, UTF-16 or Windows-1252, and
+files whose name starts with `_` are ignored. The built-in lists are in [`citorio/quotes`](citorio/quotes).
+
+| Action | Mouse | Keyboard |
+|---|---|---|
+| Another quote / hide now and show this one next time / pause / copy | **Next**, **Later**, **Pause**, **Copy** buttons (double-click the quote for the next one) | — |
+| Hide until the next quote | Close button of the window | — |
+| Show a quote now | Click the icon by the clock (Windows), or open Citorio again | — |
+| Times, font, icons, sound, categories | **Settings…** button or the icon's menu | ⌘, on Mac (from the menu) |
+| New category, import a list, edit, open the folder, restore the built-in lists | Buttons in Settings | — |
+| Start with Windows / Open at Login, About, Quit | The icon's menu (right-click on Windows, click on Mac) | — |
+
 ## Notepad 95
 
 The Windows 95 Notepad for the Mac: its window, menus, scroll bars and dialogs, drawn the Windows 95 way. Plain text only.
@@ -307,10 +349,10 @@ liability arising from its use. See [LICENSE](LICENSE) for the full terms.
 ## Building from source
 
 - **Windows:** run `powershell -ExecutionPolicy Bypass -File <app>\build.ps1`
-  (`countdown-timer\build.ps1`, `physics-calculator\windows\build.ps1`, `field-timer\windows\build.ps1`, `sticky-notes\build.ps1`, `screen-ruler\windows\build.ps1`, `screen-shapes\windows\build.ps1` or `reading-window\windows\build.ps1`).
+  (`countdown-timer\build.ps1`, `physics-calculator\windows\build.ps1`, `field-timer\windows\build.ps1`, `sticky-notes\build.ps1`, `screen-ruler\windows\build.ps1`, `screen-shapes\windows\build.ps1`, `reading-window\windows\build.ps1` or `citorio\windows\build.ps1`).
   It uses the C# compiler included with Windows, so nothing needs to be installed.
 - **macOS:** install the Xcode Command Line Tools (`xcode-select --install`), then run
-  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh`, `field-timer/mac/build.sh`, `sticky-notes-mac/build.sh`, `screen-ruler/mac/build.sh`, `screen-shapes/mac/build.sh`, `reading-window/mac/build.sh`, `notepad-95/mac/build.sh` or `paint-95/mac/build.sh`.
+  `countdown-timer-mac/build.sh`, `physics-calculator/mac/build.sh`, `field-timer/mac/build.sh`, `sticky-notes-mac/build.sh`, `screen-ruler/mac/build.sh`, `screen-shapes/mac/build.sh`, `reading-window/mac/build.sh`, `notepad-95/mac/build.sh`, `paint-95/mac/build.sh` or `citorio/mac/build.sh`.
   Notepad 95 and Paint 95 share their Windows 95 look from `win95-kit/Win95Kit.swift`. Each creates the app and a `.dmg` in its `build/` folder.
 
 ## License

@@ -1,0 +1,65 @@
+# name: Animosas
+# icon: 💪
+# Citorio quote list. Quotes are separated by a line with only %.
+# A last line starting with — (or --) is the author.
+
+El Señor prefiere a la gente corriente, por eso ha hecho tanta
+— Abraham Lincoln
+%
+Escribe en la arena las faltas de tu amigo
+— Pitágoras
+%
+Cuando he estado trabajando todo el día, un buen atardecer me sale al encuentro
+— Johann W. Goethe
+%
+Conviene reir sin esperar a ser dichoso, no sea que nos sorprenda la muerte sin haber reído
+— Jean de la Bruyére
+%
+No te achiques, son sólo ceros y unos
+%
+No te quejes, si todo funcionase no tendrías trabajo
+%
+Un error es una evidencia de que alguien ha intentado hacer algo
+%
+Un hombre que sabe que es un tonto no es un gran tonto
+— Chuang Tzu
+%
+Algún día encontrarás a alguna chica que te guste a la que le gustes. Y si no, no te preocupes, al fin y al cabo habrías acabado rompiendo con ella...
+%
+Si no hay viento, rema
+%
+No abandones, estoy orgulloso de cómo eres
+%
+La oportunidad es siempre poderosa. Deja siempre tu anzuelo echado. En la piscina en la que menos lo esperes, habrá un pez.
+— Ovidio
+%
+Si sufres, ¡dá gracias a Dios! - Es un signo seguro de que estás vivo
+— Elbert Hubbard
+%
+En la adversidad una persona es salvada por la esperanza
+— Menander
+%
+Trata de ser lo mejor de lo que sea que eres, aunque lo que seas no sea bueno
+%
+Mucha gente piensa que si estuviesen en algún otro lugar, o tuviesen algún otro trabajo, serían felices. Bueno, eso es dudoso. Así que saca toda la felicidad que puedas de lo que estás haciendo y no pospongas el ser feliz hasta alguna fecha futura.
+— Dale Carnegie
+%
+La felicidad es como un perfume que no puedes echar sobre alguien sin conseguir un poco tú mismo
+— Ralph Waldo Emerson
+%
+Lleva la vida que te haga amable y amigable a todo el mundo cerca de tí, y te sorprenderás de qué vida tan feliz llevarás.
+— Charles M. Schwab
+%
+Nunca llegamos al amor por el odio, y menos aún por el odio a uno mismo
+— Basil W. Maturin
+%
+Lo que la luz del sol es a las flores lo son las sonrisas a la humanidad. No son mas que naderías, sin duda; pero, esparcidas a lo largo de la vida, el bien que hacen es inconcebible.
+%
+Nadie es un fracaso si tiene amigos
+— De la película "¡Qué bello es vivir!"
+%
+Comienza tu vida con una sonrisa, verás lo divertido que es ir por ahí desentonando con todo el mundo
+— Felicidad (Quino)
+%
+Ve plácidamente entre el ruido y la prisa, y recuerda la paz que puede haber en el silencio. Tanto como sea posible, sin rendirte, permanece en buenos términos con todas las personas. Habla tu verdad tranquila y claramente; y escucha a otros, incluso a los torpes e ignorantes; ellos tienen también su historia. Evita a las personas chillonas y agresivas, son vejaciones al espíritu. Si te comparas a tí mismo con otros, puedes llegar a ser vano y amargado, porque siempre habrá personas mejores y peores que tú. Disfruta tus logros así como tus planes. Permanece interesado en tu propia carrera, aunque sea humilde; es una auténtica posesión en las cambiantes fortunas del tiempo. Ejercita la precaución en tus asuntos de negocios, porque el mundo está lleno de engaños. Pero no dejes que esto te ciegue a la virtud que existe; muchas personas se esfuerzan por altos ideales, y en todas partes la vida está llena de heroísmo. Sé tú mismo. Especialmente no finjas afecto. Ni seas cínico acerca del amor, porque frente a todas la aridez y desencanto es tan perenne como la hierba. Toma amablemente el consejo de los años, abandonando con elegancia las cosas de la juventud. Alimenta la fuerza del espíritu para escudarte de súbitas desgracias. Pero no te angusties con oscuras imaginaciones. Muchos miedos nacen de la fatiga y de la soledad. Más allá de una sana disciplina, sé amable contigo mismo. Eres un hijo del universo no menos que los árboles y las estrellas; tienes derecho a estar ahí. E independientemente de que sea claro para tí o no, sin duda el universo se está desarrollando como debe. Por tanto estáte en paz con Dios, sea cual sea la forma en que Lo concibes. Y cualesquiera tus trabajos y aspiraciones, en la ruidosa confusión de la vida, mantén la paz con tu alma. Con todos sus fraudes, monotonía y sueños rotos, éste es aún un mundo maravilloso. Ten cuidado. Lucha para ser feliz.
+— Max Ehrman (1872-1945) / ``Desiderata'' (1927)

@@ -1,0 +1,91 @@
+# name: Ley de Murphy
+# icon: 🍞
+# Citorio quote list. Quotes are separated by a line with only %.
+# A last line starting with — (or --) is the author.
+
+Si algo puede ir mal, irá mal
+— Murphy
+%
+Primera Ley de la Programación: Cualquier programa, una vez ejecutándose, está obsoleto
+%
+Segunda Ley de la Programación: Cualquier programa cuesta más y se tarda más en hacer
+%
+Tercera Ley de la Programación: Si un programa resulta útil, habrá que modificarlo
+%
+Cuarta Ley de la Programación: Siempre queda un bug más
+%
+Quinta Ley de la Programación: Cualquier programa se expandirá hasta ocupar toda la memoria disponible
+%
+Sexta Ley de la Programación: El valor de un programa es proporcional al peso de su salida
+%
+Séptima Ley de la Programación: La complejidad de un programa crece hasta que excede la capacidad del programador que debe mantenerlo
+%
+Siempre se encuentran las cosas en el último sitio en que se mira, a menos que no estén ahí
+%
+Si todo parece estar yendo bien, obviamente has pasado algo por alto
+%
+Ley de Hellrung: Si esperas, se irá.
+Extensión de Shavelson: ... después de haber hecho su daño.
+Adición de Grelb: Si era malo, volverá.
+%
+Regla de Bell: El tiempo medio entre tirar algo y necesitarlo con urgencia es dos semanas. Esa media puede reducirse a una semana si la cosa se ha retenido primero durante un largo periodo.
+%
+Programar, v: Acción similar a dar con la cabeza contra un muro, pero con menos oportunidades de recompensa
+%
+Los errores no detectables son infinitos en variedad, en contraste con los detectables que por definición son finitos
+%
+Leyes de la fiabilidad del software de Tom Glob:
+1) Todos los programas reales contienen errores hasta que se pruebe lo contrario (lo que es imposible)
+2) El gasto en fiabilidad aumentará hasta que exceda el costo probable de errores, o hasta que alguien insista en obtener algo de trabajo útil hecho
+— Tom Glib(?)
+%
+Ley de las Quejas de Zimmerman: Nadie se da cuenta cuando las cosas van simplemente bien
+%
+La lógica es una forma organizada de equivocarse con confianza
+%
+Ley de Hofstadter:
+  Siempre te lleva más de lo que tú esperas, incluso cuando tomas la ley de Hofstadter en cuenta
+%
+Cuanto más inocuo parezca un cambio en el diseño, mayor será su influencia en el proyecto
+%
+La necesidad de hacer un cambio importante en el diseño aumenta a medida que el proyecto se acerca a su final
+%
+La puntualidad en las fechas de entrega es inversamente proporcional a la inflexibilidad de la planificación
+%
+Dado un error cualquiera, el culpable nunca será descubierto si más de una persona está involucrada
+%
+Una herramienta que se deja caer lo hará donde pueda hacer más daño (también conocida como la Ley de la Gravitación Selectiva)
+%
+Los ordenadores fueron inventados por Murphy
+%
+Cada vez que quieres demostrar algo, el número de errores que surgen es proporcional al número de testigos
+%
+Segunda Ley de Murphy:
+  Cuando una tostada cae al suelo, lo hace siempre por el lado en el que tiene la mermelada
+Corolario:
+  No se puede predeterminar con éxito qué lado de la tostada hay que untar
+%
+Los proyectos planeados sin cuidado tardan en acabarse tres veces más de lo esperado; los cuidadosamente planeados, sólo el doble
+%
+Ley de la Limpieza de Ventanas: Está en el otro lado
+%
+Ley de las expectativas:
+	Expectativas negativas llevarán a resultados negativos
+	Expectativas positivas llevarán a resultados negativos
+%
+La suma de la inteligencia en el planeta es una constante; la población está creciendo
+%
+Segunda ley de Kinkler: Todos los problemas sencillos ya han sido solucionados
+%
+Hay dos formas de escribir programas sin errores. Sólo la tercera fuciona.
+%
+La Ley de Murphy es recursiva. Lavar el coche para hacer llover no funciona.
+%
+Si hay una posibilidad de que varias cosas vayan mal, la que cause el mayor daño será la primera en ir mal
+%
+Cualquier circuito integrado protegido por un fusible de actuación rápida protegerá al fusible de fundirse primero
+%
+La otra cola siempre va más rápido
+%
+Manual, n: Unidad de documentación. Siempre hay tres o más acerca de un tema dado. Uno está en la estantería; alguien tiene los demás. La información que necesitas está en los demás.
+— Ray Simard

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Citorio — Desktop App</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2128;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --warn-bg: #2b2111;
+      --warn-border: #9e6a03;
+      --warn-text: #e3b341;
+      --radius: 12px;
+    }
+
+    body.light {
+      --bg: #f6f8fa;
+      --surface: #ffffff;
+      --surface2: #f0f3f6;
+      --border: #d0d7de;
+      --text: #1f2328;
+      --muted: #656d76;
+      --accent: #0969da;
+      --green: #1a7f37;
+      --warn-bg: #fff8c5;
+      --warn-border: #d4a72c;
+      --warn-text: #7d4e00;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    .wrap { max-width: 860px; margin: 0 auto; padding: 24px 40px 48px; }
+
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      margin-bottom: 22px;
+    }
+    .back { color: var(--accent); text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+    .back:hover { text-decoration: underline; }
+
+    #theme-toggle {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 6px 14px; cursor: pointer;
+      font: inherit; font-size: 0.78rem; font-weight: 600; color: var(--muted);
+    }
+    #theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+    h1 { font-size: clamp(1.4rem, 3vw, 1.9rem); font-weight: 800; letter-spacing: -0.4px; }
+    .subtitle { color: var(--muted); margin-top: 4px; font-size: 0.92rem; }
+    .subtitle a { color: var(--accent); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .chip {
+      font-size: 0.72rem; font-weight: 700; color: var(--muted);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 2px 10px;
+    }
+
+    .notice {
+      margin-top: 22px;
+      background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--text);
+      border-radius: var(--radius); padding: 14px 16px; font-size: 0.9rem;
+    }
+    .notice strong { color: var(--warn-text); }
+    .notice a { color: var(--accent); font-weight: 600; }
+
+    .preview {
+      margin-top: 22px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px; text-align: center;
+    }
+    .preview img, .preview svg { max-width: 100%; height: auto; }
+    .preview .bgs { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+    .preview .bg { border-radius: 8px; padding: 14px 18px; display: inline-flex; }
+    .preview .bar text { font-family: 'Segoe UI', system-ui, sans-serif; font-weight: 700; paint-order: stroke; stroke: #000; stroke-linejoin: round; }
+    .preview p { color: var(--muted); font-size: 0.8rem; margin-top: 8px; }
+
+    section { margin-top: 30px; }
+    h2 {
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 10px;
+    }
+    .step {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--accent); color: var(--bg); font-size: 0.72rem; margin-right: 6px;
+      letter-spacing: 0;
+    }
+    .panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 18px; font-size: 0.9rem;
+    }
+    .panel h3 { font-size: 0.92rem; margin: 14px 0 4px; }
+    .panel h3:first-child { margin-top: 0; }
+    .panel ul { padding-left: 20px; }
+    .panel li + li { margin-top: 3px; }
+    .panel p + p { margin-top: 8px; }
+    kbd {
+      font-family: inherit; font-size: 0.8em; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 4px; padding: 0 5px;
+    }
+
+    .license {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px 18px; max-height: 260px; overflow-y: auto;
+      font-family: Consolas, 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap;
+    }
+    .license:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .hint { color: var(--muted); font-size: 0.8rem; margin-top: 6px; }
+    .hint.done { color: var(--green); }
+
+    .accept {
+      display: flex; gap: 10px; align-items: flex-start;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; font-size: 0.9rem; cursor: pointer;
+    }
+    .accept input { margin-top: 4px; width: 16px; height: 16px; flex: none; accent-color: var(--accent); }
+    .accept.disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .downloads { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
+    .dl {
+      display: flex; flex-direction: column; gap: 4px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; text-decoration: none; color: inherit;
+      transition: border-color .2s, transform .15s;
+    }
+    .dl .t { font-weight: 700; color: var(--accent); }
+    .dl .d { font-size: 0.8rem; color: var(--muted); }
+    .dl[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+    .dl[aria-disabled="true"] .t { color: var(--muted); }
+    .dl:not([aria-disabled="true"]):hover { border-color: var(--accent); transform: translateY(-2px); }
+
+    .source { margin-top: 14px; font-size: 0.82rem; color: var(--muted); }
+    .source a { color: var(--accent); }
+
+    @media (max-width: 600px) { .wrap { padding: 18px 16px 40px; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <a class="back" href="../../index.html#teaching">← Teaching tools</a>
+    <button id="theme-toggle" type="button"><span id="theme-icon">☀</span><span id="theme-label">Light</span></button>
+  </div>
+
+  <h1>💬 Citorio</h1>
+  <p class="subtitle">Every so often a small window pops up over whatever you are doing with a quote, a saying or a joke, then hides again. It comes with 1,315 quotes in Spanish, and you can add your own categories and lists.</p>
+  <div class="chips">
+    <span class="chip">💻 Desktop app</span>
+    <span class="chip">Windows 10 / 11</span>
+    <span class="chip">macOS 11 or later</span>
+    <span class="chip">Free · MIT License</span>
+  </div>
+
+  <div class="notice">
+    <strong>This is a download, not a web page.</strong>
+    Unlike the other tools on this site, Citorio is a program that you download and run on your own computer.
+    Before downloading, please read the <a href="#about">About</a> and the <a href="#license">License</a> below.
+    The download button unlocks once you have scrolled through the license and accepted it.
+  </div>
+
+  <div class="preview">
+    <img src="citorio_preview.png" width="466" alt="The Citorio window: a quote by Ambrose Bierce in a serif font, with Next, Later, Pause, Copy and Settings buttons">
+    <p>The quote window on a Mac. It floats over other windows without taking the keyboard, and goes away by itself.</p>
+  </div>
+
+  <section id="about">
+    <h2><span class="step">1</span>About</h2>
+    <div class="panel">
+      <h3>What it does</h3>
+      <ul>
+        <li>Lives by the clock: in the <strong>notification area</strong> on Windows and in the <strong>menu bar</strong> on a Mac. Every minute (you choose how often) it shows a <strong>quote</strong> in a small window that stays on top without taking the keyboard, so you can keep typing.</li>
+        <li>Longer quotes stay up longer (10 to 40 seconds, adjustable). <strong>Moving the mouse over the quote holds it</strong>. Closing the window only hides it until the next quote.</li>
+        <li>Buttons: <strong>Next</strong>, <strong>Later</strong> (hide now and show the same quote next time), <strong>Pause</strong>, <strong>Copy</strong> and <strong>Settings</strong>. Opening Citorio again while it runs shows a quote right away.</li>
+        <li>Quotes are set in a <strong>serif font</strong> (Georgia unless you pick another), with an icon for each category.</li>
+        <li>It doesn't repeat itself: a quote doesn't come back until most of the others have been shown.</li>
+        <li><strong>Never hide</strong> mode goes straight from one quote to the next, for a projector or a second screen.</li>
+      </ul>
+
+      <h3>Your own categories and quotes</h3>
+      <ul>
+        <li>All the quotes are plain-text files in <code>Documents/Citorio</code>: <strong>one file per category</strong>. Add a file to add a category; edit a file in Notepad or TextEdit to add quotes. Citorio picks up changes by itself.</li>
+        <li>In a file, quotes are separated by a line with only <code>%</code>, and a last line starting with <code>—</code> (or <code>--</code>) is the author. A simple list with one quote per line also works.</li>
+        <li><code># name:</code> and <code># icon:</code> at the top of a file name the category and choose its icon, for example <code># icon: 🔭</code>.</li>
+        <li><strong>Settings</strong> turns categories on and off and has buttons for <strong>New category</strong>, <strong>Import list</strong> (any .txt file becomes a category), <strong>Edit</strong>, <strong>Open folder</strong> and <strong>Restore built-in lists</strong>.</li>
+      </ul>
+
+      <h3>The quotes it comes with</h3>
+      <p>A tribute to <strong>Citorio 1.1</strong> (1995–96), the freeware quote program for Windows 3.1 by <strong>Javier Cámara Melgosa</strong>, itself based on <em>Pundit</em> (1990) by Jeff Bienstadt.
+         Its 1,315 quotes in Spanish (Bierce's <em>Devil's Dictionary</em>, Wilde, Twain, Groucho Marx, Murphy's laws, exam answers and many more) are the ones he collected and translated, in nine categories: Generales, Divertidas, Maliciosas, Deprimentes, Ley de Murphy, Románticas, Dichas por el ordenador, Animosas and De vagos.
+         For use at school, the original's category of sex jokes is left out, along with other quotes with sexual content, vulgar language, or that make fun of a religion, a people or women. Many of the rest are from the 1990s and earlier; turn off any category, or edit its file.
+         This program is new: the code and icons are not from the original.</p>
+
+      <h3>Privacy</h3>
+      <p>Citorio <strong>collects no personal data and never connects to the internet</strong>.
+         It only reads the quote files in your Documents folder. Its options are kept in your user settings on your computer.</p>
+
+      <h3>Installing</h3>
+      <ul>
+        <li><strong>Windows:</strong> double-click <code>Citorio.exe</code>. No installation is needed.
+            The app isn't signed with a paid certificate, so the first time Windows may show “Windows protected your PC”. Click <strong>More info</strong>, then <strong>Run anyway</strong>.
+            Its icon appears by the clock (it may be under the ˄ arrow); right-click it for Settings and Quit. <strong>Start with Windows</strong> is in the same menu.</li>
+        <li><strong>macOS:</strong> open <code>Citorio.dmg</code> and drag <strong>Citorio</strong> into <strong>Applications</strong>.
+            The app isn't signed with a paid Apple Developer ID, so the first time macOS may block it. Open <strong>System Settings → Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>.
+            macOS asks once to let Citorio use your Documents folder, where it keeps the quotes. It has no Dock icon: its menu is the speech bubble in the menu bar, with Settings, Open at Login and Quit.</li>
+      </ul>
+
+      <h3>Disclaimer</h3>
+      <p>This software is free and is provided <strong>“as is”, without warranty of any kind</strong>.
+         The author is not liable for any claim, damages or other liability arising from its use.</p>
+    </div>
+  </section>
+
+  <section id="license">
+    <h2><span class="step">2</span>License</h2>
+    <div class="license" id="license-text" tabindex="0">MIT License
+
+Copyright (c) 2026 Mauricio Mendivelso
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</div>
+    <p class="hint" id="license-hint">Scroll to the end of the license to continue.</p>
+  </section>
+
+  <section id="download">
+    <h2><span class="step">3</span>Accept and download</h2>
+    <label class="accept disabled" id="accept-label">
+      <input type="checkbox" id="accept" disabled>
+      <span>I have read the About and the License. I understand that Citorio is a program I download and run on my own computer,
+            and I accept that it is provided “as is”, without warranty of any kind.</span>
+    </label>
+
+    <div class="downloads">
+      <a class="dl" id="dl-win" aria-disabled="true" role="link"
+         data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/citorio/Citorio.exe">
+        <span class="t">⬇ Download for Windows</span>
+        <span class="d">Citorio.exe · about 0.3 MB · Windows 10 or 11</span>
+      </a>
+      <a class="dl" id="dl-mac" aria-disabled="true" role="link"
+         data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/citorio/Citorio.dmg">
+        <span class="t">⬇ Download for macOS</span>
+        <span class="d">Citorio.dmg · about 0.6 MB · macOS 11 or later (Apple Silicon and Intel)</span>
+      </a>
+    </div>
+    <p class="source">The source code is public:
+      <a href="https://github.com/ergosfera/physics-teaching-tools/tree/main/desktop-apps" target="_blank" rel="noopener">desktop-apps on GitHub</a>.</p>
+  </section>
+
+</div>
+
+<script>
+  function applyTheme(light) {
+    document.body.classList.toggle('light', light);
+    document.getElementById('theme-icon').textContent = light ? '☽' : '☀';
+    document.getElementById('theme-label').textContent = light ? 'Dark' : 'Light';
+    try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+  }
+  let savedTheme = null;
+  try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+  applyTheme(savedTheme === 'light');
+  document.getElementById('theme-toggle').addEventListener('click', () =>
+    applyTheme(!document.body.classList.contains('light')));
+
+  // Download gate: scroll through the license, then accept, then the buttons unlock.
+  const box = document.getElementById('license-text');
+  const hint = document.getElementById('license-hint');
+  const accept = document.getElementById('accept');
+  const acceptLabel = document.getElementById('accept-label');
+  const links = [document.getElementById('dl-win'), document.getElementById('dl-mac')];
+
+  function licenseRead() {
+    if (box.scrollTop + box.clientHeight < box.scrollHeight - 4) return;
+    accept.disabled = false;
+    acceptLabel.classList.remove('disabled');
+    hint.textContent = '✓ License read. Tick the box below to unlock the downloads.';
+    hint.classList.add('done');
+    box.removeEventListener('scroll', licenseRead);
+  }
+  box.addEventListener('scroll', licenseRead);
+  window.addEventListener('load', licenseRead);   // license may fit without scrolling
+
+  accept.addEventListener('change', () => {
+    for (const a of links) {
+      if (accept.checked) {
+        a.href = a.dataset.href;
+        a.removeAttribute('aria-disabled');
+      } else {
+        a.removeAttribute('href');
+        a.setAttribute('aria-disabled', 'true');
+      }
+    }
+  });
+</script>
+</body>
+</html>

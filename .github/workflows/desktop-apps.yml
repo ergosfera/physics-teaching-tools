@@ -10,6 +10,7 @@
 #   "notepad-95":         Notepad95.dmg (Mac only)
 #   "paint-95":           Paint95.dmg (Mac only)
 #   "clock-bar":          ClockBar.dmg (Mac) and ClockBar.exe (Windows)
+#   "citorio":            Citorio.dmg (Mac) and Citorio.exe (Windows)
 # Pull requests only build the apps, so a broken build shows up before it reaches main.
 name: Desktop apps
 
@@ -233,6 +234,26 @@ jobs:
         with:
           name: paint-mac
           path: desktop-apps/paint-95/mac/build/Paint95.dmg
+
+  citorio-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./desktop-apps/citorio/mac/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: citorio-mac
+          path: desktop-apps/citorio/mac/build/Citorio.dmg
+
+  citorio-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File desktop-apps/citorio/windows/build.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: citorio-windows
+          path: desktop-apps/citorio/windows/Citorio.exe
 
   release-timer:
     if: github.event_name != 'pull_request'
@@ -490,3 +511,29 @@ jobs:
           gh release upload clock-bar dist/* -R "$REPO" --clobber
           gh release edit clock-bar -R "$REPO" --draft=false \
             --notes "The date and time in bold, outlined letters on a see-through bar that stays on top. Mac: download ClockBar.dmg. Windows: download ClockBar.exe."
+
+  release-citorio:
+    if: github.event_name != 'pull_request'
+    needs: [citorio-mac, citorio-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: citorio-windows
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: citorio-mac
+          path: dist
+      - name: Publish to the citorio release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release view citorio -R "$REPO" > /dev/null 2>&1 || \
+            gh release create citorio -R "$REPO" --latest=false --title "Citorio" \
+              --notes "Every so often a small window pops up with a quote, then hides again. 1,315 quotes in Spanish; add your own categories as text files. Mac: download Citorio.dmg. Windows: download Citorio.exe."
+          gh release upload citorio dist/* -R "$REPO" --clobber
+          gh release edit citorio -R "$REPO" --draft=false

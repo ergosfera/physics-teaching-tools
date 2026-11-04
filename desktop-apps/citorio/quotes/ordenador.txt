@@ -1,0 +1,76 @@
+# name: Dichas por el ordenador
+# icon: 💻
+# Citorio quote list. Quotes are separated by a line with only %.
+# A last line starting with — (or --) is the author.
+
+¡Cuidado! ¡Detrás de tí!
+%
+SHIFT TO THE LEFT!  SHIFT TO THE RIGHT!
+POP UP, PUSH DOWN, BYTE, BYTE, BYTE!
+%
+Brain fried -- Core dumped
+%
+¡Buuu!
+%
+Como ordenador, encuentro divertida tu fe en la tecnología
+%
+Ten cuidado, la última persona que usó ese teclado tuvo una enfermedad terminal
+%
+Cerebro frito -- Error de Protección General
+%
+¿Tienes dsielxia?
+%
+No le des a las teclas tan fuerte, duele
+%
+No mires ahora, pero hay una criatura de muchas patas en tu hombro
+%
+Soy un ordenador. Soy más tonto que cualquier humano y más listo que cualquier programador.
+%
+Yo estoy más aburrido que lo que tú puedas jamás estar. Vuelve al trabajo.
+%
+¡Cuak!
+%
+REALITY.SYS corrupto
+Anular, Repetir, Descartar, Rebotar Universo? (A/R/D/U)
+%
+Pulsa <Control>-<Alt>-<Del> para continuar...
+%
+43ava Ley de la Informática: Si algo puede ir mal
+
+**CITORIO - ERROR INTERNO - Ver C:\TMP\CITORIO.LOG; contactar soporte técnico
+%
+MAL FUNCIONAMIENTO DEL ORDENADOR - por favor, ejecute DELTREE /Y C:\ desde MS-DOS para solventarlo
+%
+Buenas tardes, Dave. Todo está funcionando sin problemas.
+— HAL 9000
+%
+Alguien está hablando bien de tí. ¡Qué inusual!
+%
+Error leyendo el fichero de swap - se ha perdido parte de tu cerebro
+%
+El mundo se está acabando. Por favor, salga del sistema.
+%
+Después de que ejecute tu programa, hagamos el amor como comadrejas locas, ¿vale?
+%
+Abort, Retry, Ignore, Fail?
+  ¿Acaso sabe incluso Bill Gates la respuesta correcta?
+%
+Error permanente del compilador
+— Noticias preocupantes de un compilador de FORTRAN
+%
+Feliz Cumpleaños
+— La única respuesta de una placa madre estropeada
+%
+PANIC
+— Consejo facilón de AIX
+%
+Este estilo de código ya no se usa
+— Noticias de moda de Borland C++
+%
+Error de meditación del Guru
+— Notoriamente metafísica respuesta de un Amiga
+%
+DESASTRE
+— Consejo de un compilador de un mainframe IBM inspirado por Irvin Allen
+%
+Archivo no encontrado - ¿Me lo invento? (S/N)

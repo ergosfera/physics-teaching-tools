@@ -1,0 +1,370 @@
+# name: Maliciosas
+# icon: 😈
+# Citorio quote list. Quotes are separated by a line with only %.
+# A last line starting with — (or --) is the author.
+
+Lunes: En países cristianos, el día después del béisbol [fútbol].
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Hay cuatro clases de homicidio: felón, excusable, justificable y encomiable, aunque al muerto no le importa mucho si le han incluído en una o en otra; la distinción es para uso de abogados.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Los ordenadores no son inteligentes. Sólo creen que lo son.
+%
+La política es el arte de obtener el dinero de los ricos y el voto de los pobres con el pretexto de proteger a los unos de los otros
+— Anónimo
+%
+Cobarde, adj: Uno que en una peligrosa emergencia piensa con sus piernas.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Admiración: Nuestro educado reconocimiento del parecido de otro con nosotros mismos.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Océano, s: Extensión acuática que ocupa dos tercios del mundo hecho para el hombre, que casualmente carece de branquias.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+El éxito es sólo la mitad de bonito cuando no hay nadie que nos envidie
+— Norman Mailer
+%
+Acusar, v.t.: Afirmar la culpa o indignidad de otro; generalmente, para justificarnos por haberle causado algún daño.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Curiosamente los votantes no se sienten responsables de los fracasos del gobierno que han votado
+— Alberto Moravia
+%
+Bruto, s: Ver 'marido'.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Carne de gusano, s: Producto terminado del que somos la materia prima. (...)
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Cementerio, s: Terreno suburbano aislado donde los deudos conciertan mentiras, los poetas escriben contra una víctima indefensa y los lapidarios apuestan sobre la ortografía (...)
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Cerebro, s: Aparato con que pensamos que pensamos. Lo que distingue al hombre contento con 'ser' algo, del que quiere 'hacer' algo. (...)
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Cínico, s: Miserable cuya defectuosa vista le hace ver las cosas como son y no como debieran ser. Los escitas acostumbraban arrancar los ojos a los cínicos para mejorarles la visión.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Clérigo, s: Hombre que se encarga de administrar nuestros negocios espirituales, como método de favorecer sus negocios temporales.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Confort, s: Estado de ánimo producido por la contemplación de la desgracia ajena.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Congratulaciones, s: Cortesía de la envidia.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Conservador, adj: Dícese del estadista enamorado de los males existentes, por oposición al liberal, que desea reemplazarlos por otros.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Consultar, v.t: Requerir la aprobación de otro para tomar una actitud ya resuelta.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Convencido, adj: Equivocado a voz en cuello.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Conversación, s: Feria donde se exhibe la mercancía mental menuda, y donde cada exhibidor está demasiado preocupado en arreglar sus propios artículos como para observar los del vecino.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Comestible, adj: Dícese de lo que es bueno para comer, y fácil de digerir, como un gusano para un sapo, un sapo para una víbora, una víbora para un cerdo, un cerdo para un hombre, y un hombre para un gusano.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Complacer, v.i: Poner los cimientos para una superestructura de imposiciones.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Corsario, s: Político de los mares.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Degradación, s: Una de las etapas del progreso moral y social que lleva de la humilde condición privada al privilegio político.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Dependiente, adj: Dícese del que confía en la generosidad del otro cuando no puede abusar de sus temores.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Desgracia, s: Enfermedad que se contrae al exponerse a la prosperidad de un amigo.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Desprecio, s: Sentimiento que experimenta un hombre prudente ante un enemigo demasiado temible para hacerle frente sin peligro.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Difamar, v.t: Atribuir maliciosamente a otro, vicios que no hemos tenido ni la oportunidad ni la tentación de practicar.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Disculparse, v.i: Sentar las bases para una ofensa futura.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Discusión, s: Método de confirmar a los demás [y a uno mismo] en sus errores.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Distancia, s: Único bien que los ricos permiten conservar a los pobres.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Disuadir, v.t: Proponer a otro un error mucho más grande que el que está por cometer.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Educación, s: Lo que revela al sabio, y esconde al necio, su falta de comprensión.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Ecuanimidad, s: Disposición de soportar ofensas con humilde compostura, mientras se madura un plan de venganza.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Egoísta, s: Persona de mal gusto, que se interesa más en si mismo que en mí.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Egoísta, adj: Sin consideración por el egoísmo de los demás.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Elogio, s: Tributo que pagamos a realizaciones que se parecen a las nuestras sin igualarlas.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Epitafio, s: Inscripción que, en una tumba, demuestra que las virtudes adquiridas tienen un efecto retroactivo.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Expulsión, s: Remedio eficaz para la enfermedad de la charlatanería. Muy usado también en casos de extrema pobreza.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Fanático, adj: Dícese del que obstinada y ardorosamente sostiene una opinión que no es la nuestra.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Fe, s: Creencia sin pruebas en lo que alguien nos dice sin fundamento sobre cosas sin paralelo.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Felicidad, s: Sensación agradable que nace de contemplar la miseria ajena.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Gato, s: Autómata blando e indestructible que nos da la naturaleza para que lo pateemos cuando las cosas andan mal en el círculo doméstico.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Historia, s: Relato casi siempre falso de hechos casi siempre nimios producidos por gobernantes casi siempre pillos o por militares casi siempre necios.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Humildad, s: Paciencia inusitada para planear una venganza que valga la pena.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Imparcial, adj: Incapaz de percibir promesa de ventaja personal en la adhesión a uno de los bandos de una controversia, o en la adopción de una entre dos ideas en conflicto.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Impunidad, s: Riqueza.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Justicia, s: Artículo más o menos adulterado que el Estado vende al ciudadano a cambio de su lealtad, sus impuestos y sus servicios personales.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Lamentable, adj: Estado de un enemigo o adversario después de un encuentro imaginario con uno mismo.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Libertad, s: Uno de los bienes más preciosos de la Imaginación, que permite eludir cinco o seis de entre los infinitos métodos de coerción con que se ejerce la autoridad (...)
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Lógica, s: Arte de pensar y razonar en estricta concordancia con las limitaciones e incapacidades de la incomprensión humana.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Magia, s: Arte de convertir la superstición en dinero contante y sonante (...)
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Magnífico, adj: Dotado de esplendor o grandeza superiores a los que el espectador está habituado; por ejemplo, las orejas de un asno para un conejo, o la gloria de una luciérnaga para un simple gusano.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Malhechor, s: El principal factor en el progreso de la raza humana.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Mamíferos, s: Familia de vertebrados cuyas hembras, en estado natural, amamantan a su cría, pero cuando se vuelven civilizadas e inteligentes la dan a la nodriza o usan el biberón.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Maná, s: Alimento dado milagrosamente a los israelitas en el desierto. Cuando no recibieron más, se afincaron y labraron la tierra, fertilizándola, por regla general, con los cadáveres de sus primitivos ocupantes.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Maquinación, s: Método empleado por nuestros enemigos para anular nuestro declarado y honroso esfuerzo por hacer lo justo.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Matrimonio, s: Condición o estado de una comunidad formada por un amo, un ama y dos esclavos, todos los cuales suman dos.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Moda, s: Déspota a quien los sabios ridiculizan y obedecen.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Murmurar, v.t: Decir cómo encuentra uno a otro cuando el otro no puede encontrarlo a uno.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Occidente, s: Parte del mundo situada al oeste (o al este) de Oriente. Está habitada principalmente por Cristianos, poderosa subtribu de los Hipócritas, cuyas principales industrias son el asesinato y la estafa, que disfrazan con los nombres de 'guerra' y 'comercio'. Estas son también las principales industrias de Oriente.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Oratoria, s: Conspiración entre el lenguaje y la acción para defraudar al entendimiento.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Paciencia, s: Forma menor de la desesperación, disfrazada de virtud.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Patriota. s: El que considera superiores los intereses de la parte a los intereses del todo. Juguete de políticos e instrumento de conquistadores.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Patriotismo, s: Basura combustible dispuesta a arder para iluminar el nombre de cualquier ambicioso (...)
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Peligro, s: Bestia salvaje que el hombre desprecia cuando está dormida, y de la que huye cuando despierta.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Pena capital, s: Castigo de cuya justicia y eficacia dudan muchas personas dignas, inclusive los asesinos.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Piratería, s: Comercio sin los pañales de la fantasía, tal como Dios lo hizo.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Pleito, s: Máquina en la que se entra en forma de cerdo, y se sale en forma de salchicha.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Precio, s: Valor, mas una suma razonable por el desgaste que sufre la conciencia al exigirlo.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Razonable, adj: Accesible al contagio de nuestras opiniones, receptivo a la persuasión, la disuasión, la evasiva.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Religión, s: Hija del Temor y la Esperanza, que vive explicando a la Ignorancia la naturaleza de lo Incognoscible.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Resposabilidad, s: Carga desmontable que se traspasa fácilmente a las espaldas de Dios, el Destino, la Fortuna, la Suerte, o el vecino. Los aficionados a la astrología suelen descargarla en una estrella.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Resuelto, adj: Dícese de quien sigue obstinadamente una línea de conducta que aprobamos.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Revelación, s: Libro famoso en que el divino San Juan ocultó todo lo que sabía. La revelación corre por cuenta de los comentaristas, que no saben nada.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Sabiduría, s: Tipo de ignorancia que distingue al estudioso.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Temerario, adj: Insensible al valor de nuestros consejos.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Valla, s: En el arte militar, basura colocada delante de un fuerte para impedir que la basura de afuera moleste a la basura de adentro.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Venganza, s: Roca natural sobre la que se alza el Templo de la Ley.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Romántico, s: Persona del sexo masculino, entristecida por llevar un cierto tiempo sin pareja. Deja de serlo unos meses después de conseguirla; entonces le reprocha su libertad perdida.
+%
+Educación, n: La clase más aceptable de hipocresía.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Pueden decir todo lo bueno que quieran de nosotros, pero nunca nos dirán nada nuevo
+— La Rochefoucauld
+%
+Mercaderes e industriales no deben ser admitidos a la ciudadanía, porque su género de vida es abyecto y contrario a la virtud
+— Aristóteles
+%
+La guerra es una masacre entre gentes que no se conocen para provecho de gentes que sí se conocen pero no se masacran
+— Paul Valéry
+%
+No hay pendencia tan violenta como la que surge entre los que aceptaron alguna idea ayer y los que la aceptarán mañana
+— Christopher D. Morley
+%
+Los hombres pueden dividirse en tres clases: los que creen ser donjuanes, los que creen haberlo sido y los que creen haberlo podido ser, pero no quisieron
+— José Ortega y Gasset
+%
+Responsabilidad es lo que uno espera de los demás
+%
+En una jerarquía, cada empleado tiende a ascender hasta su nivel de incompetencia
+— El Principio de Peter
+%
+Santo, n: Un pecador muerto, revisado y editado
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+El poder corrompe. El poder absoluto es guay, sin embargo.
+%
+Uno puede saber cuándo los políticos están mintiendo: mueven los labios
+— Max Headroom
+%
+Reforma presupuestaria significa "No te pongas impuestos, no me pongas impuestos, ponle impuestos a ese tipo de detrás del árbol"
+— Russel Long
+%
+Una persona tiene dos razones para hacer algo: una buena razón, y la verdadera razón
+%
+Quien sonríe cuando las cosas van mal, es que ha pensado en alguien al que echarle la culpa
+%
+¡¿Qué hay detrás de un chico que vive la vida, está todo el día en vaqueros y al que en casa no le ven el pelo?!
+Un anuncio de coches dirigido a los jóvenes, por supuesto.
+%
+Un clásico es algo que todo el mundo quiere haber leído, y nadie quiere leer
+— Mark Twain
+%
+La modestia es el arte de animar a la gente a que encuentren por sí mismos cuán maravilloso es uno
+%
+La modestia es una virtud grandemente sobreestimada
+— J.K. Galbraith
+%
+El hombre es el único animal que se ruboriza. O que necesita hacerlo.
+— Mark Twain
+%
+Esos que piensan que lo saben todo nos molestan a los que sabemos todo
+%
+No es suficiente tener éxito. Otros deben fracasar.
+— Gore Vidal
+%
+Cogito cogito ergo cogito sum
+Pienso que pienso, luego pienso que existo
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Si quieres que tu cónyuge te escuche y preste atención a cada palabra que digas, habla en sueños
+%
+El 80% de la gente se considera a sí mismo por encima del conductor medio
+%
+Lo único que impide a Dios mandar un segundo Diluvio es que el primero fué inútil
+— Nicolas Chamfort
+%
+"... recordaba un día durante el cual había sido realmente yo mismo, esto es, yo mismo de la manera en que quería que los otros me vieran"
+— Italo Calvino, en "Las Cosmicómicas"
+%
+Con "virtud" nos referimos simplemente a evitar los vicios que no nos atraen
+— Robert Lynd
+%
+Un satírico es alguien que descubre cosas desagradables acerca de sí mismo y entonces las dice acerca de otras personas
+— Peter McArthur
+%
+Patriotismo es tu convencimiento de que este país es superior a todos los demás porque tú naciste en él
+— Georbe Bernard Shaw
+%
+Crítico, n.: Una persona que se hace a sí mismo difícil de ser agradable porque nadie trata de serle agradable a él
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Paz, n.: En asuntos internacionales, un periodo de mentiras entre dos periodos de luchas
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Si hubiese en el mundo hoy cualquier gran número de personas que deseasen su propia felicidad más de lo que desean la infelicidad de otros, podríamos tener el paraíso en unos pocos años
+— Bertrand Russell
+%
+El que se considera un escéptico debería mirar de vez en cuando su escepticismo con escepticismo
+— Sigmund Freud
+%
+Hay dos hablando de religión. Uno le dice al otro:
+- A veces me gustaría preguntarle a Dios por qué permite la pobreza, el hambre y la injusticia cuando Él podría hacer algo acerca de ello.
+- ¿Y qué es lo que te lo impide?
+- Tengo miedo de que Dios me pregunte a mí lo mismo
+— Rev. Lowell's Treasury of Humor: He Who Laughs, Lasts
+%
+El padre de Johnny se traía trabajo a casa casi cada noche. Por fin su hijo, de primero de EGB, le preguntó por qué. Papá explicó que tenía tanto trabajo que no podría acabarlo durante el día. Johnny preguntó, "Entonces, ¿Por qué no te ponen en un grupo más lento?"
+— Rev. Lowell's Treasury of Humor: He Who Laughs, Lasts
+%
+Bienaventurados los que no tienen nada que decir y resisten la tentación de decirlo
+— James Russell Lowell
+%
+Bendito sea el hombre que, no teniendo nada que decir, se abstiene de demostrárnoslo con sus palabras
+— George Eliot
+%
+Si cada español hablase sólamente de lo que entiende, habría un gran silencio que podríamos aprovechar para el estudio
+— Manuel Azaña
+%
+A veces pienso que Dios, creando al hombre, sobreestimó un poco su habilidad
+— Oscar Wilde
+%
+Discúlpeme, no le había reconocido; he cambiado mucho
+— Oscar Wilde
+%
+Nada necesita tanto ser reformado como las costumbres ajenas
+— Mark Twain
+%
+Pues sí, cuando Esopo escribió la Declaración de los Derechos Humanos...
+— Mafalda (Quino)

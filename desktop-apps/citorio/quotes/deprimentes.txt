@@ -1,0 +1,180 @@
+# name: Deprimentes
+# icon: 🌧️
+# Citorio quote list. Quotes are separated by a line with only %.
+# A last line starting with — (or --) is the author.
+
+La gente que no para de trabajar lo hace para no tener tiempo de acordarse de que no tiene nada que hacer
+— Francis Picabla
+%
+Los recuerdos no pueblan nuestra soledad, como suele decirse; antes al contrario, la hacen más profunda
+— Gustave Flaubert
+%
+Vivir sola es como estar en una fiesta donde nadie te hace caso
+— Marilyn Monroe
+%
+¡Sé ameno y alegre y divertido! ¡Disfruta! Las cosas no van a mejorar así que acostúmbrate a ello.
+%
+La miseria ama a la compañía, pero la compañía no le corresponde
+%
+Amor, s: Autoengaño transitorio en que cae una persona acerca de otra, creyendo que ésta es lo que nadie puede ser
+%
+Amargado, adj: Aquél que echa la culpa al resto de la gente y/o la sociedad por lo que no ha sido capaz de conseguir por sí mismo. Véase tb 'cínico'.
+%
+Algunos tímidos lo son porque en condiciones normales no tienen el valor suficiente para proclamar lo superiores que en el fondo se suponen al resto de la gente
+%
+Autoestima, s: Evaluación errónea.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Boda, s: Ceremonia por la que dos personas se proponen convertirse en una, una se propone convertirse en nada y nada se propone volverse soportable.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Calamidad, s: Recordatorio evidente e inconfundible de que las cosas de esta vida no obedecen a nuestra voluntad. Hay dos clases de calamidades: las desgracias propias y la buena suerte ajena.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Camino, s: Faja de tierra que permite ir de donde uno está cansado a donde es inútil ir.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Desposada, s: Mujer que tiene a su espalda una brillante perspectiva de felicidad.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Destino, s: Justificación del crimen de un tirano; pretexto del fracaso de un imbécil.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Fidelidad, s: Virtud que caracteriza a los que están por ser traicionados.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Noviembre, s: Decimoprimer duodécimo del tedio.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Predilección, s: Etapa preparatoria del desengaño.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Preferencia, s: Sentimiento o estado de ánimo inducido por la creencia errónea de que una cosa es mejor que otra.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Presente, s: Parte de la eternidad que separa el dominio del desengaño del reino de la esperanza.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Solo, adj: En mala compañía.
+— Ambrose Bierce, 'El Diccionario del Diablo'
+%
+Lo peor de ser idiota y saberlo es precisamente eso, ser idiota y saberlo.
+%
+Misógino, s: Hombre que es capaz de vivir sin una mujer. Si la elección es voluntaria, es un egoísta engreído; cuando es forzada, es un pobre amargado.
+%
+Lo que no pué sé no pué sé, y además es imposible. Así que te jodes.
+%
+Arrependirse del pasado, aburrirse del presente, temer el futuro: así es la vida
+— Ugo Fuscolo
+%
+El hombre es un dios cuando sueña; un pordiosero cuando reflexiona
+— Friedrich Hölderin
+%
+Con el viento mi esperanza navegaba;
+perdonóla la mar, matóla el puerto
+— Lope de Vega
+%
+Lo imposible es el fantasma de los tímidos y el refugio de los cobardes
+— Napoleón Bonaparte
+%
+Ninguna situación es tan grave que no sea susceptible de empeorar
+— Federico II de Prusia
+%
+La más grande infelicidad es ser presa del temor cuando ya nada queda que esperar
+— Séneca
+%
+Muy pronto en la vida es demasiado tarde
+— Marguerite Duras
+%
+Es curioso que la vida, cuanto más vacía es, más pesa
+— León Daudí
+%
+Cuidado con la tristeza. Es un vicio.
+— Gustave Flaubert
+Querida tristeza
+De ti me he enamorao
+Y ya he dejao de ser
+Un pobre desgraciao / Gabinete Caligari
+%
+Recuerda siempre que tú eres alguien único. Como todos los demás.
+%
+Buenas noticias. En diez semanas a contar desde el viernes tendrás un buen día.
+%
+Tú tienes la capacidad de aprender de tus errores. Aprenderás un montón, hoy.
+%
+Si te sientes bien no te preocupes, ya saldrás de ello
+%
+La vida no es una cosa después de otra... es la misma maldita cosa una y otra vez
+— Anónimo
+%
+El encanto del matrimonio es que hace de una vida de decepción una necesidad
+— Oscar Wilde
+%
+La vida es como una cebolla. Uno pela capa tras capa, para encontrar que no hay nada en ella.
+%
+Haz un favor a tus hijos - no los tengas
+— Robert Orben
+%
+La vida es un laberinto en el cual cogemos la desviación equivocada antes de haber aprendido a andar
+— Cyril Connoly
+%
+La vida es dura, y los primeros cien años son los más duros
+— Wilson Mizner
+%
+Amor: Un malentendido entre dos idiotas
+%
+¿Te sientes solo? ¡Hazte esquizofrénico!
+%
+¿Quién necesita amigos cuando puedes sentarte a solas en tu habitación y beber?
+%
+Deja de buscar. ¿Recuerdas aquella vez que...? esa es la mayor felicidad que obtendrás jamás.
+%
+Si estudias tu problema lo suficientemente a fondo, te reconocerás a tí mismo como parte del problema
+%
+Puede que el único sentido de tu vida sea simplemente el de servir de aviso a otros
+%
+El amor es la ilusión del hombre de que una mujer se diferencia de otra. Pero aún, el hombre es mejor que la mujer; se casa más tarde y se muere antes.
+— H.L.Mencken
+%
+Lo único bueno en ser rechazado por muchas chicas es que cada vez amplías un poco más lo que es "tu tipo" de mujer
+%
+Reemplaza las expresiones repetitivas por llamadas a una función común. Yo ya he optimizado la función "enamórate_y_sé_rechazado()".
+%
+Alguien está hablando mal de tí. No debería sorprenderte, a estas alturas.
+%
+¡Anímate, seguro que hay alguna chica suelta por ahí esperándote! O no.
+%
+Desde el punto de vista físico era todavía joven. Pero su alma cambiante y mortal iba más aprisa que su cuerpo e iba a morir, como en la mayoría de nosotros, antes que el cuerpo.
+— T.E.Lawrence, en "Los Siete Pilares de la Sabiduría"
+%
+Auda arguyó que deseaba tener herederos. Le pregunté si la vida le había parecido buena hasta el punto de agradecer a sus desaprensivos padres el haberle traído al mundo, o si era por egoísmo por lo que quería conferir tan dudoso don a un espíritu no nacido.
+— T.E.Lawrence, en "Los Siete Pilares de la Sabiduría"
+%
+"No hay nada que hacer", dijo ella. Como todas las demás.
+%
+Hay gente que no puede vivir con pareja. Hay gente que no puede vivir sin pareja. Y hay gente que ni con, ni sin; generalmente, no pueden vivir ni consigo mismos.
+%
+Si no te gusta cómo eres, siempre te queda ver cine.
+%
+Caes mal a todo el mundo. Pero no te preocupes, seguro que todo el mundo está equivocado.
+%
+Ella te quiere todo lo que se puede, o sea no mucho
+%
+Hoy es un buen día para que te tires a algún lago
+%
+¿Quién necesita compañía cuando uno puede sentarse sólo en su habitación y beber?
+%
+Hay un remedio para todo; se llama muerte
+— Proverbio portugués
+%
+Todo lo que necesitas es amor. Pero no te lo mereces.
+%
+Sé tú mismo, dicen. Pero el problema de algunos es precisamente que no pueden evitar el ser como son...
+%
+¿Quién quiere una novia cuando puede conseguir fotos de Claudia Schiffer?
+%
+Los que no pueden decir lo que desean o esperan, también suspiran y luchan con pensamientos indefinidos y vastos deseos
+— Ralph Waldo Emerson
+%
+Prácticamente todo el mundo me odia, pero ellos tampoco me gustan así que estamos en paz
+— El malo de "¡Qué bello es vivir!"
