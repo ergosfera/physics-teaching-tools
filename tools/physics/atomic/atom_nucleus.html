@@ -1,0 +1,2434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atom &amp; Nucleus</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚛️</text></svg>">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+:root {
+  --border:  #c8d4e0;
+  --text:    #1a2234;
+  --muted:   #607080;
+  --accent:  #1858a8;
+  --surface: #ffffff;
+  --bg:      #f0f4f8;
+  --stage:   #f8fafc;
+  --green:   #16a34a;
+  --red:     #dc2626;
+  --purple:  #7c3aed;
+  --orange:  #ea580c;
+  --teal:    #0d9488;
+  --grid:    #e3e9f0;
+  --dim:     #b8c4d0;
+}
+body.dark {
+  --border:  #30363d;
+  --text:    #e6edf3;
+  --muted:   #8b949e;
+  --accent:  #58a6ff;
+  --surface: #161b22;
+  --bg:      #0d1117;
+  --stage:   #090c11;
+  --green:   #3fb950;
+  --red:     #f85149;
+  --purple:  #a78bfa;
+  --orange:  #fb923c;
+  --teal:    #2dd4bf;
+  --grid:    #21262d;
+  --dim:     #3d444d;
+}
+html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; color: var(--text); background: var(--bg); font-size: 15px; }
+body { display: flex; flex-direction: column; }
+button, input, select { font: inherit; color: inherit; }
+a { color: var(--accent); }
+
+#theme-toggle {
+  position: fixed; bottom: 10px; right: 10px; z-index: 50;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 12px; cursor: pointer;
+  font-size: 0.8rem; font-weight: 600; color: var(--muted); user-select: none;
+}
+#theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Top bar ── */
+#top-bar {
+  flex-shrink: 0; min-height: 48px;
+  display: flex; align-items: center; flex-wrap: wrap; padding: 6px 14px; gap: 8px 14px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+}
+#top-bar h1 { font-size: 1.05rem; font-weight: 800; letter-spacing: .02em; white-space: nowrap; }
+#tabs { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
+.tabbtn {
+  background: none; border: 1px solid transparent; border-radius: 8px; padding: 6px 12px;
+  cursor: pointer; font-weight: 600; font-size: .88rem; color: var(--muted);
+}
+.tabbtn:hover { color: var(--text); background: var(--bg); }
+.tabbtn.on { color: var(--accent); border-color: var(--accent); background: var(--bg); }
+#credits-btn { background: none; border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; cursor: pointer; font-size: .8rem; color: var(--muted); font-weight: 600; }
+#credits-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── Layout ── */
+#app { flex: 1; min-height: 0; display: flex; }
+.tab { display: none; flex: 1; min-height: 0; min-width: 0; }
+.tab.active { display: flex; }
+.panel {
+  width: 318px; flex-shrink: 0; overflow-y: auto; background: var(--surface);
+  border-right: 1px solid var(--border); padding: 14px 14px 60px; font-size: .88rem; line-height: 1.45;
+}
+.panel h2 { font-size: 1.05rem; font-weight: 800; margin-bottom: 4px; }
+.panel h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 14px 0 6px; }
+.panel p { margin-bottom: 6px; }
+.lead { color: var(--muted); }
+.note { color: var(--muted); font-size: .8rem; }
+.stage { flex: 1; position: relative; min-width: 0; background: var(--stage); }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 11px; margin-bottom: 10px; background: var(--bg); }
+.card b.big { font-size: 1.6rem; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; }
+.btn {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px;
+  cursor: pointer; font-size: .85rem; font-weight: 600;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.1); color: #fff; }
+.btn.on { border-color: var(--accent); color: var(--accent); background: var(--bg); }
+.btn:disabled { opacity: .45; cursor: default; border-color: var(--border); color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { border: 1px solid var(--border); background: var(--surface); border-radius: 16px; padding: 3px 10px; cursor: pointer; font-size: .82rem; font-weight: 600; }
+.chip:hover { border-color: var(--accent); }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+label.chk { display: flex; gap: 6px; align-items: center; font-size: .85rem; margin: 4px 0; cursor: pointer; }
+.slider-row { margin: 6px 0 8px; }
+.slider-row .lbl { display: flex; justify-content: space-between; font-size: .82rem; }
+.slider-row .lbl b { color: var(--accent); }
+select { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; }
+.credit { font-size: .76rem; color: var(--muted); border-top: 1px dashed var(--border); padding-top: 8px; margin-top: 14px; }
+.ok { color: var(--green); font-weight: 700; }
+.bad { color: var(--red); font-weight: 700; }
+
+/* nuclide notation: mass number over atomic number */
+.nuc { white-space: nowrap; }
+.nuc .az { display: inline-flex; flex-direction: column; font-size: .68em; line-height: 1; text-align: right; vertical-align: -0.35em; margin-right: 1px; }
+.eq { font-size: 1.05rem; text-align: center; padding: 6px 0 2px; }
+
+/* scene list (nuclear / collisions) */
+.scene-list { display: flex; flex-direction: column; gap: 3px; }
+.scene-btn { text-align: left; background: none; border: 1px solid transparent; border-radius: 8px; padding: 5px 9px; cursor: pointer; font-size: .86rem; }
+.scene-btn:hover { background: var(--bg); }
+.scene-btn.on { background: var(--bg); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.info ul { padding-left: 18px; margin: 4px 0; }
+.info li { margin-bottom: 3px; }
+
+/* counters */
+.counter { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.counter .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+.counter .name { flex: 1; font-weight: 600; }
+.counter button { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 1.1rem; font-weight: 700; }
+.counter button:hover { border-color: var(--accent); color: var(--accent); }
+.counter b { width: 26px; text-align: center; font-size: 1.1rem; }
+
+/* modal */
+#credits-modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+#credits-modal .box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; max-width: 620px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 20px 22px; line-height: 1.5; font-size: .92rem; }
+#credits-modal h2 { font-size: 1.15rem; margin-bottom: 10px; }
+#credits-modal h3 { font-size: .95rem; margin: 14px 0 4px; }
+#credits-modal ul { padding-left: 20px; }
+#credits-modal li { margin-bottom: 4px; }
+
+@media (max-width: 820px) {
+  html, body { overflow: auto; height: auto; }
+  #app { flex-direction: column; }
+  .tab.active { flex-direction: column; }
+  .panel { width: auto; border-right: 0; border-bottom: 1px solid var(--border); padding-bottom: 14px; overflow: visible; }
+  .stage { height: 72vh; flex: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+  <h1>⚛️ Atom &amp; Nucleus</h1>
+  <nav id="tabs">
+    <button class="tabbtn" data-tab="scale">🔭 Scale</button>
+    <button class="tabbtn" data-tab="build">🧱 Build an Atom</button>
+    <button class="tabbtn" data-tab="hydrogen">💡 Hydrogen Models</button>
+    <button class="tabbtn" data-tab="nuclear">☢️ Nuclear Processes</button>
+    <button class="tabbtn" data-tab="collide">🎱 Collisions</button>
+  </nav>
+  <button id="credits-btn">Credits</button>
+</div>
+
+<div id="app">
+
+  <!-- ═════════ SCALE ═════════ -->
+  <section class="tab" id="tab-scale">
+    <aside class="panel">
+      <h2>The atom, to scale</h2>
+      <p class="lead">Zoom from the whole atom down to its nucleus. Every size on the screen is to scale.</p>
+      <h3>Element</h3>
+      <div class="chips" id="sc-els"></div>
+      <div class="card" id="sc-facts" style="margin-top:10px"></div>
+      <h3>Predict first</h3>
+      <div class="card">
+        <p>If this atom were blown up to the size of a football stadium (about 200 m across), its nucleus would be about the size of…</p>
+        <div class="chips" id="sc-pred"></div>
+        <p id="sc-pred-out" class="note" style="margin-top:8px"></p>
+      </div>
+      <h3>Zoom</h3>
+      <div class="row">
+        <button class="btn primary" id="sc-dive">Dive to the nucleus ↓</button>
+        <button class="btn" id="sc-out">Back to the atom ↑</button>
+      </div>
+      <input type="range" id="sc-zoom" min="0" max="1000" value="0" aria-label="Zoom">
+      <p class="note">Scroll or pinch on the picture to zoom. Click the scale on the right to jump.</p>
+      <label class="chk"><input type="checkbox" id="sc-edge" checked> Show the typical atom size</label>
+      <label class="chk"><input type="checkbox" id="sc-shimmer" checked> Electron shimmer</label>
+      <p class="note">Each dot marks a place where an electron could be found. The cloud has no sharp edge, so the size of an atom is only approximate.</p>
+      <div class="credit">The to-scale zoom is the idea of <a href="https://www.drjonesphysics.com/atom-explorer" target="_blank" rel="noopener">Inside the Atom</a> by <b>Dr Jones Physics</b>, rebuilt here from scratch. Do try the original.</div>
+    </aside>
+    <div class="stage"><canvas id="cv-scale"></canvas></div>
+  </section>
+
+  <!-- ═════════ BUILD ═════════ -->
+  <section class="tab" id="tab-build">
+    <aside class="panel">
+      <h2>Build an atom</h2>
+      <p class="lead">Add protons, neutrons and electrons. Which nuclei hold together and which fall apart?</p>
+      <div class="card">
+        <div class="counter"><span class="dot" style="background:#e5484d"></span><span class="name">Protons</span><button data-k="p" data-d="-1">−</button><b id="bd-p">1</b><button data-k="p" data-d="1">+</button></div>
+        <div class="counter"><span class="dot" style="background:#9aa5b4"></span><span class="name">Neutrons</span><button data-k="n" data-d="-1">−</button><b id="bd-n">0</b><button data-k="n" data-d="1">+</button></div>
+        <div class="counter"><span class="dot" style="background:#3b82f6"></span><span class="name">Electrons</span><button data-k="e" data-d="-1">−</button><b id="bd-e">1</b><button data-k="e" data-d="1">+</button></div>
+      </div>
+      <div class="card" id="bd-id"></div>
+      <div class="card" id="bd-stab"></div>
+      <h3>Electrons drawn as</h3>
+      <div class="chips" id="bd-view"><span class="chip on" data-v="orbit">Orbits</span><span class="chip" data-v="cloud">Cloud</span></div>
+      <h3>Stable isotopes of this element</h3>
+      <div class="chips" id="bd-iso"></div>
+      <p class="note" style="margin-top:10px">The chart on the right shows every nucleus up to neon: protons go up, neutrons go across. Click a square to build that nucleus. Stable nuclei form a narrow valley. Too many neutrons → β⁻ decay; too many protons → β⁺ decay.</p>
+      <div class="credit">Inspired by PhET's <a href="https://phet.colorado.edu/en/simulations/build-an-atom" target="_blank" rel="noopener">Build an Atom</a> (PhET Interactive Simulations, University of Colorado Boulder), rebuilt here from scratch. Half-lives rounded from NUBASE2020.</div>
+    </aside>
+    <div class="stage"><canvas id="cv-build"></canvas></div>
+  </section>
+
+  <!-- ═════════ HYDROGEN ═════════ -->
+  <section class="tab" id="tab-hydrogen">
+    <aside class="panel">
+      <h2>Models of the hydrogen atom</h2>
+      <p class="lead">Shine light on hydrogen and see how each model explains, or fails to explain, the light it gives out.</p>
+      <h3>Model</h3>
+      <div class="scene-list" id="hy-models"></div>
+      <div class="card info" id="hy-info" style="margin-top:8px"></div>
+      <div id="hy-extra"></div>
+      <div id="hy-lightbox">
+        <h3>Light</h3>
+        <div class="row">
+          <button class="btn primary" id="hy-light">Light: on</button>
+          <span class="chips" id="hy-mode"><span class="chip on" data-v="white">White</span><span class="chip" data-v="mono">One colour</span></span>
+        </div>
+        <div id="hy-monobox" hidden>
+          <div class="slider-row"><div class="lbl"><span>Wavelength</span><b id="hy-lam-out"></b></div><input type="range" id="hy-lam" min="0" max="2000" value="1400"></div>
+          <div class="chips" id="hy-lines"></div>
+        </div>
+        <label class="chk"><input type="checkbox" id="hy-slow"> Slow motion</label>
+      </div>
+      <h3>Spectrometer</h3>
+      <label class="chk"><input type="checkbox" id="hy-real" checked> Mark hydrogen's real lines</label>
+      <button class="btn" id="hy-clear">Clear the spectrometer</button>
+      <div class="credit">Inspired by PhET's <a href="https://phet.colorado.edu/en/simulations/models-of-the-hydrogen-atom" target="_blank" rel="noopener">Models of the Hydrogen Atom</a> (PhET Interactive Simulations, University of Colorado Boulder), rebuilt here from scratch. The Heisenberg view is new here. In white light, hydrogen's own wavelengths are boosted so absorption is easy to see.</div>
+    </aside>
+    <div class="stage"><canvas id="cv-hydrogen"></canvas></div>
+  </section>
+
+  <!-- ═════════ NUCLEAR ═════════ -->
+  <section class="tab" id="tab-nuclear">
+    <aside class="panel">
+      <h2>Nuclear processes</h2>
+      <p class="lead">What happens inside the nucleus, shown slowly. Pictures are not to scale.</p>
+      <div class="scene-list" id="np-list"></div>
+      <div class="row" id="np-play" style="margin-top:10px">
+        <button class="btn primary" id="np-replay">⟲ Play again</button>
+        <span class="note">Speed</span>
+        <select id="np-speed"><option value="0.4">0.4×</option><option value="0.7">0.7×</option><option value="1" selected>1×</option><option value="1.6">1.6×</option></select>
+      </div>
+      <div id="np-ctrl"></div>
+      <div class="card info" id="np-info"></div>
+      <div class="credit">Binding energies rounded from AME2020; half-lives from NUBASE2020.</div>
+    </aside>
+    <div class="stage"><canvas id="cv-nuclear"></canvas></div>
+  </section>
+
+  <!-- ═════════ COLLISIONS ═════════ -->
+  <section class="tab" id="tab-collide">
+    <aside class="panel">
+      <h2>Collisions</h2>
+      <p class="lead">Firing particles at atoms and nuclei is how we found out what is inside them.</p>
+      <div class="scene-list" id="co-list"></div>
+      <div class="row" id="co-play" style="margin-top:10px">
+        <button class="btn primary" id="co-replay">⟲ Play again</button>
+        <span class="note">Speed</span>
+        <select id="co-speed"><option value="0.4">0.4×</option><option value="0.7">0.7×</option><option value="1" selected>1×</option><option value="1.6">1.6×</option></select>
+      </div>
+      <div id="co-ctrl"></div>
+      <div class="card info" id="co-info"></div>
+      <div class="credit">The alpha-scattering challenge follows the idea in <a href="https://www.drjonesphysics.com/atom-explorer" target="_blank" rel="noopener">Inside the Atom</a> by <b>Dr Jones Physics</b>, rebuilt here from scratch.</div>
+    </aside>
+    <div class="stage"><canvas id="cv-collide"></canvas></div>
+  </section>
+
+</div>
+
+<div id="credits-modal" hidden>
+  <div class="box">
+    <h2>Credits</h2>
+    <p>This page puts together ideas from three excellent simulations. It was written from scratch: no code or images were copied, and it is not affiliated with or endorsed by their authors. Please use and share the originals.</p>
+    <h3>Dr Jones Physics</h3>
+    <ul>
+      <li><a href="https://www.drjonesphysics.com/atom-explorer" target="_blank" rel="noopener">Inside the Atom: a to-scale explorer</a> by Dr Jones. Source of the to-scale zoom in <b>Scale</b> and of the alpha-scattering challenge in <b>Collisions</b>. Support Dr Jones's work at <a href="https://ko-fi.com/hookean1" target="_blank" rel="noopener">ko-fi.com/hookean1</a>.</li>
+    </ul>
+    <h3>PhET Interactive Simulations, University of Colorado Boulder</h3>
+    <ul>
+      <li><a href="https://phet.colorado.edu/en/simulations/build-an-atom" target="_blank" rel="noopener">Build an Atom</a>: the idea for <b>Build an Atom</b>.</li>
+      <li><a href="https://phet.colorado.edu/en/simulations/models-of-the-hydrogen-atom" target="_blank" rel="noopener">Models of the Hydrogen Atom</a>: the idea for <b>Hydrogen Models</b>.</li>
+      <li>PhET simulations are by PhET Interactive Simulations, University of Colorado Boulder, licensed under CC-BY 4.0, <a href="https://phet.colorado.edu" target="_blank" rel="noopener">phet.colorado.edu</a>.</li>
+    </ul>
+    <h3>New on this page</h3>
+    <ul>
+      <li>The Heisenberg view, the chart of nuclides, and the <b>Nuclear Processes</b> and <b>Collisions</b> animations (decays, fission, chain reaction, fusion, the Sun's proton–proton chain, half-life, binding energy, neutron moderation, Franck–Hertz, photoelectric effect, Compton scattering, pair production, annihilation).</li>
+    </ul>
+    <h3>Data</h3>
+    <ul>
+      <li>Half-lives and decay modes: NUBASE2020 (rounded). Binding energies: AME2020 (rounded). Atomic radii: calculated radii (Clementi et al.). Nuclear radius ≈ 1.2 fm × A<sup>1/3</sup>.</li>
+    </ul>
+    <div class="row" style="margin-top:14px"><button class="btn primary" id="credits-close">Close</button></div>
+  </div>
+</div>
+
+<button id="theme-toggle">🌙</button>
+
+<script>
+/* ═════════════════ shared helpers ═════════════════ */
+const TAU = Math.PI * 2;
+const $ = s => document.querySelector(s);
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const seg = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
+const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const easeOut = t => 1 - (1 - t) * (1 - t);
+function rng(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function gauss(r = Math.random) { let u = 0, v = 0; while (!u) u = r(); while (!v) v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); }
+
+const PROTON = '#e5484d', NEUTRON = '#9aa5b4', ELECTRON = '#3b82f6', POSITRON = '#ec4899', NEUTRINO = '#a1a1aa', GAMMA = '#a855f7';
+const TH = {};
+function readTheme() {
+  const cs = getComputedStyle(document.body);
+  ['text', 'muted', 'accent', 'surface', 'bg', 'stage', 'border', 'grid', 'dim', 'green', 'red', 'orange', 'purple', 'teal']
+    .forEach(k => TH[k] = cs.getPropertyValue('--' + k).trim());
+  TH.dark = document.body.classList.contains('dark');
+}
+
+function hex2rgb(h) { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); const n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function mix(a, b, t) { const A = hex2rgb(a), B = hex2rgb(b); return '#' + A.map((v, i) => Math.round(lerp(v, B[i], t)).toString(16).padStart(2, '0')).join(''); }
+function rgba(h, a) { const [r, g, b] = hex2rgb(h); return `rgba(${r},${g},${b},${a})`; }
+
+class Stage {
+  constructor(id) { this.cv = document.getElementById(id); this.ctx = this.cv.getContext('2d'); this.w = 0; this.h = 0; this.d = 0; }
+  fit() {
+    const r = this.cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    const W = Math.max(1, Math.round(r.width)), H = Math.max(1, Math.round(r.height));
+    this.changed = false;
+    if (W !== this.w || H !== this.h || d !== this.d) {
+      this.w = W; this.h = H; this.d = d; this.cv.width = Math.round(W * d); this.cv.height = Math.round(H * d); this.changed = true;
+    }
+    this.ctx.setTransform(d, 0, 0, d, 0, 0);
+    this.ctx.clearRect(0, 0, W, H);
+    return this;
+  }
+  pos(e) { const r = this.cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+}
+
+/* shaded balls, cached as sprites */
+const SPR = new Map();
+function ball(ctx, x, y, r, color) {
+  if (r < 1.3) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, Math.max(r, .6), 0, TAU); ctx.fill(); return; }
+  const rr = Math.round(r * 4) / 4, key = color + '|' + rr;
+  let s = SPR.get(key);
+  if (!s) {
+    const R = Math.ceil(rr) + 2, d = Math.max(2, window.devicePixelRatio || 1);
+    const c = document.createElement('canvas'); c.width = c.height = Math.ceil(2 * R * d);
+    const g = c.getContext('2d'); g.scale(d, d);
+    const gr = g.createRadialGradient(R - rr * .35, R - rr * .4, rr * .08, R, R, rr);
+    gr.addColorStop(0, mix(color, '#ffffff', .6)); gr.addColorStop(.55, color); gr.addColorStop(1, mix(color, '#000000', .38));
+    g.fillStyle = gr; g.beginPath(); g.arc(R, R, rr, 0, TAU); g.fill();
+    s = { c, R }; if (SPR.size > 800) SPR.clear(); SPR.set(key, s);
+  }
+  ctx.drawImage(s.c, x - s.R, y - s.R, 2 * s.R, 2 * s.R);
+}
+
+/* nucleus as a packed cluster of nucleons (fcc lattice, nearest points to the centre) */
+const LATTICE = (() => { const p = [], R = 7; for (let i = -R; i <= R; i++) for (let j = -R; j <= R; j++) for (let k = -R; k <= R; k++) if (((i + j + k) & 1) === 0 && i * i + j * j + k * k <= 2 * R * R) p.push([i, j, k]); return p; })();
+const CLUSTERS = new Map();
+function makeCluster(Z, N, seed) {
+  seed = seed ?? (Z * 1000 + N);
+  const key = Z + '-' + N + '-' + seed;
+  if (CLUSTERS.has(key)) return CLUSTERS.get(key);
+  const A = Z + N, r = rng(seed * 7919 + 13);
+  let pts = LATTICE.map(p => ({ p, d: p[0] * p[0] + p[1] * p[1] + p[2] * p[2] + r() * 1.6 })).sort((a, b) => a.d - b.d).slice(0, A).map(o => o.p.slice());
+  if (A === 2) pts = [[-0.7, 0, 0], [0.7, 0, 0]];
+  const c = [0, 0, 0]; pts.forEach(p => { c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; });
+  const ax = r() * TAU, ay = r() * TAU, k = 1.8 / Math.SQRT2;
+  const ca = Math.cos(ax), sa = Math.sin(ax), cb = Math.cos(ay), sb = Math.sin(ay);
+  const idx = pts.map((_, i) => i); for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+  const isP = new Array(A).fill(false); for (let i = 0; i < Z; i++) isP[idx[i]] = true;
+  let R = 1;
+  const out = pts.map((p, i) => {
+    let x = p[0] - c[0] / A, y = p[1] - c[1] / A, z = p[2] - c[2] / A;
+    if (A > 4) { x += (r() - .5) * .45; y += (r() - .5) * .45; z += (r() - .5) * .45; }
+    if (A !== 2) { let y2 = y * ca - z * sa, z2 = y * sa + z * ca; y = y2; z = z2; let x2 = x * cb + z * sb; z = -x * sb + z * cb; x = x2; }
+    x *= A === 2 ? 1 : k; y *= A === 2 ? 1 : k; z *= A === 2 ? 1 : k;
+    R = Math.max(R, Math.hypot(x, y, z) + 1);
+    return { x, y, z, p: isP[i], i };
+  }).sort((a, b) => a.z - b.z);
+  const cl = { pts: out, R, Z, N, A };
+  CLUSTERS.set(key, cl);
+  return cl;
+}
+/* draw a cluster; s = px per nucleon radius. opts: hide(Set of i), color(i)=>color, jiggle, sx, sy */
+function drawCluster(ctx, cl, cx, cy, s, o = {}) {
+  const j = o.jiggle || 0, sx = o.sx || 1, sy = o.sy || 1;
+  for (const p of cl.pts) {
+    if (o.hide && o.hide.has(p.i)) continue;
+    const col = (o.color && o.color(p)) || (p.p ? PROTON : NEUTRON);
+    ball(ctx, cx + p.x * s * sx + (j ? (Math.random() - .5) * j : 0), cy + p.y * s * sy + (j ? (Math.random() - .5) * j : 0), s * 0.98, col);
+  }
+}
+/* where a given nucleon sits on screen */
+function nucleonPos(cl, i, cx, cy, s) { const p = cl.pts.find(q => q.i === i); return [cx + p.x * s, cy + p.y * s]; }
+/* pick nucleon indices of a type, sorted by a score (e.g. x for the right edge) */
+function pickNucleons(cl, isProton, count, score) {
+  return cl.pts.filter(p => p.p === isProton).sort((a, b) => score(b) - score(a)).slice(0, count).map(p => p.i);
+}
+
+function drawElectron(ctx, x, y, r = 5, col = ELECTRON, sign = '−') {
+  ball(ctx, x, y, r, col);
+  if (r >= 6.5) { ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(r * 1.5)}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(sign, x, y + .5); }
+}
+function drawNeutrino(ctx, x, y, label = 'ν') {
+  ctx.save(); ctx.strokeStyle = TH.muted; ctx.lineWidth = 1.3; ctx.setLineDash([2, 2]);
+  ctx.beginPath(); ctx.arc(x, y, 4.5, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = TH.muted; ctx.font = 'italic 13px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(label, x, y - 6);
+  ctx.restore();
+}
+/* wavy photon whose head is at (x,y), moving along (dx,dy) */
+function drawPhoton(ctx, x, y, dx, dy, col, len = 24, amp = 4, wl = 9, phase = 0, lw = 2) {
+  const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L; const px = -dy, py = dx;
+  ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.beginPath();
+  for (let s = 0; s <= len; s += 1.2) {
+    const w = Math.sin(s / wl * TAU - phase) * amp * Math.sin(Math.PI * s / len);
+    const X = x - dx * s + px * w, Y = y - dy * s + py * w;
+    s ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y);
+  }
+  ctx.stroke(); ctx.lineWidth = 1;
+}
+function lamColor(l) {
+  if (l < 380) return '#9b7cf0';
+  if (l > 750) return '#b4532a';
+  let r = 0, g = 0, b = 0;
+  if (l < 440) { r = (440 - l) / 60; b = 1; } else if (l < 490) { g = (l - 440) / 50; b = 1; }
+  else if (l < 510) { g = 1; b = (510 - l) / 20; } else if (l < 580) { r = (l - 510) / 70; g = 1; }
+  else if (l < 645) { r = 1; g = (645 - l) / 65; } else r = 1;
+  let f = l < 420 ? .35 + .65 * (l - 380) / 40 : l > 700 ? .35 + .65 * (750 - l) / 50 : 1;
+  const c = v => Math.round(255 * Math.pow(v * f, .8)).toString(16).padStart(2, '0');
+  return '#' + c(r) + c(g) + c(b);
+}
+function bandName(l) { return l < 380 ? 'ultraviolet' : l > 750 ? 'infrared' : l < 450 ? 'violet' : l < 495 ? 'blue' : l < 570 ? 'green' : l < 590 ? 'yellow' : l < 620 ? 'orange' : 'red'; }
+
+function fmtLen(m) {
+  const u = [[1, 'm'], [1e-3, 'mm'], [1e-6, 'µm'], [1e-9, 'nm'], [1e-12, 'pm'], [1e-15, 'fm']];
+  for (const [f, n] of u) if (m >= f * 0.9995 || n === 'fm') { const v = m / f; return (v >= 100 ? Math.round(v) : v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v.toPrecision(2)) + ' ' + n; }
+}
+function sup(n) { return String(n).replace(/[-0-9]/g, c => '⁻⁰¹²³⁴⁵⁶⁷⁸⁹'['-0123456789'.indexOf(c)]); }
+function sci(x, d = 2) {
+  if (x === 0) return '0';
+  const e = Math.floor(Math.log10(Math.abs(x)));
+  if (e >= -2 && e < 6) return (+x.toPrecision(d)).toLocaleString('en-US');
+  return (x / Math.pow(10, e)).toFixed(d - 1) + ' × 10' + sup(e);
+}
+function nuc(sym, A, Z) { return `<span class="nuc"><span class="az"><span>${A}</span><span>${Z}</span></span>${sym}</span>`; }
+
+/* canvas text */
+function txt(ctx, s, x, y, o = {}) {
+  ctx.font = `${o.italic ? 'italic ' : ''}${o.bold ? '700 ' : ''}${o.size || 13}px 'Segoe UI', system-ui, sans-serif`;
+  ctx.textAlign = o.align || 'left'; ctx.textBaseline = o.base || 'middle';
+  if (o.bg) {
+    const w = ctx.measureText(s).width, h = (o.size || 13) + 8;
+    let x0 = o.align === 'center' ? x - w / 2 : o.align === 'right' ? x - w : x;
+    ctx.fillStyle = o.bg; roundRect(ctx, x0 - 7, y - h / 2, w + 14, h, h / 2); ctx.fill();
+  }
+  ctx.fillStyle = o.color || TH.text; ctx.fillText(s, x, y);
+}
+function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function wrapText(ctx, s, x, y, maxW, lh, o = {}) {
+  ctx.font = `${o.bold ? '700 ' : ''}${o.size || 13}px 'Segoe UI', system-ui, sans-serif`;
+  const words = s.split(' '); let line = '', lines = [];
+  for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; }
+  lines.push(line);
+  lines.forEach((l, i) => txt(ctx, l, x, y + i * lh, o));
+  return lines.length;
+}
+/* nuclear equation on canvas. items: ['U',238,92] | '→' | '+' | 'γ' ... */
+function drawEq(ctx, items, x, y, size = 20, color) {
+  const col = color || TH.text, small = Math.round(size * .55);
+  const parts = items.map(it => {
+    if (typeof it === 'string') { ctx.font = `${size}px 'Segoe UI', system-ui`; return { s: it, w: ctx.measureText(it).width + size * .5 }; }
+    ctx.font = `${small}px 'Segoe UI', system-ui`; const wa = Math.max(ctx.measureText(String(it[1])).width, ctx.measureText(String(it[2])).width);
+    ctx.font = `600 ${size}px 'Segoe UI', system-ui`; const ws = ctx.measureText(it[0]).width;
+    return { it, wa, ws, w: wa + ws + size * .45 };
+  });
+  const tot = parts.reduce((a, p) => a + p.w, 0); let cx = x - tot / 2;
+  ctx.fillStyle = col; ctx.textBaseline = 'middle';
+  for (const p of parts) {
+    if (p.s) { ctx.font = `${size}px 'Segoe UI', system-ui`; ctx.textAlign = 'center'; ctx.fillText(p.s, cx + p.w / 2, y); }
+    else {
+      ctx.font = `${small}px 'Segoe UI', system-ui`; ctx.textAlign = 'right';
+      ctx.fillText(String(p.it[1]), cx + size * .2 + p.wa, y - size * .38);
+      ctx.fillText(String(p.it[2]), cx + size * .2 + p.wa, y + size * .4);
+      ctx.font = `600 ${size}px 'Segoe UI', system-ui`; ctx.textAlign = 'left';
+      ctx.fillText(p.it[0], cx + size * .25 + p.wa, y);
+    }
+    cx += p.w;
+  }
+}
+function arrow(ctx, x1, y1, x2, y2, col, lw = 2, head = 8) {
+  const a = Math.atan2(y2 - y1, x2 - x1);
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2 - Math.cos(a) * head * .6, y2 - Math.sin(a) * head * .6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2 - head * Math.cos(a - .4), y2 - head * Math.sin(a - .4)); ctx.lineTo(x2 - head * Math.cos(a + .4), y2 - head * Math.sin(a + .4)); ctx.closePath(); ctx.fill();
+  ctx.lineWidth = 1;
+}
+function flash(ctx, x, y, r, a, col = '#fde047') {
+  if (a <= 0) return;
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, rgba(col, a)); g.addColorStop(.4, rgba(col, a * .5)); g.addColorStop(1, rgba(col, 0));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+}
+
+const TABS = {};
+</script>
+
+<script>
+/* ═════════════════ TAB 1 · SCALE ═════════════════ */
+TABS.scale = (() => {
+  const S = new Stage('cv-scale');
+  const A0 = 52.9e-12;
+  const ELS = [
+    { sym: 'H', name: 'Hydrogen', Z: 1, A: 1, r: 53e-12, shells: [1] },
+    { sym: 'He', name: 'Helium', Z: 2, A: 4, r: 31e-12, shells: [2] },
+    { sym: 'C', name: 'Carbon', Z: 6, A: 12, r: 67e-12, shells: [2, 4] },
+    { sym: 'O', name: 'Oxygen', Z: 8, A: 16, r: 48e-12, shells: [2, 6] },
+    { sym: 'Fe', name: 'Iron', Z: 26, A: 56, r: 156e-12, shells: [2, 8, 14, 2] },
+    { sym: 'Au', name: 'Gold', Z: 79, A: 197, r: 174e-12, shells: [2, 8, 18, 32, 18, 1] },
+    { sym: 'U', name: 'Uranium', Z: 92, A: 238, r: 175e-12, shells: [2, 8, 18, 32, 21, 9, 2] },
+  ];
+  const LOGMAX = -8.5, LOGMIN = -14.4;
+  const OBJECTS = [['a bus', 12], ['a football', .22], ['a golf ball', .043], ['a marble', .016], ['a pea', .008], ['a peppercorn', .004], ['a grain of salt', .0005]];
+  const PRED = [['a bus', 12], ['a football', .22], ['a pea', .008], ['a grain of salt', .0005]];
+  let el = ELS[5], logW, target = null, rate = 1.5, pts = null, shellA = [], pred = null;
+  const rNuc = e => e.A === 1 ? 0.84e-15 : 1.2e-15 * Math.cbrt(e.A);
+
+  function buildCloud() {
+    let inner = 0; shellA = [];
+    el.shells.forEach((occ, i) => {
+      const n = i + 1, last = i === el.shells.length - 1;
+      shellA.push(last ? el.r : Math.min(A0 * n * n / (el.Z - inner), el.r * .8));
+      inner += occ;
+    });
+    const per = clamp(Math.round(9000 / el.Z), 60, 1500);
+    const list = [];
+    el.shells.forEach((occ, i) => { for (let k = 0; k < occ * per; k++) list.push(i); });
+    pts = { sh: Int8Array.from(list), x: new Float64Array(list.length), y: new Float64Array(list.length) };
+    for (let i = 0; i < list.length; i++) resample(i);
+  }
+  function resample(i) {
+    const a = shellA[pts.sh[i]];
+    const r = a / 2 * (-Math.log(Math.random() || 1e-9) - Math.log(Math.random() || 1e-9) - Math.log(Math.random() || 1e-9));
+    const c = 2 * Math.random() - 1, s = Math.sqrt(1 - c * c), f = Math.random() * TAU;
+    pts.x[i] = r * s * Math.cos(f); pts.y[i] = r * s * Math.sin(f);
+  }
+  const atomLog = () => Math.log10(el.r * 5.2);
+  const nucLog = () => Math.log10(rNuc(el) * 7);
+
+  function setEl(e) {
+    el = e; buildCloud();
+    document.querySelectorAll('#sc-els .chip').forEach(c => c.classList.toggle('on', c.dataset.s === e.sym));
+    if (logW === undefined) logW = atomLog();
+    facts(); showPred();
+  }
+  function facts() {
+    const rn = rNuc(el), ratio = el.r / rn;
+    const massFrac = 1 - el.Z * 9.109e-31 / (el.A * 1.6605e-27 + el.Z * 9.109e-31);
+    const vol = Math.pow(rn / el.r, 3);
+    $('#sc-facts').innerHTML = `
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:6px"><b class="big">${el.sym}</b><div><b>${el.name}</b><br><span class="note">${el.Z} protons, ${el.A - el.Z} neutrons, ${el.Z} electrons</span></div></div>
+      Atom: about <b>${fmtLen(2 * el.r)}</b> across<br>
+      Nucleus: about <b>${fmtLen(2 * rn)}</b> across<br>
+      The atom is about <b>${(+ratio.toPrecision(2)).toLocaleString('en-US')}</b> times wider than its nucleus.<br>
+      The nucleus holds <b>${(massFrac * 100).toFixed(2)}%</b> of the mass, but only <b>1 part in ${sci(1 / vol, 1)}</b> of the volume.`;
+  }
+  function showPred() {
+    const out = $('#sc-pred-out');
+    if (!pred) { out.textContent = 'Pick one, then dive in to check.'; return; }
+    const real = 200 * rNuc(el) / el.r;
+    const best = OBJECTS.reduce((b, o) => Math.abs(Math.log(o[1] / real)) < Math.abs(Math.log(b[1] / real)) ? o : b);
+    const right = pred === best[0] || (pred === 'a pea' && ['a marble', 'a peppercorn'].includes(best[0]));
+    out.innerHTML = `You said <b>${pred}</b>. For ${el.name.toLowerCase()} the nucleus would be about <b>${real >= .01 ? (real * 100).toFixed(1) + ' cm' : (real * 1000).toFixed(1) + ' mm'}</b> across, about the size of <b>${best[0]}</b>. ${right ? '<span class="ok">Good guess!</span>' : '<span class="bad">Smaller than most people think!</span>'} And the rest of the stadium? Empty, apart from the electron cloud.`;
+  }
+
+  function init() {
+    $('#sc-els').innerHTML = ELS.map(e => `<span class="chip" data-s="${e.sym}" title="${e.name}">${e.sym}</span>`).join('');
+    $('#sc-els').onclick = e => { const c = e.target.closest('.chip'); if (c) setEl(ELS.find(x => x.sym === c.dataset.s)); };
+    $('#sc-pred').innerHTML = PRED.map(p => `<span class="chip" data-p="${p[0]}">${p[0]}</span>`).join('');
+    $('#sc-pred').onclick = e => { const c = e.target.closest('.chip'); if (!c) return; pred = c.dataset.p; document.querySelectorAll('#sc-pred .chip').forEach(x => x.classList.toggle('on', x === c)); showPred(); };
+    $('#sc-dive').onclick = () => { target = nucLog(); rate = 1.6; };
+    $('#sc-out').onclick = () => { target = atomLog(); rate = 2.2; };
+    $('#sc-zoom').oninput = e => { logW = LOGMAX - (LOGMAX - LOGMIN) * e.target.value / 1000; target = null; };
+    S.cv.addEventListener('wheel', e => { e.preventDefault(); target = clamp((target ?? logW) + e.deltaY * 0.0016, LOGMIN, LOGMAX); rate = 7; }, { passive: false });
+    const ptr = new Map(); let pinch = null;
+    S.cv.addEventListener('pointerdown', e => {
+      ptr.set(e.pointerId, S.pos(e)); S.cv.setPointerCapture(e.pointerId);
+      if (ptr.size === 2) { const [a, b] = [...ptr.values()]; pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), l: logW }; }
+      else if (ptr.size === 1) {
+        const [x, y] = S.pos(e); const lad = ladder();
+        if (x > lad.x0) {
+          const tag = lad.tags.find(t => Math.abs(y - t.y) < 13);
+          target = tag ? tag.log : clamp(LOGMAX - (y - lad.top) / (lad.bot - lad.top) * (LOGMAX - LOGMIN), LOGMIN, LOGMAX); rate = 3;
+        }
+      }
+    });
+    S.cv.addEventListener('pointermove', e => {
+      if (!ptr.has(e.pointerId)) return; ptr.set(e.pointerId, S.pos(e));
+      if (ptr.size === 2 && pinch) { const [a, b] = [...ptr.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]); logW = clamp(pinch.l - Math.log10(d / pinch.d) * 1.5, LOGMIN, LOGMAX); target = null; }
+    });
+    const up = e => { ptr.delete(e.pointerId); if (ptr.size < 2) pinch = null; };
+    S.cv.addEventListener('pointerup', up); S.cv.addEventListener('pointercancel', up);
+    setEl(el);
+  }
+
+  function ladder() {
+    const x0 = S.w - 96, top = 46, bot = S.h - 46;
+    const y = l => top + (LOGMAX - l) / (LOGMAX - LOGMIN) * (bot - top);
+    return { x0, top, bot, y, tags: [{ name: 'Atom', log: atomLog(), y: y(atomLog()) }, { name: 'Nucleus', log: nucLog(), y: y(nucLog()) }] };
+  }
+
+  function frame(dt) {
+    S.fit(); const ctx = S.ctx, W = S.w, H = S.h;
+    if (target !== null) {
+      const d = target - logW, step = rate * dt;
+      if (Math.abs(d) <= step) { logW = target; target = null; } else logW += Math.sign(d) * step;
+    }
+    $('#sc-zoom').value = Math.round((LOGMAX - logW) / (LOGMAX - LOGMIN) * 1000);
+    if ($('#sc-shimmer').checked) { const n = pts.x.length, k = Math.max(1, n * .03 | 0); for (let i = 0; i < k; i++) resample(Math.random() * n | 0); }
+
+    const aw = W - 96, cx = aw / 2, cy = H / 2, D = Math.min(aw, H) * .92;
+    const view = Math.pow(10, logW), s = D / view;
+
+    // electron cloud
+    ctx.fillStyle = rgba(TH.dark ? '#7fb2ff' : '#2563eb', TH.dark ? .6 : .5);
+    const n = pts.x.length, lim = Math.max(aw, H);
+    for (let i = 0; i < n; i++) {
+      const x = cx + pts.x[i] * s, y = cy + pts.y[i] * s;
+      if (x < -2 || y < -2 || x > aw + 2 || y > H + 2) continue;
+      ctx.fillRect(x - .9, y - .9, 1.8, 1.8);
+    }
+    // atom edge
+    const ra = el.r * s;
+    if ($('#sc-edge').checked && ra > 6 && ra < lim * 3) {
+      ctx.strokeStyle = rgba(TH.dark ? '#a78bfa' : '#7c3aed', .7); ctx.setLineDash([6, 6]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, ra, 0, TAU); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1;
+      if (ra < lim * .6) txt(ctx, 'typical atom size', cx + ra * .72, cy - ra * .72 - 10, { color: TH.purple, size: 12 });
+    }
+    // nucleus
+    const rn = rNuc(el) * s;
+    if (rn < 1.5) {
+      ctx.strokeStyle = TH.red; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx, cy, 9, 0, TAU); ctx.stroke(); ctx.lineWidth = 1;
+      const px = 2 * rn, pxs = px >= .1 ? px.toFixed(2) : px >= .001 ? px.toFixed(4) : sci(px, 2);
+      const lab = `Nucleus is here: only ${pxs} px wide at this zoom`;
+      ctx.font = "700 12px 'Segoe UI', system-ui"; const lw = ctx.measureText(lab).width + 14;
+      const ly = cy + 40, lxx = clamp(cx + 30, 10, aw - lw - 4);
+      ctx.beginPath(); ctx.moveTo(cx + 6, cy + 7); ctx.lineTo(clamp(cx + 26, lxx + 10, lxx + lw - 10), ly - 9); ctx.strokeStyle = TH.red; ctx.stroke();
+      txt(ctx, lab, lxx + 7, ly, { color: '#fff', bg: TH.red, size: 12, bold: true });
+    } else if (rn < 12) {
+      ball(ctx, cx, cy, rn, '#c45a5e');
+    } else {
+      const cl = makeCluster(el.Z, el.A - el.Z, 5);
+      drawCluster(ctx, cl, cx, cy, rn / cl.R);
+      if (rn < lim * .45) txt(ctx, `${el.name}-${el.A} nucleus: ${el.Z} protons, ${el.A - el.Z} neutrons`, cx, cy + rn + 18, { align: 'center', size: 12, bg: TH.surface });
+    }
+
+    // scale bar
+    const maxL = D * .3 / s, p10 = Math.pow(10, Math.floor(Math.log10(maxL)));
+    const L = [5, 2, 1].map(k => k * p10).find(v => v <= maxL) || p10, Lpx = L * s;
+    const bx = 18, by = H - 26;
+    ctx.fillStyle = TH.text; ctx.fillRect(bx, by, Lpx, 3); ctx.fillRect(bx, by - 5, 2, 13); ctx.fillRect(bx + Lpx - 2, by - 5, 2, 13);
+    txt(ctx, fmtLen(L), bx + Lpx / 2, by - 12, { align: 'center', bold: true, size: 13 });
+
+    // readouts
+    const zoom = Math.pow(10, atomLog() - logW);
+    txt(ctx, `View width: ${fmtLen(view * aw / D)}`, 16, 22, { bold: true, size: 14, bg: TH.surface });
+    txt(ctx, `Zoom ×${zoom >= 1 ? Math.round(zoom).toLocaleString('en-US') : zoom.toFixed(2)}`, 16, 50, { size: 13, bg: TH.surface, color: TH.muted });
+    let nIn = 0; const half = view * aw / D / 2;
+    if (logW < -11.5) { for (let i = 0; i < n; i++) if (Math.abs(pts.x[i]) < half && Math.abs(pts.y[i]) < half * H / aw) nIn++; }
+    if (logW < -11.5) txt(ctx, nIn ? `${nIn} of ${n.toLocaleString('en-US')} electron dots are in view` : `None of the ${n.toLocaleString('en-US')} electron dots is in view: almost all of the atom is empty space`, 16, 78, { size: 13, bg: TH.surface, color: TH.muted });
+
+    // ladder
+    const lad = ladder();
+    ctx.fillStyle = TH.surface; ctx.fillRect(lad.x0, 0, 96, H);
+    ctx.strokeStyle = TH.border; ctx.beginPath(); ctx.moveTo(lad.x0, 0); ctx.lineTo(lad.x0, H); ctx.stroke();
+    const lx = lad.x0 + 70;
+    ctx.strokeStyle = TH.dim; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(lx, lad.top); ctx.lineTo(lx, lad.bot); ctx.stroke(); ctx.lineWidth = 1;
+    txt(ctx, 'zoomed out', lx, lad.top - 22, { align: 'center', size: 10, color: TH.muted });
+    txt(ctx, 'zoomed in', lx, lad.bot + 22, { align: 'center', size: 10, color: TH.muted });
+    for (let k = -9; k >= -15; k--) for (const m of [2, 5]) {
+      const l = k + Math.log10(m); if (l > LOGMAX || l < LOGMIN) continue;
+      ctx.fillStyle = TH.dim; ctx.fillRect(lx - 4, lad.y(l), 8, 1);
+    }
+    [[-9, '1 nm'], [-10, '100 pm'], [-11, '10 pm'], [-12, '1 pm'], [-13, '100 fm'], [-14, '10 fm']].forEach(([l, s2]) => {
+      const y = lad.y(l); ctx.fillStyle = TH.text; ctx.fillRect(lx - 7, y, 14, 1.5);
+      txt(ctx, s2, lx + 9, y, { size: 10, color: TH.muted });
+    });
+    lad.tags.forEach(t => txt(ctx, t.name, lx - 12, t.y, { align: 'right', size: 11, bold: true, color: '#fff', bg: TH.purple }));
+    const yc = lad.y(logW);
+    ctx.fillStyle = TH.accent; ctx.beginPath(); ctx.moveTo(lx - 2, yc); ctx.lineTo(lx + 9, yc - 7); ctx.lineTo(lx + 9, yc + 7); ctx.closePath(); ctx.fill();
+    ctx.fillRect(lx - 9, yc - 1.5, 18, 3);
+  }
+
+  return { init, frame };
+})();
+</script>
+
+<script>
+/* ═════════════════ TAB 2 · BUILD AN ATOM ═════════════════ */
+TABS.build = (() => {
+  const S = new Stage('cv-build');
+  const SYM = ['n', 'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne'];
+  const NAME = ['', 'Hydrogen', 'Helium', 'Lithium', 'Beryllium', 'Boron', 'Carbon', 'Nitrogen', 'Oxygen', 'Fluorine', 'Neon'];
+  // Z N mode half-life   (s stable, b- beta minus, b+ beta plus, ec electron capture, a alpha, p / 2p proton emission, n neutron emission)
+  const RAW = `0 1 b- 10.2 minutes
+1 0 s
+1 1 s
+1 2 b- 12.3 years
+1 3 n 1.4×10⁻²² s
+1 4 n ~10⁻²² s
+1 5 n ~10⁻²¹ s
+2 1 s
+2 2 s
+2 3 n 7×10⁻²² s
+2 4 b- 0.81 s
+2 5 n 3×10⁻²¹ s
+2 6 b- 0.12 s
+2 7 n ~10⁻²¹ s
+2 8 n ~10⁻²¹ s
+3 1 p 9×10⁻²³ s
+3 2 p 4×10⁻²² s
+3 3 s
+3 4 s
+3 5 b- 0.84 s
+3 6 b- 0.18 s
+3 7 n ~10⁻²¹ s
+3 8 b- 8.8 ms
+3 9 n ~10⁻²¹ s
+4 2 2p 5×10⁻²¹ s
+4 3 ec 53 days
+4 4 a 8×10⁻¹⁷ s
+4 5 s
+4 6 b- 1.4 million years
+4 7 b- 13.8 s
+4 8 b- 21.5 ms
+4 9 n ~10⁻²¹ s
+4 10 b- 4.4 ms
+5 2 p ~10⁻²² s
+5 3 b+ 0.77 s
+5 4 p 8×10⁻¹⁹ s
+5 5 s
+5 6 s
+5 7 b- 20.2 ms
+5 8 b- 17.3 ms
+5 9 b- 12.5 ms
+5 10 b- 9.9 ms
+5 11 n ~10⁻²¹ s
+5 12 b- 5.1 ms
+6 2 2p ~10⁻²¹ s
+6 3 b+ 0.13 s
+6 4 b+ 19.3 s
+6 5 b+ 20.4 minutes
+6 6 s
+6 7 s
+6 8 b- 5,730 years
+6 9 b- 2.45 s
+6 10 b- 0.75 s
+6 11 b- 0.19 s
+6 12 b- 92 ms
+7 3 p ~10⁻²² s
+7 4 p ~10⁻²¹ s
+7 5 b+ 11 ms
+7 6 b+ 10.0 minutes
+7 7 s
+7 8 s
+7 9 b- 7.1 s
+7 10 b- 4.2 s
+7 11 b- 0.62 s
+7 12 b- 0.34 s
+8 3 2p ~10⁻²¹ s
+8 4 2p ~10⁻²¹ s
+8 5 b+ 8.6 ms
+8 6 b+ 71 s
+8 7 b+ 122 s
+8 8 s
+8 9 s
+8 10 s
+8 11 b- 26.9 s
+8 12 b- 13.5 s
+9 5 p ~10⁻²² s
+9 6 p ~10⁻²¹ s
+9 7 p ~10⁻²⁰ s
+9 8 b+ 64.5 s
+9 9 b+ 110 minutes
+9 10 s
+9 11 b- 11.0 s
+9 12 b- 4.2 s
+10 6 2p ~10⁻²¹ s
+10 7 b+ 0.11 s
+10 8 b+ 1.67 s
+10 9 b+ 17.2 s
+10 10 s
+10 11 s
+10 12 s`;
+  const NUC = {};
+  RAW.split('\n').forEach(l => { const [z, n, m, ...h] = l.trim().split(/\s+/); NUC[z + '-' + n] = { m, hl: h.join(' ') }; });
+  const NOTES = {
+    '0-1': 'A free neutron does not last: half of them decay in about 10 minutes.',
+    '1-1': 'Deuterium, "heavy hydrogen": about 1 in 6,400 hydrogen atoms in sea water.',
+    '1-2': 'Tritium: used in glow-in-the-dark exit signs and as fuel in fusion reactors.',
+    '2-2': 'Helium-4 is the alpha particle: an extremely tightly bound nucleus.',
+    '2-4': 'Helium-6 is a "halo" nucleus: two neutrons orbit far out from a helium-4 core.',
+    '3-5': 'Lithium-8 decays to beryllium-8, which then splits into two alpha particles.',
+    '3-8': 'Lithium-11 is a "halo" nucleus: its two outer neutrons make it about as big as a lead nucleus!',
+    '4-3': 'Beryllium-7 is made in the Sun; its decay produces solar neutrinos.',
+    '4-4': 'Beryllium-8 splits into two helium-4 nuclei. Stars get round this gap by joining three helium-4 nuclei at once into carbon-12.',
+    '4-6': 'Beryllium-10 is made by cosmic rays in the air. Used to date ice cores and rock surfaces.',
+    '5-3': 'Boron-8 decays inside the Sun and gives out the highest-energy solar neutrinos.',
+    '6-5': 'Carbon-11 is used in PET scans.',
+    '6-6': 'Carbon-12 defines the atomic mass unit: exactly 12 u.',
+    '6-8': 'Carbon-14 is made in the air by cosmic rays. Living things keep taking it in; after death it decays. That is radiocarbon dating.',
+    '7-6': 'Nitrogen-13 is used in PET scans of the heart.',
+    '8-7': 'Oxygen-15 is used in PET scans of blood flow in the brain.',
+    '9-9': 'Fluorine-18 is the most common tracer used in PET scans (see Nuclear Processes → β⁺ decay).',
+  };
+  const COL = { 'b-': '#3b82f6', 'b+': '#f97316', ec: '#f59e0b', a: '#eab308', p: '#ec4899', '2p': '#ec4899', n: '#a78bfa' };
+  const modeCol = m => m === 's' ? TH.text : COL[m];
+  let p = 1, n = 0, e = 1, view = 'orbit', anim = null, tt = 0;
+  const info = () => NUC[p + '-' + n];
+
+  function name() { return p === 0 ? (n === 1 ? 'Neutron' : '—') : `${NAME[p]}-${p + n}`; }
+  function stabHTML() {
+    const d = info(), A = p + n;
+    if (A === 0) return 'Empty. Add a proton to start.';
+    if (!d) {
+      if (p === 0) return `<b>No such thing.</b> Neutrons on their own do not stick together. (Only a neutron star, held together by gravity, manages it.)`;
+      const tooN = n > 1.3 * p + 1;
+      return `<span class="bad">Never seen.</span> With ${n} neutron${n === 1 ? '' : 's'} for ${p} proton${p === 1 ? '' : 's'} there are far too many ${tooN ? 'neutrons' : 'protons'}: it would fall apart at once.`;
+    }
+    const hl = d.hl;
+    const T = {
+      s: `<span class="ok">Stable.</span> It lasts forever, as far as we know.`,
+      'b-': `<span class="bad">Unstable: β⁻ decay</span>, half-life <b>${hl}</b>.<br>Too many neutrons: a neutron turns into a proton and throws out an electron (and an antineutrino).`,
+      'b+': `<span class="bad">Unstable: β⁺ decay</span>, half-life <b>${hl}</b>.<br>Too many protons: a proton turns into a neutron and throws out a positron (and a neutrino).`,
+      ec: `<span class="bad">Unstable: electron capture</span>, half-life <b>${hl}</b>.<br>The nucleus swallows one of its own inner electrons and a proton becomes a neutron.`,
+      a: `<span class="bad">Unstable</span>: splits into two alpha particles (helium-4), half-life <b>${hl}</b>.`,
+      p: `<span class="bad">Falls apart</span> in about <b>${hl}</b>: a proton is pushed out straight away.`,
+      '2p': `<span class="bad">Falls apart</span> in about <b>${hl}</b>: two protons are pushed out straight away.`,
+      n: `<span class="bad">Falls apart</span> in about <b>${hl}</b>: a neutron drips out straight away.`,
+    }[d.m];
+    const note = NOTES[p + '-' + n] ? `<p class="note" style="margin-top:6px">${NOTES[p + '-' + n]}</p>` : '';
+    const btn = d.m !== 's' ? `<div class="row" style="margin-top:8px"><button class="btn primary" id="bd-decay">Watch it decay ▶</button></div><p class="note">The real decay ${d.m === 'p' || d.m === '2p' || d.m === 'n' ? 'is far too fast to see' : 'takes ' + hl + ' on average'}; here it is shown in about 2 seconds.</p>` : '';
+    return T + note + btn;
+  }
+  function refresh() {
+    $('#bd-p').textContent = p; $('#bd-n').textContent = n; $('#bd-e').textContent = e;
+    const q = p - e, A = p + n;
+    const charge = q === 0 ? (p ? 'Neutral atom (charge 0)' : 'Charge 0') : `Ion, charge ${q > 0 ? '+' + q : '−' + (-q)} (${q > 0 ? 'fewer' : 'more'} electrons than protons)`;
+    $('#bd-id').innerHTML = p === 0
+      ? `<b>${n === 1 && e === 0 ? 'A free neutron' : 'No protons: not an element'}</b><br><span class="note">The number of protons decides the element.</span>`
+      : `<div style="display:flex;gap:12px;align-items:center"><span style="font-size:1.7rem">${nuc(SYM[p], A, p)}</span><div><b>${NAME[p]}-${A}</b><br><span class="note">Mass number A = ${p} + ${n} = ${A}</span></div></div><div style="margin-top:6px">${charge}</div>`;
+    $('#bd-stab').innerHTML = stabHTML();
+    const b = $('#bd-decay'); if (b) b.onclick = startDecay;
+    const iso = [];
+    if (p > 0) for (let k = 0; k <= 12; k++) if (NUC[p + '-' + k]?.m === 's') iso.push(k);
+    $('#bd-iso').innerHTML = p === 0 ? '<span class="note">Add a proton first.</span>' : iso.map(k => `<span class="chip ${k === n ? 'on' : ''}" data-n="${k}">${SYM[p]}-${p + k}</span>`).join('');
+  }
+  function set(P, N, E) { if (anim) return; p = clamp(P, 0, 10); n = clamp(N, 0, 12); e = clamp(E, 0, 12); refresh(); }
+
+  function startDecay() {
+    const d = info(); if (!d || d.m === 's' || anim) return;
+    const cl = makeCluster(p, n), lay = layout(), s = nucS(cl, lay);
+    const a = { m: d.m, t: 0, dur: 2.6, cl, from: { p, n, e }, hide: new Set(), fly: [] };
+    const right = q => q.x + q.z * .3;
+    const ang = -0.5 + Math.random() * 1.0;
+    if (d.m === 'b-' || d.m === 'b+' || d.m === 'ec') a.change = pickNucleons(cl, d.m !== 'b-', 1, right)[0];
+    if (d.m === 'p') a.out = pickNucleons(cl, true, 1, right);
+    if (d.m === '2p') a.out = pickNucleons(cl, true, 2, right);
+    if (d.m === 'n') a.out = pickNucleons(cl, false, 1, right);
+    a.ang = ang;
+    anim = a;
+    document.querySelectorAll('#tab-build .counter button').forEach(b => b.disabled = true);
+  }
+  function finishDecay() {
+    const m = anim.m; anim = null;
+    document.querySelectorAll('#tab-build .counter button').forEach(b => b.disabled = false);
+    if (m === 'b-') { p++; n--; } else if (m === 'b+') { p--; n++; } else if (m === 'ec') { p--; n++; e--; }
+    else if (m === 'p') p--; else if (m === '2p') p -= 2; else if (m === 'n') n--; else if (m === 'a') { p -= 2; n -= 2; }
+    refresh();
+  }
+
+  function layout() {
+    const W = S.w, H = S.h;
+    if (W >= 760) return { atom: { x: 0, y: 0, w: W * .55, h: H }, chart: { x: W * .55, y: 0, w: W * .45, h: H } };
+    return { atom: { x: 0, y: 0, w: W, h: H * .56 }, chart: { x: 0, y: H * .56, w: W, h: H * .44 } };
+  }
+  function nucS(cl, lay) { const R = Math.min(lay.atom.w, lay.atom.h) * .4; return clamp(R * .2 / cl.R, 4, 13); }
+  function chartGeom(lay) {
+    const c = lay.chart, cs = Math.min((c.w - 70) / 13, (c.h - 120) / 11);
+    const x0 = c.x + (c.w - 13 * cs) / 2 + 14, y0 = c.y + 44 + 11 * cs;
+    return { cs, x0, y0 };
+  }
+
+  function init() {
+    document.querySelectorAll('#tab-build .counter button').forEach(b => b.onclick = () => {
+      const k = b.dataset.k, d = +b.dataset.d;
+      set(p + (k === 'p' ? d : 0), n + (k === 'n' ? d : 0), e + (k === 'e' ? d : 0));
+    });
+    $('#bd-view').onclick = ev => { const c = ev.target.closest('.chip'); if (!c) return; view = c.dataset.v; document.querySelectorAll('#bd-view .chip').forEach(x => x.classList.toggle('on', x === c)); };
+    $('#bd-iso').onclick = ev => { const c = ev.target.closest('.chip'); if (c) set(p, +c.dataset.n, e); };
+    S.cv.addEventListener('pointerdown', ev => {
+      const [x, y] = S.pos(ev), g = chartGeom(layout());
+      const N = Math.floor((x - g.x0) / g.cs), Z = Math.floor((g.y0 - y) / g.cs);
+      if (N >= 0 && N <= 12 && Z >= 0 && Z <= 10) set(Z, N, Z);
+    });
+    refresh();
+  }
+
+  function frame(dt) {
+    S.fit(); const ctx = S.ctx; tt += dt;
+    const lay = layout(), A = lay.atom;
+    const ax = A.x + A.w / 2, ay = A.y + A.h / 2 + 14, R = Math.min(A.w, A.h) * .4;
+    const d = info(), unstable = d && d.m !== 's';
+    let P = p, N = n, E = e;
+    if (anim) { P = anim.from.p; N = anim.from.n; E = anim.from.e; }
+    const cl = P + N ? makeCluster(P, N) : null, s = cl ? nucS(cl, lay) : 10;
+    const r1 = Math.max((cl ? cl.R * s : 0) + 26, R * .42), r2 = R * .72, r3 = R * .97;
+
+    // title
+    txt(ctx, p + n === 0 ? 'Empty' : (p ? `${NAME[p]}-${p + n}` : n === 1 ? 'Neutron' : 'Neutrons only'), ax, A.y + 26, { align: 'center', bold: true, size: 18 });
+
+    // electrons
+    let eLeft = E, shells = [];
+    [2, 8, 2].forEach((cap, i) => { const k = Math.min(cap, eLeft); eLeft -= k; shells.push(k); });
+    const radii = [r1, r2, r3];
+    if (view === 'orbit') {
+      ctx.setLineDash([4, 5]); ctx.strokeStyle = TH.dim;
+      radii.forEach((r, i) => { if (shells[i] || i === 0) { ctx.beginPath(); ctx.arc(ax, ay, r, 0, TAU); ctx.stroke(); } });
+      ctx.setLineDash([]);
+    } else if (E > 0) {
+      const outer = shells[2] ? r3 : shells[1] ? r2 : r1;
+      const g = ctx.createRadialGradient(ax, ay, 0, ax, ay, outer * 1.2);
+      const c = TH.dark ? '#60a5fa' : '#2563eb', k = .12 + .03 * E;
+      g.addColorStop(0, rgba(c, k)); g.addColorStop(.5, rgba(c, k * .7)); g.addColorStop(1, rgba(c, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ax, ay, outer * 1.2, 0, TAU); ctx.fill();
+    }
+
+    // nucleus
+    if (cl) {
+      let hide = new Set(), colorFn = null, jig = unstable && !anim ? 1.2 : 0;
+      if (anim) {
+        anim.t += dt; const t = anim.t;
+        jig = t < .8 ? 3 : 0;
+        if (anim.change !== undefined) {
+          const k = seg(t, .8, 1.15), from = anim.m === 'b-' ? NEUTRON : PROTON, to = anim.m === 'b-' ? PROTON : NEUTRON;
+          if (anim.m !== 'ec' || t > .8) colorFn = q => q.i === anim.change ? mix(from, to, k) : null;
+        }
+        if (anim.out) anim.out.forEach(i => hide.add(i));
+        if (anim.m === 'a') cl.pts.forEach(q => hide.add(q.i));
+      }
+      drawCluster(ctx, cl, ax, ay, s, { jiggle: jig, hide, color: colorFn });
+      if (anim) drawDecay(ctx, cl, ax, ay, s, r1);
+    }
+
+    // electrons on top
+    if (view === 'orbit') {
+      let skip = anim && anim.m === 'ec' ? 1 : 0;
+      shells.forEach((k, i) => {
+        for (let j = 0; j < k; j++) {
+          if (i === 0 && j === 0 && skip) continue;
+          const a = tt * (0.9 / (i + 1)) + j * TAU / k + i * .7;
+          drawElectron(ctx, ax + radii[i] * Math.cos(a), ay + radii[i] * Math.sin(a), 7);
+        }
+      });
+    }
+    if (anim && anim.t >= anim.dur) finishDecay();
+
+    // legend under atom
+    const ly = A.y + A.h - 22;
+    [['proton', PROTON], ['neutron', NEUTRON], ['electron', ELECTRON]].forEach(([nm, c], i) => {
+      const x = ax - 130 + i * 95; ball(ctx, x, ly, 6, c); txt(ctx, nm, x + 10, ly, { size: 12, color: TH.muted });
+    });
+
+    drawChart(ctx, lay);
+  }
+
+  function drawDecay(ctx, cl, ax, ay, s, r1) {
+    const a = anim, t = a.t, m = a.m, v = 240, ft = Math.max(0, t - .9);
+    const dirx = Math.cos(a.ang), diry = Math.sin(a.ang);
+    if (m === 'ec' && t < .9) {
+      const k = ease(seg(t, 0, .9)), ang0 = tt * .9;
+      const rr = lerp(r1, 0, k), aa = ang0 + k * 4;
+      drawElectron(ctx, ax + rr * Math.cos(aa), ay + rr * Math.sin(aa), 7);
+    }
+    if (m === 'b-' || m === 'b+' || m === 'ec') {
+      if (t > .9) {
+        const [x0, y0] = nucleonPos(cl, a.change, ax, ay, s);
+        if (m !== 'ec') drawElectron(ctx, x0 + dirx * v * ft, y0 + diry * v * ft, 7, m === 'b-' ? ELECTRON : POSITRON, m === 'b-' ? '−' : '+');
+        const nd = a.ang + (m === 'ec' ? 2.6 : 1.6);
+        drawNeutrino(ctx, x0 + Math.cos(nd) * v * 1.2 * ft, y0 + Math.sin(nd) * v * 1.2 * ft, m === 'b-' ? 'ν̄' : 'ν');
+      }
+      const lab = { 'b-': 'β⁻ decay: n → p + e⁻ + ν̄', 'b+': 'β⁺ decay: p → n + e⁺ + ν', ec: 'Electron capture: p + e⁻ → n + ν' }[m];
+      txt(ctx, lab, ax, ay - r1 - 30, { align: 'center', bold: true, size: 14, bg: TH.surface });
+    }
+    if (a.out) {
+      a.out.forEach((i, k) => {
+        const [x0, y0] = nucleonPos(cl, i, ax, ay, s), aa = a.ang + k * 1.2;
+        const jj = t < .9 ? 3 : 0;
+        ball(ctx, x0 + Math.cos(aa) * v * ft + (Math.random() - .5) * jj, y0 + Math.sin(aa) * v * ft, s * .98, m === 'n' ? NEUTRON : PROTON);
+      });
+      txt(ctx, m === 'n' ? 'A neutron drips out' : m === 'p' ? 'A proton is pushed out' : 'Two protons are pushed out', ax, ay - r1 - 30, { align: 'center', bold: true, size: 14, bg: TH.surface });
+    }
+    if (m === 'a') {
+      const he = makeCluster(2, 2, 3), off = 2 + ft * v * .8;
+      drawCluster(ctx, he, ax - dirx * off + (t < .9 ? (Math.random() - .5) * 3 : 0), ay - diry * off, s);
+      drawCluster(ctx, he, ax + dirx * off, ay + diry * off, s);
+      txt(ctx, 'Splits into two alpha particles', ax, ay - r1 - 30, { align: 'center', bold: true, size: 14, bg: TH.surface });
+    }
+  }
+
+  function drawChart(ctx, lay) {
+    const g = chartGeom(lay), cs = g.cs, c = lay.chart;
+    txt(ctx, 'Chart of nuclei', c.x + c.w / 2, c.y + 22, { align: 'center', bold: true, size: 15 });
+    // N = Z line
+    ctx.strokeStyle = TH.dim; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(g.x0, g.y0); ctx.lineTo(g.x0 + 11 * cs, g.y0 - 11 * cs); ctx.stroke(); ctx.setLineDash([]);
+    txt(ctx, 'N = Z', g.x0 + 10.6 * cs, g.y0 - 11 * cs - 2, { size: 10, color: TH.muted, align: 'right' });
+    for (let Z = 0; Z <= 10; Z++) {
+      txt(ctx, SYM[Z], g.x0 - 6, g.y0 - (Z + .5) * cs, { align: 'right', size: Math.min(12, cs * .55), color: TH.muted, bold: true });
+      for (let N = 0; N <= 12; N++) {
+        const x = g.x0 + N * cs, y = g.y0 - (Z + 1) * cs, d = NUC[Z + '-' + N];
+        if (d) { ctx.fillStyle = modeCol(d.m); ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2); }
+        else { ctx.strokeStyle = TH.grid; ctx.strokeRect(x + .5, y + .5, cs - 1, cs - 1); }
+      }
+    }
+    for (let N = 0; N <= 12; N++) txt(ctx, String(N), g.x0 + (N + .5) * cs, g.y0 + 10, { align: 'center', size: Math.min(11, cs * .5), color: TH.muted });
+    txt(ctx, 'neutrons →', g.x0 + 6.5 * cs, g.y0 + 26, { align: 'center', size: 11, color: TH.muted });
+    ctx.save(); ctx.translate(g.x0 - 30, g.y0 - 5.5 * cs); ctx.rotate(-Math.PI / 2); txt(ctx, 'protons →', 0, 0, { align: 'center', size: 11, color: TH.muted }); ctx.restore();
+    // current
+    if (p <= 10 && n <= 12) {
+      const x = g.x0 + n * cs, y = g.y0 - (p + 1) * cs;
+      ctx.strokeStyle = TH.accent; ctx.lineWidth = 3; ctx.strokeRect(x - 1.5, y - 1.5, cs + 3, cs + 3); ctx.lineWidth = 1;
+    }
+    // legend
+    const items = [['stable', 's'], ['β⁻', 'b-'], ['β⁺', 'b+'], ['e⁻ capture', 'ec'], ['2 alphas', 'a'], ['p out', 'p'], ['n out', 'n']];
+    let lx = c.x + 14, ly = g.y0 + 48;
+    ctx.font = "12px 'Segoe UI', system-ui";
+    items.forEach(([nm, m]) => {
+      const w = ctx.measureText(nm).width + 30;
+      if (lx + w > c.x + c.w - 8) { lx = c.x + 14; ly += 20; }
+      ctx.fillStyle = modeCol(m); ctx.fillRect(lx, ly - 6, 12, 12);
+      txt(ctx, nm, lx + 16, ly, { size: 12, color: TH.muted }); lx += w;
+    });
+  }
+
+  return { init, frame };
+})();
+</script>
+
+<script>
+/* ═════════════════ TAB 3 · HYDROGEN MODELS ═════════════════ */
+TABS.hydrogen = (() => {
+  const S = new Stage('cv-hydrogen');
+  const MODELS = [
+    ['ball', 'Billiard ball', 'Dalton, 1803'],
+    ['pudding', 'Plum pudding', 'Thomson, 1904'],
+    ['classical', 'Solar system', 'Rutherford, 1911'],
+    ['bohr', 'Bohr', '1913'],
+    ['debroglie', 'de Broglie', '1924'],
+    ['schrodinger', 'Schrödinger', '1926'],
+    ['heisenberg', 'Heisenberg', '1927'],
+  ];
+  const INFO = {
+    ball: `<b>Billiard ball</b> (John Dalton, about 1803)<ul><li>✓ Atoms are tiny, solid, unbreakable balls, different for each element. That explains why elements combine in fixed proportions.</li><li>✗ No inside parts, so nothing can give out light: the spectrometer stays empty. Light just bounces off.</li></ul>`,
+    pudding: `<b>Plum pudding</b> (J. J. Thomson, 1904)<ul><li>✓ Atoms contain electrons (Thomson discovered them in 1897), sitting in a blob of positive charge.</li><li>✗ The electron can only vibrate at one frequency, so it predicts a single line (at the wrong wavelength). Real hydrogen has many lines.</li><li>✗ It can't explain alpha particles bouncing back off gold foil (see Collisions).</li></ul>`,
+    classical: `<b>Solar system</b> (Ernest Rutherford, 1911)<ul><li>✓ A tiny, heavy, positive nucleus with electrons going round it. This explains the gold-foil experiment.</li><li>✗ An electron moving in a circle is accelerating, and accelerating charges give out light. It loses energy and spirals into the nucleus in about 10⁻¹¹ s, giving a smear of all colours.</li><li>✗ So atoms could not exist! Watch it happen.</li></ul>`,
+    bohr: `<b>Bohr model</b> (Niels Bohr, 1913)<ul><li>Only certain orbits are allowed, with energies <b>Eₙ = −13.6 eV / n²</b>.</li><li>The electron absorbs a photon only if its energy exactly matches a jump up. Later it falls back down and gives out a photon with that exact energy.</li><li>✓ Predicts hydrogen's lines exactly: the Lyman (UV), Balmer (visible) and Paschen (IR) series.</li><li>✗ Doesn't say <i>why</i> only these orbits are allowed, and fails for atoms with more than one electron.</li></ul>`,
+    debroglie: `<b>de Broglie model</b> (Louis de Broglie, 1924)<ul><li>The electron behaves like a wave, with wavelength λ = h / mv.</li><li>An orbit is allowed only if a whole number of wavelengths fits around it: <b>2πr = nλ</b>. Otherwise the wave cancels itself out.</li><li>✓ Explains why Bohr's orbits are special: n is the number of waves around the orbit.</li><li>✗ Still a flat, circular orbit.</li></ul>`,
+    schrodinger: `<b>Schrödinger model</b> (Erwin Schrödinger, 1926)<ul><li>The electron is a 3-D standing wave ψ. The brightness shows |ψ|², how likely you are to find the electron there (a slice through the atom).</li><li>Each state has three numbers: n (energy), l (shape: s, p, d, f…) and m (orientation).</li><li>A jump that gives out one photon must change l by exactly 1. So <b>2s is stuck</b> (metastable): it cannot fall to 1s by giving out a single photon.</li><li>✓ This is today's model (plus electron spin and relativity).</li></ul>`,
+    heisenberg: `<b>Heisenberg's uncertainty principle</b> (Werner Heisenberg, 1927)<ul><li>You cannot know exactly both where an electron is and how it is moving: <b>Δx · Δp ≳ ħ/2</b>.</li><li>Squeeze the electron closer to the nucleus (small Δx) and its momentum gets more uncertain: it moves faster and its kinetic energy goes up.</li><li>Electric attraction pulls it in; uncertainty pushes it out. The atom settles where the <b>total energy is lowest</b>, at about 53 pm. That is why the electron does not fall into the nucleus.</li></ul>`,
+  };
+  const LMIN = 90, LMAX = 2000, NB = 420;
+  const lamOf = (a, b) => 1239.84 / (13.6 * (1 / (a * a) - 1 / (b * b)));
+  const REAL = []; for (let a = 1; a <= 3; a++) for (let b = a + 1; b <= 6; b++) { const l = lamOf(a, b); if (l <= LMAX) REAL.push([l, a, b]); }
+  const LINES = [[lamOf(1, 2), 'Lyman α 122'], [lamOf(1, 3), 'Lyman β 103'], [lamOf(2, 3), 'Hα 656'], [lamOf(2, 4), 'Hβ 486'], [lamOf(2, 5), 'Hγ 434'], [lamOf(2, 6), 'Hδ 410'], [lamOf(3, 4), 'Paschen α 1875'], [90.5, '90.5 (ionises)']];
+  const binOf = l => Math.floor(Math.log(l / LMIN) / Math.log(LMAX / LMIN) * NB);
+  let spec = new Float32Array(NB);
+  let model = 'bohr', lightOn = true, mode = 'white', lam = lamOf(2, 3), hold = false, nonWhole = false;
+  let photons = [], st = { n: 1, l: 0, m: 0 }, ion = false, ionT = 0, nextDecay = Infinity, arrows = [], tt = 0, phi = 0, spawnAcc = 0, freeE = null;
+  let cl = { r: 1, t: 0, dead: false }, pud = { amp: 0, emitAt: Infinity }, heis = { dx: 1, dots: [] };
+  const quantum = () => model === 'bohr' || model === 'debroglie' || model === 'schrodinger';
+  const expo = mean => -Math.log(Math.random() || 1e-9) * mean;
+
+  /* ── Schrödinger orbitals ── */
+  function radial(n, l, r) {
+    const rho = 2 * r / n, k = n - l - 1, a = 2 * l + 1;
+    let L = 1;
+    if (k >= 1) { let Lm = 1, Lc = 1 + a - rho; for (let j = 1; j < k; j++) { const Ln = ((2 * j + 1 + a - rho) * Lc - (j + a) * Lm) / (j + 1); Lm = Lc; Lc = Ln; } L = Lc; }
+    return Math.pow(rho, l) * Math.exp(-rho / 2) * L;
+  }
+  function legendre(l, m, x) {
+    m = Math.abs(m); let pmm = 1;
+    if (m > 0) { const s = Math.sqrt(Math.max(0, (1 - x) * (1 + x))); let f = 1; for (let i = 1; i <= m; i++) { pmm *= -f * s; f += 2; } }
+    if (l === m) return pmm;
+    let pm1 = x * (2 * m + 1) * pmm; if (l === m + 1) return pm1;
+    let pll = 0; for (let ll = m + 2; ll <= l; ll++) { pll = ((2 * ll - 1) * x * pm1 - (ll + m - 1) * pmm) / (ll - m); pmm = pm1; pm1 = pll; }
+    return pll;
+  }
+  const IMG = new Map();
+  function orbital(n, l, m) {
+    const key = `${n}${l}${m}${TH.dark}`; if (IMG.has(key)) return IMG.get(key);
+    const G = 200, half = 1.6 * n * n + 4, c = document.createElement('canvas'); c.width = c.height = G;
+    const g = c.getContext('2d'), im = g.createImageData(G, G), d = new Float32Array(G * G);
+    let mx = 0;
+    for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
+      const x = (i + .5 - G / 2) / (G / 2) * half, z = (G / 2 - j - .5) / (G / 2) * half, r = Math.hypot(x, z) || 1e-6;
+      const R = radial(n, l, r), P = legendre(l, m, z / r), v = R * R * P * P;
+      d[j * G + i] = v; if (v > mx) mx = v;
+    }
+    const [cr, cg, cb] = hex2rgb(TH.dark ? '#7cb4ff' : '#1d4ed8');
+    for (let k = 0; k < G * G; k++) { const a = Math.pow(d[k] / mx, .45); im.data[k * 4] = cr; im.data[k * 4 + 1] = cg; im.data[k * 4 + 2] = cb; im.data[k * 4 + 3] = Math.round(255 * a); }
+    g.putImageData(im, 0, 0);
+    const o = { c, half }; IMG.set(key, o); return o;
+  }
+  const LNAME = 'spdfgh';
+
+  /* ── state changes ── */
+  function scheduleDecay() { nextDecay = st.n > 1 ? tt + expo(model === 'schrodinger' && st.n === 2 && st.l === 0 ? 9 : .9) : Infinity; }
+  function addArrow(n1, l1, n2, l2, lamv) { arrows.push({ n1, l1, n2, l2, lam: lamv, t0: tt }); if (arrows.length > 12) arrows.shift(); }
+  function emitPhoton(x, y, lamv, dir) {
+    const a = dir ?? Math.random() * TAU, v = 190;
+    photons.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, lam: lamv, em: true });
+    if (lamv >= LMIN && lamv <= LMAX) spec[clamp(binOf(lamv), 0, NB - 1)]++;
+  }
+  function tryAbsorb(lamv) {
+    if (ion || hold) return false;
+    const n = st.n, Eph = 1239.84 / lamv;
+    // ionisation is much less likely than an exact-match absorption
+    if (Eph >= 13.6 / (n * n)) { if (Math.random() > (mode === 'mono' ? .5 : .08)) return false; ion = true; ionT = tt; return 'ion'; }
+    for (let b = n + 1; b <= 6; b++) if (Math.abs(lamv - lamOf(n, b)) < 1.0) {
+      if (model === 'schrodinger') {
+        const ls = [st.l - 1, st.l + 1].filter(x => x >= 0 && x < b); if (!ls.length) return false;
+        const l2 = ls[Math.random() * ls.length | 0], ms = []; for (let mm = -l2; mm <= l2; mm++) if (Math.abs(mm - st.m) <= 1) ms.push(mm);
+        addArrow(n, st.l, b, l2, lamv); st = { n: b, l: l2, m: ms[Math.random() * ms.length | 0] };
+      } else { addArrow(n, 0, b, 0, lamv); st = { n: b, l: 0, m: 0 }; }
+      scheduleDecay(); return true;
+    }
+    return false;
+  }
+  function decay(ex, ey) {
+    const n = st.n;
+    if (model === 'schrodinger') {
+      const cand = [];
+      for (let a = 1; a < n; a++) for (const l2 of [st.l - 1, st.l + 1]) if (l2 >= 0 && l2 < a) cand.push([a, l2]);
+      if (!cand.length) { // 2s: two-photon decay to 1s
+        const E = 10.2, f = .2 + Math.random() * .6;
+        emitPhoton(ex, ey, 1239.84 / (E * f)); emitPhoton(ex, ey, 1239.84 / (E * (1 - f)));
+        addArrow(2, 0, 1, 0, 0); st = { n: 1, l: 0, m: 0 }; scheduleDecay(); return;
+      }
+      const [a, l2] = cand[Math.random() * cand.length | 0], ms = []; for (let mm = -l2; mm <= l2; mm++) if (Math.abs(mm - st.m) <= 1) ms.push(mm);
+      const lv = lamOf(a, n); emitPhoton(ex, ey, lv); addArrow(n, st.l, a, l2, lv);
+      st = { n: a, l: l2, m: ms[Math.random() * ms.length | 0] };
+    } else {
+      const a = 1 + (Math.random() * (n - 1) | 0), lv = lamOf(a, n);
+      emitPhoton(ex, ey, lv); addArrow(n, 0, a, 0, lv); st = { n: a, l: 0, m: 0 };
+    }
+    scheduleDecay();
+  }
+  function pickLam() {
+    if (quantum() && !ion && Math.random() < .3 && st.n < 6) { const o = []; for (let b = st.n + 1; b <= 6; b++) o.push(lamOf(st.n, b)); return o[Math.random() * o.length | 0]; }
+    if (model === 'pudding' && Math.random() < .15) return 150;
+    return LMIN * Math.pow(LMAX / LMIN, Math.random());
+  }
+
+  function setModel(m) {
+    model = m; photons = []; arrows = []; ion = false; freeE = null; hold = false;
+    if (m === 'classical') cl = { r: 1, t: 0, dead: false };
+    st = { n: 1, l: 0, m: 0 }; nextDecay = Infinity;
+    document.querySelectorAll('#hy-models .scene-btn').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+    $('#hy-info').innerHTML = INFO[m];
+    $('#hy-lightbox').hidden = m === 'heisenberg';
+    const ex = $('#hy-extra');
+    if (m === 'classical') ex.innerHTML = `<div class="row"><button class="btn" id="hy-rebuild">⟲ Rebuild the atom</button></div>`;
+    else if (m === 'debroglie') ex.innerHTML = `<label class="chk"><input type="checkbox" id="hy-nonwhole" ${nonWhole ? 'checked' : ''}> Also draw a wave that doesn't fit (n + ½ waves)</label>`;
+    else if (m === 'schrodinger') ex.innerHTML = `<h3>Look at a state</h3><div class="chips" id="hy-states">${['1s', '2s', '2p', '3s', '3p', '3d', '4d', '4f', '5f', '5g'].map(s => `<span class="chip" data-s="${s}">${s}</span>`).join('')}</div><label class="chk"><input type="checkbox" id="hy-hold"> Hold the electron in this state</label>`;
+    else if (m === 'heisenberg') ex.innerHTML = `<h3>Squeeze the electron</h3><div class="slider-row"><div class="lbl"><span>Δx (how spread out it is)</span><b id="hy-dx-out"></b></div><input type="range" id="hy-dx" min="0" max="1000" value="${Math.round(Math.log(heis.dx / .15) / Math.log(4 / .15) * 1000)}"></div><p class="note">Drag to make the electron cloud smaller or bigger and watch the energies on the right.</p>`;
+    else ex.innerHTML = '';
+    const rb = $('#hy-rebuild'); if (rb) rb.onclick = () => { cl = { r: 1, t: 0, dead: false }; photons = photons.filter(p => !p.em); };
+    const nw = $('#hy-nonwhole'); if (nw) nw.onchange = () => nonWhole = nw.checked;
+    const sts = $('#hy-states'); if (sts) sts.onclick = e => {
+      const c = e.target.closest('.chip'); if (!c) return;
+      const n = +c.dataset.s[0], l = LNAME.indexOf(c.dataset.s[1]);
+      st = { n, l, m: 0 }; ion = false; hold = true; $('#hy-hold').checked = true; nextDecay = Infinity;
+      document.querySelectorAll('#hy-states .chip').forEach(x => x.classList.toggle('on', x === c));
+    };
+    const hh = $('#hy-hold'); if (hh) hh.onchange = () => { hold = hh.checked; if (!hold) scheduleDecay(); else nextDecay = Infinity; };
+    const dx = $('#hy-dx'); if (dx) dx.oninput = () => { heis.dx = .15 * Math.pow(4 / .15, dx.value / 1000); };
+  }
+  function setLam(l) { lam = l; $('#hy-lam').value = Math.round(Math.log(l / LMIN) / Math.log(LMAX / LMIN) * 2000); showLam(); }
+  function showLam() { $('#hy-lam-out').innerHTML = `${lam.toFixed(1)} nm <span style="color:${lamColor(lam)}">●</span> ${bandName(lam)}`; }
+
+  function init() {
+    $('#hy-models').innerHTML = MODELS.map(([id, nm, who]) => `<button class="scene-btn" data-m="${id}">${nm} <span class="note">· ${who}</span></button>`).join('');
+    $('#hy-models').onclick = e => { const b = e.target.closest('.scene-btn'); if (b) setModel(b.dataset.m); };
+    $('#hy-light').onclick = () => { lightOn = !lightOn; $('#hy-light').textContent = 'Light: ' + (lightOn ? 'on' : 'off'); $('#hy-light').classList.toggle('primary', lightOn); };
+    $('#hy-mode').onclick = e => {
+      const c = e.target.closest('.chip'); if (!c) return; mode = c.dataset.v;
+      document.querySelectorAll('#hy-mode .chip').forEach(x => x.classList.toggle('on', x === c)); $('#hy-monobox').hidden = mode !== 'mono';
+    };
+    $('#hy-lam').oninput = e => { lam = LMIN * Math.pow(LMAX / LMIN, e.target.value / 2000); showLam(); };
+    $('#hy-lines').innerHTML = LINES.map(([l, nm]) => `<span class="chip" data-l="${l}" style="border-left:4px solid ${lamColor(l)}">${nm}</span>`).join('');
+    $('#hy-lines').onclick = e => { const c = e.target.closest('.chip'); if (c) setLam(+c.dataset.l); };
+    $('#hy-clear').onclick = () => spec = new Float32Array(NB);
+    setLam(lam); setModel('bohr');
+  }
+
+  function frame(dt0) {
+    S.fit(); const ctx = S.ctx, W = S.w, H = S.h;
+    const dt = dt0 * ($('#hy-slow').checked ? .3 : 1); tt += dt;
+    const heisen = model === 'heisenberg';
+    const specH = heisen ? 0 : clamp(H * .25, 110, 150);
+    const diagW = clamp(W * .3, 160, 280);
+    const B = heisen ? (W < 600 ? Math.min(W - 32, H * .4) : Math.max(160, Math.min(H - 34, (W - 70) * .48))) : Math.max(160, Math.min(H - specH - 34, W - diagW - 46));
+    const bx = heisen ? 16 : 16 + Math.max(0, (W - diagW - 30 - B) / 2), by = 14;
+    const cx = bx + B / 2, cy = by + B * .55;
+    const rOf = n => B * .44 * (n * n + 3) / 39;
+
+    // box
+    ctx.fillStyle = TH.dark ? '#05070b' : '#eef2f7'; roundRect(ctx, bx, by, B, B, 10); ctx.fill();
+    ctx.strokeStyle = TH.border; ctx.stroke();
+    ctx.save(); roundRect(ctx, bx, by, B, B, 10); ctx.clip();
+
+    if (heisen) { drawHeis(ctx, dt, bx, by, B, cx, by + B / 2, W, H); ctx.restore(); return; }
+
+    // lamp
+    if (lightOn) {
+      ctx.fillStyle = TH.muted; roundRect(ctx, cx - 36, by + 4, 72, 14, 4); ctx.fill();
+      txt(ctx, mode === 'white' ? 'white light' : `${Math.round(lam)} nm`, cx, by + 11, { align: 'center', size: 10, color: TH.surface, bold: true });
+      spawnAcc += dt * 7;
+      while (spawnAcc >= 1) { spawnAcc--; photons.push({ x: cx + (Math.random() - .5) * B * .5, y: by + 22, vx: 0, vy: 170, lam: mode === 'white' ? pickLam() : lam }); }
+    }
+
+    // electron position for this frame
+    phi += dt * 2.4 / Math.pow(st.n, 1.5);
+    let ex = cx, ey = cy;
+    if (model === 'bohr' || model === 'debroglie' || model === 'schrodinger') { ex = cx + rOf(st.n) * Math.cos(phi); ey = cy + rOf(st.n) * Math.sin(phi); }
+
+    // model-specific updates
+    const Rb = B * .2;
+    if (model === 'classical' && !cl.dead) {
+      cl.t += dt; cl.r = Math.cbrt(Math.max(0, 1 - cl.t / 4)); phi += dt * Math.min(40, 2.5 / Math.pow(Math.max(cl.r, .05), 1.5));
+      if (Math.random() < dt * 16) emitPhoton(cx + B * .42 * cl.r * Math.cos(phi), cy + B * .42 * cl.r * Math.sin(phi), Math.max(30, 1700 * Math.pow(cl.r, 1.5)));
+      if (cl.r < .05) { cl.dead = true; cl.deadT = tt; }
+    }
+    if (model === 'pudding') { pud.amp *= Math.exp(-dt * .4); if (tt > pud.emitAt) { pud.emitAt = Infinity; emitPhoton(cx, cy, 150); pud.amp *= .3; } }
+    if (quantum() && !ion && !hold && tt >= nextDecay) decay(ex, ey);
+    if (ion && tt - ionT > 2.2) { // recombine
+      ion = false; freeE = null;
+      const n = 1 + (Math.random() * 6 | 0), KE = .2 + Math.random() * 2.5;
+      st = { n, l: model === 'schrodinger' ? Math.random() * n | 0 : 0, m: 0 };
+      ex = cx + rOf(n) * Math.cos(phi); ey = cy + rOf(n) * Math.sin(phi);
+      emitPhoton(ex, ey, 1239.84 / (13.6 / (n * n) + KE)); addArrow(9, 0, n, st.l, 0); scheduleDecay();
+    }
+
+    // photons
+    for (const p of photons) {
+      const py = p.y; p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.em || p.done) continue;
+      if (model === 'ball') {
+        const dx = p.x - cx, dy = p.y - cy, d = Math.hypot(dx, dy);
+        if (d < Rb) { const nx = dx / d, ny = dy / d, dot = p.vx * nx + p.vy * ny; p.vx -= 2 * dot * nx; p.vy -= 2 * dot * ny; p.x = cx + nx * Rb; p.y = cy + ny * Rb; p.done = true; }
+      } else if (py < cy && p.y >= cy) {
+        if (model === 'pudding' && Math.abs(p.x - cx) < Rb && Math.abs(p.lam - 150) < 3 && pud.emitAt === Infinity) { p.dead = true; pud.amp = 1; pud.emitAt = tt + .5 + Math.random() * .8; }
+        else if (quantum() && Math.abs(p.x - cx) < rOf(st.n) + 14) {
+          const r = tryAbsorb(p.lam);
+          if (r) { p.dead = true; if (r === 'ion') { const a = Math.atan2(ey - cy, ex - cx); freeE = { x: ex, y: ey, vx: Math.cos(a) * 120, vy: Math.sin(a) * 120 }; } }
+        }
+      }
+    }
+    photons = photons.filter(p => !p.dead && p.x > bx - 30 && p.x < bx + B + 30 && p.y > by - 30 && p.y < by + B + 30);
+
+    // atom drawing
+    if (model === 'ball') ball(ctx, cx, cy, Rb, '#94a3b8');
+    else if (model === 'pudding') {
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Rb); g.addColorStop(0, rgba('#fb923c', .55)); g.addColorStop(1, rgba('#fb923c', .25));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, Rb, 0, TAU); ctx.fill();
+      for (let k = 0; k < 9; k++) { const a = k * 2.4, r = Rb * (.25 + .6 * ((k * 37) % 10) / 10); txt(ctx, '+', cx + r * Math.cos(a), cy + r * Math.sin(a), { align: 'center', size: 14, bold: true, color: '#c2410c' }); }
+      drawElectron(ctx, cx, cy + Math.sin(tt * 14) * pud.amp * Rb * .5, 7);
+    } else {
+      if (model === 'bohr' || model === 'debroglie') {
+        ctx.setLineDash([3, 5]); ctx.strokeStyle = TH.dim;
+        for (let n = 1; n <= 6; n++) { ctx.beginPath(); ctx.arc(cx, cy, rOf(n), 0, TAU); ctx.stroke(); }
+        ctx.setLineDash([]);
+        for (let n = 1; n <= 6; n++) txt(ctx, 'n=' + n, cx + rOf(n) * .707 + 3, cy - rOf(n) * .707 - 3, { size: 10, color: TH.muted });
+      }
+      if (model === 'schrodinger' && !ion) {
+        const o = orbital(st.n, st.l, st.m);
+        ctx.imageSmoothingEnabled = true; ctx.drawImage(o.c, cx - B * .47, cy - B * .47, B * .94, B * .94);
+        txt(ctx, `state ${st.n}${LNAME[st.l]}   (n, l, m) = (${st.n}, ${st.l}, ${st.m})`, bx + 10, by + B - 30, { size: 12, bold: true, bg: TH.surface });
+        txt(ctx, `picture width: ${fmtLen(2 * o.half * 52.9e-12)}`, bx + 10, by + B - 12, { size: 11, color: TH.muted });
+      }
+      ball(ctx, cx, cy, model === 'schrodinger' ? 4 : 7, PROTON);
+      if (model === 'classical') {
+        if (!cl.dead) { const r = B * .42 * cl.r; drawElectron(ctx, cx + r * Math.cos(phi), cy + r * Math.sin(phi), 6); ctx.strokeStyle = rgba(ELECTRON, .25); ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.stroke(); }
+        else {
+          flash(ctx, cx, cy, 60, Math.max(0, 1 - (tt - cl.deadT)));
+          txt(ctx, 'The electron fell into the nucleus!', cx, by + B * .2, { align: 'center', bold: true, size: 15, bg: TH.surface, color: TH.red });
+          txt(ctx, 'In reality this would take about 10⁻¹¹ s: atoms could not exist.', cx, by + B * .2 + 26, { align: 'center', size: 12, bg: TH.surface });
+        }
+      }
+      if (model === 'bohr' && !ion) drawElectron(ctx, ex, ey, 7);
+      if (model === 'debroglie' && !ion) {
+        const rn = rOf(st.n), A = Math.min(9, rOf(1) * .5), n = st.n;
+        ctx.strokeStyle = ELECTRON; ctx.lineWidth = 2.5; ctx.beginPath();
+        for (let k = 0; k <= 240; k++) { const th = k / 240 * TAU, r = rn + A * Math.sin(n * th) * Math.cos(tt * 5); const X = cx + r * Math.cos(th), Y = cy + r * Math.sin(th); k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }
+        ctx.stroke(); ctx.lineWidth = 1;
+        txt(ctx, `${n} whole wave${n > 1 ? 's' : ''} around the orbit`, cx, by + B - 16, { align: 'center', size: 12, bold: true, bg: TH.surface });
+        if (nonWhole) {
+          const m = n + .5, r2 = rn + (A + 6);
+          ctx.strokeStyle = TH.red; ctx.setLineDash([5, 3]); ctx.lineWidth = 2; ctx.beginPath();
+          for (let k = 0; k <= 240; k++) { const th = k / 240 * TAU, r = r2 + A * Math.sin(m * th); const X = cx + r * Math.cos(th), Y = cy + r * Math.sin(th); k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }
+          ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1;
+          ctx.fillStyle = TH.red; ctx.beginPath(); ctx.arc(cx + r2, cy, 5, 0, TAU); ctx.fill();
+          txt(ctx, `${m} waves don't join up: the wave cancels itself`, cx, by + B - 36, { align: 'center', size: 12, color: TH.red, bg: TH.surface });
+        }
+      }
+    }
+    if (freeE) { freeE.x += freeE.vx * dt; freeE.y += freeE.vy * dt; drawElectron(ctx, freeE.x, freeE.y, 6); }
+    if (ion) txt(ctx, 'Ionised! The electron escaped.', cx, by + 34, { align: 'center', bold: true, size: 13, bg: TH.surface });
+
+    for (const p of photons) drawPhoton(ctx, p.x, p.y, p.vx, p.vy, lamColor(p.lam), 20, 3.5, 8, tt * 30);
+    ctx.restore();
+
+    drawDiagram(ctx, bx + B + 24, by, W - 14 - (bx + B + 24), B);
+    drawSpectrum(ctx, 16, by + B + 16, W - 32, H - (by + B + 16) - 8);
+  }
+
+  function drawDiagram(ctx, x, y, w, h) {
+    if (w < 80) return;
+    txt(ctx, 'Energy levels', x + w / 2, y + 10, { align: 'center', bold: true, size: 13 });
+    if (!quantum()) {
+      wrapText(ctx, model === 'classical' ? 'In this model the electron can have any energy, so it gives out every colour as it spirals in.' : 'This model has no energy levels.', x + 6, y + 50, w - 12, 18, { size: 13, color: TH.muted });
+      return;
+    }
+    const top = y + 44, bot = y + h - 14, E0 = 1.6, E1 = -14.2, Y = E => top + (E0 - E) / (E0 - E1) * (bot - top);
+    const schr = model === 'schrodinger', cols = schr ? 6 : 1, x0 = x + 34, cw = (w - 44) / cols;
+    ctx.fillStyle = rgba(TH.dark ? '#22c55e' : '#16a34a', .1); ctx.fillRect(x0, top - 6, w - 44, Y(0) - top + 6);
+    txt(ctx, 'free (ionised)', x0 + 4, top + 4, { size: 10, color: TH.green });
+    if (schr) for (let l = 0; l < 6; l++) txt(ctx, LNAME[l], x0 + (l + .5) * cw, top - 14 + 0, { align: 'center', size: 11, bold: true, color: TH.muted });
+    for (let n = 1; n <= 6; n++) {
+      const yy = Y(-13.6 / (n * n));
+      for (let l = 0; l < (schr ? n : 1); l++) { ctx.fillStyle = TH.text; ctx.fillRect(x0 + l * cw + 3, yy, cw - 6, 1.5); }
+      if (n <= 3 || n === 6) txt(ctx, `n=${n}`, x0 - 4, yy, { align: 'right', size: 10, color: TH.muted });
+      if (n <= 2) txt(ctx, `${(-13.6 / (n * n)).toFixed(1)} eV`, x + w - 2, yy + 9, { align: 'right', size: 10, color: TH.muted });
+    }
+    ctx.fillStyle = TH.dim; ctx.fillRect(x0, Y(0), w - 44, 1);
+    txt(ctx, '0 eV', x + w - 2, Y(0) - 8, { align: 'right', size: 10, color: TH.muted });
+    // arrows
+    arrows = arrows.filter(a => tt - a.t0 < 1.8);
+    arrows.forEach((a, i) => {
+      const al = 1 - (tt - a.t0) / 1.8;
+      const E1v = a.n1 === 9 ? .8 : -13.6 / (a.n1 * a.n1), E2v = -13.6 / (a.n2 * a.n2);
+      const xa = x0 + (schr ? (a.l1 + .5) * cw : cw * (.25 + .1 * (i % 6))), xb = x0 + (schr ? (a.l2 + .5) * cw : cw * (.25 + .1 * (i % 6)));
+      ctx.globalAlpha = al; arrow(ctx, xa, Y(E1v), xb, Y(E2v), a.lam ? lamColor(a.lam) : TH.muted, 2.5, 9); ctx.globalAlpha = 1;
+    });
+    // electron
+    const ey = ion ? Y(.8) : Y(-13.6 / (st.n * st.n)), exx = schr ? x0 + (st.l + .5) * cw : x0 + cw * .8;
+    drawElectron(ctx, exx, ey - 6, 6);
+  }
+
+  function drawSpectrum(ctx, x, y, w, h) {
+    if (h < 50) return;
+    ctx.fillStyle = TH.surface; roundRect(ctx, x, y, w, h, 8); ctx.fill(); ctx.strokeStyle = TH.border; ctx.stroke();
+    txt(ctx, 'Spectrometer: light given out by the atom', x + 10, y + 13, { bold: true, size: 12 });
+    const x0 = x + 12, x1 = x + w - 12, base = y + h - 30, top = y + 30;
+    const X = l => x0 + Math.log(l / LMIN) / Math.log(LMAX / LMIN) * (x1 - x0);
+    for (let px = x0; px < x1; px += 2) { const l = LMIN * Math.pow(LMAX / LMIN, (px - x0) / (x1 - x0)); ctx.fillStyle = lamColor(l); ctx.globalAlpha = l < 380 || l > 750 ? .35 : .9; ctx.fillRect(px, base + 2, 2, 7); }
+    ctx.globalAlpha = 1;
+    [100, 200, 400, 700, 1000, 2000].forEach(l => { const xx = X(l); ctx.fillStyle = TH.muted; ctx.fillRect(xx, base + 9, 1, 4); txt(ctx, l + ' nm', xx, base + 20, { align: 'center', size: 10, color: TH.muted }); });
+    txt(ctx, 'UV', (X(90) + X(380)) / 2, top - 4, { align: 'center', size: 10, color: TH.muted });
+    txt(ctx, 'visible', (X(380) + X(750)) / 2, top - 4, { align: 'center', size: 10, color: TH.muted });
+    txt(ctx, 'infrared', (X(750) + X(2000)) / 2, top - 4, { align: 'center', size: 10, color: TH.muted });
+    let mx = 4; for (let i = 0; i < NB; i++) mx = Math.max(mx, spec[i]);
+    const bw = Math.max(2, (x1 - x0) / NB);
+    for (let i = 0; i < NB; i++) if (spec[i]) {
+      const l = LMIN * Math.pow(LMAX / LMIN, (i + .5) / NB), hh = (base - top) * spec[i] / mx;
+      ctx.fillStyle = lamColor(l); ctx.fillRect(X(l) - bw / 2, base - hh, bw, hh);
+    }
+    if ($('#hy-real').checked) REAL.forEach(([l]) => { const xx = X(l); ctx.fillStyle = TH.text; ctx.beginPath(); ctx.moveTo(xx, base); ctx.lineTo(xx - 3, base + 6); ctx.lineTo(xx + 3, base + 6); ctx.closePath(); ctx.fill(); });
+    ctx.fillStyle = TH.border; ctx.fillRect(x0, base, x1 - x0, 1);
+  }
+
+  function drawHeis(ctx, dt, bx, by, B, cx, cy, W, H) {
+    const dx = heis.dx, pxA = B / 10; // 10 a0 across the box
+    $('#hy-dx-out') && ($('#hy-dx-out').textContent = `${Math.round(dx * 52.9)} pm`);
+    if (!heis.dots.length) for (let i = 0; i < 600; i++) heis.dots.push({ x: 0, y: 0, vx: 0, vy: 0 });
+    const sig = dx * .75, sv = 1 / dx;
+    heis.dots.forEach((d, i) => {
+      if (Math.random() < .06 || !d.init) { d.x = gauss() * sig; d.y = gauss() * sig; d.vx = gauss() * sv; d.vy = gauss() * sv; d.init = true; }
+      d.x += d.vx * dt * .8; d.y += d.vy * dt * .8;
+    });
+    ctx.fillStyle = rgba(TH.dark ? '#7fb2ff' : '#2563eb', .55);
+    heis.dots.forEach(d => ctx.fillRect(cx + d.x * pxA - 1, cy + d.y * pxA - 1, 2, 2));
+    heis.dots.slice(0, 14).forEach(d => { const L = clamp(Math.hypot(d.vx, d.vy) * 22, 6, B * .35), a = Math.atan2(d.vy, d.vx); const x = cx + d.x * pxA, y = cy + d.y * pxA; arrow(ctx, x, y, x + Math.cos(a) * L, y + Math.sin(a) * L, TH.orange, 1.6, 7); });
+    ball(ctx, cx, cy, 6, PROTON);
+    ctx.strokeStyle = TH.purple; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.arc(cx, cy, dx * pxA, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    txt(ctx, `Δx ≈ ${Math.round(dx * 52.9)} pm`, cx, cy - dx * pxA - 10, { align: 'center', size: 12, bold: true, color: TH.purple, bg: TH.surface });
+    txt(ctx, 'orange arrows: how fast and which way (momentum)', bx + 10, by + B - 14, { size: 11, color: TH.muted, bg: TH.surface });
+    ctx.restore(); ctx.save();
+
+    // energy graph
+    const narrow = W < 600;
+    const gx = narrow ? 44 : bx + B + 46, gw = W - gx - 24, gy = narrow ? by + B + 34 : by + 10, gh = narrow ? Math.max(120, H - gy - 190) : Math.max(120, H - 200);
+    if (gw < 120) { ctx.restore(); return; }
+    const R0 = .15, R1 = 4, E0 = 32, E1 = -32;
+    const X = r => gx + (r - R0) / (R1 - R0) * gw, Y = E => gy + (E0 - clamp(E, E1, E0)) / (E0 - E1) * gh;
+    txt(ctx, 'Energy of the electron (eV)', gx, gy, { bold: true, size: 13 });
+    ctx.strokeStyle = TH.border; ctx.beginPath(); ctx.moveTo(gx, Y(0)); ctx.lineTo(gx + gw, Y(0)); ctx.moveTo(gx, gy + 12); ctx.lineTo(gx, gy + gh); ctx.stroke();
+    [[r => 13.6 / (r * r), TH.orange, 'kinetic (from uncertainty)'], [r => -27.2 / r, ELECTRON, 'potential (attraction)'], [r => 13.6 / (r * r) - 27.2 / r, TH.text, 'total']].forEach(([f, c, nm], k) => {
+      ctx.strokeStyle = c; ctx.lineWidth = k === 2 ? 3 : 2; ctx.beginPath();
+      for (let i = 0; i <= 200; i++) { const r = R0 + (R1 - R0) * i / 200, v = f(r); if (v > E0 * 1.3 || v < E1 * 1.3) { ctx.stroke(); ctx.beginPath(); continue; } i ? ctx.lineTo(X(r), Y(v)) : ctx.moveTo(X(r), Y(v)); }
+      ctx.stroke(); ctx.lineWidth = 1;
+      ctx.fillStyle = c; ctx.fillRect(gx + 8, gy + gh + 18 + k * 18, 14, 3); txt(ctx, nm, gx + 28, gy + gh + 20 + k * 18, { size: 12, color: TH.muted });
+    });
+    [0, 1, 2, 3, 4].forEach(r => r >= R0 && txt(ctx, Math.round(r * 52.9) + ' pm', X(r), Y(0) + 12, { align: 'center', size: 10, color: TH.muted }));
+    [-30, -13.6, 0, 30].forEach(E => txt(ctx, String(E), gx - 4, Y(E), { align: 'right', size: 10, color: TH.muted }));
+    // minimum
+    ctx.fillStyle = TH.green; ctx.beginPath(); ctx.arc(X(1), Y(-13.6), 5, 0, TAU); ctx.fill();
+    txt(ctx, 'lowest energy: 53 pm, −13.6 eV (the real atom!)', X(1) + 10, Y(-13.6) + 16, { size: 11, color: TH.green, bold: true });
+    const KE = 13.6 / (dx * dx), PE = -27.2 / dx, T = KE + PE;
+    ctx.fillStyle = TH.purple; ctx.beginPath(); ctx.arc(X(clamp(dx, R0, R1)), Y(T), 7, 0, TAU); ctx.fill();
+    const ly = gy + gh + 80;
+    const v = 2.19e6 / dx;
+    const lines = [`Δx ≈ ${Math.round(dx * 52.9)} pm  →  speed about ${Math.round(v / 1000).toLocaleString('en-US')} km/s`,
+      `kinetic ${KE.toFixed(1)} eV  +  potential ${PE.toFixed(1)} eV  =  total ${T.toFixed(1)} eV`,
+      dx < .8 ? 'Squeezed: the electron moves so fast it would fly away.' : dx > 1.25 ? 'Spread out: the attraction could pull it in closer and lower the energy.' : 'Just right: this is the size of a hydrogen atom.'];
+    let yy = ly; lines.forEach((s, i) => { yy += 20 * wrapText(ctx, s, narrow ? 16 : gx, yy, narrow ? W - 32 : gw, 18, { size: 13, bold: i === 2, color: i === 2 ? TH.purple : TH.text }); });
+    ctx.restore();
+  }
+
+  return { init, frame, theme: () => IMG.clear() };
+})();
+</script>
+
+<script>
+/* ═════════════════ scene runner (Nuclear Processes and Collisions) ═════════════════ */
+const K = (w, h) => clamp(Math.min(w, h) / 560, .62, 1.5);
+function makeSceneTab(cfg) {
+  const S = new Stage(cfg.stage);
+  let cur = null, t = 0, speed = 1;
+  const all = cfg.groups.flatMap(g => g[1]);
+  function select(id) {
+    cur = all.find(s => s.id === id) || all[0]; t = 0;
+    document.querySelectorAll(cfg.list + ' .scene-btn').forEach(b => b.classList.toggle('on', b.dataset.id === cur.id));
+    $(cfg.info).innerHTML = cur.info;
+    const c = $(cfg.ctrl); c.innerHTML = ''; cur.init && cur.init(c);
+    $(cfg.replay).hidden = !!cur.interactive;
+  }
+  function init() {
+    $(cfg.list).innerHTML = cfg.groups.map(([title, sc]) => `<h3>${title}</h3>` + sc.map(s => `<button class="scene-btn" data-id="${s.id}">${s.title}</button>`).join('')).join('');
+    $(cfg.list).onclick = e => { const b = e.target.closest('.scene-btn'); if (b) select(b.dataset.id); };
+    $(cfg.replay).onclick = () => { t = 0; cur.reset && cur.reset(); };
+    $(cfg.speed).onchange = e => speed = +e.target.value;
+    S.cv.addEventListener('pointermove', e => cur.onMove && cur.onMove(...S.pos(e)));
+    S.cv.addEventListener('pointerdown', e => cur.onDown && cur.onDown(...S.pos(e)));
+    S.cv.addEventListener('pointerleave', () => cur.onMove && cur.onMove(-1, -1));
+    select(all[0].id);
+  }
+  function frame(dt) {
+    S.fit(); const ctx = S.ctx, w = S.w, h = S.h;
+    if (cur.interactive) { cur.update && cur.update(dt * speed, w, h); cur.draw(ctx, w, h); return; }
+    if (t === 0 && cur.reset) cur.reset();
+    t = Math.min(t + dt * speed, cur.T);
+    cur.draw(ctx, w, h, t);
+    if (cur.eq) drawEq(ctx, typeof cur.eq === 'function' ? cur.eq(t) : cur.eq, w / 2, 36, clamp(w / 34, 15, 24));
+    const step = (cur.steps || []).filter(s => s[0] <= t).pop();
+    if (step) {
+      ctx.fillStyle = rgba(TH.surface, .93); ctx.fillRect(0, h - 64, w, 64); ctx.fillStyle = TH.border; ctx.fillRect(0, h - 64, w, 1);
+      ctx.font = "700 15px 'Segoe UI', system-ui, sans-serif";
+      const n = Math.min(2, Math.ceil(ctx.measureText(step[1]).width / (w - 60)));
+      wrapText(ctx, step[1], w / 2, h - 32 - (n > 1 ? 10 : 0), w - 60, 20, { align: 'center', size: 15, bold: true });
+    }
+    if (t >= cur.T) txt(ctx, '⟲ Play again to watch it once more', w - 14, 18, { align: 'right', size: 12, color: TH.muted });
+  }
+  return { init, frame, select: id => select(id) };
+}
+/* small helpers shared by scenes */
+function label(ctx, s, x, y, o = {}) { txt(ctx, s, x, y, Object.assign({ align: 'center', size: 13, bold: true, bg: rgba(TH.surface, .85) }, o)); }
+function clusterCenter(cl, ids, cx, cy, s) { let X = 0, Y = 0; ids.forEach(i => { const [a, b] = nucleonPos(cl, i, cx, cy, s); X += a; Y += b; }); return [X / ids.length, Y / ids.length]; }
+function drawNeutron(ctx, x, y, r) { ball(ctx, x, y, r, NEUTRON); }
+</script>
+
+<script>
+/* ═════════════════ TAB 4 · NUCLEAR PROCESSES ═════════════════ */
+TABS.nuclear = (() => {
+  /* ── α decay ── */
+  const alpha = (() => {
+    let sel = null;
+    return {
+      id: 'alpha', title: 'α decay (alpha)', T: 7,
+      eq: [['U', 238, 92], '→', ['Th', 234, 90], '+', ['He', 4, 2]],
+      steps: [[0, 'Uranium-238 is very big: the strong force only just holds it together.'], [1, 'Two protons and two neutrons clump together near the edge…'], [1.8, '…and escape as an alpha particle (a helium-4 nucleus), carrying away 4.3 MeV.'], [3.6, 'The nucleus left behind has 2 fewer protons: it has become thorium.']],
+      info: `<b>Alpha decay</b><div class="eq">${nuc('U', 238, 92)} → ${nuc('Th', 234, 90)} + ${nuc('He', 4, 2)}</div><ul><li>Happens in very heavy nuclei.</li><li>The alpha particle is heavy and slow. It is stopped by a sheet of paper or the dead outer layer of skin, but it is dangerous if swallowed or breathed in (radon gas).</li><li>Uranium-238's half-life is 4.5 billion years, about the age of the Earth.</li><li>Smoke detectors use the alpha emitter americium-241.</li></ul>`,
+      draw(ctx, w, h, t) {
+        const k = K(w, h), U = makeCluster(92, 146, 11), s = 4.8 * k, cx = w * .4, cy = h * .5;
+        if (!sel) sel = [...pickNucleons(U, true, 2, q => q.x + q.z * .2), ...pickNucleons(U, false, 2, q => q.x + q.z * .2)];
+        const out = t > 1.8, rec = out ? -(t - 1.8) * 6 * k : 0;
+        drawCluster(ctx, U, cx + rec, cy, s, { jiggle: t < 1.8 ? 1.6 * k : 0, hide: new Set(out ? sel : []), color: q => t > 1 && !out && sel.includes(q.i) ? mix(q.p ? PROTON : NEUTRON, '#fde047', .5 * seg(t, 1, 1.4)) : null });
+        if (t > 1 && !out) flash(ctx, ...clusterCenter(U, sel, cx, cy, s), 26 * k, .5 * seg(t, 1, 1.4));
+        label(ctx, out ? 'Thorium-234: 90 p, 144 n' : 'Uranium-238: 92 p, 146 n', cx + rec, cy + U.R * s + 22);
+        if (out) {
+          const [x0, y0] = clusterCenter(U, sel, cx, cy, s), x = x0 + (t - 1.8) * w * .085;
+          drawCluster(ctx, makeCluster(2, 2, 3), x, y0, s * 1.15);
+          label(ctx, 'α particle (2 p + 2 n)', x, y0 - 30 * k);
+        }
+      }
+    };
+  })();
+
+  /* ── β⁻ decay ── */
+  const betaMinus = (() => {
+    let ch = null;
+    return {
+      id: 'beta-', title: 'β⁻ decay (beta minus)', T: 7,
+      eq: [['C', 14, 6], '→', ['N', 14, 7], '+', ['e', 0, -1], '+', 'ν̄'],
+      steps: [[0, 'Carbon-14 has too many neutrons for its 6 protons.'], [1.1, 'The weak force turns one neutron into a proton…'], [1.6, '…creating an electron (the β⁻ particle) and an antineutrino, which shoot out.'], [3.6, 'With 7 protons it is now nitrogen-14. The mass number stays 14.']],
+      info: `<b>Beta-minus decay</b><div class="eq">${nuc('C', 14, 6)} → ${nuc('N', 14, 7)} + ${nuc('e', 0, '−1')} + ν̄</div><ul><li>Inside the nucleus: <b>n → p + e⁻ + ν̄</b>. The electron is made at that moment; it was not in the nucleus before.</li><li>Happens when a nucleus has too many neutrons.</li><li>Beta particles are fast electrons, stopped by a few millimetres of aluminium.</li><li>Carbon-14 (half-life 5,730 years) is used for radiocarbon dating.</li><li>The antineutrino almost never interacts: trillions pass through you every second.</li></ul>`,
+      draw(ctx, w, h, t) {
+        const k = K(w, h), C = makeCluster(6, 8, 21), s = 15 * k, cx = w * .38, cy = h * .5;
+        if (ch === null) ch = pickNucleons(C, false, 1, q => q.x + q.z * .3)[0];
+        drawCluster(ctx, C, cx, cy, s, { jiggle: t < 1.1 ? 2 * k : 0, color: q => q.i === ch ? mix(NEUTRON, PROTON, seg(t, 1.1, 1.5)) : null });
+        const [x0, y0] = nucleonPos(C, ch, cx, cy, s);
+        if (t > 1.1 && t < 1.8) flash(ctx, x0, y0, 30 * k, .6);
+        label(ctx, t < 1.5 ? 'Carbon-14: 6 p, 8 n' : 'Nitrogen-14: 7 p, 7 n', cx, cy + C.R * s + 24);
+        if (t > 1.6) {
+          const f = t - 1.6, ex = x0 + f * w * .1, ey = y0 - f * w * .035, nx = x0 + f * w * .09, ny = y0 + f * w * .065;
+          drawElectron(ctx, ex, ey, 8 * k); label(ctx, 'electron (β⁻)', ex, ey - 22 * k, { size: 12 });
+          drawNeutrino(ctx, nx, ny, 'ν̄'); label(ctx, 'antineutrino', nx, ny + 20, { size: 12, color: TH.muted });
+        }
+      }
+    };
+  })();
+
+  /* ── β⁺ decay and PET ── */
+  const betaPlus = (() => {
+    let ch = null;
+    return {
+      id: 'beta+', title: 'β⁺ decay and PET scans', T: 9,
+      eq: t => t < 2.8 ? [['F', 18, 9], '→', ['O', 18, 8], '+', ['e', 0, '+1'], '+', 'ν'] : [['e', 0, '+1'], '+', ['e', 0, -1], '→', 'γ', '+', 'γ'],
+      steps: [[0, 'Fluorine-18 has too many protons for its 9 neutrons.'], [1, 'A proton turns into a neutron, creating a positron (β⁺, the antimatter electron) and a neutrino.'], [2.2, 'The positron soon meets an ordinary electron…'], [2.9, '…and both vanish! Their mass becomes two gamma rays (511 keV each) flying in opposite directions.'], [4.6, 'A PET scanner detects both gammas at once and draws a line through the point where it happened.']],
+      info: `<b>Beta-plus decay</b><div class="eq">${nuc('F', 18, 9)} → ${nuc('O', 18, 8)} + ${nuc('e', 0, '+1')} + ν</div><ul><li>Inside the nucleus: <b>p → n + e⁺ + ν</b>. Happens when a nucleus has too many protons.</li><li>The positron is antimatter. When it meets an electron they <b>annihilate</b>: all their mass becomes energy, E = mc², as two gamma rays.</li><li><b>PET scans</b> (positron emission tomography): patients get sugar labelled with fluorine-18 (half-life 110 min). Busy tissue, like a tumour or an active part of the brain, takes up more sugar and lights up.</li></ul>`,
+      draw(ctx, w, h, t) {
+        const k = K(w, h), F = makeCluster(9, 9, 31), s = 13 * k, cx = w * .3, cy = h * .5;
+        const ax = w * .58, ay = cy, Rr = Math.min(w * .4, h * .38);
+        if (ch === null) ch = pickNucleons(F, true, 1, q => q.x + q.z * .3)[0];
+        // PET ring
+        const ga = -1.15, ty = 2.8 + Rr / (h * .45);
+        for (let i = 0; i < 28; i++) {
+          const a = i / 28 * TAU, hit = t > ty && (Math.abs(Math.atan2(Math.sin(a - ga), Math.cos(a - ga))) < .12 || Math.abs(Math.atan2(Math.sin(a - ga - Math.PI), Math.cos(a - ga - Math.PI))) < .12);
+          ctx.save(); ctx.translate(ax + Math.cos(a) * Rr, ay + Math.sin(a) * Rr); ctx.rotate(a);
+          ctx.fillStyle = hit ? '#22c55e' : TH.dim; ctx.fillRect(-6, -10, 12, 20); ctx.restore();
+        }
+        txt(ctx, 'PET scanner ring', ax, ay + Rr + 24, { align: 'center', size: 12, color: TH.muted });
+        drawCluster(ctx, F, cx, cy, s, { jiggle: t < 1 ? 2 * k : 0, color: q => q.i === ch ? mix(PROTON, NEUTRON, seg(t, 1, 1.4)) : null });
+        label(ctx, t < 1.4 ? 'Fluorine-18: 9 p, 9 n' : 'Oxygen-18: 8 p, 10 n', cx, cy + F.R * s + 24);
+        const [x0, y0] = nucleonPos(F, ch, cx, cy, s);
+        if (t > 1.3 && t < 2.8) {
+          const f = ease(seg(t, 1.3, 2.8)), px = lerp(x0, ax - 9 * k, f), py = lerp(y0, ay, f);
+          drawElectron(ctx, px, py, 8 * k, POSITRON, '+'); label(ctx, 'positron e⁺', px, py - 22 * k, { size: 12 });
+        }
+        if (t > 1.3) { const f = t - 1.3; drawNeutrino(ctx, x0 - f * w * .12, y0 + f * w * .15, 'ν'); }
+        if (t < 2.8) { drawElectron(ctx, ax + 9 * k + Math.sin(t * 9) * 1.5, ay, 8 * k); label(ctx, 'electron e⁻', ax + 9 * k, ay + 22 * k, { size: 12 }); }
+        else {
+          flash(ctx, ax, ay, 70 * k, 1 - seg(t, 2.8, 3.6));
+          const d = Math.min(Rr - 12, (t - 2.8) * h * .45);
+          [ga, ga + Math.PI].forEach(a => { drawPhoton(ctx, ax + Math.cos(a) * d, ay + Math.sin(a) * d, Math.cos(a), Math.sin(a), GAMMA, Math.min(d, 60), 6, 9, t * 40, 2.5); });
+          if (t > 3.2 && t < ty) label(ctx, 'γ 511 keV', ax + Math.cos(ga) * d * .6 + 40, ay + Math.sin(ga) * d * .6, { size: 12, color: GAMMA });
+          if (t > ty) {
+            ctx.strokeStyle = '#22c55e'; ctx.setLineDash([6, 4]); ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(ax + Math.cos(ga) * Rr, ay + Math.sin(ga) * Rr); ctx.lineTo(ax - Math.cos(ga) * Rr, ay - Math.sin(ga) * Rr); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1;
+          }
+        }
+      }
+    };
+  })();
+
+  /* ── electron capture ── */
+  const ecap = (() => {
+    let ch = null;
+    return {
+      id: 'ec', title: 'Electron capture', T: 7,
+      eq: [['Be', 7, 4], '+', ['e', 0, -1], '→', ['Li', 7, 3], '+', 'ν'],
+      steps: [[0, 'Beryllium-7 has too many protons, but not enough energy to make a positron.'], [.6, 'Instead it swallows one of its own innermost electrons…'], [1.6, '…which joins a proton to make a neutron. A neutrino flies out.'], [2.6, 'An outer electron drops into the empty space and gives out an X-ray.'], [4, 'With 3 protons it is now lithium-7.']],
+      info: `<b>Electron capture</b><div class="eq">${nuc('Be', 7, 4)} + ${nuc('e', 0, '−1')} → ${nuc('Li', 7, 3)} + ν</div><ul><li>Inside the nucleus: <b>p + e⁻ → n + ν</b>. Same result as β⁺ decay: one proton fewer, one neutron more.</li><li>The electron comes from the atom's own innermost shell. The gap it leaves is filled by an outer electron, which gives out an X-ray.</li><li>Beryllium-7 (half-life 53 days) is made in the Sun; its electron captures produce a stream of solar neutrinos.</li></ul>`,
+      draw(ctx, w, h, t) {
+        const k = K(w, h), B = makeCluster(4, 3, 41), s = 15 * k, cx = w * .45, cy = h * .5, r1 = 70 * k, r2 = 125 * k;
+        if (ch === null) ch = pickNucleons(B, true, 1, q => q.z)[0];
+        ctx.setLineDash([4, 5]); ctx.strokeStyle = TH.dim; [r1, r2].forEach(r => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.stroke(); }); ctx.setLineDash([]);
+        drawCluster(ctx, B, cx, cy, s, { color: q => q.i === ch ? mix(PROTON, NEUTRON, seg(t, 1.6, 1.9)) : null });
+        label(ctx, t < 1.9 ? 'Beryllium-7: 4 p, 3 n' : 'Lithium-7: 3 p, 4 n', cx, cy + r2 + 26);
+        const a = t * .8;
+        // inner electrons
+        if (t < .6) drawElectron(ctx, cx + r1 * Math.cos(a), cy + r1 * Math.sin(a), 7 * k);
+        else if (t < 1.6) { const f = ease(seg(t, .6, 1.6)), r = lerp(r1, 0, f), aa = a + f * 5; drawElectron(ctx, cx + r * Math.cos(aa), cy + r * Math.sin(aa), 7 * k); }
+        drawElectron(ctx, cx + r1 * Math.cos(a + Math.PI), cy + r1 * Math.sin(a + Math.PI), 7 * k);
+        // outer electrons; one drops in
+        drawElectron(ctx, cx + r2 * Math.cos(-a * .6 + 1), cy + r2 * Math.sin(-a * .6 + 1), 7 * k);
+        let ox, oy;
+        if (t < 2.6) { ox = cx + r2 * Math.cos(-a * .6 + 1 + Math.PI); oy = cy + r2 * Math.sin(-a * .6 + 1 + Math.PI); }
+        else { const f = ease(seg(t, 2.6, 3.4)), r = lerp(r2, r1, f), aa = -a * .6 + 1 + Math.PI; ox = cx + r * Math.cos(aa); oy = cy + r * Math.sin(aa); }
+        drawElectron(ctx, ox, oy, 7 * k);
+        if (t > 1.6 && t < 2.3) flash(ctx, cx, cy, 40 * k, .6);
+        if (t > 1.8) { const f = t - 1.8; drawNeutrino(ctx, cx + f * w * .2, cy - f * w * .12, 'ν'); }
+        if (t > 3.4) { const f = t - 3.4, dx = Math.cos(2.3), dy = Math.sin(2.3), x = cx + r1 * dx * 1 + f * w * .25 * dx, y = cy + r1 * dy + f * w * .25 * dy; drawPhoton(ctx, x, y, dx, dy, '#06b6d4', 40, 5, 7, t * 40); label(ctx, 'X-ray', x, y - 22, { size: 12 }); }
+      }
+    };
+  })();
+
+  /* ── γ decay ── */
+  const gamma = {
+    id: 'gamma', title: 'γ decay (gamma)', T: 6,
+    eq: [['Tc', '99m', 43], '→', ['Tc', 99, 43], '+', 'γ'],
+    steps: [[0, 'Technetium-99m is "excited": its protons and neutrons are not in their lowest-energy arrangement.'], [1.8, 'It settles down by giving out the extra energy as a gamma ray (140 keV).'], [3.2, 'Same protons, same neutrons, same element: only energy is lost.']],
+    info: `<b>Gamma decay</b><div class="eq">${nuc('Tc', '99m', 43)} → ${nuc('Tc', 99, 43)} + γ</div><ul><li>A gamma ray is very high-energy light, given out when a nucleus drops from an excited state to a lower one, like an electron jumping down in an atom (but a million times more energy).</li><li>The element does not change. Gamma rays often follow α or β decay.</li><li>Gamma rays go through the body. Thick lead or concrete is needed to stop them.</li><li>Technetium-99m (half-life 6 hours) is the most used tracer in hospitals: a gamma camera outside the body sees where it goes.</li></ul>`,
+    draw(ctx, w, h, t) {
+      const k = K(w, h), T = makeCluster(43, 56, 51), s = 6.4 * k, cx = w * .4, cy = h * .5, R = T.R * s;
+      if (t < 1.8) flash(ctx, cx, cy, R * 1.9, .35 + .25 * Math.sin(t * 12), '#f472b6');
+      drawCluster(ctx, T, cx, cy, s, { jiggle: t < 1.8 ? 2.4 * k : 0 });
+      label(ctx, t < 1.8 ? 'Technetium-99m (excited)' : 'Technetium-99 (settled down)', cx, cy + R + 24);
+      if (t > 1.8) { const d = (t - 1.8) * w * .13; drawPhoton(ctx, cx + R + d, cy, 1, 0, GAMMA, Math.min(d + 10, 90), 9, 12, t * 30, 3); label(ctx, 'γ ray', cx + R + d - 30, cy - 26, { color: GAMMA }); }
+    }
+  };
+
+  /* ── neutron capture by boron ── */
+  const capture = {
+    id: 'capture', title: 'Neutron capture (boron)', T: 6.5,
+    eq: [['n', 1, 0], '+', ['B', 10, 5], '→', ['Li', 7, 3], '+', ['He', 4, 2]],
+    steps: [[0, 'A slow neutron has no charge, so nothing pushes it away from the nucleus.'], [1.6, 'Boron-10 captures it and becomes boron-11 in a very excited, wobbly state…'], [2.4, '…which splits into lithium-7 and an alpha particle.']],
+    info: `<b>Neutron capture</b><div class="eq">${nuc('n', 1, 0)} + ${nuc('B', 10, 5)} → ${nuc('Li', 7, 3)} + ${nuc('He', 4, 2)}</div><ul><li>Neutrons are uncharged, so they can walk right into a nucleus however slowly they move. Slow neutrons are captured best.</li><li>Boron soaks up neutrons, so it is used in reactor <b>control rods</b> and emergency shut-down systems.</li><li><b>Boron neutron capture therapy</b>: boron is delivered to a tumour, then neutrons are fired at it. The alpha and lithium fly only one cell-width, so only the tumour is damaged.</li><li>Neutron capture also makes elements heavier than iron inside stars.</li></ul>`,
+    draw(ctx, w, h, t) {
+      const k = K(w, h), s = 15 * k, cx = w * .45, cy = h * .5;
+      if (t < 1.6) {
+        const B = makeCluster(5, 5, 61); drawCluster(ctx, B, cx, cy, s); label(ctx, 'Boron-10: 5 p, 5 n', cx, cy + B.R * s + 24);
+        const x = lerp(w * .06, cx - B.R * s * .7, ease(seg(t, 0, 1.6))); drawNeutron(ctx, x, cy, s); label(ctx, 'slow neutron', x, cy - 30 * k, { size: 12 });
+      } else if (t < 2.4) {
+        const B = makeCluster(5, 6, 61); flash(ctx, cx, cy, B.R * s * 2, .5, '#f472b6'); drawCluster(ctx, B, cx, cy, s, { jiggle: 4 * k, sx: 1 + .15 * Math.sin(t * 20) }); label(ctx, 'Boron-11 (excited)', cx, cy + B.R * s + 24);
+      } else {
+        const f = t - 2.4, L = makeCluster(3, 4, 62), A = makeCluster(2, 2, 3), d = 20 * k + f * w * .12, dx = Math.cos(-.5), dy = Math.sin(-.5);
+        flash(ctx, cx, cy, 70 * k, 1 - seg(t, 2.4, 3.2));
+        drawCluster(ctx, L, cx - dx * d * 4 / 7, cy - dy * d * 4 / 7, s); label(ctx, 'Lithium-7', cx - dx * d * 4 / 7, cy - dy * d * 4 / 7 + 42 * k);
+        drawCluster(ctx, A, cx + dx * d, cy + dy * d, s); label(ctx, 'α particle', cx + dx * d, cy + dy * d - 36 * k);
+      }
+    }
+  };
+
+  /* ── fission ── */
+  const fission = (() => {
+    const NA = [-2.2, .25, 2.0];
+    return {
+      id: 'fission', title: 'Fission', T: 8.5,
+      eq: [['n', 1, 0], '+', ['U', 235, 92], '→', ['Ba', 141, 56], '+', ['Kr', 92, 36], '+', '3', ['n', 1, 0]],
+      steps: [[0, 'A slow neutron drifts into a uranium-235 nucleus.'], [1.2, 'Uranium-236 forms. The extra energy makes it wobble and stretch like a water drop…'], [2.6, '…the two ends push each other apart electrically, and it splits!'], [3.4, 'Two smaller nuclei and 2 or 3 new neutrons fly off. About 200 MeV is released: tens of millions of times more than burning one molecule of fuel.'], [6, 'The new neutrons can split more uranium: a chain reaction.']],
+      info: `<b>Nuclear fission</b><div class="eq">${nuc('n', 1, 0)} + ${nuc('U', 235, 92)} → ${nuc('Ba', 141, 56)} + ${nuc('Kr', 92, 36)} + 3 ${nuc('n', 1, 0)}</div><ul><li>Discovered in 1938 by Otto Hahn and Fritz Strassmann and explained by Lise Meitner and Otto Frisch.</li><li>The pieces vary each time: barium + krypton is one common pair.</li><li>The products have slightly less mass than what you started with. The missing mass becomes energy: E = mc².</li><li>1 kg of uranium-235 releases about as much energy as 2,000 tonnes of oil.</li><li>The fragments are radioactive: this is the nuclear waste.</li></ul>`,
+      draw(ctx, w, h, t) {
+        const k = K(w, h), s = 4.5 * k, cx = w * .48, cy = h * .5;
+        const U = makeCluster(92, 143, 71), R = U.R * s;
+        if (t < 1.2) {
+          drawCluster(ctx, U, cx, cy, s); label(ctx, 'Uranium-235', cx, cy + R + 22);
+          const x = lerp(w * .05, cx - R, ease(seg(t, 0, 1.2))); drawNeutron(ctx, x, cy, s * 2); label(ctx, 'neutron', x, cy - 24 * k, { size: 12 });
+        } else if (t < 2.6) {
+          const U6 = makeCluster(92, 144, 71), f = ease(seg(t, 1.4, 2.6)), wob = Math.sin(t * 16) * .05 * (1 - f);
+          drawCluster(ctx, U6, cx, cy, s, { sx: 1 + .5 * f + wob, sy: 1 - .18 * f - wob, jiggle: 2 * k });
+          label(ctx, 'Uranium-236 (wobbling)', cx, cy + R + 22);
+        } else {
+          const f = t - 2.6, Ba = makeCluster(56, 85, 72), Kr = makeCluster(36, 56, 73), v = w * .04;
+          const xb = cx - Ba.R * s * .95 - f * v, xk = cx + Kr.R * s * .95 + f * v * 1.5;
+          flash(ctx, cx, cy, 170 * k, 1 - seg(t, 2.6, 3.6));
+          drawCluster(ctx, Ba, xb, cy, s); drawCluster(ctx, Kr, xk, cy, s);
+          label(ctx, 'Barium-141', xb, cy + Ba.R * s + 22); label(ctx, 'Krypton-92', xk, cy + Kr.R * s + 22);
+          NA.forEach(a => { const d = 20 * k + f * w * .12; drawNeutron(ctx, cx + Math.cos(a) * d, cy + Math.sin(a) * d - 30 * k, s * 2); });
+          if (t > 2.8 && t < 5.5) label(ctx, '≈ 200 MeV released', cx, cy - R - 50 * k, { color: TH.orange, size: 16 });
+        }
+      }
+    };
+  })();
+
+  /* ── chain reaction (interactive) ── */
+  const chain = (() => {
+    let nuclei = [], neutrons = [], frags = [], flashes = [], fissions = 0, captured = 0, absorbed = 0, enr = 100, rod = 0, W = 0, H = 0, peak = 0;
+    function reset() {
+      nuclei = []; neutrons = []; frags = []; flashes = []; fissions = captured = absorbed = peak = 0;
+      if (!W) return;
+      const sp = 44, r = rng(77);
+      for (let y = 70; y < H - 40; y += sp) for (let x = 40; x < W - 30; x += sp) nuclei.push({ x: x + (r() - .5) * 14, y: y + (r() - .5) * 14, type: r() * 100 < enr ? 235 : 238, st: 'whole' });
+    }
+    function fire() { neutrons.push({ x: 4, y: H * .5 + (Math.random() - .5) * 40, vx: 210, vy: (Math.random() - .5) * 60 }); }
+    const rodsX = () => [W * .25, W * .5, W * .75];
+    return {
+      id: 'chain', title: 'Chain reaction', interactive: true,
+      info: `<b>Chain reaction</b><ul><li>Each fission frees 2 or 3 neutrons. If more than one of them goes on to split another nucleus, the number of fissions grows very quickly.</li><li><b>Uranium-238</b> (grey) mostly soaks up neutrons without splitting. Natural uranium is only 0.7% U-235, so reactor fuel is <b>enriched</b> to about 3–5%. Weapons need about 90%.</li><li><b>Control rods</b> absorb neutrons. A reactor runs steadily when exactly one neutron from each fission causes another one.</li><li>Real reactors also use a <b>moderator</b> to slow the neutrons down (see Collisions → Neutron moderator).</li></ul>`,
+      init(c) {
+        c.innerHTML = `<div class="row"><button class="btn primary" id="ch-fire">Fire a neutron</button><button class="btn" id="ch-reset">Reset</button></div>
+          <div class="slider-row"><div class="lbl"><span>Uranium-235 (enrichment)</span><b id="ch-enr-out">${enr}%</b></div><input type="range" id="ch-enr" min="3" max="100" value="${enr}"></div>
+          <div class="slider-row"><div class="lbl"><span>Control rods pushed in</span><b id="ch-rod-out">${rod}%</b></div><input type="range" id="ch-rod" min="0" max="100" value="${rod}"></div>`;
+        $('#ch-fire').onclick = fire; $('#ch-reset').onclick = reset;
+        $('#ch-enr').oninput = e => { enr = +e.target.value; $('#ch-enr-out').textContent = enr + '%'; reset(); };
+        $('#ch-rod').oninput = e => { rod = +e.target.value; $('#ch-rod-out').textContent = rod + '%'; };
+        reset();
+      },
+      update(dt, w, h) {
+        if (w !== W || h !== H) { W = w; H = h; reset(); }
+        const rods = rodsX(), rodBot = 50 + (H - 60) * rod / 100;
+        for (const n of neutrons) {
+          n.x += n.vx * dt; n.y += n.vy * dt;
+          if (rod > 0 && n.y < rodBot && rods.some(x => Math.abs(n.x - x) < 8)) { n.dead = true; absorbed++; flashes.push({ x: n.x, y: n.y, t: 0, c: '#94a3b8' }); continue; }
+          for (const u of nuclei) {
+            if (u.st !== 'whole' || Math.abs(u.x - n.x) > 11 || Math.abs(u.y - n.y) > 11 || Math.hypot(u.x - n.x, u.y - n.y) > 11) continue;
+            n.dead = true;
+            if (u.type === 235) {
+              u.st = 'split'; fissions++; flashes.push({ x: u.x, y: u.y, t: 0, c: '#fde047' });
+              const a = Math.random() * TAU;
+              frags.push({ x: u.x, y: u.y, vx: Math.cos(a) * 70, vy: Math.sin(a) * 70, c: '#e5484d', life: 1 }, { x: u.x, y: u.y, vx: -Math.cos(a) * 90, vy: -Math.sin(a) * 90, c: '#14b8a6', life: 1 });
+              const m = Math.random() < .5 ? 2 : 3;
+              for (let i = 0; i < m; i++) { const b = Math.random() * TAU; neutrons.push({ x: u.x + Math.cos(b) * 12, y: u.y + Math.sin(b) * 12, vx: Math.cos(b) * 210, vy: Math.sin(b) * 210 }); }
+            } else { u.st = 'captured'; captured++; }
+            break;
+          }
+        }
+        neutrons = neutrons.filter(n => !n.dead && n.x > -10 && n.x < W + 10 && n.y > 40 && n.y < H + 10);
+        peak = Math.max(peak, neutrons.length);
+        frags.forEach(f => { f.x += f.vx * dt; f.y += f.vy * dt; f.life -= dt * .7; }); frags = frags.filter(f => f.life > 0);
+        flashes.forEach(f => f.t += dt); flashes = flashes.filter(f => f.t < .6);
+      },
+      draw(ctx, w, h) {
+        const rods = rodsX(), rodBot = 50 + (h - 60) * rod / 100;
+        if (rod > 0) rods.forEach(x => { ctx.fillStyle = TH.dark ? '#475569' : '#64748b'; ctx.fillRect(x - 7, 40, 14, rodBot - 40); });
+        for (const u of nuclei) {
+          if (u.st === 'split') { ctx.strokeStyle = TH.dim; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.arc(u.x, u.y, 8, 0, TAU); ctx.stroke(); ctx.setLineDash([]); continue; }
+          ball(ctx, u.x, u.y, 9, u.type === 235 ? '#f59e0b' : u.st === 'captured' ? '#334155' : '#94a3b8');
+        }
+        frags.forEach(f => { ctx.globalAlpha = Math.max(0, f.life); ball(ctx, f.x, f.y, 6, f.c); ctx.globalAlpha = 1; });
+        flashes.forEach(f => flash(ctx, f.x, f.y, 26, 1 - f.t / .6, f.c));
+        neutrons.forEach(n => ball(ctx, n.x, n.y, 3.5, TH.dark ? '#e2e8f0' : '#1e293b'));
+        ctx.fillStyle = rgba(TH.surface, .92); ctx.fillRect(0, 0, w, 40); ctx.fillStyle = TH.border; ctx.fillRect(0, 40, w, 1);
+        const items = [['U-235', '#f59e0b'], ['U-238', '#94a3b8'], ['neutron', TH.dark ? '#e2e8f0' : '#1e293b']];
+        let x = 12; items.forEach(([nm, c]) => { ball(ctx, x + 6, 20, 6, c); txt(ctx, nm, x + 16, 20, { size: 12, color: TH.muted }); x += 86; });
+        txt(ctx, `Fissions: ${fissions}   ·   Energy: ${(fissions * 200).toLocaleString('en-US')} MeV   ·   Neutrons flying: ${neutrons.length}   ·   Soaked up by U-238: ${captured}${rod ? `   ·   by rods: ${absorbed}` : ''}`, w - 12, 20, { align: 'right', size: 12, bold: true });
+        if (!fissions && !neutrons.length) label(ctx, 'Press "Fire a neutron"', w / 2, h / 2 + 4, { size: 16 });
+      }
+    };
+  })();
+
+  /* ── D–T fusion (interactive) ── */
+  const fusion = (() => {
+    const EG = 1.182, CONTACT = 4;
+    let T = 1.5e8, ph = 'idle', r = 0, r0 = 0, rmin = 0, v0 = 0, fuse = false, tf = 0, tries = 0, wins = 0, E = 0, P = 0;
+    function calc() { E = 3 * 8.617e-11 * T; rmin = 1.44 / E; P = Math.exp(-Math.sqrt(EG / E)); }
+    function collide(force) { calc(); r0 = Math.max(2.4 * rmin, 30); r = r0; v0 = r0 / 1.3; ph = 'in'; fuse = force || rmin <= CONTACT || Math.random() < P; tries++; tf = 0; }
+    const fmtT = T => T >= 1e9 ? (T / 1e9).toFixed(1) + ' billion K' : Math.round(T / 1e6).toLocaleString('en-US') + ' million K';
+    const fmtE = e => e >= 1 ? e.toFixed(2) + ' MeV' : e >= 1e-3 ? (e * 1e3).toFixed(e < .01 ? 1 : 0) + ' keV' : (e * 1e6).toFixed(0) + ' eV';
+    calc();
+    return {
+      id: 'fusion', title: 'Fusion (deuterium + tritium)', interactive: true,
+      info: `<b>Nuclear fusion</b><div class="eq">${nuc('H', 2, 1)} + ${nuc('H', 3, 1)} → ${nuc('He', 4, 2)} + ${nuc('n', 1, 0)} + 17.6 MeV</div><ul><li>Both nuclei are positive, so they repel. They have to get within about 4 fm (4 × 10⁻¹⁵ m) for the strong force to grab them: this electric <b>barrier</b> is about 0.36 MeV high.</li><li>Even at 150 million K a typical collision has only about 1/10 of that energy. Classically they would always bounce back.</li><li>Quantum <b>tunnelling</b> lets a few of them pass through the barrier anyway. Hotter means more tunnelling.</li><li>The Sun's core (15 million K) is too cold for this on paper; it works because there are so many collisions, and it uses a slower reaction (see "Fusion in the Sun").</li><li>Fusion reactors such as ITER heat deuterium–tritium plasma to 150 million K.</li></ul>`,
+      init(c) {
+        c.innerHTML = `<div class="slider-row"><div class="lbl"><span>Temperature</span><b id="fu-T-out"></b></div><input type="range" id="fu-T" min="0" max="1000"></div>
+          <div class="chips" id="fu-pre" style="margin-bottom:8px"><span class="chip" data-t="1.5e7">Sun's core</span><span class="chip" data-t="1.5e8">Fusion reactor</span><span class="chip" data-t="3e9">3 billion K</span></div>
+          <div class="row"><button class="btn primary" id="fu-go">Collide</button><button class="btn" id="fu-force">Collide and tunnel</button></div>
+          <p class="note">"Collide" uses the real chance of tunnelling, so at low temperatures you will almost always see a bounce. "Collide and tunnel" shows what happens on the rare lucky try.</p>`;
+        const sl = $('#fu-T'), set = v => { T = v; sl.value = Math.round(Math.log(T / 1e6) / Math.log(3000) * 1000); $('#fu-T-out').textContent = fmtT(T); calc(); };
+        sl.oninput = () => set(1e6 * Math.pow(3000, sl.value / 1000));
+        $('#fu-pre').onclick = e => { const ch = e.target.closest('.chip'); if (ch) set(+ch.dataset.t); };
+        $('#fu-go').onclick = () => collide(false); $('#fu-force').onclick = () => collide(true);
+        set(T);
+      },
+      update(dt) {
+        if (ph === 'in') {
+          const stop = fuse && rmin < CONTACT ? CONTACT : rmin;
+          r -= v0 * Math.sqrt(Math.max(.004, 1 - rmin / r)) * dt;
+          if (r <= stop * 1.003) { r = stop; if (fuse) { ph = rmin > CONTACT ? 'tunnel' : 'fused'; tf = 0; if (ph === 'fused') wins++; } else ph = 'out'; }
+        } else if (ph === 'out') { r += v0 * Math.sqrt(Math.max(.004, 1 - rmin / r)) * dt; if (r > r0) ph = 'idle'; }
+        else if (ph === 'tunnel') { tf += dt; if (tf > .9) { ph = 'fused'; tf = 0; r = CONTACT; wins++; } }
+        else if (ph === 'fused') tf += dt;
+      },
+      draw(ctx, w, h) {
+        const k = K(w, h), view = r0 || Math.max(2.4 * rmin, 30), sc = (w * .8) / view, cx = w / 2, cy = h * .3;
+        const D = makeCluster(1, 1, 91), Tr = makeCluster(1, 2, 92), sD = Math.max(2.1 * sc, 12 * k) / D.R, sT = Math.max(1.75 * sc, 12 * k) / Tr.R;
+        // readouts
+        const lines = [`Temperature: ${fmtT(T)}`, `Typical collision energy: ${fmtE(E)} (barrier: 0.36 MeV)`, `Closest approach without tunnelling: ${rmin < 1000 ? rmin.toFixed(rmin < 10 ? 1 : 0) : Math.round(rmin).toLocaleString('en-US')} fm`, `Chance of tunnelling in one head-on collision: ${P > .5 ? 'almost certain' : P > 1e-3 ? '1 in ' + Math.round(1 / P).toLocaleString('en-US') : sci(P, 2)}`, `Collisions: ${tries}   ·   Fusions: ${wins}`];
+        lines.forEach((s, i) => txt(ctx, s, 14, 20 + i * 19, { size: 12.5, bold: i === 3, color: i === 3 ? TH.purple : TH.text }));
+        if (ph === 'idle' && !tries) label(ctx, 'Press "Collide"', cx, cy, { size: 16 });
+        if (ph !== 'fused' && (tries || ph !== 'idle')) {
+          const xD = cx - r * .6 * sc, xT = cx + r * .4 * sc;
+          drawCluster(ctx, D, xD, cy, sD); drawCluster(ctx, Tr, xT, cy, sT);
+          label(ctx, 'deuterium (1p 1n)', xD, cy - 40 * k, { size: 12 }); label(ctx, 'tritium (1p 2n)', xT, cy - 40 * k, { size: 12 });
+          if (ph === 'tunnel') { flash(ctx, cx, cy, 50 * k, .5 + .3 * Math.sin(tf * 20), '#a855f7'); label(ctx, 'Tunnelling through the barrier…', cx, cy + 46 * k, { color: TH.purple }); }
+          if (ph === 'out' || (ph === 'idle' && tries)) label(ctx, 'Bounced back: not enough energy', cx, cy + 46 * k, { color: TH.red });
+        }
+        if (ph === 'fused') {
+          const he = makeCluster(2, 2, 3), d1 = Math.min(tf * w * .06, w * .12), d2 = Math.min(tf * w * .24, w * .36);
+          flash(ctx, cx, cy, 120 * k, 1 - seg(tf, 0, 1));
+          drawCluster(ctx, he, cx - d1, cy, 12 * k / 1.0); drawNeutron(ctx, cx + 20 * k + d2, cy, 12 * k);
+          label(ctx, 'helium-4 (3.5 MeV)', cx - d1, cy - 40 * k, { size: 12 }); label(ctx, 'neutron (14.1 MeV)', cx + 20 * k + d2, cy - 30 * k, { size: 12 });
+          if (tf < 4) label(ctx, 'Fusion! 17.6 MeV released', cx, cy + 50 * k, { color: TH.orange, size: 15 });
+        }
+        // barrier diagram
+        const gx = 40, gw = w - 70, gy = h * .56, gh = h * .36, rmax = view, Umax = Math.max(.45, E * 1.4);
+        const X = rr => gx + rr / rmax * gw, Y = U => gy + gh * .78 - U / Umax * gh * .74;
+        txt(ctx, 'Energy against distance between the nuclei', gx, gy - 6, { bold: true, size: 13 });
+        ctx.strokeStyle = TH.border; ctx.beginPath(); ctx.moveTo(gx, Y(0)); ctx.lineTo(gx + gw, Y(0)); ctx.moveTo(gx, gy + 6); ctx.lineTo(gx, gy + gh); ctx.stroke();
+        ctx.strokeStyle = TH.red; ctx.lineWidth = 2.5; ctx.beginPath();
+        ctx.moveTo(X(0), Y(-Umax * .25)); ctx.lineTo(X(CONTACT), Y(-Umax * .25));
+        let first = true; for (let i = 0; i <= 300; i++) { const rr = CONTACT + (rmax - CONTACT) * i / 300, U = Math.min(1.44 / rr, Umax * 1.05); ctx.lineTo(X(rr), Y(U)); if (first) first = false; }
+        ctx.stroke(); ctx.lineWidth = 1;
+        txt(ctx, 'electric repulsion', X(CONTACT) + 10, Y(Math.min(1.44 / CONTACT, Umax)) + 8, { size: 11, color: TH.red });
+        txt(ctx, 'strong force', X(0) + 2, Y(-Umax * .25) + 12, { size: 11, color: TH.red });
+        // energy line
+        ctx.strokeStyle = TH.purple; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X(Math.max(rmin, CONTACT)), Y(E)); ctx.lineTo(X(rmax), Y(E)); ctx.stroke();
+        if (rmin > CONTACT) { ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(X(CONTACT), Y(E)); ctx.lineTo(X(rmin), Y(E)); ctx.stroke(); ctx.setLineDash([]); txt(ctx, 'tunnel', X((CONTACT + rmin) / 2), Y(E) - 10, { align: 'center', size: 11, color: TH.purple }); }
+        ctx.lineWidth = 1;
+        txt(ctx, `collision energy ${fmtE(E)}`, X(rmax) - 4, Y(E) - 10, { align: 'right', size: 11, color: TH.purple, bold: true });
+        if (ph === 'in' || ph === 'out') { ctx.fillStyle = TH.purple; ctx.beginPath(); ctx.arc(X(r), Y(E), 6, 0, TAU); ctx.fill(); }
+        txt(ctx, `distance: 0 → ${Math.round(rmax).toLocaleString('en-US')} fm`, gx + gw, gy + gh + 4, { align: 'right', size: 11, color: TH.muted });
+      }
+    };
+  })();
+
+  /* ── fusion in the Sun: proton–proton chain ── */
+  const ppchain = {
+    id: 'pp', title: 'Fusion in the Sun', T: 14,
+    eq: t => t < 4.6 ? [['H', 1, 1], '+', ['H', 1, 1], '→', ['H', 2, 1], '+', ['e', 0, '+1'], '+', 'ν'] : t < 9.2 ? [['H', 2, 1], '+', ['H', 1, 1], '→', ['He', 3, 2], '+', 'γ'] : [['He', 3, 2], '+', ['He', 3, 2], '→', ['He', 4, 2], '+', '2', ['H', 1, 1]],
+    steps: [[0, 'Step 1: two protons collide. This is the slowest step: a proton waits about 9 billion years on average.'], [1.6, 'During the collision a proton turns into a neutron (β⁺): a deuterium nucleus forms.'], [4.6, 'Step 2: another proton joins in seconds, making helium-3 and a gamma ray.'], [9.2, 'Step 3: two helium-3 nuclei meet and make helium-4, giving back two protons.'], [12, 'In total: 4 protons → 1 helium-4. 0.7% of the mass becomes energy (26.7 MeV).']],
+    info: `<b>The proton–proton chain</b><ul><li>This is how the Sun shines: every second it turns about 600 million tonnes of hydrogen into helium, and about 4 million tonnes of mass into energy.</li><li>Step 1 needs the weak force to turn a proton into a neutron in the moment they touch. That is so unlikely that the Sun burns slowly and lasts about 10 billion years.</li><li>The neutrinos from step 1 reach Earth in 8 minutes; about 60 billion pass through each square centimetre of you every second.</li><li>Stars heavier than the Sun mostly use the CNO cycle, where carbon helps as a catalyst.</li></ul>`,
+    draw(ctx, w, h, t) {
+      const k = K(w, h), s = 16 * k, cx = w * .5, cy = h * .5;
+      if (t < 4.6) {
+        const f = ease(seg(t, 0, 1.6)), d = lerp(w * .3, s * .85, f);
+        const conv = seg(t, 1.6, 2.0);
+        ball(ctx, cx - d, cy, s, PROTON); ball(ctx, cx + d, cy, s, mix(PROTON, NEUTRON, conv));
+        label(ctx, t < 2 ? 'proton + proton' : 'deuterium (1 p + 1 n)', cx, cy + 44 * k);
+        if (t > 1.6 && t < 2.2) flash(ctx, cx, cy, 40 * k, .6);
+        if (t > 2) { const g = t - 2; drawElectron(ctx, cx + g * w * .15, cy - g * w * .1, 8 * k, POSITRON, '+'); label(ctx, 'positron', cx + g * w * .15, cy - g * w * .1 - 22 * k, { size: 12 }); drawNeutrino(ctx, cx - g * w * .1, cy + g * w * .12, 'ν'); }
+      } else if (t < 9.2) {
+        const D = makeCluster(1, 1, 5), f = ease(seg(t, 4.6, 6.0)), x = lerp(w * .85, cx + D.R * s * .9, f);
+        if (t < 6.0) { drawCluster(ctx, D, cx, cy, s); ball(ctx, x, cy, s, PROTON); label(ctx, 'deuterium + proton', cx, cy + 50 * k); }
+        else {
+          const He = makeCluster(2, 1, 6); flash(ctx, cx, cy, 50 * k, 1 - seg(t, 6, 6.8)); drawCluster(ctx, He, cx, cy, s); label(ctx, 'helium-3 (2 p + 1 n)', cx, cy + 50 * k);
+          const g = t - 6.0, a = -2.4; drawPhoton(ctx, cx + Math.cos(a) * (30 + g * w * .2), cy + Math.sin(a) * (30 + g * w * .2), Math.cos(a), Math.sin(a), GAMMA, 60, 7, 10, t * 40, 2.5);
+          label(ctx, 'γ', cx + Math.cos(a) * (30 + g * w * .2) + 20, cy + Math.sin(a) * (30 + g * w * .2), { color: GAMMA });
+        }
+      } else {
+        const He3 = makeCluster(2, 1, 6), f = ease(seg(t, 9.2, 10.6)), d = lerp(w * .3, He3.R * s * .9, f);
+        if (t < 10.6) { drawCluster(ctx, He3, cx - d, cy, s); drawCluster(ctx, He3, cx + d, cy, s); label(ctx, 'helium-3 + helium-3', cx, cy + 56 * k); }
+        else {
+          const g = t - 10.6; flash(ctx, cx, cy, 60 * k, 1 - seg(t, 10.6, 11.4));
+          drawCluster(ctx, makeCluster(2, 2, 3), cx, cy, s); label(ctx, 'helium-4', cx, cy + 50 * k);
+          [-.7, 2.4].forEach(a => ball(ctx, cx + Math.cos(a) * (30 * k + g * w * .2), cy + Math.sin(a) * (30 * k + g * w * .2), s, PROTON));
+        }
+      }
+    }
+  };
+
+  /* ── half-life (interactive) ── */
+  const halflife = (() => {
+    const ISO = [['Carbon-14', 5730, 'years'], ['Iodine-131', 8.0, 'days'], ['Radon-222', 3.8, 'days'], ['Technetium-99m', 6.0, 'hours']];
+    const N0 = 400, TH0 = 3;
+    let alive, flashT, tm = 0, run = false, iso = 0, series = [];
+    function reset() { alive = new Uint8Array(N0).fill(1); flashT = new Float32Array(N0).fill(-9); tm = 0; series = [[0, N0]]; run = false; const b = $('#hl-go'); if (b) b.textContent = '▶ Start'; }
+    reset();
+    return {
+      id: 'halflife', title: 'Half-life', interactive: true,
+      info: `<b>Half-life</b><ul><li>Each nucleus has the same small chance of decaying in each second. Nobody can predict <i>which</i> one will go next: it is truly random.</li><li>But with many nuclei, the pattern is predictable: after one <b>half-life</b>, half are left; after two, a quarter; after three, an eighth…</li><li>Half-lives range from 10⁻²² s to far longer than the age of the Universe.</li><li>Run it twice: the curve is nearly the same, but different squares decay each time.</li></ul>`,
+      init(c) {
+        c.innerHTML = `<div class="row"><button class="btn primary" id="hl-go">▶ Start</button><button class="btn" id="hl-reset">Reset</button></div>
+          <div class="row"><span class="note">Isotope</span><select id="hl-iso">${ISO.map((x, i) => `<option value="${i}" ${i === iso ? 'selected' : ''}>${x[0]} (${x[1].toLocaleString('en-US')} ${x[2]})</option>`).join('')}</select></div>`;
+        $('#hl-go').onclick = () => { if (tm >= 5.5 * TH0) reset(); run = !run; $('#hl-go').textContent = run ? '⏸ Pause' : '▶ Start'; };
+        $('#hl-reset').onclick = reset; $('#hl-iso').onchange = e => { iso = +e.target.value; reset(); };
+      },
+      update(dt) {
+        if (!run) return;
+        tm += dt; const p = dt * Math.LN2 / TH0;
+        for (let i = 0; i < N0; i++) if (alive[i] && Math.random() < p) { alive[i] = 0; flashT[i] = tm; }
+        let n = 0; for (let i = 0; i < N0; i++) n += alive[i];
+        series.push([tm, n]);
+        if (tm >= 5.5 * TH0) { run = false; $('#hl-go').textContent = '▶ Again'; }
+      },
+      draw(ctx, w, h) {
+        const narrow = w < 700, gs = narrow ? Math.min(w - 40, h * .42) : Math.min(w * .4, h - 80), cell = gs / 20;
+        const gx = 20, gy = narrow ? 20 : (h - gs) / 2;
+        let n = 0;
+        for (let i = 0; i < N0; i++) {
+          const x = gx + (i % 20) * cell + cell / 2, y = gy + Math.floor(i / 20) * cell + cell / 2;
+          if (alive[i]) n++;
+          ball(ctx, x, y, cell * .4, alive[i] ? '#f59e0b' : (TH.dark ? '#334155' : '#cbd5e1'));
+          if (tm - flashT[i] < .4) flash(ctx, x, y, cell * 1.2, 1 - (tm - flashT[i]) / .4);
+        }
+        txt(ctx, `${ISO[iso][0]} left: ${n} of ${N0}`, gx, gy + gs + 18, { bold: true, size: 14 });
+        // graph
+        const px = narrow ? 50 : gx + gs + 70, py = narrow ? gy + gs + 50 : gy, pw = w - px - 20, ph = narrow ? h - py - 40 : gs;
+        if (pw < 100 || ph < 80) return;
+        const X = t => px + t / (5.5 * TH0) * pw, Y = v => py + ph - v / N0 * ph;
+        ctx.strokeStyle = TH.border; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py + ph); ctx.lineTo(px + pw, py + ph); ctx.stroke();
+        for (let k2 = 1; k2 <= 5; k2++) {
+          const x = X(k2 * TH0), y = Y(N0 / Math.pow(2, k2));
+          ctx.strokeStyle = TH.grid; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.moveTo(x, py + ph); ctx.lineTo(x, y); ctx.lineTo(px, y); ctx.stroke(); ctx.setLineDash([]);
+          txt(ctx, (k2 * ISO[iso][1]).toLocaleString('en-US'), x, py + ph + 12, { align: 'center', size: 10, color: TH.muted });
+          txt(ctx, String(N0 / Math.pow(2, k2)), px - 5, y, { align: 'right', size: 10, color: TH.muted });
+        }
+        txt(ctx, String(N0), px - 5, Y(N0), { align: 'right', size: 10, color: TH.muted });
+        txt(ctx, `time (${ISO[iso][2]}); dashed lines every half-life`, px + pw, py + ph + 28, { align: 'right', size: 11, color: TH.muted });
+        ctx.strokeStyle = TH.muted; ctx.setLineDash([6, 4]); ctx.beginPath();
+        for (let i = 0; i <= 100; i++) { const t2 = i / 100 * 5.5 * TH0; i ? ctx.lineTo(X(t2), Y(N0 * Math.pow(.5, t2 / TH0))) : ctx.moveTo(X(t2), Y(N0)); }
+        ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2.5; ctx.beginPath(); series.forEach(([t2, v], i) => i ? ctx.lineTo(X(t2), Y(v)) : ctx.moveTo(X(t2), Y(v))); ctx.stroke(); ctx.lineWidth = 1;
+        txt(ctx, 'Nuclei left', px, py - 12, { bold: true, size: 13 });
+      }
+    };
+  })();
+
+  /* ── binding energy curve (interactive) ── */
+  const binding = (() => {
+    const PTS = [['H-2', 2, 1.112], ['H-3', 3, 2.827], ['He-3', 3, 2.573], ['He-4', 4, 7.074], ['Li-6', 6, 5.332], ['Li-7', 7, 5.606], ['Be-9', 9, 6.463], ['B-11', 11, 6.928], ['C-12', 12, 7.680], ['N-14', 14, 7.476], ['O-16', 16, 7.976], ['Ne-20', 20, 8.032], ['Mg-24', 24, 8.261], ['Si-28', 28, 8.448], ['Ca-40', 40, 8.551], ['Fe-56', 56, 8.790], ['Ni-62', 62, 8.795], ['Kr-84', 84, 8.717], ['Kr-92', 92, 8.513], ['Sn-120', 120, 8.505], ['Ba-138', 138, 8.393], ['Ba-141', 141, 8.326], ['Au-197', 197, 7.916], ['Pb-208', 208, 7.868], ['U-235', 235, 7.591], ['U-238', 238, 7.570]];
+    const SHOW = new Set(['H-2', 'He-4', 'Li-6', 'C-12', 'O-16', 'Fe-56', 'Kr-92', 'Ba-141', 'Pb-208', 'U-235']);
+    const semf = A => { const Z = A / (2 + .0155 * Math.pow(A, 2 / 3)); return (15.75 * A - 17.8 * Math.pow(A, 2 / 3) - .711 * Z * (Z - 1) / Math.cbrt(A) - 23.7 * Math.pow(A - 2 * Z, 2) / A) / A; };
+    let hover = null, geo = null;
+    return {
+      id: 'binding', title: 'Binding energy: why both release energy', interactive: true,
+      info: `<b>Binding energy per nucleon</b><ul><li>Binding energy is the energy needed to pull a nucleus completely apart. It shows up as missing mass: a nucleus weighs less than its separate protons and neutrons (E = mc²).</li><li>The higher a nucleus is on the curve, the more tightly each of its nucleons is held.</li><li><b>Iron and nickel</b> are at the top: the most tightly bound nuclei.</li><li><b>Fusion</b> climbs the curve from the left (hydrogen → helium). <b>Fission</b> climbs it from the right (uranium → two middle-sized nuclei). Climbing up always releases energy.</li><li>Stars can fuse elements only up to iron. Heavier elements are made by neutron capture in dying stars and neutron-star collisions.</li></ul><p class="note">Point at a dot to read its value.</p>`,
+      onMove(x, y) { if (!geo) return; hover = null; let best = 16; PTS.forEach(p => { const d = Math.hypot(geo.X(p[1]) - x, geo.Y(p[2]) - y); if (d < best) { best = d; hover = p; } }); },
+      draw(ctx, w, h) {
+        const k = K(w, h), gx = 60, gy = 40, gw = w - gx - 30, gh = h - gy - 70;
+        const X = A => gx + A / 250 * gw, Y = B => gy + gh - B / 9.3 * gh; geo = { X, Y };
+        txt(ctx, 'Binding energy per nucleon (MeV)', gx - 40, gy - 20, { bold: true, size: 14 });
+        // iron peak band
+        ctx.fillStyle = rgba('#f59e0b', .12); ctx.fillRect(X(48), gy, X(66) - X(48), gh);
+        txt(ctx, 'most tightly bound', X(57), gy + 12, { align: 'center', size: 11, color: TH.orange, bold: true });
+        ctx.strokeStyle = TH.grid;
+        for (let B = 0; B <= 9; B++) { ctx.beginPath(); ctx.moveTo(gx, Y(B)); ctx.lineTo(gx + gw, Y(B)); ctx.stroke(); txt(ctx, String(B), gx - 8, Y(B), { align: 'right', size: 11, color: TH.muted }); }
+        for (let A = 0; A <= 250; A += 50) txt(ctx, String(A), X(A), gy + gh + 14, { align: 'center', size: 11, color: TH.muted });
+        txt(ctx, 'mass number A (number of protons + neutrons)', gx + gw / 2, gy + gh + 34, { align: 'center', size: 12, color: TH.muted });
+        ctx.strokeStyle = TH.accent; ctx.lineWidth = 2.5; ctx.beginPath();
+        for (let A = 14; A <= 250; A += 2) A === 14 ? ctx.moveTo(X(A), Y(semf(A))) : ctx.lineTo(X(A), Y(semf(A)));
+        ctx.stroke(); ctx.lineWidth = 1;
+        PTS.forEach(p => {
+          ctx.fillStyle = p === hover ? TH.orange : TH.text; ctx.beginPath(); ctx.arc(X(p[1]), Y(p[2]), p === hover ? 6 : 4, 0, TAU); ctx.fill();
+          if (SHOW.has(p[0])) txt(ctx, p[0], X(p[1]) + (p[1] < 20 ? 7 : 0), Y(p[2]) + (p[1] < 20 ? 0 : 14), { align: p[1] < 20 ? 'left' : 'center', size: 11, bold: true, color: TH.muted });
+        });
+        // arrows
+        arrow(ctx, X(3), Y(1.6), X(4), Y(6.7), TH.red, 3, 11);
+        label(ctx, 'fusion ↑', X(18), Y(3.6), { color: TH.red, size: 14, align: 'left' });
+        arrow(ctx, X(232), Y(7.3), X(124), Y(8.25), TH.purple, 3, 11);
+        label(ctx, '← fission', X(190), Y(6.9), { color: TH.purple, size: 14 });
+        if (hover) label(ctx, `${hover[0]}: ${hover[2].toFixed(2)} MeV per nucleon (total ${(hover[2] * hover[1]).toFixed(0)} MeV)`, clamp(X(hover[1]), 180, w - 180), Y(hover[2]) - 22, { size: 13, color: TH.orange });
+      }
+    };
+  })();
+
+  const tab = makeSceneTab({
+    stage: 'cv-nuclear', list: '#np-list', info: '#np-info', ctrl: '#np-ctrl', replay: '#np-replay', speed: '#np-speed',
+    groups: [
+      ['Radioactive decay', [alpha, betaMinus, betaPlus, ecap, gamma, halflife]],
+      ['Splitting and joining', [capture, fission, chain, fusion, ppchain]],
+      ['The big picture', [binding]],
+    ],
+  });
+  return tab;
+})();
+</script>
+
+<script>
+/* ═════════════════ TAB 5 · COLLISIONS ═════════════════ */
+TABS.collide = (() => {
+  /* ── Rutherford scattering ── */
+  const ruth = (() => {
+    const FOILS = { Au: { Z: 79, A: 197, n: 5.90e28, name: 'gold', r: 144 }, Ag: { Z: 47, A: 108, n: 5.86e28, name: 'silver', r: 144 }, Al: { Z: 13, A: 27, n: 6.03e28, name: 'aluminium', r: 143 } };
+    const PROJ = { alpha: { z: 2, col: '#eab308', name: 'alpha particles', R: 1.7 }, proton: { z: 1, col: PROTON, name: 'protons', R: .85 }, neutron: { z: 0, col: NEUTRON, name: 'neutrons', R: .85 }, electron: { z: -1, col: ELECTRON, name: 'electrons', R: 0 } };
+    let proj = 'alpha', foil = 'Au', E = 7.7, view = 'nucleus', paths = [], fired = 0, d10 = 0, d90 = 0, queue = 0, qT = 0, cloud = null, bulk = '';
+    const RN = () => 1.2 * Math.cbrt(FOILS[foil].A);
+    const d0 = () => 1.44 * Math.abs(PROJ[proj].z) * FOILS[foil].Z / E;
+    const Vn = () => proj === 'neutron' ? 14 * RN() : Math.max(14 * d0(), 8 * RN(), 60);
+    function clearStats() { paths = []; fired = d10 = d90 = 0; bulk = ''; }
+    function compute(b) {
+      const P = PROJ[proj], V = view === 'atom' ? FOILS[foil].r * 2000 : Vn(), R = RN();
+      if (view === 'atom' || proj === 'neutron') {
+        // nearly straight lines at atom scale; hard-sphere bounce for neutrons
+        if (proj === 'neutron' && Math.abs(b) < R + .85) {
+          const rr = R + .85, cxp = -Math.sqrt(rr * rr - b * b), nx = cxp / rr, ny = b / rr, vx = 1 - 2 * nx * nx, vy = -2 * nx * ny;
+          return { pts: [[-V * .6, b], [cxp, b], [cxp + vx * V, b + vy * V]], th: Math.atan2(Math.abs(vy), vx) };
+        }
+        const th = P.z === 0 ? 0 : 2 * Math.atan(d0() / (2 * Math.abs(b))) * (P.z > 0 ? 1 : -1) * Math.sign(b || 1);
+        return { pts: [[-V * .6, b], [0, b], [V * .6 * Math.cos(th), b + V * .6 * Math.sin(th)]], th: Math.abs(th) };
+      }
+      const Kc = .5 * d0() * (P.z > 0 ? 1 : -1);
+      let x = -V * .6, y = b, vx = 1, vy = 0; const pts = [[x, y]];
+      for (let i = 0; i < 40000; i++) {
+        const r = Math.max(Math.hypot(x, y), R), dt = .01 * Math.max(r, d0() * .3), a = Kc / (r * r * r);
+        vx += a * x * dt * .5; vy += a * y * dt * .5; x += vx * dt; y += vy * dt;
+        const r2 = Math.max(Math.hypot(x, y), R), a2 = Kc / (r2 * r2 * r2); vx += a2 * x * dt * .5; vy += a2 * y * dt * .5;
+        const lp = pts[pts.length - 1]; if (Math.hypot(x - lp[0], y - lp[1]) > V / 300) pts.push([x, y]);
+        if (Math.abs(x) > V * .7 || Math.abs(y) > V * .7) break;
+      }
+      pts.push([x, y]);
+      return { pts, th: Math.abs(Math.atan2(vy, vx)) };
+    }
+    function fire(n) { queue += n; }
+    function foilP() {
+      const F = FOILS[foil], t = 0.4e-6;
+      if (proj === 'neutron') { const s = Math.PI * Math.pow((RN() + .85) * 1e-15, 2); return F.n * t * s / 2; }
+      const b90 = d0() / 2 * 1e-15; return F.n * t * Math.PI * b90 * b90;
+    }
+    function poisson(l) { if (l > 30) return Math.max(0, Math.round(l + Math.sqrt(l) * gauss())); let L = Math.exp(-l), k = 0, p = 1; do { k++; p *= Math.random(); } while (p > L); return k - 1; }
+    function foilHTML() {
+      const P = foilP(), F = FOILS[foil];
+      let s = `<b>A real ${F.name} foil</b> 0.4 µm thick is about 1,500 atoms thick. The chance that one of the ${PROJ[proj].name} at ${E.toFixed(1)} MeV is turned back by more than 90° is about <b>1 in ${Math.round(1 / P).toLocaleString('en-US')}</b>.`;
+      if (PROJ[proj].z > 0 && d0() < RN() + PROJ[proj].R + .5) s += `<p class="note" style="margin-top:6px"><span class="bad">Close enough to touch!</span> At this energy the ${PROJ[proj].name} can reach the surface of the nucleus (closest approach ${d0().toFixed(1)} fm, nucleus radius ${RN().toFixed(1)} fm). The strong force joins in and Rutherford's formula starts to fail; this is how the size of nuclei was first measured.</p>`;
+      if (proj === 'electron') s += `<p class="note" style="margin-top:6px">Electrons are pulled <i>towards</i> the nucleus and swing round it. (Real electrons also scatter off the atom's own electrons.)</p>`;
+      return s;
+    }
+    function refreshFoil() { const el = $('#ru-foil'); if (el) el.innerHTML = foilHTML() + (bulk ? `<p style="margin-top:6px">${bulk}</p>` : ''); }
+    return {
+      id: 'ruth', title: 'Rutherford scattering (gold foil)', interactive: true,
+      info: `<b>The gold-foil experiment</b> (Geiger and Marsden, 1909; explained by Rutherford, 1911)<ul><li>Alpha particles were fired at a very thin gold foil. Almost all went straight through, but about 1 in 8,000 bounced back.</li><li>Rutherford: "as if you fired a 15-inch shell at a piece of tissue paper and it came back and hit you."</li><li>The only explanation: all the positive charge and almost all the mass are packed into a tiny <b>nucleus</b>. Only an alpha that happens to pass very close to it is turned back.</li><li>Try neutrons (no charge: no push until they hit) and electrons (attracted, not repelled).</li></ul>`,
+      init(c) {
+        c.innerHTML = `<h3>Fire</h3><div class="chips" id="ru-proj">${Object.keys(PROJ).map(k2 => `<span class="chip ${k2 === proj ? 'on' : ''}" data-v="${k2}">${k2}</span>`).join('')}</div>
+          <h3>Foil</h3><div class="chips" id="ru-foils">${Object.keys(FOILS).map(k2 => `<span class="chip ${k2 === foil ? 'on' : ''}" data-v="${k2}">${FOILS[k2].name}</span>`).join('')}</div>
+          <div class="slider-row" style="margin-top:8px"><div class="lbl"><span>Energy</span><b id="ru-E-out">${E.toFixed(1)} MeV</b></div><input type="range" id="ru-E" min="10" max="100" value="${Math.round(E * 10)}"></div>
+          <h3>Zoom</h3><div class="chips" id="ru-view"><span class="chip ${view === 'nucleus' ? 'on' : ''}" data-v="nucleus">Near one nucleus</span><span class="chip ${view === 'atom' ? 'on' : ''}" data-v="atom">Across one atom</span></div>
+          <div class="row" style="margin-top:10px"><button class="btn primary" id="ru-1">Fire 1</button><button class="btn" id="ru-20">Fire 20</button><button class="btn" id="ru-clr">Clear</button></div>
+          <div class="card" id="ru-foil"></div><div class="row"><button class="btn" id="ru-bulk">Send 100,000 through the real foil</button></div>`;
+        const chips = (id, fn) => $(id).onclick = e => { const ch = e.target.closest('.chip'); if (!ch) return; document.querySelectorAll(id + ' .chip').forEach(x => x.classList.toggle('on', x === ch)); fn(ch.dataset.v); clearStats(); refreshFoil(); };
+        chips('#ru-proj', v => { proj = v; if (v === 'alpha' && E > 10) E = 7.7; });
+        chips('#ru-foils', v => foil = v);
+        chips('#ru-view', v => view = v);
+        $('#ru-E').oninput = e => { E = e.target.value / 10; $('#ru-E-out').textContent = E.toFixed(1) + ' MeV'; clearStats(); refreshFoil(); };
+        $('#ru-1').onclick = () => fire(1); $('#ru-20').onclick = () => fire(20); $('#ru-clr').onclick = () => { clearStats(); refreshFoil(); };
+        $('#ru-bulk').onclick = () => { const k2 = poisson(1e5 * foilP()); bulk = `Sent 100,000 ${PROJ[proj].name}: <b>${k2}</b> bounced back by more than 90°. All the others went (almost) straight through.`; refreshFoil(); };
+        refreshFoil();
+      },
+      update(dt) {
+        qT -= dt;
+        if (queue > 0 && qT <= 0) {
+          queue--; qT = .08;
+          const V = view === 'atom' ? FOILS[foil].r * 2000 : Vn();
+          const b = (Math.random() - .5) * V * .9, p = compute(b);
+          p.t = 0; paths.push(p); if (paths.length > 60) paths.shift();
+          fired++; if (p.th > Math.PI / 18) d10++; if (p.th > Math.PI / 2) d90++;
+        }
+        paths.forEach(p => p.t = Math.min(1, p.t + dt / 1.5));
+      },
+      draw(ctx, w, h) {
+        const k = K(w, h), atom = view === 'atom', V = atom ? FOILS[foil].r * 2000 : Vn(), sc = Math.min(w, h - 60) / V, cx = w / 2, cy = h / 2 + 10;
+        if (atom) {
+          if (!cloud || cloud.f !== foil) { cloud = { f: foil, p: [] }; for (let i = 0; i < 2500; i++) { const r = FOILS[foil].r * 1000 / 2 * (-Math.log(Math.random()) - Math.log(Math.random()) - Math.log(Math.random())), a = Math.random() * TAU, c2 = 2 * Math.random() - 1; cloud.p.push([r * Math.sqrt(1 - c2 * c2) * Math.cos(a), r * Math.sqrt(1 - c2 * c2) * Math.sin(a)]); } }
+          ctx.fillStyle = rgba(TH.dark ? '#7fb2ff' : '#2563eb', .35); cloud.p.forEach(([x, y]) => ctx.fillRect(cx + x * sc - .8, cy + y * sc - .8, 1.6, 1.6));
+          ctx.strokeStyle = TH.red; ctx.beginPath(); ctx.arc(cx, cy, 7, 0, TAU); ctx.stroke();
+          label(ctx, `the ${FOILS[foil].name} nucleus is here (${(2 * RN() * sc).toFixed(4)} px wide)`, cx, cy + 22, { size: 11, color: TH.red });
+        } else {
+          const R = RN() * sc;
+          if (R > 6) drawCluster(ctx, makeCluster(FOILS[foil].Z, FOILS[foil].A - FOILS[foil].Z, 8), cx, cy, R / makeCluster(FOILS[foil].Z, FOILS[foil].A - FOILS[foil].Z, 8).R);
+          else ball(ctx, cx, cy, Math.max(R, 2.5), '#c45a5e');
+          label(ctx, `${FOILS[foil].name} nucleus (to scale)`, cx, cy + Math.max(R, 4) + 18, { size: 11 });
+          if (PROJ[proj].z !== 0) { ctx.strokeStyle = TH.dim; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.arc(cx, cy, d0() * sc, 0, TAU); ctx.stroke(); ctx.setLineDash([]); txt(ctx, 'closest a head-on shot gets', cx + d0() * sc * .72 + 4, cy - d0() * sc * .72 - 6, { size: 10, color: TH.muted }); }
+        }
+        const col = PROJ[proj].col;
+        paths.forEach(p => {
+          const n = Math.max(2, Math.ceil(p.pts.length * p.t)), done = p.t >= 1;
+          ctx.strokeStyle = p.th > Math.PI / 2 ? TH.red : p.th > Math.PI / 18 ? TH.orange : rgba(col, done ? .35 : .8); ctx.lineWidth = p.th > Math.PI / 18 ? 2 : 1.3;
+          ctx.beginPath(); for (let i = 0; i < n; i++) { const [x, y] = p.pts[Math.min(i, p.pts.length - 1)]; i ? ctx.lineTo(cx + x * sc, cy + y * sc) : ctx.moveTo(cx + x * sc, cy + y * sc); }
+          if (!done) {
+            // interpolate head between points for smoothness
+            const f = p.pts.length * p.t, i0 = Math.min(Math.floor(f), p.pts.length - 1), i1 = Math.min(i0 + 1, p.pts.length - 1), u = f - Math.floor(f);
+            const hx = lerp(p.pts[i0][0], p.pts[i1][0], u), hy = lerp(p.pts[i0][1], p.pts[i1][1], u);
+            ctx.lineTo(cx + hx * sc, cy + hy * sc); ctx.stroke(); ball(ctx, cx + hx * sc, cy + hy * sc, proj === 'alpha' ? 5 : 4, col);
+          } else ctx.stroke();
+          ctx.lineWidth = 1;
+        });
+        // scale bar
+        const maxL = w * .25 / sc, p10 = Math.pow(10, Math.floor(Math.log10(maxL))), L = [5, 2, 1].map(q => q * p10).find(v => v <= maxL), Lpx = L * sc;
+        ctx.fillStyle = TH.text; ctx.fillRect(16, h - 22, Lpx, 3); txt(ctx, fmtLen(L * 1e-15), 16 + Lpx / 2, h - 34, { align: 'center', size: 12, bold: true });
+        txt(ctx, `Fired: ${fired}   ·   turned more than 10°: ${d10}   ·   bounced back (more than 90°): ${d90}`, 14, 20, { size: 13, bold: true });
+        if (!atom && fired) txt(ctx, 'Here we aim only near the nucleus, so far more bounce back than in a real foil.', 14, 40, { size: 12, color: TH.muted });
+        if (atom && fired) txt(ctx, 'At the scale of a whole atom, the nucleus is so small that almost nothing ever comes near it.', 14, 40, { size: 12, color: TH.muted });
+        if (!fired) label(ctx, `Press "Fire 1" or "Fire 20" to send ${PROJ[proj].name} in from the left`, w / 2, 50, { size: 14 });
+      }
+    };
+  })();
+
+  /* ── neutron moderation ── */
+  const moder = (() => {
+    const MODS = { H: { A: 1, name: 'hydrogen (water)', col: '#f1f5f9' }, D: { A: 2, name: 'deuterium (heavy water)', col: '#cbd5e1' }, C: { A: 12, name: 'carbon (graphite)', col: '#475569' }, Pb: { A: 207, name: 'lead', col: '#64748b' } };
+    const RUNCOL = { H: '#3b82f6', D: '#14b8a6', C: '#f59e0b', Pb: '#ef4444' };
+    const xi = A => A === 1 ? 1 : 1 + (A - 1) * (A - 1) / (2 * A) * Math.log((A - 1) / (A + 1));
+    let mod = 'H', targets = [], nt = null, runs = [], W = 0, H = 0, ff = false, box = null;
+    function layout(w, h) { return w >= 720 ? { x: 10, y: 10, w: w * .56, h: h - 20, gx: w * .56 + 60, gy: 40, gw: w * .44 - 80, gh: h - 110 } : { x: 10, y: 10, w: w - 20, h: h * .55, gx: 60, gy: h * .55 + 40, gw: w - 90, gh: h * .45 - 90 }; }
+    function build() {
+      targets = []; const r = rng(5), sp = 62;
+      for (let y = box.y + 34; y < box.y + box.h - 20; y += sp) for (let x = box.x + 30; x < box.x + box.w - 20; x += sp) targets.push({ x: x + (r() - .5) * 20, y: y + (r() - .5) * 20, ox: 0, oy: 0, vx: 0, vy: 0 });
+    }
+    function release() { const a = Math.random() * TAU; nt = { x: box.x + box.w / 2, y: box.y + box.h / 2, ux: Math.cos(a), uy: Math.sin(a), E: 2e6, n: 0, hist: [2e6], thermal: false }; runs.push({ mod, hist: nt.hist }); if (runs.length > 8) runs.shift(); }
+    const speed = E => 50 + 72 * Math.max(0, Math.log10(E / .025));
+    function step(dt) {
+      if (!nt) return;
+      const v = speed(nt.E), A = MODS[mod].A, rt = 6 + 3 * Math.cbrt(A);
+      nt.x += nt.ux * v * dt; nt.y += nt.uy * v * dt;
+      if (nt.x < box.x + 5 || nt.x > box.x + box.w - 5) { nt.ux *= -1; nt.x = clamp(nt.x, box.x + 5, box.x + box.w - 5); }
+      if (nt.y < box.y + 24 || nt.y > box.y + box.h - 5) { nt.uy *= -1; nt.y = clamp(nt.y, box.y + 24, box.y + box.h - 5); }
+      for (const t of targets) {
+        const dx = nt.x - t.x, dy = nt.y - t.y, d = Math.hypot(dx, dy);
+        if (d > rt + 4 || d === 0) continue;
+        const nx = dx / d, ny = dy / d, un = nt.ux * nx + nt.uy * ny;
+        if (un >= 0) continue;
+        if (nt.thermal) { nt.ux -= 2 * un * nx; nt.uy -= 2 * un * ny; continue; }
+        const f = (1 - A) / (1 + A), tx = nt.ux - un * nx, ty = nt.uy - un * ny, nux = tx + un * f * nx, nuy = ty + un * f * ny;
+        const m2 = nux * nux + nuy * nuy;
+        nt.E *= m2; const m = Math.sqrt(m2) || 1; nt.ux = nux / m; nt.uy = nuy / m;
+        if (m2 < 1e-6) { const a = Math.random() * TAU; nt.ux = Math.cos(a); nt.uy = Math.sin(a); }
+        const kick = -un * 2 / (1 + A) * 30; t.vx -= nx * kick * 6; t.vy -= ny * kick * 6;
+        nt.n++; nt.hist.push(Math.max(nt.E, .025));
+        if (nt.E < .05) { nt.thermal = true; nt.E = .025; }
+      }
+      for (const t of targets) { t.vx += (-60 * t.ox - 6 * t.vx) * dt; t.vy += (-60 * t.oy - 6 * t.vy) * dt; t.ox += t.vx * dt; t.oy += t.vy * dt; }
+    }
+    const fmtE = E => E >= 1e6 ? (E / 1e6).toFixed(2) + ' MeV' : E >= 1e3 ? (E / 1e3).toFixed(1) + ' keV' : E >= 1 ? E.toFixed(1) + ' eV' : E.toFixed(3) + ' eV';
+    return {
+      id: 'moder', title: 'Neutron moderator (billiard balls)', interactive: true,
+      info: `<b>Slowing neutrons down</b><ul><li>Fission neutrons are born fast (about 2 MeV), but uranium-235 captures <b>slow</b> neutrons (0.025 eV) far better. A reactor needs a <b>moderator</b> to slow them down.</li><li>It is like billiards: a ball hitting another ball of the <b>same mass</b> head-on stops dead and gives it all its energy. Hitting a heavy ball, it just bounces off with nearly all its energy.</li><li>Hydrogen nuclei (protons) have almost the same mass as a neutron, so water is a great moderator. Lead is useless.</li><li>Heavy water absorbs fewer neutrons than ordinary water, so heavy-water reactors can use natural uranium.</li></ul><table style="font-size:.82rem;width:100%;margin-top:6px"><tr><th align="left">Moderator</th><th align="right">Average collisions, 2 MeV → 0.025 eV</th></tr>${Object.entries(MODS).map(([k2, m]) => `<tr><td>${m.name}</td><td align="right">${Math.round(Math.log(2e6 / .025) / xi(m.A)).toLocaleString('en-US')}</td></tr>`).join('')}</table>`,
+      init(c) {
+        c.innerHTML = `<h3>Moderator</h3><div class="chips" id="mo-mod">${Object.entries(MODS).map(([k2, m]) => `<span class="chip ${k2 === mod ? 'on' : ''}" data-v="${k2}">${m.name}</span>`).join('')}</div>
+          <div class="row" style="margin-top:10px"><button class="btn primary" id="mo-go">Release a fast neutron</button><button class="btn" id="mo-clr">Clear graph</button></div>
+          <label class="chk"><input type="checkbox" id="mo-ff"> Fast forward (×20)</label>`;
+        $('#mo-mod').onclick = e => { const ch = e.target.closest('.chip'); if (!ch) return; mod = ch.dataset.v; document.querySelectorAll('#mo-mod .chip').forEach(x => x.classList.toggle('on', x === ch)); nt = null; };
+        $('#mo-go').onclick = release; $('#mo-clr').onclick = () => { runs = []; nt = null; };
+        $('#mo-ff').onchange = e => ff = e.target.checked;
+      },
+      update(dt, w, h) {
+        if (w !== W || h !== H) { W = w; H = h; box = layout(w, h); build(); }
+        const n = ff ? 20 : 1; for (let i = 0; i < n; i++) step(Math.min(dt, .02));
+      },
+      draw(ctx, w, h) {
+        if (!box) return;
+        const L = box, A = MODS[mod].A, rt = 6 + 3 * Math.cbrt(A);
+        ctx.fillStyle = TH.dark ? '#0b1220' : '#eef4fb'; roundRect(ctx, L.x, L.y, L.w, L.h, 10); ctx.fill(); ctx.strokeStyle = TH.border; ctx.stroke();
+        txt(ctx, `Moderator: ${MODS[mod].name} nuclei (mass ${A})`, L.x + 10, L.y + 14, { size: 12, bold: true });
+        targets.forEach(t => ball(ctx, t.x + t.ox, t.y + t.oy, rt, mod === 'H' ? PROTON : MODS[mod].col));
+        if (nt) {
+          ball(ctx, nt.x, nt.y, 5, nt.thermal ? '#22c55e' : (TH.dark ? '#e2e8f0' : '#0f172a'));
+          const bar = clamp(Math.log10(nt.E / .025) / Math.log10(2e6 / .025), 0, 1);
+          txt(ctx, `Neutron energy: ${fmtE(nt.E)}   ·   collisions: ${nt.n}${nt.thermal ? '   ·   slow ("thermal") now!' : ''}`, L.x + 10, L.y + L.h - 30, { size: 13, bold: true, bg: TH.surface, color: nt.thermal ? TH.green : TH.text });
+          ctx.fillStyle = TH.grid; ctx.fillRect(L.x + 10, L.y + L.h - 14, L.w - 20, 6); ctx.fillStyle = nt.thermal ? '#22c55e' : TH.orange; ctx.fillRect(L.x + 10, L.y + L.h - 14, (L.w - 20) * bar, 6);
+        } else label(ctx, 'Press "Release a fast neutron"', L.x + L.w / 2, L.y + L.h / 2, { size: 15 });
+        // graph
+        const { gx, gy, gw, gh } = L; if (gw < 100 || gh < 60) return;
+        const maxN = Math.max(30, ...runs.map(r => r.hist.length));
+        const X = n => gx + n / maxN * gw, Y = E => gy + gh - (Math.log10(E) + 2) / 9 * gh;
+        txt(ctx, 'Neutron energy after each collision', gx - 40, gy - 22, { bold: true, size: 13 });
+        ctx.strokeStyle = TH.border; ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx, gy + gh); ctx.lineTo(gx + gw, gy + gh); ctx.stroke();
+        [[2e6, '2 MeV'], [1e4, '10 keV'], [100, '100 eV'], [1, '1 eV'], [.025, 'slow']].forEach(([E, s]) => { ctx.fillStyle = TH.grid; ctx.fillRect(gx, Y(E), gw, 1); txt(ctx, s, gx - 5, Y(E), { align: 'right', size: 10, color: TH.muted }); });
+        txt(ctx, `collisions (0 – ${maxN})`, gx + gw, gy + gh + 14, { align: 'right', size: 11, color: TH.muted });
+        runs.forEach(r => { ctx.strokeStyle = RUNCOL[r.mod]; ctx.lineWidth = 2; ctx.beginPath(); r.hist.forEach((E, i) => i ? ctx.lineTo(X(i), Y(E)) : ctx.moveTo(X(i), Y(E))); ctx.stroke(); ctx.lineWidth = 1; });
+        let lx = gx; Object.keys(MODS).forEach(k2 => { ctx.fillStyle = RUNCOL[k2]; ctx.fillRect(lx, gy + gh + 28, 14, 3); txt(ctx, MODS[k2].name.split(' ')[0], lx + 18, gy + gh + 30, { size: 11, color: TH.muted }); lx += 90; });
+      }
+    };
+  })();
+
+  /* ── Franck–Hertz: electron hits a mercury atom ── */
+  const franck = (() => {
+    const EX = 4.9;
+    let E0 = 6, el = null, atoms = [], photons = [], log = [];
+    function go(w, h) { el = { x: 30, y: h * .32, E: E0, vy: 0, hit: new Set() }; log = []; atoms.forEach(a => { a.exc = -1; }); photons = []; }
+    return {
+      id: 'franck', title: 'Electron hits an atom (Franck–Hertz)', interactive: true,
+      info: `<b>The Franck–Hertz experiment</b> (James Franck and Gustav Hertz, 1914)<ul><li>Electrons were accelerated through mercury vapour. With less than 4.9 eV they just bounced off the mercury atoms without losing energy (<b>elastic</b> collisions).</li><li>With 4.9 eV or more, an electron could give exactly 4.9 eV to an atom (an <b>inelastic</b> collision). The atom then gave out ultraviolet light at 254 nm (= 4.9 eV).</li><li>Atoms can only take energy in fixed amounts: the first experimental proof of Bohr's energy levels. Nobel Prize 1925.</li></ul>`,
+      init(c) {
+        c.innerHTML = `<div class="slider-row"><div class="lbl"><span>Electron energy</span><b id="fh-out">${E0.toFixed(1)} eV</b></div><input type="range" id="fh-E" min="0" max="160" value="${E0 * 10}"></div>
+          <div class="chips" style="margin-bottom:8px"><span class="chip" data-e="3">3 eV</span><span class="chip" data-e="6">6 eV</span><span class="chip" data-e="11">11 eV</span><span class="chip" data-e="15.5">15.5 eV</span></div>
+          <div class="row"><button class="btn primary" id="fh-go">Fire an electron</button></div>`;
+        const set = v => { E0 = v; $('#fh-E').value = v * 10; $('#fh-out').textContent = v.toFixed(1) + ' eV'; };
+        $('#fh-E').oninput = e => set(e.target.value / 10);
+        c.querySelector('.chips').onclick = e => { const ch = e.target.closest('.chip'); if (ch) set(+ch.dataset.e); };
+        $('#fh-go').onclick = () => el = 'go';
+      },
+      update(dt, w, h) {
+        if (atoms.length !== 3 || atoms.w !== w) { atoms = [.3, .52, .74].map(f => ({ x: w * f, y: h * .32, exc: -1 })); atoms.w = w; }
+        if (el === 'go') go(w, h);
+        if (el && typeof el === 'object') {
+          const v = 40 + 55 * Math.sqrt(el.E);
+          el.x += v * dt; el.y += el.vy * dt; el.vy *= Math.exp(-dt * 1.5);
+          atoms.forEach((a, i) => {
+            if (el.hit.has(i) || el.x < a.x - 26) return;
+            el.hit.add(i);
+            if (el.E >= EX) { el.E -= EX; a.exc = 0; log.push(`Atom ${i + 1}: inelastic: took 4.9 eV`); }
+            else { el.vy = (Math.random() < .5 ? -1 : 1) * 40; log.push(`Atom ${i + 1}: elastic: bounced, no energy lost`); }
+          });
+          if (el.x > w + 20) el = null;
+        }
+        atoms.forEach(a => { if (a.exc >= 0) { a.exc += dt; if (a.exc > .7 && !a.emitted) { a.emitted = true; const g = Math.random() * TAU; photons.push({ x: a.x, y: a.y, vx: Math.cos(g) * 160, vy: Math.sin(g) * 160 }); } if (a.exc > 1.2) { a.exc = -1; a.emitted = false; } } });
+        photons.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; }); photons = photons.filter(p => p.x > -20 && p.x < w + 20 && p.y > -20 && p.y < h);
+      },
+      draw(ctx, w, h) {
+        const k = K(w, h);
+        atoms.forEach((a, i) => {
+          const glow = a.exc >= 0 && a.exc < .8;
+          const g = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, 34 * k); g.addColorStop(0, rgba(glow ? '#a855f7' : (TH.dark ? '#94a3b8' : '#64748b'), glow ? .8 : .45)); g.addColorStop(1, rgba('#94a3b8', 0));
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(a.x, a.y, 34 * k, 0, TAU); ctx.fill(); ball(ctx, a.x, a.y, 5, PROTON);
+          label(ctx, glow ? 'excited mercury atom' : 'mercury atom', a.x, a.y + 50 * k, { size: 11, color: glow ? TH.purple : TH.muted });
+        });
+        photons.forEach(p => { drawPhoton(ctx, p.x, p.y, p.vx, p.vy, '#9b7cf0', 34, 4, 6, performance.now() / 30); });
+        if (photons.length) label(ctx, 'UV light, 254 nm (4.9 eV)', w / 2, 24, { size: 12, color: TH.purple });
+        if (el && typeof el === 'object') { drawElectron(ctx, el.x, el.y, 7 * k); label(ctx, `${el.E.toFixed(1)} eV`, el.x, el.y - 22 * k, { size: 12 }); }
+        else label(ctx, 'Choose an energy and press "Fire an electron"', w / 2, h * .32 - 70 * k, { size: 14 });
+        log.forEach((s, i) => txt(ctx, s, 16, h * .32 + 80 * k + i * 18, { size: 12, color: s.includes('inelastic') ? TH.purple : TH.muted, bold: s.includes('inelastic') }));
+        // schematic Franck-Hertz curve
+        const gx = 60, gw = w - 100, gy = h * .66, gh = h * .26;
+        txt(ctx, 'What Franck and Hertz measured: current against accelerating voltage', gx - 40, gy - 14, { size: 13, bold: true });
+        ctx.strokeStyle = TH.border; ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx, gy + gh); ctx.lineTo(gx + gw, gy + gh); ctx.stroke();
+        const I = V => { let d = 0; for (let n = 1; n <= 3; n++) d += Math.exp(-Math.pow(V - n * EX - .6, 2) / .5) * (.75 + .1 * n); return Math.pow(V / 16, 1.4) * (1 - .8 * Math.min(1, d)); };
+        ctx.strokeStyle = TH.accent; ctx.lineWidth = 2.5; ctx.beginPath();
+        for (let i = 0; i <= 300; i++) { const V = 16 * i / 300, x = gx + V / 16 * gw, y = gy + gh - I(V) / .9 * gh; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+        ctx.stroke(); ctx.lineWidth = 1;
+        [EX, 2 * EX, 3 * EX].forEach(V => { const x = gx + V / 16 * gw; ctx.strokeStyle = TH.purple; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy + gh); ctx.stroke(); ctx.setLineDash([]); txt(ctx, V.toFixed(1) + ' V', x, gy + gh + 12, { align: 'center', size: 10, color: TH.purple }); });
+        const xm = gx + E0 / 16 * gw; ctx.fillStyle = TH.orange; ctx.beginPath(); ctx.arc(xm, gy + gh - I(E0) / .9 * gh, 6, 0, TAU); ctx.fill();
+        txt(ctx, 'The current drops every 4.9 V: that is when electrons start losing energy to the atoms.', gx, gy + gh + 30, { size: 11, color: TH.muted });
+      }
+    };
+  })();
+
+  /* ── photoelectric effect ── */
+  const photo = (() => {
+    const METALS = { Cs: { name: 'caesium', phi: 2.1 }, Na: { name: 'sodium', phi: 2.28 }, Zn: { name: 'zinc', phi: 4.3 } };
+    let lam = 400, bright = 5, metal = 'Na', ph = [], els = [], warm = [], acc = 0, count = 0;
+    return {
+      id: 'photo', title: 'Photoelectric effect', interactive: true,
+      info: `<b>The photoelectric effect</b> (explained by Einstein, 1905)<ul><li>Light hitting a metal can knock electrons out, but only if each photon has enough energy: <b>E = hf = hc/λ</b> must be bigger than the <b>work function</b> φ that holds the electron in.</li><li>Red light never frees electrons from zinc, however bright. Weak UV light does at once.</li><li>Brighter light means <b>more</b> photons, so more electrons, but not faster ones. Shorter wavelength means faster electrons: KE<sub>max</sub> = hf − φ.</li><li>This showed that light comes in packets (photons). Einstein's Nobel Prize (1921) was for this, not relativity.</li><li>Used in solar cells, light sensors and digital cameras (in a related form).</li></ul>`,
+      init(c) {
+        c.innerHTML = `<div class="slider-row"><div class="lbl"><span>Wavelength</span><b id="pe-out"></b></div><input type="range" id="pe-lam" min="150" max="800" value="${lam}"></div>
+          <div class="slider-row"><div class="lbl"><span>Brightness</span><b id="pe-bo">${bright}</b></div><input type="range" id="pe-b" min="1" max="10" value="${bright}"></div>
+          <h3>Metal</h3><div class="chips" id="pe-m">${Object.entries(METALS).map(([k2, m]) => `<span class="chip ${k2 === metal ? 'on' : ''}" data-v="${k2}">${m.name} (φ = ${m.phi} eV)</span>`).join('')}</div>`;
+        const show = () => $('#pe-out').innerHTML = `${lam} nm <span style="color:${lamColor(lam)}">●</span> ${bandName(lam)}`;
+        $('#pe-lam').oninput = e => { lam = +e.target.value; show(); }; show();
+        $('#pe-b').oninput = e => { bright = +e.target.value; $('#pe-bo').textContent = bright; };
+        $('#pe-m').onclick = e => { const ch = e.target.closest('.chip'); if (!ch) return; metal = ch.dataset.v; count = 0; document.querySelectorAll('#pe-m .chip').forEach(x => x.classList.toggle('on', x === ch)); };
+      },
+      update(dt, w, h) {
+        const sy = h * .62, phi = METALS[metal].phi, Eph = 1239.84 / lam;
+        acc += dt * bright * 2.2;
+        while (acc >= 1) { acc--; const tx = w * (.25 + Math.random() * .5); ph.push({ x: 40, y: 40, tx, ty: sy, t: 0, d: Math.hypot(tx - 40, sy - 40) }); }
+        ph.forEach(p => { p.t += dt * 260 / p.d; if (p.t >= 1 && !p.done) { p.done = true; if (Eph > phi) { const a = -Math.PI / 2 + (Math.random() - .5) * 1.4, v = 25 + 110 * Math.sqrt(Eph - phi) * (.6 + .4 * Math.random()); els.push({ x: p.tx, y: sy - 4, vx: Math.cos(a) * v, vy: Math.sin(a) * v }); count++; } else warm.push({ x: p.tx, t: 0 }); } });
+        ph = ph.filter(p => !p.done);
+        els.forEach(e => { e.x += e.vx * dt; e.y += e.vy * dt; }); els = els.filter(e => e.y > -10 && e.x > -10 && e.x < w + 10);
+        warm.forEach(q => q.t += dt); warm = warm.filter(q => q.t < .5);
+      },
+      draw(ctx, w, h) {
+        const sy = h * .62, phi = METALS[metal].phi, Eph = 1239.84 / lam, col = lamColor(lam), k = K(w, h);
+        // lamp
+        ctx.fillStyle = TH.muted; roundRect(ctx, 14, 24, 44, 28, 6); ctx.fill(); txt(ctx, 'lamp', 36, 62, { align: 'center', size: 11, color: TH.muted });
+        ph.forEach(p => { const x = lerp(40, p.tx, p.t), y = lerp(40, p.ty, p.t); drawPhoton(ctx, x, y, p.tx - 40, p.ty - 40, col, 22, 3.5, 7, performance.now() / 25); });
+        // metal
+        ctx.fillStyle = TH.dark ? '#475569' : '#94a3b8'; ctx.fillRect(w * .18, sy, w * .64, 46);
+        for (let x = w * .18 + 10; x < w * .82; x += 18) for (let y = sy + 10; y < sy + 46; y += 16) { ctx.fillStyle = TH.dark ? '#64748b' : '#cbd5e1'; ctx.beginPath(); ctx.arc(x, y, 4, 0, TAU); ctx.fill(); }
+        txt(ctx, `${METALS[metal].name} metal`, w / 2, sy + 60, { align: 'center', size: 12, color: TH.muted });
+        warm.forEach(q => flash(ctx, q.x, sy, 14, .7 * (1 - q.t / .5), '#f97316'));
+        els.forEach(e => drawElectron(ctx, e.x, e.y, 5 * k));
+        // readouts
+        const lines = [`Photon energy: ${Eph.toFixed(2)} eV`, `Work function of ${METALS[metal].name}: ${phi} eV (needs λ shorter than ${Math.round(1239.84 / phi)} nm)`,
+          Eph > phi ? `Electrons fly out with up to ${(Eph - phi).toFixed(2)} eV of kinetic energy` : 'Not enough energy per photon: no electrons, however bright the light', `Electrons knocked out: ${count}`];
+        lines.forEach((s, i) => txt(ctx, s, w - 14, 22 + i * 20, { align: 'right', size: 13, bold: i === 2, color: i === 2 ? (Eph > phi ? TH.green : TH.red) : TH.text }));
+        // KE vs frequency graph
+        const gx = 60, gy = sy + 104, gw = Math.min(w - 100, 520), gh = h - gy - 30; if (gh < 50) return;
+        const fmax = 2.0e15, X = f => gx + f / fmax * gw, Y = KE => gy + gh - KE / 5 * gh, hEV = 4.1357e-15;
+        ctx.strokeStyle = TH.border; ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(gx, gy + gh); ctx.lineTo(gx + gw, gy + gh); ctx.stroke();
+        txt(ctx, 'max kinetic energy (eV) against frequency of the light', gx - 40, gy - 10, { size: 12, bold: true });
+        Object.entries(METALS).forEach(([k2, m]) => { const f0 = m.phi / hEV; ctx.strokeStyle = k2 === metal ? TH.accent : TH.dim; ctx.lineWidth = k2 === metal ? 2.5 : 1.2; ctx.beginPath(); ctx.moveTo(X(f0), Y(0)); ctx.lineTo(X(fmax), Y(hEV * fmax - m.phi)); ctx.stroke(); ctx.lineWidth = 1; txt(ctx, m.name, X(f0), Y(0) + 12, { align: 'center', size: 10, color: k2 === metal ? TH.accent : TH.muted }); });
+        const f = 2.998e17 / lam; ctx.fillStyle = TH.orange; ctx.beginPath(); ctx.arc(X(Math.min(f, fmax)), Y(Math.max(0, hEV * f - phi)), 6, 0, TAU); ctx.fill();
+        txt(ctx, 'slope = Planck constant h', X(fmax) - 4, Y(hEV * fmax - phi) + 14, { align: 'right', size: 10, color: TH.muted });
+      }
+    };
+  })();
+
+  /* ── Compton scattering ── */
+  const compton = (() => {
+    const SRC = [['X-ray, 17.5 keV (Compton\'s molybdenum source)', 17.5], ['gamma ray, 662 keV (caesium-137)', 662], ['gamma ray, 2 MeV', 2000]];
+    let src = 1, th = 60, t = 9;
+    const calc = () => { const E = SRC[src][1], r = Math.PI * th / 180, E2 = E / (1 + E / 511 * (1 - Math.cos(r))), ph = th <= 0 ? Math.PI / 2 : Math.atan(1 / ((1 + E / 511) * Math.tan(r / 2))); return { E, E2, ph, KE: E - E2, dl: 2.426 * (1 - Math.cos(r)), l: 1239.84 / E }; };
+    return {
+      id: 'compton', title: 'Compton scattering', interactive: true,
+      info: `<b>Compton scattering</b> (Arthur Compton, 1923)<ul><li>An X-ray or gamma-ray photon hits a free electron like one billiard ball hitting another. The electron recoils; the photon bounces off with less energy, so with a <b>longer wavelength</b>.</li><li>The wavelength grows by Δλ = 2.43 pm × (1 − cos θ), where θ is the angle it bounces through. Biggest change when it bounces straight back.</li><li>It only works if light carries momentum like a particle: strong evidence for photons.</li><li>This is the main way gamma rays lose energy in the body and in shielding.</li></ul>`,
+      init(c) {
+        c.innerHTML = `<h3>Photon</h3><select id="co-src" style="width:100%">${SRC.map((s, i) => `<option value="${i}" ${i === src ? 'selected' : ''}>${s[0]}</option>`).join('')}</select>
+          <div class="slider-row" style="margin-top:8px"><div class="lbl"><span>Photon bounces through</span><b id="co-th-out">${th}°</b></div><input type="range" id="co-th" min="0" max="180" value="${th}"></div>
+          <div class="row"><button class="btn primary" id="co-fire">Fire</button></div>`;
+        $('#co-src').onchange = e => { src = +e.target.value; t = 9; };
+        $('#co-th').oninput = e => { th = +e.target.value; $('#co-th-out').textContent = th + '°'; t = 9; };
+        $('#co-fire').onclick = () => t = 0;
+      },
+      update(dt) { t += dt; },
+      draw(ctx, w, h) {
+        const k = K(w, h), cx = w * .45, cy = h * .45, c = calc(), wl0 = 12, wl1 = wl0 * c.E / c.E2, r = Math.PI * th / 180;
+        const tc = 1.2, L = Math.min(w, h) * .4;
+        // guide lines
+        ctx.strokeStyle = TH.grid; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(cx - L, cy); ctx.lineTo(cx + L, cy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(-r) * L, cy + Math.sin(-r) * L); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(c.ph) * L, cy + Math.sin(c.ph) * L); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle = TH.purple; ctx.beginPath(); ctx.arc(cx, cy, 40, -r, 0); ctx.stroke(); txt(ctx, `θ = ${th}°`, cx + 46 * Math.cos(-r / 2), cy + 46 * Math.sin(-r / 2) - 6, { size: 12, color: TH.purple, bold: true });
+        if (t < tc) {
+          const x = lerp(cx - L, cx, t / tc); drawPhoton(ctx, x, cy, 1, 0, GAMMA, 70, 7, wl0, t * 25, 2.5);
+          drawElectron(ctx, cx, cy, 8 * k); label(ctx, 'electron at rest', cx, cy + 26 * k, { size: 12 });
+        } else {
+          const f = Math.min(1, (t - tc) / 1.6), d = f * L;
+          if (t < tc + .4) flash(ctx, cx, cy, 40 * k, 1 - (t - tc) / .4);
+          drawPhoton(ctx, cx + Math.cos(-r) * d, cy + Math.sin(-r) * d, Math.cos(-r), Math.sin(-r), GAMMA, Math.min(d, 90), 7, wl1, t * 25, 2.5);
+          const de = f * L * Math.min(1, .3 + .7 * Math.sqrt(c.KE / c.E));
+          drawElectron(ctx, cx + Math.cos(c.ph) * de, cy + Math.sin(c.ph) * de, 8 * k);
+          if (f > .3) { label(ctx, `scattered photon: ${c.E2.toFixed(c.E2 < 100 ? 2 : 0)} keV`, cx + Math.cos(-r) * d * .8, cy + Math.sin(-r) * d * .8 - 24, { size: 12, color: GAMMA }); label(ctx, `electron: ${c.KE.toFixed(c.KE < 100 ? 2 : 0)} keV`, cx + Math.cos(c.ph) * de, cy + Math.sin(c.ph) * de + 26, { size: 12, color: ELECTRON }); }
+        }
+        if (t > 8) label(ctx, 'Press "Fire"', cx - L * .6, cy - 40, { size: 14 });
+        const lines = [`Incoming: ${c.E} keV, λ = ${c.l.toFixed(2)} pm  →  scattered λ = ${(c.l + c.dl).toFixed(2)} pm`, `Wavelength grows by Δλ = 2.43 pm × (1 − cos ${th}°) = ${c.dl.toFixed(2)} pm`, `Scattered photon: ${c.E2.toFixed(2)} keV   ·   electron gets ${c.KE.toFixed(2)} keV`, `The photon keeps ${(100 * c.E2 / c.E).toFixed(1)}% of its energy`];
+        lines.forEach((s, i) => txt(ctx, s, 16, h - 92 + i * 20, { size: 13, bold: i === 1 }));
+      }
+    };
+  })();
+
+  /* ── pair production ── */
+  const pair = {
+    id: 'pair', title: 'Pair production', T: 7,
+    eq: ['γ', '→', ['e', 0, -1], '+', ['e', 0, '+1']],
+    steps: [[0, 'A high-energy gamma ray (more than 1.02 MeV) passes close to a nucleus…'], [1.8, '…and its energy turns into matter: an electron and a positron (E = mc² backwards!).'], [3, 'In a magnetic field they curl opposite ways: opposite charges. They lose energy, so the curls get tighter.']],
+    info: `<b>Pair production</b><ul><li>Energy can turn into matter. A gamma ray with more than 2 × 0.511 MeV = 1.022 MeV can become an electron and its antiparticle, the positron.</li><li>A nucleus nearby is needed to take up some momentum; otherwise energy and momentum can't both be conserved.</li><li>The positron was discovered in 1932 by Carl Anderson, from its curved track in a cloud chamber in a magnetic field.</li><li>The reverse is annihilation (next scene).</li></ul>`,
+    draw(ctx, w, h, t) {
+      const k = K(w, h), cx = w * .5, cy = h * .48;
+      ctx.fillStyle = TH.dim; ctx.font = '13px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (let x = 40; x < w; x += 70) for (let y = 70; y < h - 70; y += 70) ctx.fillText('⊗', x, y);
+      txt(ctx, '⊗ magnetic field into the screen', w - 14, h - 80, { align: 'right', size: 11, color: TH.muted });
+      drawCluster(ctx, makeCluster(82, 126, 9), cx + 18 * k, cy + 30 * k, 2.2 * k); label(ctx, 'nucleus', cx + 18 * k, cy + 62 * k, { size: 11 });
+      if (t < 1.8) { const x = lerp(20, cx, t / 1.8); drawPhoton(ctx, x, cy, 1, 0, GAMMA, 80, 8, 10, t * 30, 2.5); label(ctx, 'γ (2 MeV)', x - 40, cy - 26, { color: GAMMA, size: 12 }); return; }
+      if (t < 2.4) flash(ctx, cx, cy, 60 * k, 1 - (t - 1.8) / .6);
+      [[1, POSITRON, '+', 'positron e⁺'], [-1, ELECTRON, '−', 'electron e⁻']].forEach(([sg, col, sign, nm]) => {
+        let x = cx, y = cy, a = sg * -.25, r0 = 130 * k, v = 150 * k, dt = 1 / 60;
+        ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y);
+        for (let s = 1.8; s < t; s += dt) { const r = r0 * Math.exp(-.45 * (s - 1.8)); a += -sg * v / r * dt; x += Math.cos(a) * v * dt; y += Math.sin(a) * v * dt; ctx.lineTo(x, y); }
+        ctx.stroke(); ctx.lineWidth = 1;
+        drawElectron(ctx, x, y, 7 * k, col, sign);
+        if (t > 2.6) label(ctx, nm, x, y - 20 * k, { size: 12, color: col });
+      });
+    }
+  };
+
+  /* ── annihilation ── */
+  const annih = {
+    id: 'annih', title: 'Annihilation', T: 5.5,
+    eq: [['e', 0, '+1'], '+', ['e', 0, -1], '→', 'γ', '+', 'γ'],
+    steps: [[0, 'A positron (antimatter) and an electron (matter) meet…'], [1.6, '…and both disappear completely! All their mass becomes energy.'], [2.4, 'Two gamma rays of 511 keV each fly off in opposite directions, so momentum is still zero.']],
+    info: `<b>Annihilation</b><ul><li>When a particle meets its antiparticle, both vanish and their mass becomes energy: E = mc² = 2 × 0.511 MeV.</li><li>The two gamma rays go in exactly opposite directions. PET scanners use this to locate the point where it happened (see Nuclear Processes → β⁺ decay).</li><li>Antimatter is rare in our Universe; why there is more matter than antimatter is still an open question.</li></ul>`,
+    draw(ctx, w, h, t) {
+      const k = K(w, h), cx = w / 2, cy = h * .48;
+      if (t < 1.6) {
+        const d = lerp(w * .38, 10 * k, ease(t / 1.6));
+        drawElectron(ctx, cx - d, cy, 9 * k, POSITRON, '+'); label(ctx, 'positron e⁺', cx - d, cy - 26 * k, { size: 12 });
+        drawElectron(ctx, cx + d, cy, 9 * k); label(ctx, 'electron e⁻', cx + d, cy - 26 * k, { size: 12 });
+        return;
+      }
+      flash(ctx, cx, cy, 90 * k, 1 - seg(t, 1.6, 2.4));
+      const d = (t - 1.6) * Math.min(w, h) * .2, a = -1.1;
+      [a, a + Math.PI].forEach(b => { drawPhoton(ctx, cx + Math.cos(b) * d, cy + Math.sin(b) * d, Math.cos(b), Math.sin(b), GAMMA, Math.min(d, 90), 8, 10, t * 30, 2.5); if (t > 2.2) label(ctx, 'γ 511 keV', cx + Math.cos(b) * d * .7 + 50, cy + Math.sin(b) * d * .7, { size: 12, color: GAMMA }); });
+    }
+  };
+
+  return makeSceneTab({
+    stage: 'cv-collide', list: '#co-list', info: '#co-info', ctrl: '#co-ctrl', replay: '#co-replay', speed: '#co-speed',
+    groups: [
+      ['Particles hitting nuclei', [ruth, moder]],
+      ['Particles hitting atoms', [franck]],
+      ['Light hitting matter', [photo, compton, pair, annih]],
+    ],
+  });
+})();
+</script>
+
+<script>
+/* ═════════════════ tabs, theme, loop ═════════════════ */
+(function () {
+  let active = 'scale';
+  function showTab(name) {
+    if (!TABS[name]) name = 'scale';
+    active = name;
+    document.querySelectorAll('.tabbtn').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
+    TABS[name].enter && TABS[name].enter();
+    try { history.replaceState(null, '', '#' + name); } catch (e) {}
+  }
+  document.querySelectorAll('.tabbtn').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+  const btn = document.getElementById('theme-toggle');
+  let saved = null; try { saved = localStorage.getItem('theme'); } catch (e) {}
+  if (saved === 'dark') { document.body.classList.add('dark'); btn.textContent = '☀'; }
+  readTheme();
+  btn.addEventListener('click', () => {
+    const isDark = document.body.classList.toggle('dark');
+    btn.textContent = isDark ? '☀' : '🌙';
+    try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    readTheme();
+    Object.values(TABS).forEach(t => t.theme && t.theme());
+  });
+
+  const modal = $('#credits-modal');
+  $('#credits-btn').onclick = () => modal.hidden = false;
+  $('#credits-close').onclick = () => modal.hidden = true;
+  modal.addEventListener('click', e => { if (e.target === modal) modal.hidden = true; });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') modal.hidden = true; });
+
+  Object.values(TABS).forEach(t => t.init && t.init());
+  showTab((location.hash || '').slice(1) || 'scale');
+
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    try { TABS[active].frame(dt); } catch (e) { console.error(e); }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
