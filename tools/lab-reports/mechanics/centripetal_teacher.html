@@ -107,6 +107,7 @@ LabTeacher({
   },
   questions: [
     { id: 'prediction', title: 'Predictions: swinging faster, a heavier mass below, and the string breaking', get: s => s.prediction?.why, chart: 'pred' },
+    { id: 'vformula', title: 'Their formula for the speed: v = …', get: s => s.speed?.formula },
     { id: 'trend', title: 'Same heavy mass: bigger circle, faster or slower? A straight line?', get: s => s.discuss?.trend },
     { id: 'tension', title: 'How hard does the string pull on the light mass? Why?', get: s => s.answers?.tension },
     { id: 'force', title: 'Which way does the force point? What would happen without it?', get: s => s.answers?.force },
@@ -136,10 +137,11 @@ LabTeacher({
     const g = num(s.g) || G_REF, laps = num(s.laps) || 10;
     const mg = num(s.masses?.m), Mg = num(s.masses?.M);
     const m = mg > 0 ? mg / 1000 : NaN, M = Mg > 0 ? Mg / 1000 : NaN, F = M * g;
-    const rows = (s.data || []).map(r => ({ rc: num(r.r), t: num(r.t) }));
+    const rows = (s.data || []).map(r => ({ rc: num(r.r), t: num(r.t), vs: num(r.v) }));
+    // v is always recomputed as 2πr/T; vs is the speed the students worked out themselves
     const trials = m > 0 && M > 0 ? rows.filter(r => r.rc > 0 && r.t > 0).map(r => {
       const rr = r.rc / 100, P = r.t / laps, v = 2 * Math.PI * rr / P;
-      return { rc: r.rc, r: rr, t: r.t, P, v, F, mv2r: m * v * v / rr };
+      return { rc: r.rc, r: rr, t: r.t, P, v, vs: r.vs, vOk: r.vs > 0 && Math.abs(r.vs - v) / v <= 0.05, F, mv2r: m * v * v / rr };
     }) : [];
     const ratios = trials.map(t => t.mv2r / F);
     const fitV2R = trials.length >= 2 ? linfit(trials.map(t => ({ x: t.r, y: t.v * t.v }))) : null;
@@ -155,6 +157,8 @@ LabTeacher({
     if (rs.length >= 2 && Math.max(...rs) - Math.min(...rs) < 8) out.push(['Radii all similar', '']);
     if (G.trials.some(t => t.rc < 10 || t.rc > 200)) out.push(['Radius in cm?', 'red']);
     if (G.trials.some(t => t.P < 0.15 || t.P > 5)) out.push(['Time for 10 laps?', 'red']);
+    const vBad = G.trials.filter(t => !t.vOk).length;
+    if (vBad) out.push([vBad + ' speed' + (vBad === 1 ? '' : 's') + ' ≠ 2πr/T', 'red']);
     if (isFinite(G.ratio)) {
       const off = Math.abs(G.ratio - 1);
       if (off > 0.4) out.push(['m·v²/r far from M·g', 'red']);
@@ -235,8 +239,8 @@ LabTeacher({
       <div class="two">
         <div class="card"><h3>v² against r</h3><svg class="plot" id="detail-plot"></svg></div>
         <div class="card"><h3>Trials (${G.stage === 'final' ? 'final report' : 'data only, before the discussion'})</h3>
-          <div class="table-wrap"><table class="t"><thead><tr><th>r (cm)</th><th>t, 10 laps (s)</th><th>T (s)</th><th>v (m/s)</th><th>m·v²/r (N)</th><th>÷ M·g</th></tr></thead><tbody>
-          ${G.trials.map(t => `<tr><td>${fmt(t.rc, 4)}</td><td>${fmt(t.t, 4)}</td><td>${fmt(t.P)}</td><td>${fmt(t.v)}</td><td>${fmt(t.mv2r)}</td><td>${fmt(t.mv2r / t.F)}</td></tr>`).join('')}
+          <div class="table-wrap"><table class="t"><thead><tr><th>r (cm)</th><th>t, 10 laps (s)</th><th>T (s)</th><th>Their v (m/s)</th><th>2πr/T (m/s)</th><th>m·v²/r (N)</th><th>÷ M·g</th></tr></thead><tbody>
+          ${G.trials.map(t => `<tr><td>${fmt(t.rc, 4)}</td><td>${fmt(t.t, 4)}</td><td>${fmt(t.P)}</td><td style="color:${t.vOk ? 'inherit' : 'var(--red)'}">${isFinite(t.vs) ? fmt(t.vs) : '—'}</td><td>${fmt(t.v)}</td><td>${fmt(t.mv2r)}</td><td>${fmt(t.mv2r / t.F)}</td></tr>`).join('')}
           </tbody></table></div></div>
       </div>
       <div class="answers">
@@ -257,10 +261,10 @@ LabTeacher({
 
   computed: G => ({ m_kg: G.m, M_kg: G.M, F_N: G.F, trials: G.trials, median_mv2r_over_Mg: isFinite(G.ratio) ? G.ratio : null, v2_vs_r_fit: G.fitV2R }),
   csv: {
-    head: ['session', 'group', 'students', 'stage', 'm_g', 'M_g', 'F_N', 'trial', 'r_cm', 't_10laps_s', 'period_s', 'v_m_s', 'v2_over_r', 'mv2_over_r_N', 'ratio_to_Mg', 'law'],
+    head: ['session', 'group', 'students', 'stage', 'm_g', 'M_g', 'F_N', 'trial', 'r_cm', 't_10laps_s', 'period_s', 'v_students_m_s', 'v_2pi_r_over_T', 'v2_over_r', 'mv2_over_r_N', 'ratio_to_Mg', 'law'],
     rows: G => G.trials.length
-      ? G.trials.map((t, i) => [G.s.session, G.s.group, who(G), G.stage, G.m * 1000, G.M * 1000, G.F, i + 1, t.rc, t.t, t.P, t.v, t.v * t.v / t.r, t.mv2r, t.mv2r / t.F, G.s.final?.law])
-      : [[G.s.session, G.s.group, who(G), G.stage, G.m * 1000, G.M * 1000, G.F, '', '', '', '', '', '', '', '', G.s.final?.law]],
+      ? G.trials.map((t, i) => [G.s.session, G.s.group, who(G), G.stage, G.m * 1000, G.M * 1000, G.F, i + 1, t.rc, t.t, t.P, t.vs, t.v, t.v * t.v / t.r, t.mv2r, t.mv2r / t.F, G.s.final?.law])
+      : [[G.s.session, G.s.group, who(G), G.stage, G.m * 1000, G.M * 1000, G.F, '', '', '', '', '', '', '', '', '', G.s.final?.law]],
   },
 
   demo() {
@@ -285,13 +289,13 @@ LabTeacher({
       const good = gi !== 4 && gi !== 7, [mg, Mg] = PAIRS[gi - 1], fric = rnd(0.92, 1.0);   // friction on the tube lip lowers the pull
       const data = [0.35, 0.5, 0.65, 0.8].slice(0, gi === 7 ? 2 : 4).map(L0 => {
         const L = L0 * rnd(0.92, 1.08), P = 2 * Math.PI * Math.sqrt(mg * L / (Mg * fric * 9.8));
-        const t = 10 * P + rnd(-0.15, 0.15) * (good ? 1 : 4);
-        return { r: (L * 100).toFixed(1), t: t.toFixed(2) };
+        const t = 10 * P + rnd(-0.15, 0.15) * (good ? 1 : 4), v = 2 * Math.PI * L / (t / 10);
+        return { r: (L * 100).toFixed(1), t: t.toFixed(2), v: (gi === 8 ? v / 10 : v).toFixed(2) };   // group 8 used t, not T
       });
       const pick = k => good ? texts[k][0] : texts[k][1], fin = gi <= 6;
       reports.push({
         schema: 1, lab: 'centripetal', id: 'demo' + gi, session: 'DEMO', group: String(gi), mode: 'group', students: [names[gi * 2 - 2], names[gi * 2 - 1], ''],
-        g: 9.8, laps: 10, masses: { m: String(mg), M: String(Mg) },
+        g: 9.8, laps: 10, masses: { m: String(mg), M: String(Mg) }, speed: { formula: gi === 8 ? '2πr/t' : gi === 4 ? 'distance / time' : '2πr/T' },
         prediction: { faster: gi === 3 ? 'same' : gi === 8 ? 'down' : 'up', heavier: gi === 5 ? 'slower' : 'faster', cut: ['tangent', 'out', 'tangent', 'curve', 'tangent', 'out', 'tangent', 'tangent'][gi - 1],
           why: 'Going faster needs more force to keep it on the circle, so the string pulls harder on the heavy mass and lifts it.' },
         data, discuss: { trend: pick('trend') },

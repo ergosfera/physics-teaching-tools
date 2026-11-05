@@ -348,9 +348,14 @@
         <li>Measure the <b>radius r</b>: hold the string straight out from the top of the tube and measure from the top edge of the tube to the center of the light mass.</li>
         <li>Do <b>at least 3 trials, better 4 or 5, with different radii</b>. In each one, keep the heavy mass at a different distance below the tube (for example about 5 cm, 15 cm, 25 cm, 35 cm). The closer it is to the tube, the bigger the circle.</li>
       </ol>
+      <div class="note"><b>How fast is the light mass going?</b> In one lap it goes once around the circle, so the length of its path is the circumference of the circle, <b>2πr</b>. It takes one period <b>T</b> to do it: the time for one lap, T = t/10 (the page works T out for you). With these two, work out the <b>speed v</b> of the light mass in each trial and type it in the table.</div>
+      <div class="q">
+        <div class="qt">How do you calculate the speed v from the path length and the time?</div>
+        <div class="inline-k">v = <input type="text" data-bind="speed.formula" style="width:200px" placeholder="your formula"></div>
+      </div>
       <div class="table-wrap">
         <table class="data">
-          <thead><tr><th>#</th><th>Radius r (cm)</th><th>Time for 10 laps t (s)</th><th>Period T = t/10 (s)</th><th>Speed v = 2πr/T (m/s)</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>Radius r (cm)</th><th>Time for 10 laps t (s)</th><th>Period T = t/10 (s)</th><th>Your speed v (m/s)</th><th></th></tr></thead>
           <tbody id="tbody"></tbody>
         </table>
       </div>
@@ -359,7 +364,6 @@
         <span class="save-state" id="n-points"></span>
       </div>
       <div id="data-warn"></div>
-      <div class="note">The period T is the time for one lap. In one lap the light mass goes once around the circle, a distance of 2πr, so its speed is v = 2πr / T.</div>
       <svg class="plot" id="plot" viewBox="0 0 640 380"></svg>
       <div class="discuss" id="discuss-trend" hidden>
         <span class="tag">💬 Stop and discuss</span>
@@ -492,7 +496,7 @@
         <ol>
           <li><b>Predict</b> (step 2): what happens when you swing faster, with a heavier mass below, or if the string breaks.</li>
           <li><b>Set up</b> (step 3): find both masses and tie them to the string through the tube.</li>
-          <li><b>Measure</b> (step 4): swing the light mass at constant speed, time 10 laps, pinch the string and measure the radius. Repeat with at least 3 different radii.</li>
+          <li><b>Measure</b> (step 4): swing the light mass at constant speed, time 10 laps, pinch the string and measure the radius. Repeat with at least 3 different radii, and work out the speed of the light mass in each trial.</li>
           <li><b>Think it through</b> (step 5): what pulls on the light mass, and how hard.</li>
           <li><b>Send your data</b> (step 6). Your teacher shows the whole class's numbers and you look for the rule together.</li>
           <li><b>Check the rule and conclude</b> (steps 7 and 8), then send the final report.</li>
@@ -592,7 +596,8 @@ function blank() {
     g: G, laps: LAPS,
     masses: { m: '', M: '' },
     prediction: { faster: '', heavier: '', cut: '', why: '' },
-    data: [{ r: '', t: '' }, { r: '', t: '' }, { r: '', t: '' }],
+    speed: { formula: '' },
+    data: [{ r: '', t: '', v: '' }, { r: '', t: '', v: '' }, { r: '', t: '', v: '' }],
     discuss: { trend: '' },
     answers: { tension: '', force: '', steady: '', tenlaps: '', predcheck: '' },
     final: { law: '', trial: '', calc: '', compare: '' },
@@ -643,21 +648,25 @@ const mKg = () => { const v = num(S.masses.m); return v > 0 ? v / 1000 : NaN; };
 const MKg = () => { const v = num(S.masses.M); return v > 0 ? v / 1000 : NaN; };
 const weight = () => MKg() * S.g;
 
-// One trial per row: r in m, t for 10 laps, period T, speed v (SI)
+// One trial per row: r in m, t for 10 laps, period T, speed v (SI). The students type their own speed:
+// vs is theirs, vOk says whether it matches 2πr/T (within 5%, room for rounding T).
+const V_TOL = 0.05;
 function trial(row) {
   const rc = num(row.r), t = num(row.t);
   if (!(rc > 0 && t > 0)) return null;
-  const r = rc / 100, T = t / LAPS, v = 2 * Math.PI * r / T;
-  return { rc, r, t, T, v };
+  const r = rc / 100, T = t / LAPS, v = 2 * Math.PI * r / T, vs = num(row.v);
+  return { rc, r, t, T, v, vs, vOk: vs > 0 && Math.abs(vs - v) / v <= V_TOL };
 }
 const trials = () => S.data.map((row, i) => { const x = trial(row); return x && Object.assign(x, { i }); }).filter(Boolean);
+// Trials whose speed the students worked out correctly: only these go on the graph and count for step 4
+const goodTrials = () => trials().filter(x => x.vOk);
 
 // ── Steps: completion rules ─────────────────────────────────
 const DONE = {
   1: () => S.mode && S.group.trim() && S.students[0].trim() && (S.mode === 'individual' || S.students[1].trim()) && S.session.trim(),
   2: () => S.prediction.faster && S.prediction.heavier && S.prediction.cut && words(S.prediction.why) >= 10,
   3: () => mKg() > 0 && MKg() > 0,
-  4: () => trials().length >= MIN_TRIALS && words(S.discuss.trend) >= 8,
+  4: () => S.speed.formula.trim().length >= 3 && goodTrials().length >= MIN_TRIALS && words(S.discuss.trend) >= 8,
   5: () => words(S.answers.tension) >= 10 && words(S.answers.force) >= 10 && words(S.answers.steady) >= 10 && words(S.answers.tenlaps) >= 8 && words(S.answers.predcheck) >= 10,
   // sent, or saved as a backup file to hand in (a link without the class connection can't send)
   6: () => !!(S.sent || S.savedData),
@@ -767,7 +776,8 @@ function renderTable() {
     tr.innerHTML = `<td class="idx">${i + 1}</td>
       <td><input type="text" inputmode="decimal" data-i="${i}" data-k="r" value="${esc(row.r)}"></td>
       <td><input type="text" inputmode="decimal" data-i="${i}" data-k="t" value="${esc(row.t)}"></td>
-      <td class="calc" data-T></td><td class="calc" data-v></td>
+      <td class="calc" data-T></td>
+      <td><span style="display:flex;align-items:center;gap:6px"><input type="text" inputmode="decimal" data-i="${i}" data-k="v" value="${esc(row.v ?? '')}"><b data-mark style="width:16px"></b></span></td>
       <td><button class="del" title="Delete trial" data-del="${i}">×</button></td>`;
     tbody.appendChild(tr);
   });
@@ -782,7 +792,7 @@ tbody.addEventListener('keydown', e => {
   if (e.key !== 'Enter' || e.target.dataset.i == null) return;
   e.preventDefault();
   const i = +e.target.dataset.i, k = e.target.dataset.k;
-  if (k === 'r') return tbody.querySelector(`input[data-i="${i}"][data-k="t"]`).focus();
+  if (k !== 'v') return tbody.querySelector(`input[data-i="${i}"][data-k="${k === 'r' ? 't' : 'v'}"]`).focus();
   if (i === S.data.length - 1) addRow();
   tbody.querySelector(`input[data-i="${i + 1}"][data-k="r"]`).focus();
 });
@@ -790,15 +800,15 @@ tbody.addEventListener('click', e => {
   const i = e.target.dataset.del;
   if (i == null) return;
   const r = S.data[+i];
-  if ((r.r || r.t) && !confirm('Delete trial ' + (+i + 1) + '?')) return;
+  if ((r.r || r.t || r.v) && !confirm('Delete trial ' + (+i + 1) + '?')) return;
   S.data.splice(+i, 1);
-  if (!S.data.length) S.data.push({ r: '', t: '' });
+  if (!S.data.length) S.data.push({ r: '', t: '', v: '' });
   // the trial chosen in step 7 refers to a row: keep it pointing at the same one
   const ft = S.final.trial;
   if (ft !== '') { if (+ft === +i) S.final.trial = ''; else if (+ft > +i) S.final.trial = String(+ft - 1); }
   renderTable(); save(); refresh();
 });
-function addRow() { S.data.push({ r: '', t: '' }); renderTable(); save(); refresh(); }
+function addRow() { S.data.push({ r: '', t: '', v: '' }); renderTable(); save(); refresh(); }
 document.getElementById('add-row').addEventListener('click', () => {
   addRow();
   tbody.querySelector(`input[data-i="${S.data.length - 1}"][data-k="r"]`).focus();
@@ -809,7 +819,18 @@ function refreshMeasure() {
   [...tbody.rows].forEach((tr, i) => {
     const x = trial(S.data[i]), rc = num(S.data[i].r), t = num(S.data[i].t);
     tr.querySelector('[data-T]').textContent = x ? fmt(x.T) : '';
-    tr.querySelector('[data-v]').textContent = x ? fmt(x.v) : '';
+    // their speed: ✓ when it matches 2πr/T; never show the right value, only where to look
+    const mark = tr.querySelector('[data-mark]'), typed = x && isFinite(x.vs);
+    mark.textContent = typed ? (x.vOk ? '✓' : '✗') : '';
+    mark.style.color = typed ? (x.vOk ? 'var(--green)' : 'var(--red)') : '';
+    if (typed && !x.vOk) {
+      const q = x.vs / x.v;
+      warns.push(`Trial ${i + 1}: that speed doesn't match your radius and period. ` + (Math.abs(q / 100 - 1) < V_TOL
+        ? 'It is about 100 times too big: the speed is in <b>m/s</b>, so the radius must be in <b>meters</b>.'
+        : Math.abs(q * 10 - 1) < V_TOL || Math.abs(q / 10 - 1) < V_TOL
+          ? 'Did you use the time for one lap, <b>T</b>, and not the time for all 10 laps?'
+          : 'Check your formula: the path of one lap is 2πr, and it takes one period T.'));
+    }
     let bad = (isFinite(rc) && rc <= 0) || (isFinite(t) && t <= 0);
     if (isFinite(rc) && rc > 0 && (rc < 10 || rc > 200)) { warns.push(`Trial ${i + 1}: a radius of ${fmt(rc)} cm is unusual. Type it in <b>centimeters</b>.`); bad = true; }
     if (x && (x.T < 0.15 || x.T > 5)) { warns.push(`Trial ${i + 1}: ${fmt(x.T)} s per lap is unusual. Type the time for <b>all 10 laps</b>, in seconds.`); bad = true; }
@@ -820,12 +841,13 @@ function refreshMeasure() {
     const rs = ts.map(x => x.rc);
     if (Math.max(...rs) - Math.min(...rs) < 8) warns.push('Your radii are all about the same. Change the distance of the heavy mass below the tube between trials, to get circles of <b>different sizes</b>.');
   }
+  const good = goodTrials();
   const nEl = document.getElementById('n-points');
-  nEl.textContent = ts.length + ' complete trial' + (ts.length === 1 ? '' : 's') +
-    (ts.length < MIN_TRIALS ? ` · at least ${MIN_TRIALS} needed` : '');
+  nEl.textContent = good.length + ' trial' + (good.length === 1 ? '' : 's') + ' with a correct speed' +
+    (good.length < MIN_TRIALS ? ` · at least ${MIN_TRIALS} needed` : '');
   document.getElementById('data-warn').innerHTML = warns.map(w => `<div class="note warn">${w}</div>`).join('');
-  document.getElementById('discuss-trend').hidden = ts.length < MIN_TRIALS;
-  drawPlot(document.getElementById('plot'), ts);
+  document.getElementById('discuss-trend').hidden = good.length < MIN_TRIALS;
+  drawPlot(document.getElementById('plot'), good);
 }
 
 function niceStep(range, n) {
@@ -836,7 +858,7 @@ function niceStep(range, n) {
 function drawPlot(svg, ts) {
   const W = 640, H = 380, M = { l: 62, r: 20, t: 18, b: 50 };
   // 8% headroom so the largest point is never on the edge of the plot
-  const xMax = Math.max(50, ...ts.map(x => x.rc)) * 1.08, yMax = Math.max(2, ...ts.map(x => x.v)) * 1.08;
+  const xMax = Math.max(50, ...ts.map(x => x.rc)) * 1.08, yMax = Math.max(2, ...ts.map(x => x.vs)) * 1.08;
   const xStep = niceStep(xMax, 5), yStep = niceStep(yMax, 5);
   const x1 = Math.ceil(xMax / xStep) * xStep, y1 = Math.ceil(yMax / yStep) * yStep;
   const X = v => M.l + v / x1 * (W - M.l - M.r);
@@ -847,14 +869,14 @@ function drawPlot(svg, ts) {
   s += `<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="${M.t}" y2="${H - M.b}"/><line class="axis" x1="${M.l}" x2="${W - M.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
   s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 8}" text-anchor="middle">Radius r (cm)</text>`;
   s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">Speed v (m/s)</text>`;
-  ts.forEach(x => { s += `<circle class="pt" cx="${X(x.rc)}" cy="${Y(x.v)}" r="6"><title>Trial ${x.i + 1}: r = ${fmt(x.rc)} cm, v = ${fmt(x.v)} m/s</title></circle>`; });
+  ts.forEach(x => { s += `<circle class="pt" cx="${X(x.rc)}" cy="${Y(x.vs)}" r="6"><title>Trial ${x.i + 1}: r = ${fmt(x.rc)} cm, v = ${fmt(x.vs)} m/s</title></circle>`; });
   if (!ts.length) s += `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">Your trials will appear here as you measure</text>`;
   svg.innerHTML = s;
 }
 
 // ── Step 5 ──────────────────────────────────────────────────
 function refreshThink() {
-  const ts = trials(), vs = ts.map(x => x.v);
+  const ts = goodTrials(), vs = ts.map(x => x.vs);
   const tile = (k, v, u) => `<div class="stat"><div class="k">${k}</div><div class="v">${v} <small>${u}</small></div></div>`;
   document.getElementById('your-stats').innerHTML =
     tile('Light mass m', fmt(num(S.masses.m)), 'g') + tile('Heavy mass M', fmt(num(S.masses.M)), 'g') +
@@ -865,9 +887,9 @@ function refreshThink() {
 // ── Step 7: check the class rule with one trial ─────────────
 const trialSel = document.getElementById('final-trial');
 function refreshFinal() {
-  const ts = trials();
+  const ts = goodTrials();   // never list a trial whose speed they got wrong: it would show the right one
   const opts = '<option value="">Choose a trial…</option>' + ts.map(x =>
-    `<option value="${x.i}">Trial ${x.i + 1}: r = ${fmt(x.rc)} cm, v = ${fmt(x.v)} m/s</option>`).join('');
+    `<option value="${x.i}">Trial ${x.i + 1}: r = ${fmt(x.rc)} cm, v = ${fmt(x.vs)} m/s</option>`).join('');
   if (trialSel.dataset.opts !== opts) { trialSel.innerHTML = opts; trialSel.dataset.opts = opts; }
   trialSel.value = S.final.trial;
   if (trialSel.value !== S.final.trial) S.final.trial = '';
@@ -876,11 +898,11 @@ function refreshFinal() {
   const out = document.getElementById('final-check');
   const x = S.final.trial !== '' ? trial(S.data[+S.final.trial] || {}) : null;
   const calc = num(S.final.calc), W = weight();
-  if (!x || !isFinite(calc)) { out.innerHTML = x ? `<div class="note">Trial ${+S.final.trial + 1}: m = ${fmt(mKg())} kg, v = ${fmt(x.v)} m/s, r = ${fmt(x.r)} m.</div>` : ''; return; }
-  const expect = mKg() * x.v * x.v / x.r;
+  if (!x || !isFinite(calc)) { out.innerHTML = x ? `<div class="note">Trial ${+S.final.trial + 1}: m = ${fmt(mKg())} kg, v = ${fmt(x.vs)} m/s, r = ${fmt(x.r)} m.</div>` : ''; return; }
+  const expect = mKg() * x.vs * x.vs / x.r;
   const off = Math.abs(calc - expect) / expect;
   const diff = (calc - W) / W * 100;
-  let html = `<div class="note">Trial ${+S.final.trial + 1}: m = ${fmt(mKg())} kg, v = ${fmt(x.v)} m/s, r = ${fmt(x.r)} m.</div>`;
+  let html = `<div class="note">Trial ${+S.final.trial + 1}: m = ${fmt(mKg())} kg, v = ${fmt(x.vs)} m/s, r = ${fmt(x.r)} m.</div>`;
   if (off > 0.05) html += `<div class="note warn">Your result doesn't match these numbers. Check the formula and the units: <b>m in kg, v in m/s, r in m</b>.</div>`;
   else html += `<div class="note ${Math.abs(diff) <= 15 ? 'good' : 'warn'}">Your result: <b>${fmt(calc)} N</b>. Weight of the heavy mass: <b>${fmt(W)} N</b>. Difference: <b>${fmt(Math.abs(diff), 2)}%</b>${Math.abs(diff) <= 15 ? ' 🎯' : ''}.</div>`;
   out.innerHTML = html;
