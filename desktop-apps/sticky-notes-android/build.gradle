@@ -1,0 +1,57 @@
+// Sticky Notes for Android. Built with ./build.sh (Gradle 8.10, JDK 17, Android SDK 35).
+plugins {
+    id 'com.android.application' version '8.7.3'
+}
+
+// The release key. Google's sign-in only works for an APK signed with the key whose SHA-1 is
+// registered in the Google Cloud project, so every build must use the same one:
+// STICKY_KEYSTORE is a PKCS12 file and STICKY_KEYSTORE_PASSWORD its password (alias "sticky").
+def keystore = System.getenv('STICKY_KEYSTORE')
+
+android {
+    namespace 'net.ergosfera.stickynotes'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'net.ergosfera.stickynotes'
+        minSdk 26
+        targetSdk 34
+        // Each GitHub build is newer than the last, so a new APK installs over the old one
+        versionCode((System.getenv('GITHUB_RUN_NUMBER') ?: '1') as int)
+        versionName '1.0'
+    }
+
+    signingConfigs {
+        release {
+            if (keystore) {
+                storeFile file(keystore)
+                storeType 'pkcs12'
+                storePassword System.getenv('STICKY_KEYSTORE_PASSWORD')
+                keyAlias 'sticky'
+                keyPassword System.getenv('STICKY_KEYSTORE_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig keystore ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    implementation 'com.google.android.gms:play-services-auth:21.2.0'
+    testImplementation 'junit:junit:4.13.2'
+}
