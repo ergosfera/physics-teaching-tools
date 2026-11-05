@@ -2,7 +2,7 @@
 #   "countdown-timer":    CountdownTimer.dmg (Mac) and CountdownTimer.exe (Windows)
 #   "physics-calculator": PhysicsCalculator.dmg (Mac) and PhysicsCalculator.exe (Windows)
 #   "field-timer":        Field.dmg (Mac) and Field.exe (Windows)
-#   "sticky-notes":       StickyNotes.dmg (Mac) and StickyNotes.exe (Windows)
+#   "sticky-notes":       StickyNotes.dmg (Mac), StickyNotes.exe (Windows) and StickyNotes.apk (Android)
 #   "screen-ruler":       ScreenRuler.dmg (Mac) and ScreenRuler.exe (Windows)
 #   "screen-shapes":      ScreenShapes.dmg (Mac) and ScreenShapes.exe (Windows)
 #   "reading-window":     ReadingWindow.dmg (Mac) and ReadingWindow.exe (Windows)
@@ -112,6 +112,37 @@ jobs:
         with:
           name: notes-windows
           path: desktop-apps/sticky-notes/StickyNotes.exe
+
+  notes-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      # The Google sign-in only works when the APK is signed with the release key (see build.gradle).
+      # It is kept in two repository secrets: the .p12 file in base64, and its password.
+      - name: Release key
+        env:
+          KEY: ${{ secrets.STICKY_KEYSTORE_BASE64 }}
+          PASSWORD: ${{ secrets.STICKY_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEY" ]; then
+            if [ "${{ github.event_name }}" != "pull_request" ]; then echo "::error::The STICKY_KEYSTORE_BASE64 secret is missing"; exit 1; fi
+            exit 0
+          fi
+          echo "$KEY" | base64 -d > "$RUNNER_TEMP/sticky.p12"
+          echo "STICKY_KEYSTORE=$RUNNER_TEMP/sticky.p12" >> "$GITHUB_ENV"
+          echo "STICKY_KEYSTORE_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
+      - run: ./desktop-apps/sticky-notes-android/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notes-android
+          path: desktop-apps/sticky-notes-android/build/StickyNotes.apk
 
   ruler-mac:
     runs-on: macos-latest
@@ -352,7 +383,7 @@ jobs:
 
   release-notes:
     if: github.event_name != 'pull_request'
-    needs: [notes-mac, notes-windows]
+    needs: [notes-mac, notes-windows, notes-android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -366,10 +397,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          NOTES: "Sticky notes that sync between Mac, Windows and Android through Google Drive. Mac: download StickyNotes.dmg. Windows: download StickyNotes.exe. Android phone or tablet: download StickyNotes.apk on the device and open it to install."
         run: |
           gh release view sticky-notes -R "$REPO" > /dev/null 2>&1 || \
             gh release create sticky-notes -R "$REPO" --latest=false --title "Sticky Notes" \
-              --notes "Sticky notes that sync between Mac and Windows through Google Drive. Mac: download StickyNotes.dmg. Windows: download StickyNotes.exe."
+              --notes "$NOTES"
+          gh release edit sticky-notes -R "$REPO" --notes "$NOTES"
           gh release upload sticky-notes dist/* -R "$REPO" --clobber
           gh release edit sticky-notes -R "$REPO" --draft=false
 
