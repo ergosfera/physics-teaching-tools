@@ -44,6 +44,12 @@ const LAB_TOPICS = [
         student: 'mechanics/buoyancy_lab.html',
         teacher: 'mechanics/buoyancy_teacher.html',
       },
+      {
+        id: 'centripetal', icon: '🌀', title: 'Centripetal Force',
+        desc: 'Swing a light mass in a circle on a string that runs through a tube to a heavier hanging mass. Keep the speed constant, time 10 laps and measure the radius at several sizes. Then the class puts every group\'s numbers together to find how the force depends on mass, speed and radius.',
+        student: 'mechanics/centripetal_lab.html',
+        teacher: 'mechanics/centripetal_teacher.html',
+      },
     ],
   },
   {

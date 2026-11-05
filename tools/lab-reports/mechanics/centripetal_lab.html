@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Centripetal Force Lab</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌀</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950;
+    --green-soft: rgba(63,185,80,.12);
+    --amber: #d29922;
+    --amber-soft: rgba(210,153,34,.14);
+    --red: #f85149;
+    --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa;
+    --surface: #ffffff;
+    --surface2: #f0f3f6;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --muted: #656d76;
+    --accent: #0969da;
+    --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37;
+    --green-soft: rgba(26,127,55,.09);
+    --amber: #9a6700;
+    --amber-soft: rgba(154,103,0,.10);
+    --red: #cf222e;
+  }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.5; min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.3px; }
+  header h1 span { color: var(--accent); }
+  .progress { flex: 1; min-width: 140px; display: flex; gap: 4px; }
+  .progress i { flex: 1; height: 6px; border-radius: 3px; background: var(--surface2); border: 1px solid var(--border); }
+  .progress i.done { background: var(--green); border-color: var(--green); }
+  .progress i.current { background: var(--accent); border-color: var(--accent); }
+  .save-state { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .pill-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 20px; padding: 5px 12px; font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer;
+  }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  .intro { color: var(--muted); font-size: .92rem; margin-bottom: 20px; }
+  .intro b { color: var(--text); }
+
+  /* ── STEPS ── */
+  .step {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 16px; overflow: hidden;
+  }
+  .step-head {
+    display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-head .num {
+    width: 30px; height: 30px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; font-weight: 800; font-size: .9rem;
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted);
+  }
+  .step.done .num { background: var(--green); border-color: var(--green); color: #fff; }
+  .step.active .num { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step-head h2 { font-size: 1.02rem; font-weight: 700; flex: 1; }
+  .step-head .status { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .step.done .status { color: var(--green); }
+  .step-body { padding: 18px; display: grid; gap: 16px; }
+  .step-lock { display: none; padding: 14px 18px; color: var(--muted); font-size: .88rem; }
+  .step.locked .step-body { display: none; }
+  .step.locked .step-lock { display: block; }
+  .step.locked .step-head { border-bottom: none; opacity: .6; }
+
+  p.lead { font-size: .93rem; }
+  ul.tips { font-size: .86rem; color: var(--muted); padding-left: 20px; display: grid; gap: 3px; }
+  ul.tips b { color: var(--text); }
+
+  /* ── FORM ── */
+  label.f { display: grid; gap: 5px; font-size: .82rem; font-weight: 600; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  input[type=text], input[type=number], textarea, select {
+    width: 100%; font: inherit; font-size: .95rem; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  }
+  textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  input[readonly] { background: var(--surface2); color: var(--muted); }
+  .q { display: grid; gap: 6px; }
+  .q .qt { font-size: .93rem; font-weight: 600; }
+  .q .qt em { font-style: normal; color: var(--accent); }
+  .wc { font-size: .72rem; color: var(--muted); text-align: right; }
+  .wc.ok { color: var(--green); }
+
+  .choices { display: grid; gap: 6px; }
+  .choices label {
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: .92rem;
+  }
+  .choices label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px; }
+  .checks label { display: flex; gap: 8px; align-items: flex-start; font-size: .88rem; cursor: pointer; }
+  .checks input { margin-top: 4px; }
+
+  .btn {
+    font: inherit; font-weight: 700; font-size: .9rem; cursor: pointer;
+    border-radius: 8px; padding: 9px 16px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text);
+  }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .row-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .note {
+    border-radius: 8px; padding: 10px 14px; font-size: .88rem;
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+  }
+  .note.warn { background: var(--amber-soft); border-left-color: var(--amber); }
+  .note.good { background: var(--green-soft); border-left-color: var(--green); }
+  .discuss {
+    border: 1px dashed var(--accent); border-radius: 10px; padding: 14px; display: grid; gap: 8px;
+    background: var(--accent-soft);
+  }
+  .discuss .tag { font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table.data { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  table.data th {
+    text-align: left; font-size: .74rem; color: var(--muted); font-weight: 700;
+    padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  table.data td { padding: 4px 6px; border-bottom: 1px solid var(--border); }
+  table.data td.calc { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; white-space: nowrap; }
+  table.data td.idx { color: var(--muted); width: 28px; text-align: center; }
+  table.data input { padding: 6px 8px; min-width: 70px; }
+  table.data tr.bad td.calc { color: var(--red); }
+  .del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: 2px 6px; }
+  .del:hover { color: var(--red); }
+
+  /* ── PLOT ── */
+  .plot { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+  .plot text { fill: var(--muted); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .plot .axis { stroke: var(--muted); stroke-width: 1; }
+  .plot .grid { stroke: var(--border); stroke-width: 1; }
+  .plot .pt { fill: var(--accent); stroke: var(--bg); stroke-width: 1.5; }
+  .plot .fit { stroke: var(--green); stroke-width: 2.2; stroke-dasharray: 7 4; }
+  .plot .lbl { fill: var(--text); font-weight: 600; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+  .stat .k { font-size: .72rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .stat .v { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stat .v small { font-size: .8rem; color: var(--muted); font-weight: 600; }
+  .eq { font-family: Consolas, 'Courier New', monospace; font-size: .95rem; }
+
+  .inline-k { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 700; }
+  .inline-k input { width: 110px; }
+
+  .summary { display: grid; gap: 4px; font-size: .9rem; }
+  .summary div::before { content: '○ '; color: var(--muted); }
+  .summary div.ok::before { content: '✓ '; color: var(--green); font-weight: 800; }
+
+  .diagram { max-width: 260px; margin: 0 auto; display: block; }
+  .diagram text { fill: var(--text); font-size: 13px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .setup-grid { display: grid; grid-template-columns: 1fr 220px; gap: 16px; align-items: start; }
+  @media (max-width: 620px) { .setup-grid { grid-template-columns: 1fr; } }
+
+  /* ── LAB GUIDE ── */
+  dialog.guide {
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+    width: min(780px, 94vw); max-height: 90vh; margin: auto; padding: 0;
+  }
+  dialog.guide::backdrop { background: rgba(0,0,0,.55); }
+  .guide-head { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .guide-head h2 { font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .guide-body { padding: 18px; display: grid; gap: 18px; font-size: .92rem; }
+  .guide-body h3 { font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .guide-body ol, .guide-body ul { padding-left: 22px; display: grid; gap: 6px; }
+  .guide-body li b { color: var(--text); }
+  .guide-cols { display: grid; grid-template-columns: 1fr 230px; gap: 18px; align-items: start; }
+  .guide-cols.wide-fig { grid-template-columns: 1fr 280px; }
+  .guide-materials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .guide-cols, .guide-cols.wide-fig, .guide-materials { grid-template-columns: 1fr; } }
+  .guide-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .guide-box .bt { font-size: .74rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+  .guide-fig { width: 100%; height: auto; display: block; }
+  .guide-fig text { fill: var(--text); font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .guide-foot { padding: 0 18px 18px; display: flex; justify-content: flex-end; }
+  .guide-link { background: none; border: none; color: var(--accent); font: inherit; font-size: .86rem; font-weight: 700; cursor: pointer; padding: 0; text-align: left; justify-self: start; }
+  .guide-link:hover { text-decoration: underline; }
+
+
+  /* ── HOW-TO LISTS (instructions where they are used) ── */
+  ol.howto { padding-left: 22px; display: grid; gap: 6px; font-size: .9rem; }
+  ol.howto li::marker { color: var(--accent); font-weight: 800; }
+  ol.howto b { color: var(--text); }
+
+  footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
+  footer button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; }
+
+  /* ── SETUP ANIMATION ── */
+  .gif-fig { width: 100%; height: auto; display: block; border-radius: 10px; background: #fcfcfc; border: 1px solid var(--border); }
+  .fig-cap { font-size: .78rem; color: var(--muted); margin-top: 6px; text-align: center; }
+  .send-box { display: grid; gap: 12px; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <a class="pill-btn" href="../../../index.html#lab-reports" style="text-decoration:none">← Lab Reports</a>
+  <h1>🌀 <span>Centripetal Force</span> Lab</h1>
+  <div class="progress" id="progress"></div>
+  <span class="save-state" id="save-state">Saved on this computer</span>
+  <button class="pill-btn" data-guide>📋 Lab guide</button>
+  <button class="pill-btn" id="theme-toggle">☀ Light</button>
+</header>
+
+<main>
+  <p class="intro"><span data-team>Work <b>with your group</b> through the steps in order.</span><span data-solo hidden>Measure with your group, but <b>write this report on your own</b>, in your own words. Go through the steps in order.</span> Each step unlocks the next one. Your work is saved on this computer as you type, so a reload won't lose it. You send this report <b>twice</b>: your data in step 6, before the class discussion, and the finished report in step 8.</p>
+
+  <!-- 1 TEAM -->
+  <section class="step" data-step="1">
+    <div class="step-head"><span class="num">1</span><h2>Your team</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="q">
+        <div class="qt">Who writes this report? Do what your teacher told you.</div>
+        <div class="choices">
+          <label><input type="radio" name="mode" value="group"> Our group: one report for the whole group</label>
+          <label><input type="radio" name="mode" value="individual"> Just me: my own report, in my own words</label>
+        </div>
+      </div>
+      <div class="grid2">
+        <label class="f">Class / session code<input type="text" data-bind="session" id="session-input" placeholder="e.g. 10A"></label>
+        <label class="f">Group number<input type="text" inputmode="numeric" data-bind="group" placeholder="e.g. 4"></label>
+      </div>
+      <div class="grid2">
+        <label class="f"><span data-team>Student 1</span><span data-solo hidden>Your name</span><input type="text" data-bind="students.0" placeholder="Full name"></label>
+        <label class="f" data-team>Student 2<input type="text" data-bind="students.1" placeholder="Full name"></label>
+        <label class="f" data-team>Student 3 (if any)<input type="text" data-bind="students.2" placeholder="Full name"></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 PREDICT -->
+  <section class="step" data-step="2">
+    <div class="step-head"><span class="num">2</span><h2>Predict before you swing</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <p class="lead">One of you will hold a tube above your head and swing a <b>light mass</b> around in a circle on a string. The string goes down through the tube to a <b>heavy mass</b> that hangs underneath. Before you try it, <b>discuss with your group</b>:</p>
+      <div class="q">
+        <div class="qt">While the light mass goes around, you swing it <em>faster</em>. The heavy mass below will…</div>
+        <div class="choices">
+          <label><input type="radio" name="pred-faster" value="up"> move up, toward the tube</label>
+          <label><input type="radio" name="pred-faster" value="same"> stay where it is</label>
+          <label><input type="radio" name="pred-faster" value="down"> move down, away from the tube</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">Another group hangs a <em>heavier</em> mass below, with the same light mass on top and the same radius. To keep everything steady, they must swing…</div>
+        <div class="choices">
+          <label><input type="radio" name="pred-heavier" value="faster"> faster than you</label>
+          <label><input type="radio" name="pred-heavier" value="same"> at the same speed as you</label>
+          <label><input type="radio" name="pred-heavier" value="slower"> slower than you</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">If the string broke while the light mass was going around, the light mass would fly…</div>
+        <div class="choices">
+          <label><input type="radio" name="pred-cut" value="out"> straight out, away from the center</label>
+          <label><input type="radio" name="pred-cut" value="tangent"> in a straight line, in the direction it was moving at that moment</label>
+          <label><input type="radio" name="pred-cut" value="curve"> still on a curve, around the center, for a while</label>
+        </div>
+      </div>
+      <div class="q">
+        <div class="qt">Why do you think so? Write the reasons you agree on.</div>
+        <textarea data-bind="prediction.why" data-min="10"></textarea>
+        <div class="wc" data-wc="prediction.why"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 SETUP -->
+  <section class="step" data-step="3">
+    <div class="step-head"><span class="num">3</span><h2>Your weights and the setup</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="setup-grid">
+        <div style="display:grid;gap:14px">
+          <ol class="howto">
+            <li>Decide the roles: the <b>swinger</b> holds the tube and keeps the speed constant, the <b>timer</b> uses the stopwatch and counts the laps, and the <b>recorder</b> types. In a pair, the timer also types.</li>
+            <li>Find the <b>mass of each weight</b>: it may be written on it; if not, weigh it. The light one is <b>m</b> (it goes on top), the heavy one is <b>M</b> (it hangs below).</li>
+            <li>Pass the string through the tube. Tie the light mass to the upper end and the heavy mass to the lower end. <b>Pull hard on both knots</b> to check them.</li>
+          </ol>
+          <div class="grid2">
+            <label class="f">Light mass m, on top (g)<input type="text" inputmode="decimal" data-bind="masses.m" placeholder="e.g. 20"></label>
+            <label class="f">Heavy mass M, below (g)<input type="text" inputmode="decimal" data-bind="masses.M" placeholder="e.g. 100"></label>
+          </div>
+          <div id="mass-note"></div>
+        </div>
+        <div>
+          <img class="gif-fig" data-gif src="centripetal_setup.gif" alt="Animation: a person holds a vertical tube above the head; a light disc goes around in a circle on a string from the top of the tube, and the string runs down through the tube to a heavy mass hanging still below it">
+          <div class="fig-cap">The light mass goes around; the heavy mass hangs still below the tube.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 MEASURE -->
+  <section class="step" data-step="4">
+    <div class="step-head"><span class="num">4</span><h2>Measure: time the laps and the radius</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <ol class="howto">
+        <li>The swinger stands <b>like in the animation</b>: tube vertical, above the head, the light mass resting on the top of the tube and the heavy mass hanging below it.</li>
+        <li>Make small circles with the hand until the light mass goes around in a circle above your head. Find a speed where the <b>heavy mass stays at the same height</b> below the tube, without moving up or down. That tells you the speed is constant.</li>
+        <li>When it's steady, the timer says <b>"go"</b>, counts <b>10 laps</b> of the light mass and says <b>"stop"</b>.</li>
+        <li>At "stop", the swinger <b>pinches the string right under the tube</b> with the free hand, so the radius can't change, and stops swinging.</li>
+        <li>Measure the <b>radius r</b>: hold the string straight out from the top of the tube and measure from the top edge of the tube to the center of the light mass.</li>
+        <li>Do <b>at least 3 trials, better 4 or 5, with different radii</b>. In each one, keep the heavy mass at a different distance below the tube (for example about 5 cm, 15 cm, 25 cm, 35 cm). The closer it is to the tube, the bigger the circle.</li>
+      </ol>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>#</th><th>Radius r (cm)</th><th>Time for 10 laps t (s)</th><th>Period T = t/10 (s)</th><th>Speed v = 2πr/T (m/s)</th><th></th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="row-btns">
+        <button class="btn" id="add-row">+ Add trial</button>
+        <span class="save-state" id="n-points"></span>
+      </div>
+      <div id="data-warn"></div>
+      <div class="note">The period T is the time for one lap. In one lap the light mass goes once around the circle, a distance of 2πr, so its speed is v = 2πr / T.</div>
+      <svg class="plot" id="plot" viewBox="0 0 640 380"></svg>
+      <div class="discuss" id="discuss-trend" hidden>
+        <span class="tag">💬 Stop and discuss</span>
+        <div class="qt" style="font-weight:600">You used the same heavy mass in every trial. When the circle was bigger, was the light mass faster, slower or about as fast? Do the points fall on a straight line?</div>
+        <textarea data-bind="discuss.trend" data-min="8"></textarea>
+        <div class="wc" data-wc="discuss.trend"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 THINK -->
+  <section class="step" data-step="5">
+    <div class="step-head"><span class="num">5</span><h2>Think it through</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="stats" id="your-stats"></div>
+      <div class="q">
+        <div class="qt">The heavy mass hangs <em>at rest</em> while the light one goes around. How hard does the string pull on the light mass? Explain it with the forces on the heavy mass.</div>
+        <textarea data-bind="answers.tension" data-min="10"></textarea>
+        <div class="wc" data-wc="answers.tension"></div>
+      </div>
+      <div class="q">
+        <div class="qt">The light mass moves at constant speed, but it still needs a force to stay on the circle. Which way does that force point? What would happen without it?</div>
+        <textarea data-bind="answers.force" data-min="10"></textarea>
+        <div class="wc" data-wc="answers.force"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Why did the heavy mass have to stay at the same height while you timed? What would it mean if it moved up?</div>
+        <textarea data-bind="answers.steady" data-min="10"></textarea>
+        <div class="wc" data-wc="answers.steady"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Why do you time 10 laps instead of just one?</div>
+        <textarea data-bind="answers.tenlaps" data-min="8"></textarea>
+        <div class="wc" data-wc="answers.tenlaps"></div>
+      </div>
+      <div class="q">
+        <div class="qt">In step 2 you predicted that swinging faster would make the heavy mass <em id="q-pred-faster">…</em>. What did you see when you tried it?</div>
+        <textarea data-bind="answers.predcheck" data-min="10"></textarea>
+        <div class="wc" data-wc="answers.predcheck"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 SEND DATA -->
+  <section class="step" data-step="6">
+    <div class="step-head"><span class="num">6</span><h2>Send your data</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body send-box">
+      <div class="note">Send your data <b>now</b>, before the class discussion. Your teacher puts the numbers of every group together, and the whole class looks for the rule. After that you finish the report in step 7 and send it again.</div>
+      <div class="summary" id="summary-data"></div>
+      <div class="row-btns">
+        <button class="btn primary" data-send="data">📤 Send data to teacher</button>
+        <button class="btn" data-download>⬇ Download backup file</button>
+      </div>
+      <div id="send-status-data"></div>
+    </div>
+  </section>
+
+  <!-- 7 AFTER THE CLASS DISCUSSION -->
+  <section class="step" data-step="7">
+    <div class="step-head"><span class="num">7</span><h2>After the class discussion</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body">
+      <div class="note warn">Do this step <b>after</b> your teacher shows the results of the whole class.</div>
+      <div class="q">
+        <div class="qt">Write the relation the class found for the force F that keeps a mass m going around a circle of radius r at speed v.</div>
+        <div class="inline-k">F = <input type="text" data-bind="final.law" style="width:200px" placeholder="your formula"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Check it with one of your own trials. Choose a trial and calculate F with the class formula (<em>m in kg, v in m/s, r in m</em>).</div>
+        <div class="grid2">
+          <label class="f">Trial<select data-bind="final.trial" id="final-trial"></select></label>
+          <label class="f">Your result F (N)<input type="text" inputmode="decimal" data-bind="final.calc" placeholder="e.g. 0.95"></label>
+        </div>
+        <div id="final-check"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Compare your result with the weight of your heavy mass, M·g = <em id="q-weight">…</em>. How close is it? What could explain the difference?</div>
+        <textarea data-bind="final.compare" data-min="10"></textarea>
+        <div class="wc" data-wc="final.compare"></div>
+      </div>
+      <div class="q">
+        <div class="qt">Which sources of error affected your measurements most? Discuss and choose.</div>
+        <div class="checks" id="err-checks"></div>
+        <textarea data-bind="conclusion.errtext" placeholder="Other sources of error, or how you could reduce them (optional)" style="min-height:60px"></textarea>
+      </div>
+      <div class="q">
+        <div class="qt">Conclusion: what force kept the light mass going around? Where did it come from, and how does it depend on the mass, the speed and the radius? Use your numbers and the class results as evidence.</div>
+        <textarea data-bind="conclusion.text" data-min="30" style="min-height:120px"></textarea>
+        <div class="wc" data-wc="conclusion.text"></div>
+      </div>
+      <div class="q">
+        <div class="qt"><span data-team>How did you share the work?</span><span data-solo hidden>How did your group share the work, and what did you do yourself?</span> (Who swung, who timed, who measured the radius, who wrote…)</div>
+        <textarea data-bind="conclusion.roles" data-min="5" style="min-height:60px"></textarea>
+        <div class="wc" data-wc="conclusion.roles"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 SEND FINAL -->
+  <section class="step" data-step="8">
+    <div class="step-head"><span class="num">8</span><h2>Send your final report</h2><span class="status"></span></div>
+    <div class="step-lock"></div>
+    <div class="step-body send-box">
+      <div class="summary" id="summary-final"></div>
+      <div class="row-btns">
+        <button class="btn primary" data-send="final">📤 Send final report</button>
+        <button class="btn" data-download>⬇ Download backup file</button>
+        <button class="btn" id="next-group">👥 New report for the next group</button>
+      </div>
+      <div id="send-status-final"></div>
+    </div>
+  </section>
+</main>
+
+<dialog class="guide" id="guide">
+  <div class="guide-head"><h2>📋 Lab guide: Centripetal Force</h2><button class="pill-btn" data-guide-close>Close</button></div>
+  <div class="guide-body">
+    <p class="note">Read this together before you start. It tells you what you'll do in this lab; the detailed instructions are inside each step of the report. You can open it again at any moment with the <b>📋 Lab guide</b> button at the top.</p>
+
+    <section>
+      <h3>Goal</h3>
+      <p>Anything that goes around in a circle needs a force pulling it toward the center, even at constant speed: the <b>centripetal force</b>. Here the force comes from a string, kept tight by a heavy mass hanging below a tube. You'll measure how fast a light mass goes around for circles of different sizes. Then the class puts the numbers of every group together to find out how the centripetal force depends on the <b>mass</b>, the <b>speed</b> and the <b>radius</b>.</p>
+    </section>
+
+    <section class="guide-cols wide-fig">
+      <div>
+        <h3>What you'll do</h3>
+        <ol>
+          <li><b>Predict</b> (step 2): what happens when you swing faster, with a heavier mass below, or if the string breaks.</li>
+          <li><b>Set up</b> (step 3): find both masses and tie them to the string through the tube.</li>
+          <li><b>Measure</b> (step 4): swing the light mass at constant speed, time 10 laps, pinch the string and measure the radius. Repeat with at least 3 different radii.</li>
+          <li><b>Think it through</b> (step 5): what pulls on the light mass, and how hard.</li>
+          <li><b>Send your data</b> (step 6). Your teacher shows the whole class's numbers and you look for the rule together.</li>
+          <li><b>Check the rule and conclude</b> (steps 7 and 8), then send the final report.</li>
+        </ol>
+      </div>
+      <div>
+        <img class="gif-fig" src="centripetal_setup.gif" alt="Animation of the setup: a light disc going around in a circle above the head on a string that runs down through a vertical tube to a heavy mass hanging still below">
+        <div class="fig-cap">Keep the heavy mass still: then the speed is constant.</div>
+      </div>
+    </section>
+
+    <section>
+      <h3>Materials</h3>
+      <div class="guide-materials">
+        <div class="guide-box"><div class="bt">Each group</div>
+          <ul>
+            <li>Two weights of <b>different mass</b> (you need to know the mass of each)</li>
+            <li>A strong string, about 1.5 m long</li>
+            <li>A PVC tube with smooth edges</li>
+            <li>A stopwatch (or a phone)</li>
+            <li>A meter stick or tape measure, for the radius</li>
+            <li>This page open on one computer</li>
+          </ul>
+        </div>
+        <div class="guide-box"><div class="bt">Roles</div>
+          <ul>
+            <li><b>Swinger</b>: holds the tube, keeps the speed constant, pinches the string at "stop"</li>
+            <li><b>Timer</b>: says "go", counts 10 laps, says "stop"</li>
+            <li><b>Recorder</b>: measures the radius with the swinger and types the data</li>
+            <li>Change roles between trials if you like</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <div class="note warn"><b>Safety:</b> swing only above head height, in an open space, with nobody within 2 m of the swinger. Check both knots before every trial, hold the tube firmly, and stop at once if the mass hits anything.</div>
+  </div>
+  <div class="guide-foot"><button class="btn primary" data-guide-close>Got it, let's start</button></div>
+</dialog>
+
+
+<dialog class="guide" id="who-dlg">
+  <div class="guide-head"><h2>👋 Whose report is this?</h2></div>
+  <div class="guide-body">
+    <p>This computer already has a report for this lab:</p>
+    <div class="note" id="who-cur"></div>
+    <p>Is it yours? If not, start a new report. The one already here is <b>kept on this computer</b>, so it is not lost.</p>
+    <div class="row-btns">
+      <button class="btn primary" id="who-continue">Yes, it's ours: continue</button>
+      <button class="btn" id="who-new">No, start a new report</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="guide" id="arch-dlg">
+  <div class="guide-head"><h2>🗂 Earlier reports on this computer</h2><button class="pill-btn" id="arch-close">Close</button></div>
+  <div class="guide-body">
+    <p class="note">Reports that earlier groups left on this computer. If one was not sent, download it and give the file to your teacher.</p>
+    <div id="arch-list" style="display:grid;gap:8px"></div>
+  </div>
+</dialog>
+
+<footer>
+  Centripetal Force Lab · Ergosfera Teaching Tools · <button id="reset">Start a new report</button> · <button id="arch-open" hidden>Earlier reports on this computer</button>
+</footer>
+
+<script src="../lab-closing.js"></script>
+<script src="../lab-privacy.js"></script>
+<script>
+// ── Config from the link the teacher shares ─────────────────
+const LAB_ID = 'centripetal';
+const params = new URLSearchParams(location.search);
+const API = params.get('api') || '';
+const G = parseFloat(params.get('g')) || 9.8;
+const LINK_SESSION = params.get('session') || '';
+const LINK_MODE = ['group', 'individual'].includes(params.get('mode')) ? params.get('mode') : '';
+const STORE = 'lab_' + LAB_ID + '_' + (LINK_SESSION || 'default');
+
+const MIN_TRIALS = 3;
+const LAPS = 10;
+const ERRORS = [
+  ['speed', 'Speed not constant: the heavy mass moved up or down'],
+  ['timing', 'Starting and stopping the stopwatch (reaction time)'],
+  ['laps', 'Counting the laps'],
+  ['radius', 'The string slipped when pinched, or the radius was measured badly'],
+  ['friction', 'Friction of the string on the edge of the tube'],
+  ['tube', 'The tube moved around too, or the circle was tilted'],
+  ['mass', 'Masses not known precisely'],
+];
+const PRED_FASTER = { up: 'move up, toward the tube', same: 'stay where it is', down: 'move down' };
+
+// ── State ───────────────────────────────────────────────────
+function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+function blank() {
+  return {
+    schema: 1, lab: LAB_ID, id: rid(), session: LINK_SESSION, mode: LINK_MODE, group: '', students: ['', '', ''],
+    g: G, laps: LAPS,
+    masses: { m: '', M: '' },
+    prediction: { faster: '', heavier: '', cut: '', why: '' },
+    data: [{ r: '', t: '' }, { r: '', t: '' }, { r: '', t: '' }],
+    discuss: { trend: '' },
+    answers: { tension: '', force: '', steady: '', tenlaps: '', predcheck: '' },
+    final: { law: '', trial: '', calc: '', compare: '' },
+    conclusion: { errors: [], errtext: '', text: '', roles: '' },
+    startedAt: new Date().toISOString(), unlocked: 1, sent: null, sentFinal: null,
+  };
+}
+let S = blank();
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+  if (saved && saved.lab === LAB_ID && saved.schema === 1) S = Object.assign(blank(), saved);
+} catch (e) {}
+if (LINK_SESSION) S.session = LINK_SESSION;
+if (LINK_MODE) S.mode = LINK_MODE;
+S.g = G;
+
+let saveTimer;
+function save() {
+  S.savedAt = new Date().toISOString();
+  try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {}
+  const el = document.getElementById('save-state');
+  el.textContent = 'Saving…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { el.textContent = 'Saved on this computer ✓'; }, 400);
+}
+
+function getPath(path) { return path.split('.').reduce((o, k) => (o == null ? o : o[k]), S); }
+function setPath(path, v) {
+  const keys = path.split('.'); let o = S;
+  keys.slice(0, -1).forEach(k => { o = o[k]; });
+  o[keys[keys.length - 1]] = v;
+}
+
+// ── Helpers ─────────────────────────────────────────────────
+const num = s => { const v = parseFloat(String(s ?? '').trim().replace(',', '.')); return isFinite(v) ? v : NaN; };
+const words = s => String(s || '').trim().split(/\s+/).filter(Boolean).length;
+function fmt(v, sig = 3) {
+  if (!isFinite(v)) return '—';
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e5 || a < 1e-3) return v.toExponential(sig - 1);
+  return String(parseFloat(v.toPrecision(sig)));
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// Masses in kg, and the weight of the heavy mass (N): the pull of the string while it hangs at rest
+const mKg = () => { const v = num(S.masses.m); return v > 0 ? v / 1000 : NaN; };
+const MKg = () => { const v = num(S.masses.M); return v > 0 ? v / 1000 : NaN; };
+const weight = () => MKg() * S.g;
+
+// One trial per row: r in m, t for 10 laps, period T, speed v (SI)
+function trial(row) {
+  const rc = num(row.r), t = num(row.t);
+  if (!(rc > 0 && t > 0)) return null;
+  const r = rc / 100, T = t / LAPS, v = 2 * Math.PI * r / T;
+  return { rc, r, t, T, v };
+}
+const trials = () => S.data.map((row, i) => { const x = trial(row); return x && Object.assign(x, { i }); }).filter(Boolean);
+
+// ── Steps: completion rules ─────────────────────────────────
+const DONE = {
+  1: () => S.mode && S.group.trim() && S.students[0].trim() && (S.mode === 'individual' || S.students[1].trim()) && S.session.trim(),
+  2: () => S.prediction.faster && S.prediction.heavier && S.prediction.cut && words(S.prediction.why) >= 10,
+  3: () => mKg() > 0 && MKg() > 0,
+  4: () => trials().length >= MIN_TRIALS && words(S.discuss.trend) >= 8,
+  5: () => words(S.answers.tension) >= 10 && words(S.answers.force) >= 10 && words(S.answers.steady) >= 10 && words(S.answers.tenlaps) >= 8 && words(S.answers.predcheck) >= 10,
+  // sent, or saved as a backup file to hand in (a link without the class connection can't send)
+  6: () => !!(S.sent || S.savedData),
+  7: () => S.final.law.trim().length >= 3 && S.final.trial !== '' && isFinite(num(S.final.calc)) && words(S.final.compare) >= 10 && words(S.conclusion.text) >= 30 && words(S.conclusion.roles) >= 5,
+  8: () => !!(S.sentFinal || S.savedFinal),
+};
+const NSTEPS = 8;
+
+function refresh() {
+  // unlock progressively; once unlocked, a step stays open
+  let firstOpen = 1;
+  while (firstOpen < NSTEPS && DONE[firstOpen]()) firstOpen++;
+  S.unlocked = Math.max(S.unlocked || 1, firstOpen);
+
+  const prog = document.getElementById('progress');
+  prog.innerHTML = '';
+  document.querySelectorAll('.step').forEach(sec => {
+    const i = +sec.dataset.step;
+    const done = !!DONE[i]();
+    const locked = i > S.unlocked;
+    sec.classList.toggle('done', done);
+    sec.classList.toggle('locked', locked);
+    sec.classList.toggle('active', !done && !locked);
+    sec.querySelector('.status').textContent = done ? '✓ Done' : locked ? '🔒' : 'In progress';
+    sec.querySelector('.step-lock').textContent = i === 7
+      ? '🔒 Send your data in step 6 to unlock this one. Do it after the class discussion.'
+      : '🔒 Finish step ' + (i - 1) + ' to unlock this one.';
+    const dot = document.createElement('i');
+    if (done) dot.className = 'done'; else if (!locked) dot.className = 'current';
+    prog.appendChild(dot);
+  });
+
+  document.querySelectorAll('[data-wc]').forEach(el => {
+    const path = el.dataset.wc;
+    const min = +document.querySelector(`[data-bind="${path}"]`).dataset.min;
+    const w = words(getPath(path));
+    el.textContent = w + (w === 1 ? ' word' : ' words') + ' · at least ' + min;
+    el.classList.toggle('ok', w >= min);
+  });
+
+  refreshSetup();
+  refreshMeasure();
+  refreshThink();
+  refreshFinal();
+  refreshSummary();
+}
+
+// ── Generic bindings ────────────────────────────────────────
+function bindAll() {
+  document.querySelectorAll('[data-bind]').forEach(el => {
+    const path = el.dataset.bind;
+    el.value = getPath(path) ?? '';
+    el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => { setPath(path, el.value); save(); refresh(); });
+  });
+}
+if (LINK_SESSION) document.getElementById('session-input').readOnly = true;
+
+// Report mode: one report per group, or one per student. The class link can fix it (&mode=…).
+function applyMode() {
+  const solo = S.mode === 'individual';
+  document.querySelectorAll('[data-solo]').forEach(el => { el.hidden = !solo; });
+  document.querySelectorAll('[data-team]').forEach(el => { el.hidden = solo; });
+}
+document.querySelectorAll('input[name=mode]').forEach(r => {
+  r.checked = r.value === S.mode;
+  r.disabled = !!LINK_MODE;
+  r.addEventListener('change', () => { S.mode = r.value; applyMode(); save(); refresh(); });
+});
+applyMode();
+
+[['pred-faster', 'faster'], ['pred-heavier', 'heavier'], ['pred-cut', 'cut']].forEach(([name, key]) => {
+  document.querySelectorAll(`input[name=${name}]`).forEach(r => {
+    r.checked = r.value === S.prediction[key];
+    r.addEventListener('change', () => { S.prediction[key] = r.value; save(); refresh(); });
+  });
+});
+
+const errBox = document.getElementById('err-checks');
+ERRORS.forEach(([id, text]) => {
+  const lab = document.createElement('label');
+  lab.innerHTML = `<input type="checkbox" value="${id}"> <span>${esc(text)}</span>`;
+  const cb = lab.querySelector('input');
+  cb.checked = S.conclusion.errors.includes(id);
+  cb.addEventListener('change', () => {
+    S.conclusion.errors = ERRORS.map(e => e[0]).filter(k => errBox.querySelector(`input[value=${k}]`).checked);
+    save(); refresh();
+  });
+  errBox.appendChild(lab);
+});
+
+// ── Step 3 ──────────────────────────────────────────────────
+function refreshSetup() {
+  const m = num(S.masses.m), M = num(S.masses.M);
+  let html = '';
+  if (m > 0 && M > 0 && m >= M) html = '<div class="note warn">The light mass (on top) must be the <b>lighter</b> one. Check which mass is which.</div>';
+  else if (M > 0) html = `<div class="note">Weight of the heavy mass: M·g = ${fmt(M / 1000)} kg × ${fmt(S.g)} N/kg = <b>${fmt(weight())} N</b>.</div>`;
+  if ((m > 0 && m < 1) || (M > 0 && M < 1)) html += '<div class="note warn">Type the masses in <b>grams</b>, not kilograms.</div>';
+  document.getElementById('mass-note').innerHTML = html;
+}
+
+// ── Step 4: trials table + plot ─────────────────────────────
+const tbody = document.getElementById('tbody');
+function renderTable() {
+  tbody.innerHTML = '';
+  S.data.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="idx">${i + 1}</td>
+      <td><input type="text" inputmode="decimal" data-i="${i}" data-k="r" value="${esc(row.r)}"></td>
+      <td><input type="text" inputmode="decimal" data-i="${i}" data-k="t" value="${esc(row.t)}"></td>
+      <td class="calc" data-T></td><td class="calc" data-v></td>
+      <td><button class="del" title="Delete trial" data-del="${i}">×</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+tbody.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.i == null) return;
+  S.data[+t.dataset.i][t.dataset.k] = t.value;
+  save(); refresh();
+});
+tbody.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.target.dataset.i == null) return;
+  e.preventDefault();
+  const i = +e.target.dataset.i, k = e.target.dataset.k;
+  if (k === 'r') return tbody.querySelector(`input[data-i="${i}"][data-k="t"]`).focus();
+  if (i === S.data.length - 1) addRow();
+  tbody.querySelector(`input[data-i="${i + 1}"][data-k="r"]`).focus();
+});
+tbody.addEventListener('click', e => {
+  const i = e.target.dataset.del;
+  if (i == null) return;
+  const r = S.data[+i];
+  if ((r.r || r.t) && !confirm('Delete trial ' + (+i + 1) + '?')) return;
+  S.data.splice(+i, 1);
+  if (!S.data.length) S.data.push({ r: '', t: '' });
+  // the trial chosen in step 7 refers to a row: keep it pointing at the same one
+  const ft = S.final.trial;
+  if (ft !== '') { if (+ft === +i) S.final.trial = ''; else if (+ft > +i) S.final.trial = String(+ft - 1); }
+  renderTable(); save(); refresh();
+});
+function addRow() { S.data.push({ r: '', t: '' }); renderTable(); save(); refresh(); }
+document.getElementById('add-row').addEventListener('click', () => {
+  addRow();
+  tbody.querySelector(`input[data-i="${S.data.length - 1}"][data-k="r"]`).focus();
+});
+
+function refreshMeasure() {
+  const warns = [];
+  [...tbody.rows].forEach((tr, i) => {
+    const x = trial(S.data[i]), rc = num(S.data[i].r), t = num(S.data[i].t);
+    tr.querySelector('[data-T]').textContent = x ? fmt(x.T) : '';
+    tr.querySelector('[data-v]').textContent = x ? fmt(x.v) : '';
+    let bad = (isFinite(rc) && rc <= 0) || (isFinite(t) && t <= 0);
+    if (isFinite(rc) && rc > 0 && (rc < 10 || rc > 200)) { warns.push(`Trial ${i + 1}: a radius of ${fmt(rc)} cm is unusual. Type it in <b>centimeters</b>.`); bad = true; }
+    if (x && (x.T < 0.15 || x.T > 5)) { warns.push(`Trial ${i + 1}: ${fmt(x.T)} s per lap is unusual. Type the time for <b>all 10 laps</b>, in seconds.`); bad = true; }
+    tr.classList.toggle('bad', bad);
+  });
+  const ts = trials();
+  if (ts.length >= 2) {
+    const rs = ts.map(x => x.rc);
+    if (Math.max(...rs) - Math.min(...rs) < 8) warns.push('Your radii are all about the same. Change the distance of the heavy mass below the tube between trials, to get circles of <b>different sizes</b>.');
+  }
+  const nEl = document.getElementById('n-points');
+  nEl.textContent = ts.length + ' complete trial' + (ts.length === 1 ? '' : 's') +
+    (ts.length < MIN_TRIALS ? ` · at least ${MIN_TRIALS} needed` : '');
+  document.getElementById('data-warn').innerHTML = warns.map(w => `<div class="note warn">${w}</div>`).join('');
+  document.getElementById('discuss-trend').hidden = ts.length < MIN_TRIALS;
+  drawPlot(document.getElementById('plot'), ts);
+}
+
+function niceStep(range, n) {
+  const raw = range / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p;
+}
+// Plot v (m/s) against r (cm), both axes from 0; no fit: the class finds the rule together
+function drawPlot(svg, ts) {
+  const W = 640, H = 380, M = { l: 62, r: 20, t: 18, b: 50 };
+  // 8% headroom so the largest point is never on the edge of the plot
+  const xMax = Math.max(50, ...ts.map(x => x.rc)) * 1.08, yMax = Math.max(2, ...ts.map(x => x.v)) * 1.08;
+  const xStep = niceStep(xMax, 5), yStep = niceStep(yMax, 5);
+  const x1 = Math.ceil(xMax / xStep) * xStep, y1 = Math.ceil(yMax / yStep) * yStep;
+  const X = v => M.l + v / x1 * (W - M.l - M.r);
+  const Y = v => H - M.b - v / y1 * (H - M.t - M.b);
+  let s = '';
+  for (let v = 0; v <= x1 + 1e-9 * xStep; v += xStep) s += `<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${M.t}" y2="${H - M.b}"/><text x="${X(v)}" y="${H - M.b + 18}" text-anchor="middle">${fmt(v)}</text>`;
+  for (let v = 0; v <= y1 + 1e-9 * yStep; v += yStep) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  s += `<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="${M.t}" y2="${H - M.b}"/><line class="axis" x1="${M.l}" x2="${W - M.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 8}" text-anchor="middle">Radius r (cm)</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">Speed v (m/s)</text>`;
+  ts.forEach(x => { s += `<circle class="pt" cx="${X(x.rc)}" cy="${Y(x.v)}" r="6"><title>Trial ${x.i + 1}: r = ${fmt(x.rc)} cm, v = ${fmt(x.v)} m/s</title></circle>`; });
+  if (!ts.length) s += `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">Your trials will appear here as you measure</text>`;
+  svg.innerHTML = s;
+}
+
+// ── Step 5 ──────────────────────────────────────────────────
+function refreshThink() {
+  const ts = trials(), vs = ts.map(x => x.v);
+  const tile = (k, v, u) => `<div class="stat"><div class="k">${k}</div><div class="v">${v} <small>${u}</small></div></div>`;
+  document.getElementById('your-stats').innerHTML =
+    tile('Light mass m', fmt(num(S.masses.m)), 'g') + tile('Heavy mass M', fmt(num(S.masses.M)), 'g') +
+    tile('Trials', ts.length, '') + tile('Speeds', vs.length ? fmt(Math.min(...vs), 2) + '–' + fmt(Math.max(...vs), 2) : '—', 'm/s');
+  document.getElementById('q-pred-faster').textContent = PRED_FASTER[S.prediction.faster] || '…';
+}
+
+// ── Step 7: check the class rule with one trial ─────────────
+const trialSel = document.getElementById('final-trial');
+function refreshFinal() {
+  const ts = trials();
+  const opts = '<option value="">Choose a trial…</option>' + ts.map(x =>
+    `<option value="${x.i}">Trial ${x.i + 1}: r = ${fmt(x.rc)} cm, v = ${fmt(x.v)} m/s</option>`).join('');
+  if (trialSel.dataset.opts !== opts) { trialSel.innerHTML = opts; trialSel.dataset.opts = opts; }
+  trialSel.value = S.final.trial;
+  if (trialSel.value !== S.final.trial) S.final.trial = '';
+
+  document.getElementById('q-weight').textContent = isFinite(weight()) ? fmt(weight()) + ' N' : '…';
+  const out = document.getElementById('final-check');
+  const x = S.final.trial !== '' ? trial(S.data[+S.final.trial] || {}) : null;
+  const calc = num(S.final.calc), W = weight();
+  if (!x || !isFinite(calc)) { out.innerHTML = x ? `<div class="note">Trial ${+S.final.trial + 1}: m = ${fmt(mKg())} kg, v = ${fmt(x.v)} m/s, r = ${fmt(x.r)} m.</div>` : ''; return; }
+  const expect = mKg() * x.v * x.v / x.r;
+  const off = Math.abs(calc - expect) / expect;
+  const diff = (calc - W) / W * 100;
+  let html = `<div class="note">Trial ${+S.final.trial + 1}: m = ${fmt(mKg())} kg, v = ${fmt(x.v)} m/s, r = ${fmt(x.r)} m.</div>`;
+  if (off > 0.05) html += `<div class="note warn">Your result doesn't match these numbers. Check the formula and the units: <b>m in kg, v in m/s, r in m</b>.</div>`;
+  else html += `<div class="note ${Math.abs(diff) <= 15 ? 'good' : 'warn'}">Your result: <b>${fmt(calc)} N</b>. Weight of the heavy mass: <b>${fmt(W)} N</b>. Difference: <b>${fmt(Math.abs(diff), 2)}%</b>${Math.abs(diff) <= 15 ? ' 🎯' : ''}.</div>`;
+  out.innerHTML = html;
+}
+
+// ── Steps 6 and 8: send ─────────────────────────────────────
+function payload() {
+  const { unlocked, guideSeen, ...data } = S;
+  const ts = trials().map(x => ({ ...x, mv2_over_r: mKg() * x.v * x.v / x.r }));
+  return { ...data, stage: DONE[7]() ? 'final' : 'data', m_kg: mKg(), M_kg: MKg(), weight_N: weight(), trials: ts,
+    submittedAt: new Date().toISOString(), client: 'centripetal_lab/1' };
+}
+function refreshSummary() {
+  const names = ['Team', 'Prediction', 'Masses', 'Trials', 'Think it through', 'Data sent', 'After the discussion'];
+  const list = n => names.slice(0, n).map((t, i) => `<div class="${DONE[i + 1]() ? 'ok' : ''}">${t}</div>`).join('');
+  document.getElementById('summary-data').innerHTML = list(5);
+  document.getElementById('summary-final').innerHTML = list(7);
+  document.querySelectorAll('[data-send]').forEach(b => { b.disabled = !API; });
+  ['data', 'final'].forEach(stage => {
+    const st = document.getElementById('send-status-' + stage), when = stage === 'final' ? S.sentFinal : S.sent;
+    const saved = stage === 'final' ? S.savedFinal : S.savedData;
+    if (st.dataset.msg) return;
+    if (!API && saved) st.innerHTML = `<div class="note good">Backup file downloaded at ${new Date(saved).toLocaleTimeString()}. Give that file to your teacher.</div>`;
+    else if (!API) st.innerHTML = '<div class="note warn">This link has no connection to your teacher. Use <b>Download backup file</b> and hand the file in, or ask your teacher for the class link.</div>';
+    else if (when) st.innerHTML = `<div class="note good">Sent at ${new Date(when).toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`;
+    else st.innerHTML = '';
+  });
+}
+function setStatus(stage, html) { const st = document.getElementById('send-status-' + stage); st.dataset.msg = '1'; st.innerHTML = html; }
+
+async function send(stage) {
+  const need = stage === 'final' ? [1, 2, 3, 4, 5, 7] : [1, 2, 3, 4, 5];
+  const missing = need.filter(i => !DONE[i]());
+  if (missing.length && !confirm('Steps ' + missing.join(', ') + ' are not complete. Send anyway?')) return;
+  const btn = document.querySelector(`[data-send="${stage}"]`);
+  btn.disabled = true; setStatus(stage, '<div class="note">Sending…</div>');
+  const body = JSON.stringify(payload());
+  let ok = false, unconfirmed = false, closed = null;
+  try {
+    const r = await fetch(API, { method: 'POST', body });
+    const j = await r.json();
+    if (j.closed) closed = j;   // the teacher has closed this activity: don't send it again blind
+    if (!j.ok) throw new Error(j.error || 'server error');
+    ok = true;
+  } catch (e) {
+    if (!closed) try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; unconfirmed = true; } catch (e2) {}
+  }
+  btn.disabled = false;
+  if (ok) {
+    const now = new Date().toISOString();
+    S.sent = now;
+    if (stage === 'final' && DONE[7]()) S.sentFinal = now;
+    save();
+    setStatus(stage, `<div class="note good">✓ Sent${unconfirmed ? ' (the server did not confirm, so also download a backup to be safe)' : ''} at ${new Date().toLocaleTimeString()}. You can still edit and send again: your teacher sees the latest version.</div>`);
+  } else if (closed) {
+    setStatus(stage, labClosing.refused(closed));
+  } else {
+    setStatus(stage, '<div class="note warn">Could not send: check the internet connection and try again. If it keeps failing, use <b>Download backup file</b> and give the file to your teacher.</div>');
+  }
+  refresh();
+}
+document.querySelectorAll('[data-send]').forEach(b => b.addEventListener('click', () => send(b.dataset.send)));
+// A downloaded backup also hands the work in: it completes step 6 (data) or step 8 (final report)
+document.querySelectorAll('[data-download]').forEach(b => b.addEventListener('click', () => {
+  downloadReport(S);
+  const now = new Date().toISOString();
+  if ([1, 2, 3, 4, 5].every(i => DONE[i]())) S.savedData = S.savedData || now;
+  if (DONE[7]()) S.savedFinal = now;
+  save(); refresh();
+}));
+
+// ── Theme (shared with the tools index) ─────────────────────
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  document.getElementById('theme-toggle').textContent = light ? '☽ Dark' : '☀ Light';
+  try { localStorage.setItem('et_theme', light ? 'light' : 'dark'); } catch (e) {}
+}
+let savedTheme = null; try { savedTheme = localStorage.getItem('et_theme'); } catch (e) {}
+applyTheme(savedTheme === 'light');
+document.getElementById('theme-toggle').addEventListener('click', () => applyTheme(!document.body.classList.contains('light')));
+
+// ── Lab guide: opens by itself the first time, and from the header anytime ──
+const guide = document.getElementById('guide');
+function openGuide() { if (!guide.open) guide.showModal(); }
+document.querySelectorAll('[data-guide]').forEach(b => b.addEventListener('click', openGuide));
+document.querySelectorAll('[data-guide-close]').forEach(b => b.addEventListener('click', () => guide.close()));
+guide.addEventListener('click', e => { if (e.target === guide) guide.close(); });
+guide.addEventListener('close', () => { if (!S.guideSeen) { S.guideSeen = true; save(); } });
+if (!S.guideSeen) openGuide();
+
+
+// ── Several groups on one computer: a report already here is kept, never overwritten ──
+const ARCHIVE = STORE + '_archive', ACK = 'ack_' + STORE;
+function readArchive() { try { return JSON.parse(localStorage.getItem(ARCHIVE) || '[]'); } catch (e) { return []; } }
+const hasWork = r => !!(String(r.group || '').trim() || String((r.students || [])[0] || '').trim());
+const reportWho = r => ['Group ' + (String(r.group || '').trim() || '?'),
+  (r.mode === 'individual' ? [(r.students || [])[0]] : r.students || []).filter(s => s && s.trim()).join(' & ')].filter(Boolean).join(' · ');
+const reportWhen = r => (r.savedAt ? 'last saved ' + new Date(r.savedAt).toLocaleString() : '') ;
+function ack() { try { sessionStorage.setItem(ACK, S.id); } catch (e) {} }
+// Download any report (this one or an earlier one) as the same file the Download button makes
+function downloadReport(r) {
+  const keep = S;
+  let body;
+  S = Object.assign(blank(), r);
+  try { body = JSON.stringify(payload(), null, 2); } finally { S = keep; }
+  const tag = [r.session, 'group' + (r.group || 'X'), r.mode === 'individual' ? (r.students || [])[0] : ''].filter(Boolean).join('_').replace(/[^\w-]+/g, '-');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
+  a.download = `${LAB_ID}_${tag}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+// Keep the current report in the archive (or download it if there is no room), then open an empty one
+function newReport() {
+  let wait = 0;
+  if (hasWork(S)) {
+    const list = readArchive();
+    list.unshift({ ...S, archivedAt: new Date().toISOString() });
+    try { localStorage.setItem(ARCHIVE, JSON.stringify(list.slice(0, 12))); }
+    catch (e) {
+      alert('This computer has no room to keep a copy, so the report will be downloaded as a file. Give that file to your teacher.');
+      downloadReport(S); wait = 1500;
+    }
+  }
+  try { localStorage.removeItem(STORE); sessionStorage.removeItem(ACK); } catch (e) {}
+  setTimeout(() => location.reload(), wait);
+}
+function confirmNew() {
+  if (hasWork(S) && !S.sent && !confirm('This report was not sent yet. It will be kept on this computer, so it is not lost. Start a new report?')) return;
+  newReport();
+}
+
+const whoDlg = document.getElementById('who-dlg');
+whoDlg.addEventListener('cancel', e => e.preventDefault());
+document.getElementById('who-continue').addEventListener('click', () => { ack(); whoDlg.close(); });
+document.getElementById('who-new').addEventListener('click', confirmNew);
+document.getElementById('next-group').addEventListener('click', confirmNew);
+document.getElementById('reset').addEventListener('click', confirmNew);
+let acked = null; try { acked = sessionStorage.getItem(ACK); } catch (e) {}
+if (hasWork(S) && acked !== S.id) {
+  document.getElementById('who-cur').innerHTML = `<b>${esc(reportWho(S))}</b>` +
+    (reportWhen(S) ? ' · ' + reportWhen(S) : '') + (S.sent ? ' · sent to the teacher ✓' : ' · <b>not sent yet</b>');
+  if (guide.open) guide.close();
+  whoDlg.showModal();
+} else ack();
+
+const archDlg = document.getElementById('arch-dlg');
+function renderArchive() {
+  const list = readArchive();
+  document.getElementById('arch-open').hidden = !list.length;
+  document.getElementById('arch-open').textContent = `Earlier reports on this computer (${list.length})`;
+  document.getElementById('arch-list').innerHTML = list.map((r, i) => `
+    <div class="note${r.sent ? ' good' : ' warn'}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <span style="flex:1;min-width:200px"><b>${esc(reportWho(r))}</b>${r.session ? ' · session ' + esc(r.session) : ''}<br>
+      <span style="font-size:.8rem">${esc(reportWhen(r))}${r.sent ? ' · sent ✓' : ' · not sent'}</span></span>
+      <button class="btn" data-arch="${i}">⬇ Download</button>
+    </div>`).join('');
+}
+document.getElementById('arch-open').addEventListener('click', () => { renderArchive(); archDlg.showModal(); });
+document.getElementById('arch-close').addEventListener('click', () => archDlg.close());
+document.getElementById('arch-list').addEventListener('click', e => {
+  const i = e.target.dataset.arch;
+  if (i != null) downloadReport(readArchive()[+i]);
+});
+renderArchive();
+
+bindAll();
+renderTable();
+refresh();
+labPrivacy.init({ api: API, live: false });
+labClosing.watch(API, LAB_ID, S.session);
+</script>
+</body>
+</html>

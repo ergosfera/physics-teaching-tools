@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Centripetal Force Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="../lab-teacher.css">
+</head>
+<body>
+<script src="../lab-teacher.js"></script>
+<script>
+// Centripetal Force: the parts specific to this lab. Everything else comes from ../lab-teacher.js.
+// Each group has its own pair of masses and swings at several radii. The groups never see the law:
+// the class slides build it step by step, F against v, v², v²/r and finally m·v²/r (slope 1).
+//
+// Why r is the string length: the string droops below the horizontal by an angle θ, so the circle's
+// radius is r·cosθ and only T·cosθ points to the center. Both cosθ cancel: T = 4π²·m·r / P², which is
+// exactly m·v²/r with v = 2πr/P. So r measured from the top of the tube to the mass is the right one.
+const G_REF = 9.8;
+const PRED_FASTER = { up: 'Moves up', same: 'Stays', down: 'Moves down' };
+const PRED_HEAVIER = { faster: 'Faster', same: 'Same speed', slower: 'Slower' };
+const PRED_CUT = { out: 'Straight out', tangent: 'Along the tangent', curve: 'On a curve' };
+
+// Every trial of the groups shown, as a point; x is chosen per graph
+const allTrials = groups => groups.flatMap(G => G.trials.map(t => ({ ...t, G })));
+// Class fit of F against m·v²/r through the origin: its slope should be 1
+function classFit(groups) {
+  const p = allTrials(groups).map(t => ({ x: t.mv2r, y: t.F })), n = p.length;
+  if (n < 3) return null;
+  const sxx = p.reduce((a, q) => a + q.x * q.x, 0), k = p.reduce((a, q) => a + q.x * q.y, 0) / sxx;
+  const ssr = p.reduce((a, q) => a + (q.y - k * q.x) ** 2, 0), my = p.reduce((a, q) => a + q.y, 0) / n;
+  const syy = p.reduce((a, q) => a + (q.y - my) ** 2, 0);
+  return { n, k, b: 0, sk: Math.sqrt(ssr / (n - 1) / sxx), r2: syy > 0 ? 1 - ssr / syy : 1 };
+}
+
+// ── Plots ───────────────────────────────────────────────────
+// series: [{ pts: [{x, y, tip?}], fit?, color, name }]. o.ref draws a dashed line y = o.ref · x. Both axes include 0.
+function plotXY(svg, series, o, W = 720, H = 420) {
+  const M = { l: 72, r: 20, t: 18, b: 50 };
+  const all = series.flatMap(s => s.pts);
+  const xv = all.map(p => p.x), yv = all.map(p => p.y);
+  const xMax = (Math.max(...xv, 0) || 1) * 1.05, yMax = (Math.max(...yv, 0) || 1) * 1.05;   // headroom: no point on the edge
+  const xStep = niceStep(xMax, 6), yStep = niceStep(yMax, 6);
+  const x1 = Math.ceil(xMax / xStep) * xStep, y1 = Math.ceil(yMax / yStep) * yStep;
+  const X = v => M.l + v / x1 * (W - M.l - M.r);
+  const Y = v => H - M.b - v / y1 * (H - M.t - M.b);
+  let s = `<defs><clipPath id="clip-${svg.id}"><rect x="${M.l}" y="${M.t}" width="${W - M.l - M.r}" height="${H - M.t - M.b}"/></clipPath></defs>`;
+  for (let v = 0; v <= x1 + 1e-9 * xStep; v += xStep) s += `<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${M.t}" y2="${H - M.b}"/><text x="${X(v)}" y="${H - M.b + 18}" text-anchor="middle">${fmt(v)}</text>`;
+  for (let v = 0; v <= y1 + 1e-9 * yStep; v += yStep) s += `<line class="grid" x1="${M.l}" x2="${W - M.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${M.l - 8}" y="${Y(v) + 4}" text-anchor="end">${fmt(v)}</text>`;
+  s += `<line class="axis" x1="${X(0)}" x2="${X(0)}" y1="${M.t}" y2="${H - M.b}"/><line class="axis" x1="${M.l}" x2="${W - M.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  s += `<text class="lbl" x="${(M.l + W - M.r) / 2}" y="${H - 8}" text-anchor="middle">${o.xl}</text>`;
+  s += `<text class="lbl" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">${o.yl}</text>`;
+  if (o.ref) s += `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(x1)}" y2="${Y(o.ref * x1)}" stroke="var(--text)" stroke-width="1.5" stroke-dasharray="6 4" opacity=".6" clip-path="url(#clip-${svg.id})"/>`;
+  series.forEach(sr => {
+    if (!sr.fit) return;
+    const f = x => sr.fit.k * x + sr.fit.b;
+    s += `<line x1="${X(0)}" y1="${Y(f(0))}" x2="${X(x1)}" y2="${Y(f(x1))}" stroke="${sr.color}" stroke-width="${sr.wide ? 3 : 2}" stroke-opacity=".8" clip-path="url(#clip-${svg.id})"/>`;
+  });
+  series.forEach(sr => sr.pts.forEach(p => {
+    s += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="5.5" fill="${p.color || sr.color}" stroke="var(--surface)" stroke-width="1.5"><title>${esc(p.name || sr.name)}${p.tip ? ' · ' + esc(p.tip) : ''}</title></circle>`;
+  }));
+  if (!all.length) s += `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">No data yet</text>`;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+}
+
+// The four class graphs, all with the force F = M·g on the y axis and one point per trial
+const XS = {
+  v: { f: t => t.v, xl: 'Speed v (m/s)' },
+  v2: { f: t => t.v * t.v, xl: 'v² (m²/s²)' },
+  v2r: { f: t => t.v * t.v / t.r, xl: 'v² / r (m/s²)' },
+  mv2r: { f: t => t.mv2r, xl: 'm · v² / r (N)' },
+};
+function plotF(svg, groups, which, W, H) {
+  const x = XS[which];
+  const series = groups.map(G => ({ color: G.color, name: label(G) + ` · m=${fmt(G.m * 1000)} g, M=${fmt(G.M * 1000)} g`,
+    pts: G.trials.map(t => ({ x: x.f(t), y: t.F, tip: `r=${fmt(t.rc)} cm, v=${fmt(t.v)} m/s, F=${fmt(t.F)} N` })) }));
+  const last = which === 'mv2r';
+  if (last) series.push({ pts: [], fit: classFit(groups), color: 'var(--text)', name: 'Class', wide: true });
+  plotXY(svg, series, { xl: x.xl, yl: 'Force F = M·g (N)', ref: last ? 1 : 0 }, W, H);
+}
+// v² against r for each group, with its own fit: the slope is F/m, different for each pair of masses
+function plotV2R(svg, groups, W, H) {
+  plotXY(svg, groups.map(G => ({ color: G.color, fit: G.fitV2R, name: label(G) + ` · F/m = ${fmt(G.F / G.m)} N/kg`,
+    pts: G.trials.map(t => ({ x: t.r, y: t.v * t.v, tip: `r=${fmt(t.rc)} cm, v²=${fmt(t.v * t.v)} m²/s²` })) })),
+    { xl: 'Radius r (m)', yl: 'v² (m²/s²)' }, W, H);
+}
+
+function classTiles(on) {
+  const cf = classFit(on), ratios = allTrials(on).map(t => t.mv2r / t.F);
+  return `<div class="tile"><div class="k">Slope of F vs m·v²/r</div><div class="v">${cf ? fmt(cf.k) : '—'}</div><div class="s">${cf ? `± ${fmt(cf.sk, 2)} · R² ${cf.r2.toFixed(3)} · should be 1` : 'needs 3 trials'}</div></div>
+    <div class="tile"><div class="k">Median m·v²/r ÷ M·g</div><div class="v">${ratios.length ? fmt(median(ratios)) : '—'}</div><div class="s">${ratios.length} trials from ${on.filter(G => G.trials.length).length} groups</div></div>`;
+}
+
+LabTeacher({
+  id: 'centripetal',
+  title: 'Centripetal Force',
+  icon: '🌀',
+  studentPage: 'centripetal_lab.html',
+  tagline: 'Each group swings its own pair of masses at several radii · the class builds F = m·v²/r',
+
+  errors: {
+    speed: 'Speed not constant', timing: 'Stopwatch reaction time', laps: 'Counting laps',
+    radius: 'String slipped / radius measured badly', friction: 'Friction on the tube edge', tube: 'Tube moved / circle tilted', mass: 'Masses imprecise',
+  },
+  questions: [
+    { id: 'prediction', title: 'Predictions: swinging faster, a heavier mass below, and the string breaking', get: s => s.prediction?.why, chart: 'pred' },
+    { id: 'trend', title: 'Same heavy mass: bigger circle, faster or slower? A straight line?', get: s => s.discuss?.trend },
+    { id: 'tension', title: 'How hard does the string pull on the light mass? Why?', get: s => s.answers?.tension },
+    { id: 'force', title: 'Which way does the force point? What would happen without it?', get: s => s.answers?.force },
+    { id: 'steady', title: 'Why must the heavy mass stay at the same height?', get: s => s.answers?.steady },
+    { id: 'tenlaps', title: 'Why time 10 laps instead of one?', get: s => s.answers?.tenlaps },
+    { id: 'predcheck', title: 'Swinging faster: what did they see?', get: s => s.answers?.predcheck },
+    { id: 'law', title: 'After the discussion: F = …', get: s => s.final?.law },
+    { id: 'compare', title: 'Their trial against M·g: how close, and why the difference?', get: s => s.final?.compare },
+    { id: 'errors', title: 'Sources of error', get: s => s.conclusion?.errtext, chart: 'errors' },
+    { id: 'conclusion', title: 'Conclusion', get: s => s.conclusion?.text },
+    { id: 'roles', title: 'How did the group share the work?', get: s => s.conclusion?.roles },
+  ],
+  questionChart(q) {
+    const tally = (key, names) => {
+      const counts = {}; GROUPS.forEach(G => { const c = G.s.prediction?.[key]; if (c) counts[c] = (counts[c] || 0) + 1; });
+      return `<div class="bars">${Object.keys(names).map(c => bar(names[c], counts[c] || 0)).join('')}</div>`;
+    };
+    return `<div class="muted" style="font-size:.8rem">Swinging faster, the heavy mass…</div>${tally('faster', PRED_FASTER)}
+      <div class="muted" style="font-size:.8rem;margin-top:8px">With a heavier mass below, they must swing…</div>${tally('heavier', PRED_HEAVIER)}
+      <div class="muted" style="font-size:.8rem;margin-top:8px">If the string breaks, the light mass flies…</div>${tally('cut', PRED_CUT)}`;
+  },
+  answerPrefix: (q, s) => q.id === 'prediction' && s.prediction?.faster
+    ? [PRED_FASTER[s.prediction.faster], PRED_HEAVIER[s.prediction.heavier], PRED_CUT[s.prediction.cut]].filter(Boolean).join(' · ') + '.' : '',
+
+  // Recomputed from the raw numbers they typed, never from the values the page sent
+  analyze(s) {
+    const g = num(s.g) || G_REF, laps = num(s.laps) || 10;
+    const mg = num(s.masses?.m), Mg = num(s.masses?.M);
+    const m = mg > 0 ? mg / 1000 : NaN, M = Mg > 0 ? Mg / 1000 : NaN, F = M * g;
+    const rows = (s.data || []).map(r => ({ rc: num(r.r), t: num(r.t) }));
+    const trials = m > 0 && M > 0 ? rows.filter(r => r.rc > 0 && r.t > 0).map(r => {
+      const rr = r.rc / 100, P = r.t / laps, v = 2 * Math.PI * rr / P;
+      return { rc: r.rc, r: rr, t: r.t, P, v, F, mv2r: m * v * v / rr };
+    }) : [];
+    const ratios = trials.map(t => t.mv2r / F);
+    const fitV2R = trials.length >= 2 ? linfit(trials.map(t => ({ x: t.r, y: t.v * t.v }))) : null;
+    const final = s.final || {}, ft = final.trial !== '' && final.trial != null ? rows[+final.trial] : null;
+    return { g, m, M, F, trials, ratio: ratios.length ? median(ratios) : NaN, fitV2R, finalTrial: ft, stage: s.stage || (final.law ? 'final' : 'data') };
+  },
+  checks(G) {
+    const s = G.s, out = [];
+    if (!(G.m > 0) || !(G.M > 0)) out.push(['Masses missing', 'red']);
+    else if (G.m >= G.M) out.push(['Light mass ≥ heavy mass?', 'red']);
+    if (G.trials.length < 3) out.push(['Only ' + G.trials.length + ' trials', 'red']);
+    const rs = G.trials.map(t => t.rc);
+    if (rs.length >= 2 && Math.max(...rs) - Math.min(...rs) < 8) out.push(['Radii all similar', '']);
+    if (G.trials.some(t => t.rc < 10 || t.rc > 200)) out.push(['Radius in cm?', 'red']);
+    if (G.trials.some(t => t.P < 0.15 || t.P > 5)) out.push(['Time for 10 laps?', 'red']);
+    if (isFinite(G.ratio)) {
+      const off = Math.abs(G.ratio - 1);
+      if (off > 0.4) out.push(['m·v²/r far from M·g', 'red']);
+      else if (off > 0.2) out.push(['m·v²/r ≠ M·g by ' + fmt(off * 100, 2) + '%', '']);
+    }
+    if (G.stage !== 'final') out.push(['Final report not sent yet', '']);
+    return out;
+  },
+
+  summaryHtml: `
+    <div class="two">
+      <div class="card">
+        <h3>The class result: F = M·g against m·v²/r</h3>
+        <svg class="plot" id="mv2r-plot" viewBox="0 0 720 420"></svg>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">Each point is one trial, colored by group. The dashed line is F = m·v²/r (slope 1); the solid line is the fit of every trial through the origin. Use ▶ Projector to build up to this graph with the class: F against v, v², v²/r, then m·v²/r.</div>
+      </div>
+      <div class="card">
+        <h3>F against v²/r</h3>
+        <svg class="plot" id="v2r-plot" viewBox="0 0 720 420"></svg>
+        <div class="muted" style="font-size:.78rem;margin-top:6px">Before multiplying by m: each group falls on its own line, with a steeper line for a lighter mass on top.</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <h3>Each group: v² against r</h3>
+      <svg class="plot" id="all-plot" viewBox="0 0 720 420"></svg>
+      <div class="legend" id="legend"></div>
+      <div class="muted" style="font-size:.78rem;margin-top:6px">With the same masses the force is the same in every trial, and v² grows in proportion to r. The slope of each line is F/m. The radius students measure (top of the tube to the mass) is the right one even though the string droops: the angle cancels out.</div>
+    </div>`,
+  renderSummary(on) {
+    const n = GROUPS.reduce((a, G) => a + G.trials.length, 0), fin = GROUPS.filter(G => G.stage === 'final').length;
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Reports</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'}</div></div>
+      <div class="tile"><div class="k">Trials</div><div class="v">${n}</div><div class="s">from every report</div></div>
+      ${classTiles(on)}
+      <div class="tile"><div class="k">Final reports</div><div class="v">${fin}<small>/${GROUPS.length}</small></div><div class="s">sent after the discussion</div></div>`;
+    plotF(document.getElementById('mv2r-plot'), on, 'mv2r');
+    plotF(document.getElementById('v2r-plot'), on, 'v2r');
+    plotV2R(document.getElementById('all-plot'), on);
+  },
+
+  resultsHead: '<th>m (g)</th><th>M (g)</th><th>F = M·g (N)</th><th>Trials</th><th>r (cm)</th><th>v (m/s)</th><th>m·v²/r ÷ M·g</th><th>Their law</th>',
+  resultsRow(G) {
+    const rs = G.trials.map(t => t.rc), vs = G.trials.map(t => t.v), range = (a, d) => a.length ? fmt(Math.min(...a), d) + '–' + fmt(Math.max(...a), d) : '—';
+    return `<td>${fmt(G.m * 1000)}</td><td>${fmt(G.M * 1000)}</td><td>${fmt(G.F)}</td><td>${G.trials.length}</td>
+      <td>${range(rs, 3)}</td><td>${range(vs, 2)}</td>
+      <td>${isFinite(G.ratio) ? `<b>${fmt(G.ratio)}</b>` : '—'}</td>
+      <td>${G.s.final?.law ? 'F = ' + esc(G.s.final.law) : '<span class="muted">—</span>'}</td>`;
+  },
+
+  slides(on) {
+    const legend = `<div class="legend">${on.map(G => `<span class="chip"><i style="background:${G.color}"></i>${esc(label(G))} · m ${fmt(G.m * 1000)} g · M ${fmt(G.M * 1000)} g</span>`).join('')}</div>`;
+    const slide = (which, title) => ({ html: `<h2>${title}</h2><div class="plot-wrap"><svg class="plot" id="show-${which}"></svg></div>${legend}`,
+      draw: () => plotF(document.getElementById('show-' + which), on, which) });
+    return [
+      { html: `<h2>Each group: same masses, different circles. v² against r</h2><div class="plot-wrap"><svg class="plot" id="show-v2r-groups"></svg></div>${legend}`,
+        draw: () => plotV2R(document.getElementById('show-v2r-groups'), on) },
+      slide('v', 'The pull of the string against the speed: does a faster mass always need more force?'),
+      slide('v2', 'The force against v²'),
+      slide('v2r', 'The force against v² / r'),
+      { html: `<h2>The force against m · v² / r</h2><div class="tiles">${classTiles(on)}</div>
+        <div class="plot-wrap"><svg class="plot" id="show-mv2r"></svg></div>`,
+        draw: () => plotF(document.getElementById('show-mv2r'), on, 'mv2r') },
+    ];
+  },
+
+  detail(G) {
+    const s = G.s, f = s.final || {}, ft = G.finalTrial, c = s.conclusion || {};
+    const ftx = ft && ft.rc > 0 && ft.t > 0 ? G.trials.find(t => t.rc === ft.rc && t.t === ft.t) : null;
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">Masses</div><div class="v">${fmt(G.m * 1000)} <small>g</small> · ${fmt(G.M * 1000)} <small>g</small></div><div class="s">light m on top · heavy M below · F = M·g = ${fmt(G.F)} N</div></div>
+        <div class="tile"><div class="k">m·v²/r ÷ M·g</div><div class="v">${fmt(G.ratio)}</div><div class="s">median of ${G.trials.length} trials · 1 is perfect</div></div>
+        <div class="tile"><div class="k">v² vs r</div><div class="v">${G.fitV2R ? fmt(G.fitV2R.k) : '—'} <small>m/s²</small></div><div class="s">slope; F/m = ${fmt(G.F / G.m)} N/kg · R² ${G.fitV2R ? G.fitV2R.r2.toFixed(3) : '—'}</div></div>
+        <div class="tile"><div class="k">Their check</div><div class="v" style="font-size:1rem">F = ${esc(f.law || '—')}<br>${esc(f.calc || '—')} N</div><div class="s">${ftx ? `trial r=${fmt(ftx.rc)} cm: m·v²/r = ${fmt(ftx.mv2r)} N` : 'no trial chosen'}</div></div>
+        ${sentTile(G)}
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="two">
+        <div class="card"><h3>v² against r</h3><svg class="plot" id="detail-plot"></svg></div>
+        <div class="card"><h3>Trials (${G.stage === 'final' ? 'final report' : 'data only, before the discussion'})</h3>
+          <div class="table-wrap"><table class="t"><thead><tr><th>r (cm)</th><th>t, 10 laps (s)</th><th>T (s)</th><th>v (m/s)</th><th>m·v²/r (N)</th><th>÷ M·g</th></tr></thead><tbody>
+          ${G.trials.map(t => `<tr><td>${fmt(t.rc, 4)}</td><td>${fmt(t.t, 4)}</td><td>${fmt(t.P)}</td><td>${fmt(t.v)}</td><td>${fmt(t.mv2r)}</td><td>${fmt(t.mv2r / t.F)}</td></tr>`).join('')}
+          </tbody></table></div></div>
+      </div>
+      <div class="answers">
+        ${detailAnswer('Prediction: ' + [PRED_FASTER[s.prediction?.faster], PRED_HEAVIER[s.prediction?.heavier], PRED_CUT[s.prediction?.cut]].map(x => x || '—').join(' · '), s.prediction?.why)}
+        ${detailAnswer('Bigger circle: faster or slower? A straight line?', s.discuss?.trend)}
+        ${detailAnswer('How hard does the string pull?', s.answers?.tension)}
+        ${detailAnswer('Direction of the force; without it?', s.answers?.force)}
+        ${detailAnswer('Why keep the heavy mass still?', s.answers?.steady)}
+        ${detailAnswer('Why 10 laps?', s.answers?.tenlaps)}
+        ${detailAnswer('Swinging faster: what they saw', s.answers?.predcheck)}
+        ${detailAnswer('Their trial against M·g', f.compare)}
+        ${detailAnswer(errorsTitle(c), c.errtext)}
+        ${detailAnswer('Conclusion', c.text)}
+        ${detailAnswer('How they shared the work', c.roles)}
+      </div>`;
+  },
+  drawDetail: G => plotV2R(document.getElementById('detail-plot'), [G], 640, 380),
+
+  computed: G => ({ m_kg: G.m, M_kg: G.M, F_N: G.F, trials: G.trials, median_mv2r_over_Mg: isFinite(G.ratio) ? G.ratio : null, v2_vs_r_fit: G.fitV2R }),
+  csv: {
+    head: ['session', 'group', 'students', 'stage', 'm_g', 'M_g', 'F_N', 'trial', 'r_cm', 't_10laps_s', 'period_s', 'v_m_s', 'v2_over_r', 'mv2_over_r_N', 'ratio_to_Mg', 'law'],
+    rows: G => G.trials.length
+      ? G.trials.map((t, i) => [G.s.session, G.s.group, who(G), G.stage, G.m * 1000, G.M * 1000, G.F, i + 1, t.rc, t.t, t.P, t.v, t.v * t.v / t.r, t.mv2r, t.mv2r / t.F, G.s.final?.law])
+      : [[G.s.session, G.s.group, who(G), G.stage, G.m * 1000, G.M * 1000, G.F, '', '', '', '', '', '', '', '', G.s.final?.law]],
+  },
+
+  demo() {
+    const rnd = (a, b) => a + Math.random() * (b - a);
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz',
+      'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva', 'Camila Torres', 'Daniel Ramírez', 'Sara Medina', 'Felipe Ríos'];
+    // [m, M] in grams: different pairs, so the class sees the mass dependence too
+    const PAIRS = [[20, 100], [20, 200], [50, 200], [50, 100], [20, 150], [30, 250], [50, 250], [30, 100]];
+    const texts = {
+      trend: ['With a bigger circle the mass went faster. The points go up but they bend a little, so maybe not a straight line.', 'Bigger circle, faster.'],
+      tension: ['The heavy mass is at rest, so the net force on it is zero: the string pulls it up as hard as its weight. The same string pulls the light mass, so the pull is M·g.', 'The string pulls with the weight.'],
+      force: ['It points to the center of the circle, toward the tube. Without it the mass would go off in a straight line along the tangent.', 'Toward the center.'],
+      steady: ['If the heavy mass stays still, the radius and the speed don\'t change. If it moved up, the light mass would be speeding up and the circle growing.', 'So the speed is the same.'],
+      tenlaps: ['One lap is under a second, and our reaction time is about 0.2 s. With 10 laps that error is spread over a long time, so it is ten times smaller per lap.', 'It is more precise.'],
+      predcheck: ['We predicted the heavy mass would go up and it did: when the swinger went faster, the heavy mass climbed toward the tube and the circle got bigger.', 'We thought it would stay, but it went up.'],
+      compare: ['We got 0.95 N and the weight is 0.98 N, only 3% less. The string rubs on the edge of the tube, and the timing is not perfect.', 'It was close.'],
+      conclusion: ['The force that kept the light mass going around was the tension of the string, which pointed to the center and was equal to the weight of the heavy mass. With the same force a bigger circle needed more speed. The class found F = m·v²/r, and our trials gave values within 5% of M·g.', 'The force is the tension and F = mv²/r.'],
+      roles: ['Laura swung, Juan timed the laps and we both measured the radius.', 'We took turns.'],
+    };
+    const reports = [];
+    for (let gi = 1; gi <= 8; gi++) {
+      const good = gi !== 4 && gi !== 7, [mg, Mg] = PAIRS[gi - 1], fric = rnd(0.92, 1.0);   // friction on the tube lip lowers the pull
+      const data = [0.35, 0.5, 0.65, 0.8].slice(0, gi === 7 ? 2 : 4).map(L0 => {
+        const L = L0 * rnd(0.92, 1.08), P = 2 * Math.PI * Math.sqrt(mg * L / (Mg * fric * 9.8));
+        const t = 10 * P + rnd(-0.15, 0.15) * (good ? 1 : 4);
+        return { r: (L * 100).toFixed(1), t: t.toFixed(2) };
+      });
+      const pick = k => good ? texts[k][0] : texts[k][1], fin = gi <= 6;
+      reports.push({
+        schema: 1, lab: 'centripetal', id: 'demo' + gi, session: 'DEMO', group: String(gi), mode: 'group', students: [names[gi * 2 - 2], names[gi * 2 - 1], ''],
+        g: 9.8, laps: 10, masses: { m: String(mg), M: String(Mg) },
+        prediction: { faster: gi === 3 ? 'same' : gi === 8 ? 'down' : 'up', heavier: gi === 5 ? 'slower' : 'faster', cut: ['tangent', 'out', 'tangent', 'curve', 'tangent', 'out', 'tangent', 'tangent'][gi - 1],
+          why: 'Going faster needs more force to keep it on the circle, so the string pulls harder on the heavy mass and lifts it.' },
+        data, discuss: { trend: pick('trend') },
+        answers: { tension: pick('tension'), force: pick('force'), steady: pick('steady'), tenlaps: pick('tenlaps'), predcheck: pick('predcheck') },
+        final: fin ? { law: good ? 'm·v²/r' : 'm·v²', trial: '1', calc: '', compare: pick('compare') } : { law: '', trial: '', calc: '', compare: '' },
+        conclusion: { errors: fin ? ['speed', 'timing', 'laps', 'radius', 'friction', 'tube', 'mass'].filter(() => Math.random() < 0.4) : [],
+          errtext: gi === 2 ? 'The tube kept moving in a circle too, so the radius was not fixed.' : '', text: fin ? pick('conclusion') : '', roles: fin ? pick('roles') : '' },
+        stage: fin ? 'final' : 'data',
+        startedAt: new Date().toISOString(), submittedAt: new Date(Date.now() - (9 - gi) * 60000).toISOString(),
+      });
+      if (fin) {
+        const L = this.analyze(reports[gi - 1]), t = L.trials[1];
+        reports[gi - 1].final.calc = t ? fmt(gi === 3 ? t.mv2r * 1000 : t.mv2r) : '';
+      }
+    }
+    return reports;
+  },
+});
+</script>
+</body>
+</html>
