@@ -46,7 +46,6 @@ button, input, select { font: inherit; color: inherit; }
 a { color: var(--accent); }
 
 #theme-toggle {
-  position: fixed; bottom: 10px; right: 10px; z-index: 50;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 20px; padding: 5px 12px; cursor: pointer;
   font-size: 0.8rem; font-weight: 600; color: var(--muted); user-select: none;
@@ -161,6 +160,7 @@ select { background: var(--surface); border: 1px solid var(--border); border-rad
     <button class="tabbtn" data-tab="collide">🎱 Collisions</button>
   </nav>
   <button id="credits-btn">Credits</button>
+  <button id="theme-toggle" title="Light / dark">🌙</button>
 </div>
 
 <div id="app">
@@ -189,7 +189,7 @@ select { background: var(--surface); border: 1px solid var(--border); border-rad
       <label class="chk"><input type="checkbox" id="sc-edge" checked> Show the typical atom size</label>
       <label class="chk"><input type="checkbox" id="sc-shimmer" checked> Electron shimmer</label>
       <p class="note">Each dot marks a place where an electron could be found. The cloud has no sharp edge, so the size of an atom is only approximate.</p>
-      <div class="credit">The to-scale zoom is the idea of <a href="https://www.drjonesphysics.com/atom-explorer" target="_blank" rel="noopener">Inside the Atom</a> by <b>Dr Jones Physics</b>, rebuilt here from scratch. Do try the original.</div>
+      <div class="credit">The to-scale zoom is the idea of <a href="https://www.drjonesphysics.com/atom-explorer" target="_blank" rel="noopener">Inside the Atom</a> by <b>Dan Jones</b> (Dr Jones Physics), rebuilt here from scratch. Do try the original.</div>
     </aside>
     <div class="stage"><canvas id="cv-scale"></canvas></div>
   </section>
@@ -276,7 +276,7 @@ select { background: var(--surface); border: 1px solid var(--border); border-rad
       </div>
       <div id="co-ctrl"></div>
       <div class="card info" id="co-info"></div>
-      <div class="credit">The alpha-scattering challenge follows the idea in <a href="https://www.drjonesphysics.com/atom-explorer" target="_blank" rel="noopener">Inside the Atom</a> by <b>Dr Jones Physics</b>, rebuilt here from scratch.</div>
+      <div class="credit">The alpha-scattering challenge follows the idea in <a href="https://www.drjonesphysics.com/atom-explorer" target="_blank" rel="noopener">Inside the Atom</a> by <b>Dan Jones</b> (Dr Jones Physics), rebuilt here from scratch.</div>
     </aside>
     <div class="stage"><canvas id="cv-collide"></canvas></div>
   </section>
@@ -287,9 +287,9 @@ select { background: var(--surface); border: 1px solid var(--border); border-rad
   <div class="box">
     <h2>Credits</h2>
     <p>This page puts together ideas from three excellent simulations. It was written from scratch: no code or images were copied, and it is not affiliated with or endorsed by their authors. Please use and share the originals.</p>
-    <h3>Dr Jones Physics</h3>
+    <h3>Dan Jones (Dr Jones Physics)</h3>
     <ul>
-      <li><a href="https://www.drjonesphysics.com/atom-explorer" target="_blank" rel="noopener">Inside the Atom: a to-scale explorer</a> by Dr Jones. Source of the to-scale zoom in <b>Scale</b> and of the alpha-scattering challenge in <b>Collisions</b>. Support Dr Jones's work at <a href="https://ko-fi.com/hookean1" target="_blank" rel="noopener">ko-fi.com/hookean1</a>.</li>
+      <li><a href="https://www.drjonesphysics.com/atom-explorer" target="_blank" rel="noopener">Inside the Atom: a to-scale explorer</a> by Dan Jones. Source of the to-scale zoom in <b>Scale</b> and of the alpha-scattering challenge in <b>Collisions</b>. Support Dan Jones's work at <a href="https://ko-fi.com/hookean1" target="_blank" rel="noopener">ko-fi.com/hookean1</a>.</li>
     </ul>
     <h3>PhET Interactive Simulations, University of Colorado Boulder</h3>
     <ul>
@@ -309,7 +309,6 @@ select { background: var(--surface); border: 1px solid var(--border); border-rad
   </div>
 </div>
 
-<button id="theme-toggle">🌙</button>
 
 <script>
 /* ═════════════════ shared helpers ═════════════════ */
