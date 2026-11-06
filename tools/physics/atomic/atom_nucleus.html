@@ -142,6 +142,8 @@ select { background: var(--surface); border: 1px solid var(--border); border-rad
 @media (max-width: 820px) {
   html, body { overflow: auto; height: auto; }
   #app { flex-direction: column; }
+  #top-bar h1 { flex: 1; }
+  #tabs { order: 3; flex-basis: 100%; }
   .tab.active { flex-direction: column; }
   .panel { width: auto; border-right: 0; border-bottom: 1px solid var(--border); padding-bottom: 14px; overflow: visible; }
   .stage { height: 72vh; flex: none; }
@@ -541,7 +543,7 @@ TABS.scale = (() => {
     { sym: 'Au', name: 'Gold', Z: 79, A: 197, r: 174e-12, shells: [2, 8, 18, 32, 18, 1] },
     { sym: 'U', name: 'Uranium', Z: 92, A: 238, r: 175e-12, shells: [2, 8, 18, 32, 21, 9, 2] },
   ];
-  const LOGMAX = -8.5, LOGMIN = -14.4;
+  const LOGMAX = -8.5, LOGMIN = -14.4, LW = 160;
   const OBJECTS = [['a bus', 12], ['a football', .22], ['a golf ball', .043], ['a marble', .016], ['a pea', .008], ['a peppercorn', .004], ['a grain of salt', .0005]];
   const PRED = [['a bus', 12], ['a football', .22], ['a pea', .008], ['a grain of salt', .0005]];
   let el = ELS[5], logW, target = null, rate = 1.5, pts = null, shellA = [], pred = null;
@@ -626,7 +628,7 @@ TABS.scale = (() => {
   }
 
   function ladder() {
-    const x0 = S.w - 96, top = 46, bot = S.h - 46;
+    const x0 = S.w - LW, top = 50, bot = S.h - 50;
     const y = l => top + (LOGMAX - l) / (LOGMAX - LOGMIN) * (bot - top);
     return { x0, top, bot, y, tags: [{ name: 'Atom', log: atomLog(), y: y(atomLog()) }, { name: 'Nucleus', log: nucLog(), y: y(nucLog()) }] };
   }
@@ -640,7 +642,7 @@ TABS.scale = (() => {
     $('#sc-zoom').value = Math.round((LOGMAX - logW) / (LOGMAX - LOGMIN) * 1000);
     if ($('#sc-shimmer').checked) { const n = pts.x.length, k = Math.max(1, n * .03 | 0); for (let i = 0; i < k; i++) resample(Math.random() * n | 0); }
 
-    const aw = W - 96, cx = aw / 2, cy = H / 2, D = Math.min(aw, H) * .92;
+    const aw = W - LW, cx = aw / 2, cy = H / 2, D = Math.min(aw, H) * .92;
     const view = Math.pow(10, logW), s = D / view;
 
     // electron cloud
@@ -693,24 +695,24 @@ TABS.scale = (() => {
 
     // ladder
     const lad = ladder();
-    ctx.fillStyle = TH.surface; ctx.fillRect(lad.x0, 0, 96, H);
+    ctx.fillStyle = TH.surface; ctx.fillRect(lad.x0, 0, LW, H);
     ctx.strokeStyle = TH.border; ctx.beginPath(); ctx.moveTo(lad.x0, 0); ctx.lineTo(lad.x0, H); ctx.stroke();
-    const lx = lad.x0 + 70;
+    const lx = lad.x0 + 84;
     ctx.strokeStyle = TH.dim; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(lx, lad.top); ctx.lineTo(lx, lad.bot); ctx.stroke(); ctx.lineWidth = 1;
-    txt(ctx, 'zoomed out', lx, lad.top - 22, { align: 'center', size: 10, color: TH.muted });
-    txt(ctx, 'zoomed in', lx, lad.bot + 22, { align: 'center', size: 10, color: TH.muted });
+    txt(ctx, 'zoomed out', lx, lad.top - 24, { align: 'center', size: 13, bold: true, color: TH.muted });
+    txt(ctx, 'zoomed in', lx, lad.bot + 24, { align: 'center', size: 13, bold: true, color: TH.muted });
     for (let k = -9; k >= -15; k--) for (const m of [2, 5]) {
       const l = k + Math.log10(m); if (l > LOGMAX || l < LOGMIN) continue;
-      ctx.fillStyle = TH.dim; ctx.fillRect(lx - 4, lad.y(l), 8, 1);
+      ctx.fillStyle = TH.dim; ctx.fillRect(lx - 6, lad.y(l), 12, 1.5);
     }
     [[-9, '1 nm'], [-10, '100 pm'], [-11, '10 pm'], [-12, '1 pm'], [-13, '100 fm'], [-14, '10 fm']].forEach(([l, s2]) => {
-      const y = lad.y(l); ctx.fillStyle = TH.text; ctx.fillRect(lx - 7, y, 14, 1.5);
-      txt(ctx, s2, lx + 9, y, { size: 10, color: TH.muted });
+      const y = lad.y(l); ctx.fillStyle = TH.text; ctx.fillRect(lx - 10, y - 1, 20, 2.5);
+      txt(ctx, s2, lx + 14, y, { size: 14, bold: true, color: TH.text });
     });
-    lad.tags.forEach(t => txt(ctx, t.name, lx - 12, t.y, { align: 'right', size: 11, bold: true, color: '#fff', bg: TH.purple }));
+    lad.tags.forEach(t => txt(ctx, t.name, lx - 20, t.y, { align: 'right', size: 13, bold: true, color: '#fff', bg: TH.purple }));
     const yc = lad.y(logW);
-    ctx.fillStyle = TH.accent; ctx.beginPath(); ctx.moveTo(lx - 2, yc); ctx.lineTo(lx + 9, yc - 7); ctx.lineTo(lx + 9, yc + 7); ctx.closePath(); ctx.fill();
-    ctx.fillRect(lx - 9, yc - 1.5, 18, 3);
+    ctx.fillStyle = TH.accent; ctx.beginPath(); ctx.arc(lx, yc, 7, 0, TAU); ctx.fill();
+    ctx.fillRect(lx - 12, yc - 2, 24, 4);
   }
 
   return { init, frame };
