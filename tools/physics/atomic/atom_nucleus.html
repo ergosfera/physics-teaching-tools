@@ -961,10 +961,10 @@ TABS.build = (() => {
 
     // nucleus
     if (cl) {
-      let hide = new Set(), colorFn = null, jig = unstable && !anim ? 1.2 : 0;
+      let hide = new Set(), colorFn = null, jig = unstable && !anim ? s * .4 : 0;
       if (anim) {
         anim.t += dt; const t = anim.t;
-        jig = t < .8 ? 3 : 0;
+        jig = t < .8 ? s * .7 : 0;
         if (anim.change !== undefined) {
           const k = seg(t, .8, 1.15), from = anim.m === 'b-' ? NEUTRON : PROTON, to = anim.m === 'b-' ? PROTON : NEUTRON;
           if (anim.m !== 'ec' || t > .8) colorFn = q => q.i === anim.change ? mix(from, to, k) : null;
@@ -972,7 +972,9 @@ TABS.build = (() => {
         if (anim.out) anim.out.forEach(i => hide.add(i));
         if (anim.m === 'a') cl.pts.forEach(q => hide.add(q.i));
       }
-      drawCluster(ctx, cl, ax, ay, s, { jiggle: jig, hide, color: colorFn });
+      // unstable nuclei tremble: each nucleon jitters and the whole nucleus shakes
+      const sh = jig ? s * .18 : 0, shx = sh * Math.sin(tt * 37), shy = sh * Math.cos(tt * 29);
+      drawCluster(ctx, cl, ax + shx, ay + shy, s, { jiggle: jig, hide, color: colorFn });
       if (anim) drawDecay(ctx, cl, ax, ay, s, r1);
     }
 
