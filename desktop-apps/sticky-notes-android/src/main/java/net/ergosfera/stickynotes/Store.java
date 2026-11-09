@@ -192,13 +192,28 @@ final class Store {
         }
     }
 
+    // The token Google handed back at the end of a sign-in, used once before asking again
+    private volatile String signedIn;
+
+    void signedIn(String token) { signedIn = token; }
+
+    static AuthorizationRequest request() {
+        return AuthorizationRequest.builder().setRequestedScopes(Collections.singletonList(new Scope(Drive.SCOPE))).build();
+    }
+
     private String token() throws Exception {
-        AuthorizationRequest req = AuthorizationRequest.builder()
-                .setRequestedScopes(Collections.singletonList(new Scope(Drive.SCOPE))).build();
+        String fresh = signedIn;
+        signedIn = null;
         AuthorizationResult r;
-        try { r = Tasks.await(Identity.getAuthorizationClient(app).authorize(req)); }
-        catch (ExecutionException ex) { throw ex.getCause() instanceof Exception ? (Exception) ex.getCause() : ex; }
-        if (r.hasResolution()) throw new NeedsSignIn(r.getPendingIntent());
+        try { r = Tasks.await(Identity.getAuthorizationClient(app).authorize(request())); }
+        catch (ExecutionException ex) {
+            if (fresh != null) return fresh;
+            throw ex.getCause() instanceof Exception ? (Exception) ex.getCause() : ex;
+        }
+        if (r.hasResolution()) {
+            if (fresh != null) return fresh;
+            throw new NeedsSignIn(r.getPendingIntent());
+        }
         if (r.getAccessToken() == null) throw new IOException("Google didn't give access to Drive");
         return r.getAccessToken();
     }

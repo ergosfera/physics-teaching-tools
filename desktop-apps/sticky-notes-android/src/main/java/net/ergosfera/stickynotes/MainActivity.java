@@ -99,6 +99,7 @@ public class MainActivity extends Activity {
         messageText = new TextView(this);
         messageText.setTextColor(Look.INK);
         messageText.setTextSize(14);
+        messageText.setTextIsSelectable(true); // so a Google error can be copied
         messageButton = new Button(this);
         messageButton.setAllCaps(false);
         box.addView(messageText);
@@ -154,21 +155,26 @@ public class MainActivity extends Activity {
         updateStatus();
         store.sync(error -> {
             syncing = false;
-            if (error instanceof Store.NeedsSignIn) {
+            boolean afterSignIn = justSignedIn;
+            justSignedIn = false;
+            if (error instanceof Store.NeedsSignIn && afterSignIn) {
+                // Google said yes a moment ago and asks again: don't go round in circles
+                showMessage("Google signed you in but still won't give access to Google Drive. In Google Cloud, check that "
+                        + "the Google Drive API is enabled and that your Gmail address is a test user.", "Sign in again", v -> sync(true));
+            } else if (error instanceof Store.NeedsSignIn) {
                 // Ask once on its own; after that only when the person taps
                 if (asked || !signInShown) signIn(((Store.NeedsSignIn) error).intent);
                 else showMessage("Sign in to Google to see your notes.", "Sign in", v -> sync(true));
             } else if (error != null) {
                 String why = error.getMessage() == null ? error.toString() : error.getMessage();
-                if (error instanceof java.net.UnknownHostException || error instanceof java.net.SocketTimeoutException)
-                    why = "No connection. These are the notes from the last sync; edits are sent when you're back online.";
-                else if (error instanceof com.google.android.gms.common.api.ApiException
-                        && ((com.google.android.gms.common.api.ApiException) error).getStatusCode() == 10)
-                    why = "Google doesn't recognize this app yet. Create its Android client in Google Cloud "
-                            + "(package net.ergosfera.stickynotes and the key's SHA-1), then try again.";
-                else if (error instanceof com.google.android.gms.common.api.ApiException
-                        && ((com.google.android.gms.common.api.ApiException) error).getStatusCode() == 7)
-                    why = "No connection. These are the notes from the last sync; edits are sent when you're back online.";
+                boolean offline = error instanceof java.net.UnknownHostException || error instanceof java.net.SocketTimeoutException
+                        || error instanceof com.google.android.gms.common.api.ApiException
+                        && ((com.google.android.gms.common.api.ApiException) error).getStatusCode() == 7;
+                if (offline) why = "No connection. These are the notes from the last sync; edits are sent when you're back online.";
+                else if (error instanceof com.google.android.gms.common.api.ApiException)
+                    why = explain((com.google.android.gms.common.api.ApiException) error);
+                else if (error instanceof Drive.Failure && ((Drive.Failure) error).code == 403)
+                    why = "Google Drive refused: " + why + "\n\nIn Google Cloud, check that the Google Drive API is enabled in the same project as the Android client.";
                 showMessage(why, "Try again", v -> sync(true));
             } else message.setVisibility(View.GONE);
             updateStatus();
@@ -187,8 +193,46 @@ public class MainActivity extends Activity {
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
         if (request != SIGN_IN) return;
-        if (result == RESULT_OK) sync(true);
-        else showMessage("Sticky Notes needs your Google Drive to show the notes from your computers.", "Sign in", v -> sync(true));
+        // Google puts the outcome in the answer: the access token, or why it refused
+        String why = null;
+        if (data != null) {
+            try {
+                com.google.android.gms.auth.api.identity.AuthorizationResult r =
+                        com.google.android.gms.auth.api.identity.Identity.getAuthorizationClient(this).getAuthorizationResultFromIntent(data);
+                if (r.getAccessToken() != null) {
+                    justSignedIn = true;
+                    store.signedIn(r.getAccessToken());
+                    sync(true);
+                    return;
+                }
+                why = "Google finished the sign-in without giving access to Google Drive.";
+            } catch (com.google.android.gms.common.api.ApiException e) {
+                why = explain(e);
+            }
+        }
+        if (why == null) why = result == RESULT_OK
+                ? "Google finished the sign-in without an answer."
+                : "The sign-in was closed before Google gave access to Google Drive.";
+        showMessage(why, "Sign in again", v -> sync(true));
+    }
+
+    private boolean justSignedIn;
+
+    // What a Google sign-in error means, in words, with its code so it can be looked up
+    static String explain(com.google.android.gms.common.api.ApiException e) {
+        int code = e.getStatusCode();
+        String detail = e.getMessage() == null ? "" : e.getMessage();
+        String why;
+        switch (code) {
+            case 10: why = "Google doesn't recognize this app. In Google Cloud, check the Android client: package "
+                    + "net.ergosfera.stickynotes and SHA-1 72:2F:87:78:AA:C0:3F:B4:BC:1F:24:2C:5C:3A:14:5D:E0:6A:8E:0B, "
+                    + "and that the Google Drive API is enabled in the same project."; break;
+            case 16: case 12501: why = "The sign-in was canceled, or Google refused it. If you weren't asked to allow "
+                    + "Google Drive, check in Google Cloud that your Gmail address is a test user of the app."; break;
+            case 7: why = "No connection to Google."; break;
+            default: why = "Google refused the sign-in.";
+        }
+        return why + "\n\n(Google error " + code + (detail.isEmpty() ? "" : ": " + detail) + ")";
     }
 
     private void showMessage(String text, String button, View.OnClickListener click) {
