@@ -42,10 +42,23 @@ final class Drive {
 
     Drive(String link) { this.link = link; }
 
-    // Is this what the script's showLink prints?
-    static boolean looksLikeLink(String s) {
-        return s != null && s.matches("https://script\\.google(usercontent)?\\.com/\\S+/exec\\?key=[0-9a-f]{16,}");
+    private static final java.util.regex.Pattern LINK =
+            java.util.regex.Pattern.compile("https://script\\.google(usercontent)?\\.com/\\S+?/exec\\?key=[0-9a-f]{16,}");
+
+    // The script's link inside whatever was pasted (the log line around it, spaces, line breaks), or null
+    static String findLink(String pasted) {
+        if (pasted == null) return null;
+        // As pasted, and with every space and line break taken out (a link broken over lines);
+        // the longer find keeps the whole key
+        String best = null;
+        for (String text : new String[] { pasted, pasted.replaceAll("\\s+", "") }) {
+            java.util.regex.Matcher m = LINK.matcher(text);
+            while (m.find()) if (best == null || m.group().length() > best.length()) best = m.group();
+        }
+        return best;
     }
+
+    static boolean looksLikeLink(String s) { return s != null && s.equals(findLink(s)); }
 
     // The "StickyNotes" folder: the one at the top of My Drive (where the desktop apps put it), otherwise any
     String findNotesFolder() throws IOException {
@@ -120,10 +133,12 @@ final class Drive {
         try { o = new JSONObject(text); }
         catch (JSONException e) {
             // Not JSON: usually a Google page (sign-in, or "Sorry, unable to open the file")
-            if (text.contains("<html") || text.contains("<HTML"))
-                throw new Failure(401, "The link didn't reach the script. Check that it was deployed with "
-                        + "“Who has access: Anyone” and that the whole link was pasted.");
-            throw new IOException("Unexpected answer from the script");
+            java.util.regex.Matcher t = java.util.regex.Pattern.compile("(?is)<title>(.*?)</title>").matcher(text);
+            String page = t.find() ? " Google answered with the page “" + t.group(1).trim() + "”." : "";
+            if (text.contains("<html") || text.contains("<HTML") || text.contains("<!DOCTYPE"))
+                throw new Failure(401, "The link didn't reach the script." + page + " Check that the script is deployed as a "
+                        + "web app with “Who has access: Anyone” (not “Anyone within…” or “Only myself”).");
+            throw new IOException("Unexpected answer from the script: " + (text.length() > 120 ? text.substring(0, 120) + "…" : text));
         }
         if (o.has("error")) throw new Failure(o.optInt("code", 500), o.optString("error"));
         return o;

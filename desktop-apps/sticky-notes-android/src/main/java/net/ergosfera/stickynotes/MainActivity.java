@@ -190,8 +190,8 @@ public class MainActivity extends Activity {
     // Shows the box for pasting the script's link
     private void askLink(String why) {
         showMessage(why, "Connect", v -> {
-            String link = linkField.getText().toString().trim();
-            if (!Drive.looksLikeLink(link)) {
+            String link = Drive.findLink(linkField.getText().toString());
+            if (link == null) {
                 messageText.setText("That isn't the whole link. It starts with https://script.google.com/ and ends with ?key= and a long code.");
                 return;
             }

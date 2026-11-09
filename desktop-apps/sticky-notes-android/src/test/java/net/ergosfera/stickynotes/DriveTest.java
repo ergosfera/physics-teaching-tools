@@ -153,5 +153,10 @@ public class DriveTest {
         assertTrue(Drive.looksLikeLink("https://script.google.com/a/macros/ergosfera.net/s/AKfy/exec?key=0123456789abcdef"));
         assertFalse(Drive.looksLikeLink("https://script.google.com/macros/s/AKfycbx/exec"));
         assertFalse(Drive.looksLikeLink("script.google.com/macros/s/x/exec?key=0123456789abcdef"));
+        String good = "https://script.google.com/macros/s/AKfy_x-1/exec?key=0123456789abcdef0123456789abcdef";
+        assertEquals(good, Drive.findLink("Your Sticky Notes link (paste it in the phone app; keep it private):\n" + good));
+        assertEquals(good, Drive.findLink("  " + good + " \n"));
+        assertEquals(good, Drive.findLink("https://script.google.com/macros/s/AKfy_x-1/exec?key=0123456789abcdef\n0123456789abcdef"));
+        assertEquals(null, Drive.findLink("hello"));
     }
 }
