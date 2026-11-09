@@ -6,23 +6,19 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-// The few Google Drive v3 calls the app needs. Every call blocks, so run them off the main thread.
+// The calls to your Sticky Notes script (apps-script/Code.gs), which reads and writes the note files
+// in your Google Drive. The link includes the script's secret key. Every call blocks: run them off the main thread.
 final class Drive {
-    static final String SCOPE = "https://www.googleapis.com/auth/drive";
-    private static final String API = "https://www.googleapis.com/drive/v3/files";
-    private static final String UPLOAD = "https://www.googleapis.com/upload/drive/v3/files";
-    private static final String FOLDER = "application/vnd.google-apps.folder";
-    private static final String FIELDS = "id,name,version,modifiedTime";
-
-    // A call that failed; code is the HTTP status (401 means the sign-in ran out)
+    // A call that failed; code is like an HTTP status (403 wrong key, 404 file gone)
     static final class Failure extends IOException {
         final int code;
         Failure(int code, String message) { super(message); this.code = code; }
@@ -42,123 +38,127 @@ final class Drive {
         }
     }
 
-    private final String token;
+    private final String link;
 
-    Drive(String token) { this.token = token; }
+    Drive(String link) { this.link = link; }
+
+    // Is this what the script's showLink prints?
+    static boolean looksLikeLink(String s) {
+        return s != null && s.matches("https://script\\.google(usercontent)?\\.com/\\S+/exec\\?key=[0-9a-f]{16,}");
+    }
 
     // The "StickyNotes" folder: the one at the top of My Drive (where the desktop apps put it), otherwise any
     String findNotesFolder() throws IOException {
-        String base = "name = 'StickyNotes' and mimeType = '" + FOLDER + "' and trashed = false";
-        List<Item> top = list(base + " and 'root' in parents");
-        if (!top.isEmpty()) return top.get(0).id;
-        List<Item> any = list(base);
-        return any.isEmpty() ? null : any.get(0).id;
+        JSONObject o = call(op("folder"));
+        return o.isNull("id") ? null : o.optString("id");
     }
 
     // The files (not folders) directly in a folder
     List<Item> files(String folderId) throws IOException {
-        return list("'" + folderId + "' in parents and trashed = false and mimeType != '" + FOLDER + "'");
-    }
-
-    Item metadata(String fileId) throws IOException {
-        return Item.of(json(request("GET", API + "/" + fileId + "?fields=" + FIELDS + "&supportsAllDrives=true", null, null)));
-    }
-
-    String download(String fileId) throws IOException {
-        return new String(request("GET", API + "/" + fileId + "?alt=media&supportsAllDrives=true", null, null), StandardCharsets.UTF_8);
-    }
-
-    Item update(String fileId, String text) throws IOException {
-        return Item.of(json(request("PATCH", UPLOAD + "/" + fileId + "?uploadType=media&fields=" + FIELDS + "&supportsAllDrives=true",
-                "text/plain; charset=UTF-8", text.getBytes(StandardCharsets.UTF_8))));
-    }
-
-    Item create(String folderId, String name, String text) throws IOException {
-        String boundary = "sticky" + System.nanoTime();
-        JSONObject meta = new JSONObject();
-        try {
-            meta.put("name", name);
-            meta.put("mimeType", "text/plain");
-            meta.put("parents", new JSONArray().put(folderId));
-        } catch (JSONException e) { throw new IOException(e); }
-        String body = "--" + boundary + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" + meta + "\r\n"
-                + "--" + boundary + "\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" + text + "\r\n--" + boundary + "--";
-        return Item.of(json(request("POST", UPLOAD + "?uploadType=multipart&fields=" + FIELDS + "&supportsAllDrives=true",
-                "multipart/related; boundary=" + boundary, body.getBytes(StandardCharsets.UTF_8))));
-    }
-
-    String findOrCreateFolder(String parentId, String name) throws IOException {
-        List<Item> found = list("name = '" + name + "' and mimeType = '" + FOLDER + "' and '" + parentId + "' in parents and trashed = false");
-        if (!found.isEmpty()) return found.get(0).id;
-        JSONObject meta = new JSONObject();
-        try {
-            meta.put("name", name);
-            meta.put("mimeType", FOLDER);
-            meta.put("parents", new JSONArray().put(parentId));
-        } catch (JSONException e) { throw new IOException(e); }
-        return json(request("POST", API + "?fields=id&supportsAllDrives=true", "application/json; charset=UTF-8",
-                meta.toString().getBytes(StandardCharsets.UTF_8))).optString("id");
-    }
-
-    // Moves a file to another folder under a new name (how a deleted note goes to the Trash folder)
-    void move(String fileId, String fromFolder, String toFolder, String newName) throws IOException {
-        JSONObject meta = new JSONObject();
-        try { meta.put("name", newName); } catch (JSONException e) { throw new IOException(e); }
-        request("PATCH", API + "/" + fileId + "?addParents=" + toFolder + "&removeParents=" + fromFolder + "&fields=id&supportsAllDrives=true",
-                "application/json; charset=UTF-8", meta.toString().getBytes(StandardCharsets.UTF_8));
-    }
-
-    private List<Item> list(String q) throws IOException {
+        JSONArray a = call(op("files").put("folder", folderId)).optJSONArray("files");
         List<Item> out = new ArrayList<>();
-        String page = null;
-        do {
-            String url = API + "?q=" + URLEncoder.encode(q, "UTF-8") + "&pageSize=1000&spaces=drive"
-                    + "&includeItemsFromAllDrives=true&supportsAllDrives=true"
-                    + "&fields=" + URLEncoder.encode("nextPageToken,files(" + FIELDS + ")", "UTF-8")
-                    + (page == null ? "" : "&pageToken=" + URLEncoder.encode(page, "UTF-8"));
-            JSONObject o = json(request("GET", url, null, null));
-            JSONArray files = o.optJSONArray("files");
-            for (int i = 0; files != null && i < files.length(); i++) out.add(Item.of(files.optJSONObject(i)));
-            page = o.optString("nextPageToken", null);
-            if (page != null && page.isEmpty()) page = null;
-        } while (page != null);
+        for (int i = 0; a != null && i < a.length(); i++) out.add(Item.of(a.optJSONObject(i)));
         return out;
     }
 
-    private static JSONObject json(byte[] data) throws IOException {
-        try { return new JSONObject(new String(data, StandardCharsets.UTF_8)); }
-        catch (JSONException e) { throw new IOException("Unexpected answer from Google Drive", e); }
+    Item metadata(String fileId) throws IOException {
+        return Item.of(call(op("meta").put("id", fileId)));
     }
 
-    private byte[] request(String method, String url, String type, byte[] body) throws IOException {
+    String download(String fileId) throws IOException {
+        List<String> one = new ArrayList<>();
+        one.add(fileId);
+        return downloadAll(one).get(fileId);
+    }
+
+    // Several files in one request, so a first sync of many notes is quick
+    Map<String, String> downloadAll(List<String> ids) throws IOException {
+        Map<String, String> out = new HashMap<>();
+        for (int from = 0; from < ids.size(); from += 40) {
+            JSONArray batch = new JSONArray();
+            for (int i = from; i < Math.min(ids.size(), from + 40); i++) batch.put(ids.get(i));
+            JSONObject texts = call(op("get").put("ids", batch)).optJSONObject("texts");
+            for (int i = 0; i < batch.length(); i++) {
+                String id = batch.optString(i);
+                if (texts == null || !texts.has(id)) throw new Failure(404, "The script didn't send " + id);
+                out.put(id, texts.optString(id));
+            }
+        }
+        return out;
+    }
+
+    Item update(String fileId, String text) throws IOException {
+        return Item.of(call(op("update").put("id", fileId).put("text", text)));
+    }
+
+    Item create(String folderId, String name, String text) throws IOException {
+        return Item.of(call(op("create").put("folder", folderId).put("name", name).put("text", text)));
+    }
+
+    // Moves a note to the Trash folder inside the notes folder, under a new name
+    void trash(String fileId, String folderId, String newName) throws IOException {
+        call(op("trash").put("id", fileId).put("folder", folderId).put("name", newName));
+    }
+
+    // MARK: Requests
+
+    // A request body; put() can't fail on these plain values, so it skips the checked exception
+    private static final class Body {
+        final JSONObject o = new JSONObject();
+        Body put(String k, Object v) {
+            try { o.put(k, v); } catch (JSONException e) { throw new IllegalArgumentException(e); }
+            return this;
+        }
+    }
+
+    private static Body op(String name) { return new Body().put("op", name); }
+
+    private JSONObject call(Body body) throws IOException {
+        byte[] answer = post(link, body.o.toString().getBytes(StandardCharsets.UTF_8));
+        String text = new String(answer, StandardCharsets.UTF_8);
+        JSONObject o;
+        try { o = new JSONObject(text); }
+        catch (JSONException e) {
+            // Not JSON: usually a Google page (sign-in, or "Sorry, unable to open the file")
+            if (text.contains("<html") || text.contains("<HTML"))
+                throw new Failure(401, "The link didn't reach the script. Check that it was deployed with "
+                        + "“Who has access: Anyone” and that the whole link was pasted.");
+            throw new IOException("Unexpected answer from the script");
+        }
+        if (o.has("error")) throw new Failure(o.optInt("code", 500), o.optString("error"));
+        return o;
+    }
+
+    // Apps Script answers a POST with a redirect to the result, which is then fetched with a GET
+    static byte[] post(String url, byte[] body) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(15000);
-        c.setReadTimeout(30000);
-        // HttpURLConnection has no PATCH; Google takes it as a POST with this header
-        if (method.equals("PATCH")) {
-            c.setRequestMethod("POST");
-            c.setRequestProperty("X-HTTP-Method-Override", "PATCH");
-        } else c.setRequestMethod(method);
-        c.setRequestProperty("Authorization", "Bearer " + token);
-        if (body != null) {
-            c.setDoOutput(true);
-            c.setRequestProperty("Content-Type", type);
-            c.setFixedLengthStreamingMode(body.length);
-            try (OutputStream os = c.getOutputStream()) { os.write(body); }
+        c.setReadTimeout(60000);
+        c.setInstanceFollowRedirects(false);
+        c.setRequestMethod("POST");
+        c.setDoOutput(true);
+        c.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        c.setFixedLengthStreamingMode(body.length);
+        try (OutputStream os = c.getOutputStream()) { os.write(body); }
+        for (int hops = 0; ; hops++) {
+            int code = c.getResponseCode();
+            if (code >= 300 && code < 400 && hops < 5) {
+                String next = c.getHeaderField("Location");
+                c.disconnect();
+                if (next == null) throw new IOException("The script sent a redirect without a place to go");
+                c = (HttpURLConnection) new URL(new URL(url), next).openConnection();
+                c.setConnectTimeout(15000);
+                c.setReadTimeout(60000);
+                c.setInstanceFollowRedirects(false);
+                continue;
+            }
+            InputStream in = code < 400 ? c.getInputStream() : c.getErrorStream();
+            byte[] data = in == null ? new byte[0] : readAll(in);
+            c.disconnect();
+            if (code == 404) throw new Failure(401, "Google doesn't know this link. Paste it again from the script's showLink.");
+            if (code >= 400) throw new Failure(code, "The script answered " + code);
+            return data;
         }
-        int code = c.getResponseCode();
-        InputStream in = code < 400 ? c.getInputStream() : c.getErrorStream();
-        byte[] data = in == null ? new byte[0] : readAll(in);
-        c.disconnect();
-        if (code >= 400) {
-            String message = "Google Drive answered " + code;
-            try {
-                JSONObject err = new JSONObject(new String(data, StandardCharsets.UTF_8)).optJSONObject("error");
-                if (err != null && err.optString("message").length() > 0) message = err.optString("message");
-            } catch (JSONException ignored) { }
-            throw new Failure(code, message);
-        }
-        return data;
     }
 
     private static byte[] readAll(InputStream in) throws IOException {

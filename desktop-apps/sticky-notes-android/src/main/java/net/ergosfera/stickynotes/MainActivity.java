@@ -3,7 +3,6 @@ package net.ergosfera.stickynotes;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
-import android.content.IntentSender;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -28,7 +27,6 @@ import java.util.TimeZone;
 
 // The notes, as cards in columns. Tap one to read or edit it; "+" makes a new one.
 public class MainActivity extends Activity {
-    static final int SIGN_IN = 1;
     static final int BAR = 0xFF3A3A3A;
 
     private Store store;
@@ -38,7 +36,8 @@ public class MainActivity extends Activity {
     private View message;
     private TextView messageText;
     private Button messageButton;
-    private boolean syncing, signInShown;
+    private EditText linkField;
+    private boolean syncing;
     private final Runnable refresh = this::show;
 
     @Override protected void onCreate(Bundle saved) {
@@ -70,6 +69,10 @@ public class MainActivity extends Activity {
         bar.addView(names, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         bar.addView(barButton("↻", "Sync now", v -> sync(true)));
         bar.addView(barButton("+", "New note", v -> newNote()));
+        bar.addView(barButton("\u22EE", "Settings", v -> new AlertDialog.Builder(this)
+                .setItems(new String[] { "Change the script link" }, (d, w) -> askLink(
+                        "Paste the link that the showLink function of your Sticky Notes script prints."))
+                .show()));
         root.addView(bar);
 
         search = new EditText(this);
@@ -99,10 +102,16 @@ public class MainActivity extends Activity {
         messageText = new TextView(this);
         messageText.setTextColor(Look.INK);
         messageText.setTextSize(14);
-        messageText.setTextIsSelectable(true); // so a Google error can be copied
+        messageText.setTextIsSelectable(true); // so an error can be copied
+        linkField = new EditText(this);
+        linkField.setHint("https://script.google.com/macros/s/\u2026/exec?key=\u2026");
+        linkField.setTextSize(13);
+        linkField.setSingleLine(true);
+        linkField.setVisibility(View.GONE);
         messageButton = new Button(this);
         messageButton.setAllCaps(false);
         box.addView(messageText);
+        box.addView(linkField, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         box.addView(messageButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         message = box;
         message.setVisibility(View.GONE);
@@ -151,94 +160,54 @@ public class MainActivity extends Activity {
 
     private void sync(boolean asked) {
         if (syncing) return;
+        if (!store.hasLink()) {
+            askLink("Sticky Notes reads your notes through a small script in your Google account. "
+                    + "Make it once at script.google.com (the steps are in the app's README), then paste its link here.");
+            return;
+        }
         syncing = true;
         updateStatus();
         store.sync(error -> {
             syncing = false;
-            boolean afterSignIn = justSignedIn;
-            justSignedIn = false;
-            if (error instanceof Store.NeedsSignIn && afterSignIn) {
-                // Google said yes a moment ago and asks again: don't go round in circles
-                showMessage("Google signed you in but still won't give access to Google Drive. In Google Cloud, check that "
-                        + "the Google Drive API is enabled and that your Gmail address is a test user.", "Sign in again", v -> sync(true));
-            } else if (error instanceof Store.NeedsSignIn) {
-                // Ask once on its own; after that only when the person taps
-                if (asked || !signInShown) signIn(((Store.NeedsSignIn) error).intent);
-                else showMessage("Sign in to Google to see your notes.", "Sign in", v -> sync(true));
+            if (error instanceof Store.NeedsLink) {
+                askLink(error.getMessage());
+            } else if (error instanceof Drive.Failure && (((Drive.Failure) error).code == 403 || ((Drive.Failure) error).code == 401)) {
+                String why = ((Drive.Failure) error).code == 403
+                        ? "The script refused this link: its key doesn't match. Run showLink in the script again and paste the new link."
+                        : error.getMessage();
+                askLink(why);
             } else if (error != null) {
                 String why = error.getMessage() == null ? error.toString() : error.getMessage();
-                boolean offline = error instanceof java.net.UnknownHostException || error instanceof java.net.SocketTimeoutException
-                        || error instanceof com.google.android.gms.common.api.ApiException
-                        && ((com.google.android.gms.common.api.ApiException) error).getStatusCode() == 7;
-                if (offline) why = "No connection. These are the notes from the last sync; edits are sent when you're back online.";
-                else if (error instanceof com.google.android.gms.common.api.ApiException)
-                    why = explain((com.google.android.gms.common.api.ApiException) error);
-                else if (error instanceof Drive.Failure && ((Drive.Failure) error).code == 403)
-                    why = "Google Drive refused: " + why + "\n\nIn Google Cloud, check that the Google Drive API is enabled in the same project as the Android client.";
+                if (error instanceof java.net.UnknownHostException || error instanceof java.net.SocketTimeoutException
+                        || error instanceof java.net.ConnectException)
+                    why = "No connection. These are the notes from the last sync; edits are sent when you're back online.";
                 showMessage(why, "Try again", v -> sync(true));
             } else message.setVisibility(View.GONE);
             updateStatus();
         });
     }
 
-    private void signIn(android.app.PendingIntent intent) {
-        signInShown = true;
-        try {
-            startIntentSenderForResult(intent.getIntentSender(), SIGN_IN, null, 0, 0, 0);
-        } catch (IntentSender.SendIntentException e) {
-            showMessage("Couldn't open the Google sign-in.", "Try again", v -> sync(true));
-        }
-    }
-
-    @Override protected void onActivityResult(int request, int result, Intent data) {
-        super.onActivityResult(request, result, data);
-        if (request != SIGN_IN) return;
-        // Google puts the outcome in the answer: the access token, or why it refused
-        String why = null;
-        if (data != null) {
-            try {
-                com.google.android.gms.auth.api.identity.AuthorizationResult r =
-                        com.google.android.gms.auth.api.identity.Identity.getAuthorizationClient(this).getAuthorizationResultFromIntent(data);
-                if (r.getAccessToken() != null) {
-                    justSignedIn = true;
-                    store.signedIn(r.getAccessToken());
-                    sync(true);
-                    return;
-                }
-                why = "Google finished the sign-in without giving access to Google Drive.";
-            } catch (com.google.android.gms.common.api.ApiException e) {
-                why = explain(e);
+    // Shows the box for pasting the script's link
+    private void askLink(String why) {
+        showMessage(why, "Connect", v -> {
+            String link = linkField.getText().toString().trim();
+            if (!Drive.looksLikeLink(link)) {
+                messageText.setText("That isn't the whole link. It starts with https://script.google.com/ and ends with ?key= and a long code.");
+                return;
             }
-        }
-        if (why == null) why = result == RESULT_OK
-                ? "Google finished the sign-in without an answer."
-                : "The sign-in was closed before Google gave access to Google Drive.";
-        showMessage(why, "Sign in again", v -> sync(true));
-    }
-
-    private boolean justSignedIn;
-
-    // What a Google sign-in error means, in words, with its code so it can be looked up
-    static String explain(com.google.android.gms.common.api.ApiException e) {
-        int code = e.getStatusCode();
-        String detail = e.getMessage() == null ? "" : e.getMessage();
-        String why;
-        switch (code) {
-            case 10: why = "Google doesn't recognize this app. In Google Cloud, check the Android client: package "
-                    + "net.ergosfera.stickynotes and SHA-1 72:2F:87:78:AA:C0:3F:B4:BC:1F:24:2C:5C:3A:14:5D:E0:6A:8E:0B, "
-                    + "and that the Google Drive API is enabled in the same project."; break;
-            case 16: case 12501: why = "The sign-in was canceled, or Google refused it. If you weren't asked to allow "
-                    + "Google Drive, check in Google Cloud that your Gmail address is a test user of the app."; break;
-            case 7: why = "No connection to Google."; break;
-            default: why = "Google refused the sign-in.";
-        }
-        return why + "\n\n(Google error " + code + (detail.isEmpty() ? "" : ": " + detail) + ")";
+            store.setLink(link);
+            linkField.setVisibility(View.GONE);
+            message.setVisibility(View.GONE);
+            sync(true);
+        });
+        linkField.setVisibility(View.VISIBLE);
     }
 
     private void showMessage(String text, String button, View.OnClickListener click) {
         messageText.setText(text);
         messageButton.setText(button);
         messageButton.setOnClickListener(click);
+        linkField.setVisibility(View.GONE);
         message.setVisibility(View.VISIBLE);
     }
 

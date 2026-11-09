@@ -3,8 +3,8 @@ plugins {
     id 'com.android.application' version '8.7.3'
 }
 
-// The release key. Google's sign-in only works for an APK signed with the key whose SHA-1 is
-// registered in the Google Cloud project, so every build must use the same one:
+// The release key. Android installs a new version over the old one only when both are signed
+// with the same key, so every build uses this one:
 // STICKY_KEYSTORE is a PKCS12 file and STICKY_KEYSTORE_PASSWORD its password (alias "sticky").
 def keystore = System.getenv('STICKY_KEYSTORE')
 
@@ -52,6 +52,7 @@ android {
 }
 
 dependencies {
-    implementation 'com.google.android.gms:play-services-auth:21.2.0'
     testImplementation 'junit:junit:4.13.2'
+    // The real org.json for the unit tests (Android's is only a stub off the phone)
+    testImplementation 'org.json:json:20240303'
 }

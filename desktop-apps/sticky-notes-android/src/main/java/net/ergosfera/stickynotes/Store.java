@@ -1,16 +1,9 @@
 package net.ergosfera.stickynotes;
 
-import android.app.PendingIntent;
 import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import com.google.android.gms.auth.GoogleAuthUtil;
-import com.google.android.gms.auth.api.identity.AuthorizationRequest;
-import com.google.android.gms.auth.api.identity.AuthorizationResult;
-import com.google.android.gms.auth.api.identity.Identity;
-import com.google.android.gms.common.api.Scope;
-import com.google.android.gms.tasks.Tasks;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -23,10 +16,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -44,10 +35,9 @@ final class Store {
         boolean pending;      // edited here, not on Drive yet
     }
 
-    // Sign-in needs the person: show this to them, then sync again
-    static final class NeedsSignIn extends Exception {
-        final PendingIntent intent;
-        NeedsSignIn(PendingIntent intent) { this.intent = intent; }
+    // There is no link to the script yet (see apps-script/Code.gs): the person pastes it
+    static final class NeedsLink extends Exception {
+        NeedsLink() { super("Paste the link from your Sticky Notes script."); }
     }
 
     interface Done { void done(Exception error); }
@@ -66,7 +56,7 @@ final class Store {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Map<String, Entry> notes = new HashMap<>();
-    private String folderId, tagsText = "", lastSync = "";
+    private String folderId, link, tagsText = "", lastSync = "";
     private long tagsVersion = -1;
     private final List<Runnable> listeners = new ArrayList<>();
 
@@ -91,6 +81,23 @@ final class Store {
     synchronized List<String[]> tags() { return NoteFile.parseTags(tagsText); }
 
     synchronized String lastSync() { return lastSync; }
+
+    synchronized boolean hasLink() { return link != null; }
+
+    // A new link (another script or another account) starts over with that Drive's notes,
+    // keeping the edits that weren't sent yet
+    synchronized void setLink(String newLink) {
+        if (newLink.equals(link)) return;
+        link = newLink;
+        folderId = null;
+        tagsVersion = -1;
+        for (String id : new ArrayList<>(notes.keySet())) {
+            Entry e = notes.get(id);
+            if (e.pending) { e.fileId = null; e.version = 0; e.base = null; } else notes.remove(id);
+        }
+        persist();
+        changed();
+    }
 
     synchronized int pendingCount() {
         int n = 0;
@@ -142,9 +149,7 @@ final class Store {
             if (e == null) return;
             if (e.fileId != null) {
                 withDrive(d -> {
-                    String folder = folder(d);
-                    String trash = d.findOrCreateFolder(folder, "Trash");
-                    try { d.move(e.fileId, folder, trash, NoteFile.trashName(e.id)); }
+                    try { d.trash(e.fileId, folder(d), NoteFile.trashName(e.id)); }
                     catch (Drive.Failure f) { if (f.code != 404) throw f; } // already gone
                     return null;
                 });
@@ -181,41 +186,12 @@ final class Store {
         });
     }
 
-    // Runs work with a signed-in Drive; once more with a fresh token if the old one ran out
+    // Runs work with the script, once there is a link to it
     private Object withDrive(DriveWork w) throws Exception {
-        String token = token();
-        try { return w.run(new Drive(token)); }
-        catch (Drive.Failure f) {
-            if (f.code != 401) throw f;
-            GoogleAuthUtil.clearToken(app, token);
-            return w.run(new Drive(token()));
-        }
-    }
-
-    // The token Google handed back at the end of a sign-in, used once before asking again
-    private volatile String signedIn;
-
-    void signedIn(String token) { signedIn = token; }
-
-    static AuthorizationRequest request() {
-        return AuthorizationRequest.builder().setRequestedScopes(Collections.singletonList(new Scope(Drive.SCOPE))).build();
-    }
-
-    private String token() throws Exception {
-        String fresh = signedIn;
-        signedIn = null;
-        AuthorizationResult r;
-        try { r = Tasks.await(Identity.getAuthorizationClient(app).authorize(request())); }
-        catch (ExecutionException ex) {
-            if (fresh != null) return fresh;
-            throw ex.getCause() instanceof Exception ? (Exception) ex.getCause() : ex;
-        }
-        if (r.hasResolution()) {
-            if (fresh != null) return fresh;
-            throw new NeedsSignIn(r.getPendingIntent());
-        }
-        if (r.getAccessToken() == null) throw new IOException("Google didn't give access to Drive");
-        return r.getAccessToken();
+        String l;
+        synchronized (this) { l = link; }
+        if (l == null) throw new NeedsLink();
+        return w.run(new Drive(l));
     }
 
     private String folder(Drive d) throws IOException {
@@ -303,16 +279,12 @@ final class Store {
             }
         }
 
-        // Downloads the changed notes a few at a time
-        ExecutorService pool = Executors.newFixedThreadPool(6);
-        List<Future<String>> texts = new ArrayList<>();
-        for (Drive.Item f : changed) texts.add(pool.submit(() -> d.download(f.id)));
+        // Downloads the changed notes, many in each request
+        List<String> ids = new ArrayList<>();
+        for (Drive.Item f : changed) ids.add(f.id);
+        Map<String, String> texts = d.downloadAll(ids);
         Map<Drive.Item, String> got = new HashMap<>();
-        try {
-            for (int i = 0; i < changed.size(); i++) got.put(changed.get(i), texts.get(i).get());
-        } catch (ExecutionException ex) {
-            throw ex.getCause() instanceof Exception ? (Exception) ex.getCause() : ex;
-        } finally { pool.shutdown(); }
+        for (Drive.Item f : changed) got.put(f, texts.get(f.id));
         String tags = null;
         if (tagsFile != null && tagsFile.version != tagsVersion) tags = d.download(tagsFile.id);
 
@@ -368,6 +340,7 @@ final class Store {
         try {
             JSONObject o = new JSONObject();
             o.put("folderId", folderId == null ? JSONObject.NULL : folderId);
+            o.put("link", link == null ? JSONObject.NULL : link);
             o.put("tags", tagsText);
             o.put("tagsVersion", tagsVersion);
             o.put("lastSync", lastSync);
@@ -394,6 +367,7 @@ final class Store {
         try {
             JSONObject o = new JSONObject(new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8));
             folderId = o.isNull("folderId") ? null : o.optString("folderId");
+            link = o.isNull("link") || !o.has("link") ? null : o.optString("link");
             tagsText = o.optString("tags");
             tagsVersion = o.optLong("tagsVersion", -1);
             lastSync = o.optString("lastSync");
