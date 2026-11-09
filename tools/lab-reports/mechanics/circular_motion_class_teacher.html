@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Going in Circles Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="../lab-teacher.css">
+<style>
+  .ck { text-align: center; padding: 8px 4px !important; }
+  table.t th.ck { font-size: .66rem; white-space: normal; min-width: 54px; line-height: 1.2; vertical-align: bottom; }
+  table.t th.ck i { display: block; font-style: normal; color: var(--accent); }
+  .ok-mark { color: var(--green); font-weight: 800; }
+  .meter { display: inline-block; width: 70px; height: 9px; border-radius: 5px; background: var(--surface2); border: 1px solid var(--border); vertical-align: middle; margin-left: 6px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--green); }
+  .cklist { display: grid; gap: 4px; font-size: .9rem; }
+  .st-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .st-tiles div { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 8px; text-align: center; font-size: .78rem; color: var(--muted); }
+  .st-tiles b { display: block; font-size: 1.5rem; color: var(--text); }
+</style>
+</head>
+<body>
+<script src="../lab-teacher.js"></script>
+<script src="circular_motion.js"></script>
+<script>
+// Going in Circles (class page): how far each pair got, live. Checkpoints, first tries and written answers
+// come from circular_motion.js, everything else from ../lab-teacher.js. Turn "Live" on in the top bar
+// to refresh every 20 seconds while the class works.
+const CK = CIRCLES.checkpoints, FT = CIRCLES.firstTry, TOT = CK.length;
+const ST = CIRCLES.stations;
+const minsAgo = G => G.s.submittedAt ? Math.round((Date.now() - new Date(G.s.submittedAt)) / 60000) : null;
+const firstOf = (p, id) => (id.startsWith('ev') ? p.ev : p.q)?.[id];
+
+function ckBars() {
+  return `<div class="bars">${CK.map(c => bar(`${c.st} · ${c.short}`, GROUPS.filter(G => G.done[c.id]).length)).join('')}</div>`;
+}
+function ftBars() {
+  return `<div class="bars">${FT.map(q => ({ q, n: GROUPS.filter(G => G.ft[q.id] === true).length, t: GROUPS.filter(G => G.ft[q.id] != null).length }))
+    .sort((a, b) => a.n / Math.max(1, a.t) - b.n / Math.max(1, b.t))
+    .map(({ q, n, t }) => bar(`${q.short} (${n}/${t})`, n)).join('')}</div>`;
+}
+function stationTiles() {
+  return `<div class="st-tiles">${ST.map((name, i) => `<div><b>${GROUPS.filter(G => G.station === i + 1).length}</b>${i + 1} · ${esc(name)}</div>`).join('')}</div>`;
+}
+
+LabTeacher({
+  id: CIRCLES.classId,
+  title: 'Going in Circles',
+  icon: '🌀',
+  studentPage: 'circular_motion_class.html',
+  tagline: 'From the hand that feels the pull to F = mv²/r, the Moon and the rider on the turntable',
+  titleExtra: () => GROUPS.length ? ` · median ${fmt(median(GROUPS.map(G => G.n)))}/${TOT} checkpoints` : '',
+
+  errors: {},
+  questions: [
+    ...CIRCLES.texts.map(t => ({ id: t.id, title: t.title, get: s => s.p?.[t.id] })),
+  ],
+
+  jump: () => [['paradox', 'Q1 · Two answers?'], ['labWrong', 'Q2 · Our lab'], ['centri', 'Q3 · Centrifugal']],
+
+  analyze(s) {
+    const p = s.p || {}, done = {}, ft = {};
+    CK.forEach(c => { try { done[c.id] = !!c.done(p); } catch (e) { done[c.id] = false; } });
+    FT.forEach(q => { const f = firstOf(p, q.id); ft[q.id] = f ? !!f.firstOk : null; });
+    const trials = (p.trials || []).map(t => {
+      const T = t.t10 / 10, v = 2 * Math.PI * t.r / T, Fc = .03 * v * v / t.r;
+      return { ...t, T, v, Fc, diff: (Fc / (.15 * 9.81) - 1) * 100 };
+    });
+    return { done, n: CK.filter(c => done[c.id]).length, ft, station: p.station || 1, trials, p };
+  },
+  checks(G) {
+    const out = [], m = minsAgo(G);
+    if (G.n === TOT) out.push(['All done ✓', '']);
+    else if (m != null && m >= 5) out.push([`Nothing new for ${m} min`, 'red']);
+    if (G.station >= 3 && !G.done.trials) out.push(['Skipped the lab game', '']);
+    if (G.station >= 3 && !G.done.derive) out.push(['Skipped the derivation', '']);
+    return out;
+  },
+
+  summaryHtml: `
+    <div class="card"><h3>Where the pairs are now</h3><div id="where"></div></div>
+    <div class="card"><h3>Checkpoints: how many pairs have each one</h3><div id="ckb"></div></div>
+    <div class="card"><h3>Right on the first try (hardest first)</h3><div id="ftb"></div></div>`,
+  renderSummary() {
+    const all = GROUPS.filter(G => G.n === TOT).length;
+    const ckMiss = CK.map(c => ({ c, n: GROUPS.filter(G => G.done[c.id]).length })).sort((a, b) => a.n - b.n)[0];
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Pairs working</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'}</div></div>
+      <div class="tile"><div class="k">Median progress</div><div class="v">${fmt(median(GROUPS.map(G => G.n)))}<small>/${TOT}</small></div><div class="s">checkpoints</div></div>
+      <div class="tile"><div class="k">Finished everything</div><div class="v">${all}<small>/${GROUPS.length}</small></div><div class="s">ready for the test</div></div>
+      <div class="tile"><div class="k">Fewest pairs have</div><div class="v" style="font-size:1rem">${ckMiss ? esc(ckMiss.c.short) : '—'}</div><div class="s">${ckMiss ? `${ckMiss.n}/${GROUPS.length} pairs · station ${ckMiss.c.st}` : ''}</div></div>`;
+    document.getElementById('where').innerHTML = stationTiles();
+    document.getElementById('ckb').innerHTML = ckBars();
+    document.getElementById('ftb').innerHTML = ftBars();
+  },
+
+  resultsHead: `<th>Progress</th><th>Now in</th><th>Last change</th>` + CK.map((c, i) => `<th class="ck" title="${esc(c.long)}"><i>S${c.st}</i>${esc(c.short)}</th>`).join(''),
+  resultsRow(G) {
+    const m = minsAgo(G);
+    return `<td><b>${G.n}</b><span class="muted">/${TOT}</span><span class="meter"><i style="width:${G.n / TOT * 100}%"></i></span></td>
+      <td>${G.station} · ${esc(ST[G.station - 1] || '')}</td>
+      <td class="muted">${m == null ? '—' : m < 1 ? 'now' : m + ' min ago'}</td>` +
+      CK.map(c => `<td class="ck">${G.done[c.id] ? '<span class="ok-mark">✓</span>' : '<span class="muted">·</span>'}</td>`).join('');
+  },
+
+  slides: () => [
+    { html: `<h2>Where the pairs are now</h2>${stationTiles()}<div class="card" style="margin-top:14px">${ckBars()}</div>` },
+    { html: `<h2>Right on the first try</h2><div class="card">${ftBars()}</div>` },
+  ],
+
+  detail(G) {
+    const p = G.p, m = minsAgo(G);
+    const ftRow = q => {
+      const f = firstOf(p, q.id);
+      return `<tr><td>${esc(q.short)}</td><td>${f ? esc(f.first) : '<span class="muted">—</span>'}</td><td>${f ? (f.firstOk ? '<span class="ok-mark">✓</span>' : '✗') : ''}</td><td class="muted">${f ? f.tries + (f.tries === 1 ? ' try' : ' tries') : ''}</td></tr>`;
+    };
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">Progress</div><div class="v">${G.n}<small>/${TOT}</small></div><div class="s">now in station ${G.station}</div></div>
+        <div class="tile"><div class="k">Last change</div><div class="v" style="font-size:1rem">${m == null ? '—' : m < 1 ? 'just now' : m + ' min ago'}</div><div class="s">${G.s.submittedAt ? new Date(G.s.submittedAt).toLocaleTimeString() : ''}</div></div>
+        <div class="tile"><div class="k">Lab game trials</div><div class="v">${G.trials.length}</div><div class="s">${G.trials.length ? 'median diff ' + fmt(median(G.trials.map(t => Math.abs(t.diff))), 2) + ' %' : ''}</div></div>
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="card"><h3>Checkpoints</h3><div class="cklist">${CK.map(c => `<div>${G.done[c.id] ? '<span class="ok-mark">✓</span>' : '<span class="muted">○</span>'} <b>S${c.st}</b> · ${esc(c.long)}</div>`).join('')}</div></div>
+      <div class="card"><h3>Choice questions: first try</h3><div class="table-wrap"><table class="t">
+        <thead><tr><th>Question</th><th>First choice</th><th></th><th></th></tr></thead><tbody>${FT.map(ftRow).join('')}</tbody></table></div></div>
+      ${G.trials.length ? `<div class="card"><h3>Lab game trials</h3><div class="table-wrap"><table class="t"><thead><tr><th>r (m)</th><th>10 laps (s)</th><th>m·v²/r (N)</th><th>Mg (N)</th><th>diff</th></tr></thead><tbody>
+        ${G.trials.map(t => `<tr><td>${fmt(t.r)}</td><td>${fmt(t.t10)}</td><td>${fmt(t.Fc)}</td><td>1.47</td><td>${fmt(t.diff, 2)} %</td></tr>`).join('')}</tbody></table></div></div>` : ''}
+      <div class="answers">${CIRCLES.texts.map(t => detailAnswer(t.title, p[t.id])).join('')}</div>`;
+  },
+
+  computed: G => ({ checkpoints: G.n, out_of: TOT, done: CK.filter(c => G.done[c.id]).map(c => c.id), station: G.station }),
+  csv: {
+    head: ['session', 'group', 'students', 'checkpoints', 'station', 'last_change', ...CK.map(c => c.id), ...FT.map(q => q.id + '_first_ok'), ...CIRCLES.texts.map(t => t.id)],
+    rows: G => [[G.s.session, G.s.group, who(G), G.n, G.station, G.s.submittedAt, ...CK.map(c => G.done[c.id]), ...FT.map(q => G.ft[q.id] ?? ''), ...CIRCLES.texts.map(t => G.p[t.id] || '')]],
+  },
+
+  demo() {
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz', 'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva'];
+    const texts = {
+      paradox: ['Both are right because in the merry-go-round the period is the same, and in the car the speed is the same. It depends on what stays the same.', 'Yes because the force changes.'],
+      labWrong: ['The heavy mass kept moving up and down, so the tension was not Mg. Also we only timed 5 laps and our reaction time was a big part.', 'We did it wrong.'],
+      centri: ['Nothing pushed it out. When the string broke the puck just kept going straight, tangent to the circle. Only someone turning with the table sees it fly outward.', 'The centrifugal force pushed it out.'],
+    };
+    const reports = [];
+    for (let i = 0; i < 6; i++) {
+      const lvl = [14, 11, 9, 7, 4, 2][i], good = i < 3;
+      const p = { station: lvl >= 12 ? 4 : lvl >= 9 ? 3 : lvl >= 3 ? 2 : 1, ev: {}, q: {}, rv: {}, trials: [] };
+      for (let k = 0; k < 5; k++) p.ev['ev' + k] = { first: 'demo', firstOk: Math.random() < (k === 2 ? .3 : .7), tries: 1, done: true };
+      if (lvl >= 2) p.paradox = texts.paradox[good ? 0 : 1] + (good ? '' : ' It depends.');
+      if (lvl >= 3) { p.q.a1 = { first: 'The string (the tension)', firstOk: true, tries: 1, done: true }; p.q.a2 = { first: Math.random() < .5 ? 'Bigger than Mg, because it is spinning' : 'Equal to the weight of the heavy mass, Mg', firstOk: Math.random() < .5, tries: 2, done: true }; }
+      if (lvl >= 4) p.trials = [{ r: .85, t10: 8.2 }, { r: .75, t10: 7.7 }];
+      if (lvl >= 5) p.labWrong = texts.labWrong[good ? 0 : 1] + ' We were not careful with the radius either.';
+      if (lvl >= 6) p.benchB = { n: 5, fit: true };
+      if (lvl >= 7) p.benchC = { n: 5, fit: true };
+      if (lvl >= 8) p.derive = 7;
+      if (lvl >= 9) p.k = 39.6;
+      if (lvl >= 10) p.reveals = 9;
+      if (lvl >= 11) p.q.m1 = { first: 'The acceleration doubles', firstOk: false, tries: 2, done: true };
+      if (lvl >= 12) { p.cuts = 2; p.q.c1 = { first: 'Straight out, away from the center', firstOk: Math.random() < .4, tries: 2, done: true }; }
+      if (lvl >= 13) p.caught = true;
+      if (lvl >= 14) p.centri = texts.centri[0];
+      reports.push({ schema: 1, lab: CIRCLES.classId, id: 'demo' + i, session: 'DEMO', mode: 'group', group: String(i + 1), students: [names[2 * i], names[2 * i + 1]], p,
+        startedAt: new Date().toISOString(), submittedAt: new Date(Date.now() - (i === 5 ? 9 : i) * 60000).toISOString() });
+    }
+    return reports;
+  },
+});
+</script>
+</body>
+</html>

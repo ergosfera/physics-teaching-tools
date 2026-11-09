@@ -50,6 +50,18 @@ const LAB_TOPICS = [
         student: 'mechanics/centripetal_lab.html',
         teacher: 'mechanics/centripetal_teacher.html',
       },
+      {
+        id: 'circles-class', icon: '🎠', title: 'Going in Circles',
+        desc: 'After the centripetal lab: four interactive stations. Feel how the pull changes with radius and period, redo the lab and take it apart until F = mv²/r appears, put the Moon and satellites on an invisible rope, and watch centrifugal force appear only for the rider on a turntable. Your teacher sees each pair\'s progress live.',
+        student: 'mechanics/circular_motion_class.html',
+        teacher: 'mechanics/circular_motion_class_teacher.html',
+      },
+      {
+        id: 'circles-test', icon: '📝', title: 'Going in Circles · Pair Test',
+        desc: '16 questions and one written answer on circular motion, done in pairs on one device. Discuss, agree, hand in, and then see your score with the explanations.',
+        student: 'mechanics/circular_motion_test.html',
+        teacher: 'mechanics/circular_motion_test_teacher.html',
+      },
     ],
   },
   {

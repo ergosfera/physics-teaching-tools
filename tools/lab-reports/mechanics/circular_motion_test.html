@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Circles Pair Test</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📝</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #1c2128; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950; --green-soft: rgba(63,185,80,.12); --amber: #d29922; --amber-soft: rgba(210,153,34,.14);
+    --red: #f85149; --red-soft: rgba(248,81,73,.12); --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa; --surface: #ffffff; --surface2: #f0f3f6; --border: #d0d7de;
+    --text: #1f2328; --muted: #656d76; --accent: #0969da; --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37; --green-soft: rgba(26,127,55,.09); --amber: #9a6700; --amber-soft: rgba(154,103,0,.10);
+    --red: #cf222e; --red-soft: rgba(207,34,46,.08);
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.5; min-height: 100vh; }
+  button, input, textarea { font: inherit; color: inherit; }
+  header { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+  header a { color: var(--muted); text-decoration: none; font-size: .82rem; }
+  header a:hover { color: var(--accent); }
+  header h1 { font-size: 1.1rem; font-weight: 800; flex: 1; }
+  header h1 span { color: var(--accent); }
+  .pill-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 20px; padding: 5px 12px; font-size: .75rem; font-weight: 600; cursor: pointer; }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .sync { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .sync b { color: var(--green); }
+  .sync.warn b { color: var(--amber); }
+  main { max-width: 820px; margin: 0 auto; padding: 22px 16px 60px; display: grid; gap: 16px; }
+  .intro { color: var(--muted); font-size: .95rem; }
+  .intro b { color: var(--text); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; display: grid; gap: 14px; }
+  .card h2 { font-size: 1.15rem; font-weight: 800; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  label.f { display: grid; gap: 4px; font-size: .8rem; font-weight: 700; color: var(--muted); }
+  input[type=text], textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font-size: .97rem; }
+  input[readonly] { background: var(--surface2); color: var(--muted); }
+  textarea { min-height: 150px; resize: vertical; line-height: 1.45; }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .btn { font-weight: 700; font-size: .95rem; cursor: pointer; border-radius: 8px; padding: 10px 18px; border: 1px solid var(--border); background: var(--surface2); }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .row .grow { flex: 1; }
+  .note { border-radius: 8px; padding: 10px 14px; font-size: .92rem; background: var(--accent-soft); border-left: 3px solid var(--accent); }
+  .note.warn { background: var(--amber-soft); border-left-color: var(--amber); }
+  .note.good { background: var(--green-soft); border-left-color: var(--green); }
+
+  .dots { display: flex; flex-wrap: wrap; gap: 5px; }
+  .dots button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface2); font-size: .8rem; font-weight: 800; color: var(--muted); cursor: pointer; }
+  .dots button.ans { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .dots button.cur { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .qhead { display: flex; gap: 14px; align-items: flex-start; }
+  .qhead .ic { font-size: 2.4rem; line-height: 1; }
+  .qhead .qn { font-size: .75rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  .qhead .qt { font-size: 1.25rem; font-weight: 700; }
+  .opts { display: grid; gap: 8px; }
+  .opt { display: flex; gap: 12px; align-items: center; text-align: left; border: 2px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--surface2); cursor: pointer; font-size: 1.02rem; }
+  .opt:hover:not(:disabled) { border-color: var(--accent); }
+  .opt .L { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; background: var(--surface); border: 1px solid var(--border); }
+  .opt.sel { border-color: var(--accent); background: var(--accent-soft); }
+  .opt.sel .L { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tip { font-size: .85rem; color: var(--muted); }
+  .wc { font-size: .75rem; color: var(--muted); text-align: right; }
+  .wc.ok { color: var(--green); }
+
+  .score { text-align: center; display: grid; gap: 4px; }
+  .score .big { font-size: 3.2rem; font-weight: 900; }
+  .score .big small { font-size: 1.4rem; color: var(--muted); }
+  .rev { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: grid; gap: 4px; background: var(--surface2); font-size: .93rem; }
+  .rev.ok { border-left: 4px solid var(--green); }
+  .rev.bad { border-left: 4px solid var(--red); }
+  .rev .h { font-weight: 700; }
+  .rev .a b { color: var(--green); }
+  .rev .a s { color: var(--red); }
+  .rev .e { color: var(--muted); }
+  dialog.guide { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); width: min(780px, 94vw); max-height: 90vh; margin: auto; padding: 0; }
+  dialog.guide::backdrop { background: rgba(0,0,0,.55); }
+  .guide-head { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .guide-head h2 { font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .guide-body { padding: 18px; display: grid; gap: 18px; font-size: .92rem; }
+  .guide-body h3 { font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .guide-body ol, .guide-body ul { padding-left: 22px; display: grid; gap: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <a id="back" href="circular_motion_class.html">← Going in Circles</a>
+  <h1>📝 <span>Pair Test</span></h1>
+  <span class="sync" id="sync" hidden></span>
+  <button class="pill-btn" id="theme">☀ Light</button>
+</header>
+<main>
+  <p class="intro">Do this test <b>with your partner, on one device</b>. Discuss every question and agree on one answer. You can go back and change answers until you press <b>Hand in</b>. Then you see your score and the explanations.</p>
+
+  <!-- WHO -->
+  <section class="card" id="scWho" hidden>
+    <h2>Who is taking the test?</h2>
+    <div class="grid">
+      <label class="f">Session <input type="text" id="wSession"></label>
+      <label class="f">Pair number <input type="text" id="wGroup" inputmode="numeric"></label>
+      <label class="f">Student 1 <input type="text" id="wS1" maxlength="40"></label>
+      <label class="f">Student 2 <input type="text" id="wS2" maxlength="40"></label>
+    </div>
+    <div id="wNote"></div>
+    <div class="row"><button class="btn primary" id="wGo" disabled>Start the test ▶</button><span class="tip" id="wMsg"></span></div>
+  </section>
+
+  <!-- TEST -->
+  <section class="card" id="scTest" hidden>
+    <div class="dots" id="dots"></div>
+    <div id="qBox"></div>
+    <div class="row">
+      <button class="btn" id="prev">◀ Back</button>
+      <span class="grow"></span>
+      <span class="tip" id="count"></span>
+      <button class="btn primary" id="next">Next ▶</button>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section class="card" id="scDone" hidden>
+    <div class="score"><div class="tip" id="dWho"></div><div class="big" id="dScore"></div><div id="dMsg" style="font-weight:700"></div></div>
+    <div id="dSend"></div>
+    <div id="dReview" style="display:grid;gap:8px"></div>
+  </section>
+</main>
+
+<script src="circular_motion.js"></script>
+<script src="../lab-closing.js"></script>
+<script src="../lab-privacy.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const QS = CIRCLES.test, TXT = CIRCLES.testText, N = QS.length, LETTERS = 'ABCD';
+
+// ── theme (same key as the class page) ──
+function setTheme(light) { document.body.classList.toggle('light', light); $('theme').textContent = light ? '☾ Dark' : '☀ Light'; try { localStorage.setItem('circ-theme', light ? 'light' : 'dark'); } catch (e) {} }
+let th = null; try { th = localStorage.getItem('circ-theme'); } catch (e) {}
+setTheme(th === 'light');
+$('theme').onclick = () => setTheme(!document.body.classList.contains('light'));
+
+// ── link & state ──
+const params = new URLSearchParams(location.search);
+const API = params.get('api') || '', LINK_SESSION = params.get('session') || '';
+const STORE = 'lab_' + CIRCLES.testId + '_' + (LINK_SESSION || 'default');
+if (location.search) $('back').href += location.search;
+function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function blank() {
+  return { schema: 1, lab: CIRCLES.testId, id: rid(), session: LINK_SESSION, mode: 'group', group: '', students: ['', ''],
+    order: Object.fromEntries(QS.map(q => [q.id, shuffle([0, 1, 2, 3])])), ans: {}, explain: '', finished: false, startedAt: new Date().toISOString() };
+}
+let S = blank();
+try { const sv = JSON.parse(localStorage.getItem(STORE) || 'null'); if (sv && sv.lab === CIRCLES.testId && sv.order) S = Object.assign(blank(), sv); } catch (e) {}
+if (LINK_SESSION) S.session = LINK_SESSION;
+let cur = S.cur || 0, dirty = false, sending = false, timer = null, closedMsg = '', lastSent = S.lastSent || null;
+
+const answered = () => QS.filter(q => q.id in S.ans).length;
+const score = () => QS.filter(q => S.ans[q.id] === 0).length;
+function persist() { S.cur = cur; try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
+function touch(now) { persist(); dirty = true; syncLine(); if (API) { clearTimeout(timer); timer = setTimeout(sendNow, now ? 0 : 3000); } }
+function syncLine() {
+  const el = $('sync'); el.hidden = false; el.classList.toggle('warn', !API || !!closedMsg);
+  el.innerHTML = `<b>${answered()}/${N}</b> answered · ` + (!API ? 'not connected to your teacher' : closedMsg ? closedMsg
+    : sending ? 'sending…' : lastSent ? 'teacher updated ' + new Date(lastSent).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'not sent yet');
+}
+async function sendNow() {
+  if (!API || sending || !S.students[0]) return false;
+  sending = true; dirty = false; syncLine();
+  const { cur: _c, lastSent: _l, ...data } = S;
+  const body = JSON.stringify({ ...data, score: score(), answered: answered(), submittedAt: new Date().toISOString(), client: 'circular_motion_test/1' });
+  let ok = false;
+  try {
+    const j = await (await fetch(API, { method: 'POST', body })).json();
+    if (j.closed) closedMsg = 'your teacher has closed the test';
+    else if (j.ok) ok = true; else dirty = true;
+  } catch (e) {
+    try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; } catch (e2) { dirty = true; }
+  }
+  sending = false;
+  if (ok) { lastSent = S.lastSent = new Date().toISOString(); persist(); }
+  syncLine(); if (S.finished) renderSendState(ok);
+  return ok;
+}
+setInterval(() => { if (dirty) sendNow(); }, 20000);
+
+function show(id) { ['scWho', 'scTest', 'scDone'].forEach(x => $(x).hidden = x !== id); window.scrollTo(0, 0); }
+
+// ── who ──
+function whoInit() {
+  $('wSession').value = S.session; $('wSession').readOnly = !!LINK_SESSION;
+  $('wGroup').value = S.group; $('wS1').value = S.students[0]; $('wS2').value = S.students[1];
+  $('wNote').innerHTML = API ? '' : '<div class="note warn">This link is not connected to your teacher: your answers stay on this device. At the end, show your score to your teacher. Ask for the class link if you should be connected.</div>';
+  const check = () => {
+    const ok = $('wSession').value.trim() && $('wGroup').value.trim() && $('wS1').value.trim();
+    $('wGo').disabled = !ok; $('wMsg').textContent = ok ? (!$('wS2').value.trim() ? 'Only one name? That is fine if your teacher said so.' : '') : 'Write the session, your pair number and your names.';
+  };
+  ['wSession', 'wGroup', 'wS1', 'wS2'].forEach(id => $(id).addEventListener('input', check)); check();
+  $('wGo').onclick = () => {
+    S.session = $('wSession').value.trim(); S.group = $('wGroup').value.trim();
+    S.students = [$('wS1').value.trim(), $('wS2').value.trim()]; S.mode = S.students[1] ? 'group' : 'individual';
+    touch(true); show('scTest'); renderQ();
+  };
+}
+
+// ── questions (index N is the written question) ──
+function renderDots() {
+  $('dots').innerHTML = [...QS.map((q, i) => [i, q.id in S.ans]), [N, CIRCLES.words(S.explain) >= 15]]
+    .map(([i, a]) => `<button class="${i === cur ? 'cur' : a ? 'ans' : ''}" data-i="${i}" title="${i === N ? 'Written question' : 'Question ' + (i + 1)}">${i === N ? '✍' : i + 1}</button>`).join('');
+  $('dots').querySelectorAll('button').forEach(b => b.onclick = () => { cur = +b.dataset.i; persist(); renderQ(); });
+  $('count').textContent = `${answered()} of ${N} answered`;
+}
+function renderQ() {
+  renderDots();
+  $('prev').disabled = cur === 0;
+  if (cur < N) {
+    const q = QS[cur], ord = S.order[q.id];
+    $('qBox').innerHTML = `<div class="qhead"><span class="ic">${q.ic}</span><div><div class="qn">Question ${cur + 1} of ${N}</div><div class="qt">${esc(q.q)}</div></div></div>
+      <div class="opts">${ord.map((k, pos) => `<button class="opt ${S.ans[q.id] === k ? 'sel' : ''}" data-k="${k}"><span class="L">${LETTERS[pos]}</span><span>${esc(q.o[k])}</span></button>`).join('')}</div>
+      <p class="tip">Agree with your partner before you choose. You can come back and change it.</p>`;
+    $('qBox').querySelectorAll('.opt').forEach(b => b.onclick = () => {
+      S.ans[q.id] = +b.dataset.k; touch(); renderQ();
+    });
+    $('next').textContent = 'Next ▶';
+  } else {
+    $('qBox').innerHTML = `<div class="qhead"><span class="ic">✍️</span><div><div class="qn">Last question · written</div><div class="qt">${esc(TXT.title)}</div></div></div>
+      <textarea id="explain" placeholder="Write it together, in your own words…">${esc(S.explain)}</textarea><div class="wc" id="wc"></div>`;
+    const t = $('explain'), wc = () => { const n = CIRCLES.words(S.explain); $('wc').textContent = `${n} words · at least 15`; $('wc').classList.toggle('ok', n >= 15); };
+    t.addEventListener('input', () => { S.explain = t.value; wc(); touch(); renderDotsOnly(); }); wc();
+    $('next').textContent = '📤 Hand in';
+  }
+}
+function renderDotsOnly() { const f = document.activeElement; renderDots(); if (f) f.focus(); }
+$('prev').onclick = () => { if (cur > 0) { cur--; persist(); renderQ(); } };
+$('next').onclick = () => {
+  if (cur < N) { cur++; persist(); renderQ(); return; }
+  const miss = N - answered(), w = CIRCLES.words(S.explain);
+  const warn = [miss ? `${miss} question${miss === 1 ? ' is' : 's are'} not answered.` : '', w < 15 ? 'The written answer is short.' : ''].filter(Boolean).join(' ');
+  if (!confirm((warn ? warn + '\n\n' : '') + 'Hand in the test? After this you can\'t change your answers.')) return;
+  S.finished = true; S.finishedAt = new Date().toISOString(); touch(true); showDone();
+};
+
+// ── result ──
+function renderSendState(ok) {
+  $('dSend').innerHTML = !API ? '<div class="note warn">Not connected: show this screen to your teacher.</div>'
+    : closedMsg ? `<div class="note warn">Your teacher has closed the test, so this was not saved. Show this screen to your teacher.</div>`
+    : ok || lastSent ? '<div class="note good">✓ Your teacher has your answers.</div>'
+    : '<div class="note warn">Sending… If this stays, check the internet connection: it keeps trying.</div>';
+}
+function showDone() {
+  show('scDone');
+  const sc = score(), pct = sc / N;
+  $('dWho').textContent = `Pair ${S.group} · ${S.students.filter(Boolean).join(' & ')}`;
+  $('dScore').innerHTML = `${sc}<small> / ${N}</small>`;
+  $('dMsg').textContent = pct >= .9 ? '🌟 Excellent!' : pct >= .7 ? '👏 Well done!' : pct >= .5 ? '👍 Good, check the ones you missed.' : '💪 Read the explanations below together.';
+  renderSendState(false);
+  $('dReview').innerHTML = QS.map((q, i) => {
+    const a = S.ans[q.id], ok = a === 0;
+    return `<div class="rev ${ok ? 'ok' : 'bad'}"><div class="h">${ok ? '✓' : '✗'} ${i + 1}. ${esc(q.q)}</div>
+      <div class="a">${ok ? `<b>${esc(q.o[0])}</b>` : `${a == null ? 'Not answered' : `<s>${esc(q.o[a])}</s>`} · right answer: <b>${esc(q.o[0])}</b>`}</div>
+      <div class="e">${esc(q.e)}</div></div>`;
+  }).join('') + `<div class="rev"><div class="h">✍️ ${esc(TXT.title)}</div><div>${esc(S.explain) || '<i>No answer</i>'}</div><div class="e">Your teacher reads this one.</div></div>`;
+}
+
+// ── start ──
+labPrivacy.init({ api: API, live: true });
+labClosing.watch(API, CIRCLES.testId, S.session);
+whoInit(); syncLine();
+if (S.finished) { showDone(); if (API && !lastSent) sendNow(); }
+else if (S.students[0] && S.group) { show('scTest'); renderQ(); }
+else show('scWho');
+</script>
+</body>
+</html>

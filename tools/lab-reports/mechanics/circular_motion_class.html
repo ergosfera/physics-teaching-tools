@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Going in Circles</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌀</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #1c2128; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950; --green-soft: rgba(63,185,80,.12); --amber: #d29922; --amber-soft: rgba(210,153,34,.14);
+    --red: #f85149; --red-soft: rgba(248,81,73,.12); --purple: #bc8cff; --purple-soft: rgba(188,140,255,.13);
+    --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa; --surface: #ffffff; --surface2: #f0f3f6; --border: #d0d7de;
+    --text: #1f2328; --muted: #656d76; --accent: #0969da; --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37; --green-soft: rgba(26,127,55,.09); --amber: #9a6700; --amber-soft: rgba(154,103,0,.10);
+    --red: #cf222e; --red-soft: rgba(207,34,46,.08); --purple: #8250df; --purple-soft: rgba(130,80,223,.09);
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.5; min-height: 100vh; }
+  button, input, select { font: inherit; color: inherit; }
+
+  header {
+    position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 10px 16px; display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap;
+  }
+  header a.back { color: var(--muted); text-decoration: none; font-size: .82rem; }
+  header a.back:hover { color: var(--accent); }
+  header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.3px; }
+  header h1 span { color: var(--accent); }
+  nav.stations { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+  nav.stations button {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 20px;
+    padding: 6px 14px; font-size: .85rem; font-weight: 700; cursor: pointer;
+  }
+  nav.stations button:hover { color: var(--accent); border-color: var(--accent); }
+  nav.stations button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  nav.stations a.quiz { background: var(--green); border: 1px solid var(--green); color: #fff; border-radius: 20px; padding: 6px 14px; font-size: .85rem; font-weight: 700; text-decoration: none; }
+  @media (max-width: 760px) {
+    header h1 { flex: 1; }
+    nav.stations { order: 3; flex-basis: 100%; }
+    nav.stations button, nav.stations a.quiz { padding: 5px 10px; font-size: .78rem; }
+  }
+  .pill-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 20px; padding: 5px 12px; font-size: .75rem; font-weight: 600; cursor: pointer; }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
+  section.station > h2 { font-size: 1.5rem; font-weight: 800; letter-spacing: -.4px; margin-bottom: 4px; }
+  section.station > h2 small { color: var(--accent); font-size: .9rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; display: block; }
+  p.lead { color: var(--muted); font-size: 1rem; margin-bottom: 18px; max-width: 900px; }
+  p.lead b { color: var(--text); }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 920px) { .cols { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: grid; gap: 12px; }
+  .card h3 { font-size: 1.02rem; font-weight: 800; }
+  .card h3 .tag { font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); display: block; }
+  .card p { font-size: .93rem; }
+  .stack { display: grid; gap: 18px; }
+
+  canvas.sim { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; touch-action: manipulation; }
+  .ctrl { display: grid; grid-template-columns: 150px 1fr 90px; align-items: center; gap: 10px; font-size: .88rem; }
+  .ctrl label { font-weight: 700; color: var(--muted); }
+  .ctrl output { font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+  @media (max-width: 520px) { .ctrl { grid-template-columns: 100px 1fr 70px; } }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=range]:disabled { opacity: .4; }
+  input[type=number] { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-size: .95rem; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { background: var(--surface2); border: none; padding: 6px 12px; cursor: pointer; font-size: .85rem; font-weight: 700; color: var(--muted); }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .btn { font-weight: 700; font-size: .9rem; cursor: pointer; border-radius: 8px; padding: 8px 14px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+  .ro { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
+  .ro .k { font-size: .7rem; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+  .ro .v { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .ro .v small { font-size: .78rem; color: var(--muted); font-weight: 600; }
+  .ro.big .v { color: var(--red); }
+  .gauge { height: 14px; border-radius: 7px; background: var(--surface2); border: 1px solid var(--border); overflow: hidden; }
+  .gauge i { display: block; height: 100%; background: linear-gradient(90deg, var(--green), var(--amber), var(--red)); transition: width .15s; }
+
+  .note { border-radius: 8px; padding: 10px 14px; font-size: .92rem; background: var(--accent-soft); border-left: 3px solid var(--accent); }
+  .note.warn { background: var(--amber-soft); border-left-color: var(--amber); }
+  .note.good { background: var(--green-soft); border-left-color: var(--green); }
+  .note.purple { background: var(--purple-soft); border-left-color: var(--purple); }
+  .discuss { border: 2px dashed var(--accent); border-radius: 12px; padding: 14px 16px; display: grid; gap: 8px; background: var(--accent-soft); }
+  .discuss .tag { font-size: .72rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  .discuss p { font-size: 1rem; }
+
+  /* everyday cards */
+  .ev { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; background: var(--surface2); }
+  .ev .qq { font-weight: 700; font-size: .95rem; }
+  .ev .qq .em { font-size: 1.3rem; margin-right: 6px; }
+  .ev .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ev .opts button { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: .88rem; }
+  .ev .opts button:hover:not(:disabled) { border-color: var(--accent); }
+  .ev .opts button.right { border-color: var(--green); background: var(--green-soft); }
+  .ev .opts button.wrong { border-color: var(--red); background: var(--red-soft); }
+  .ev .why { font-size: .88rem; color: var(--text); }
+  .ev .why b { color: var(--green); }
+
+  /* sub tabs */
+  .subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .subtabs button { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; cursor: pointer; font-weight: 700; font-size: .88rem; color: var(--muted); text-align: left; }
+  .subtabs button b { display: block; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .subtabs button.on { border-color: var(--accent); color: var(--text); box-shadow: inset 0 -3px 0 var(--accent); }
+
+  table.data { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  table.data th { text-align: left; font-size: .72rem; color: var(--muted); font-weight: 800; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.data td { padding: 6px 8px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.data td.hl { color: var(--accent); font-weight: 700; }
+  table.data td.ok { color: var(--green); font-weight: 800; }
+  table.data td.bad { color: var(--red); font-weight: 800; }
+  .table-wrap { overflow-x: auto; }
+  .reveal { background: none; border: 1px dashed var(--accent); color: var(--accent); border-radius: 6px; padding: 2px 8px; font-size: .78rem; font-weight: 700; cursor: pointer; }
+
+  .q { display: grid; gap: 6px; }
+  .q .qt { font-weight: 700; font-size: .95rem; }
+  .choices { display: grid; gap: 6px; }
+  .choices button { text-align: left; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: .9rem; background: var(--surface2); cursor: pointer; }
+  .choices button:hover:not(:disabled) { border-color: var(--accent); }
+  .choices button.right { border-color: var(--green); background: var(--green-soft); }
+  .choices button.wrong { border-color: var(--red); background: var(--red-soft); }
+  .fb { font-size: .9rem; }
+
+  .math { font-family: 'Cambria Math', Cambria, 'Times New Roman', serif; font-size: 1.35rem; text-align: center; padding: 6px; }
+  .math.big { font-size: 1.9rem; }
+  .math .hl { color: var(--accent); }
+  .math .gr { color: var(--green); }
+  .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 3px; }
+  .frac > span:first-child { border-bottom: 2px solid currentColor; padding: 0 4px; }
+  .derive { display: grid; gap: 10px; }
+  .derive .stepx { border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; background: var(--surface2); display: grid; gap: 4px; }
+  .derive .stepx .why { font-size: .88rem; color: var(--muted); }
+
+  details.box { border: 1px solid var(--border); border-radius: 10px; background: var(--surface2); }
+  details.box summary { cursor: pointer; padding: 10px 14px; font-weight: 800; font-size: .93rem; }
+  details.box > div { padding: 0 14px 14px; display: grid; gap: 8px; font-size: .9rem; }
+  details.box ul { padding-left: 20px; display: grid; gap: 6px; }
+
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); }
+  .legend span::before { content: ''; display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; background: var(--c); border-radius: 2px; }
+  .legend span.dash::before { background: repeating-linear-gradient(90deg, var(--c) 0 5px, transparent 5px 8px); }
+  .status-line { font-weight: 800; font-size: .95rem; min-height: 1.5em; }
+  .twin { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .twin h4 { font-size: .85rem; font-weight: 800; text-align: center; margin-bottom: 6px; }
+  .twin h4 small { display: block; color: var(--muted); font-weight: 600; }
+  @media (max-width: 700px) { .twin { grid-template-columns: 1fr; } }
+  .final { text-align: center; padding: 26px; display: grid; gap: 12px; justify-items: center; }
+  .final a { font-size: 1.15rem; padding: 12px 26px; text-decoration: none; }
+  textarea.say { width: 100%; min-height: 70px; resize: vertical; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: .93rem; color: var(--text); line-height: 1.45; }
+  textarea.say:focus, #who input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .wc { font-size: .72rem; color: var(--muted); text-align: right; }
+  .wc.ok { color: var(--green); }
+  body.needs-who section.station { display: none; }
+  #who { max-width: 720px; margin: 0 auto 20px; border: 2px solid var(--accent); }
+  #who .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  #who label { display: grid; gap: 4px; font-size: .8rem; font-weight: 700; color: var(--muted); }
+  #who input { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: .95rem; width: 100%; }
+  #who input[readonly] { background: var(--surface2); color: var(--muted); }
+  .sync { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .sync b { color: var(--green); }
+  .sync.warn b { color: var(--amber); }
+  dialog.guide { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); width: min(780px, 94vw); max-height: 90vh; margin: auto; padding: 0; }
+  dialog.guide::backdrop { background: rgba(0,0,0,.55); }
+  .guide-head { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .guide-head h2 { font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .guide-body { padding: 18px; display: grid; gap: 18px; font-size: .92rem; }
+  .guide-body h3 { font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .guide-body ol, .guide-body ul { padding-left: 22px; display: grid; gap: 6px; }
+  footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="../../../index.html">← Tools</a>
+  <h1>🌀 Going in <span>Circles</span></h1>
+  <nav class="stations" id="nav">
+    <button data-st="1" class="on">1 · Feel it</button>
+    <button data-st="2">2 · Take it apart</button>
+    <button data-st="3">3 · Up in the sky</button>
+    <button data-st="4">4 · Who's watching?</button>
+    <a class="quiz" id="testLink" href="circular_motion_test.html">📝 Pair test</a>
+  </nav>
+  <span class="sync" id="sync" hidden></span>
+  <button class="pill-btn" id="theme">☀ Light</button>
+</header>
+
+<main>
+<div class="card" id="who" hidden>
+  <h3><span class="tag">Before you start</span>Who is working on this computer?</h3>
+  <p style="font-size:.9rem;color:var(--muted)">Work in pairs (or alone if your teacher says so). Your teacher sees how far you get in each station, live.</p>
+  <div class="grid">
+    <label>Session <input type="text" id="wSession"></label>
+    <label>Pair / group number <input type="text" id="wGroup" inputmode="numeric"></label>
+    <label>Student 1 <input type="text" id="wS1" maxlength="40"></label>
+    <label>Student 2 <input type="text" id="wS2" maxlength="40" placeholder="(if any)"></label>
+  </div>
+  <div class="row"><button class="btn primary" id="wGo" disabled>Start ▶</button><span id="wMsg" style="font-size:.85rem;color:var(--muted)"></span></div>
+</div>
+<!-- ═════════════ STATION 1 ═════════════ -->
+<section class="station" data-st="1">
+  <h2><small>Station 1</small>You already know this: you've felt it</h2>
+  <p class="lead">Spin something on a string and your hand <b>feels</b> a pull. Change the <b>radius</b> or how long one turn takes (the <b>period</b>), and the pull changes. Try it with the simulator, then decide the everyday cases on the right.</p>
+  <div class="cols">
+    <div class="card">
+      <h3><span class="tag">Simulator</span>A ball on a string, seen from above</h3>
+      <canvas class="sim" id="c1" width="560" height="430"></canvas>
+      <div class="ctrl"><label for="s1r">Radius r</label><input type="range" id="s1r" min="0.2" max="1.2" step="0.01" value="0.6"><output id="o1r"></output></div>
+      <div class="ctrl"><label for="s1T">Period T (one turn)</label><input type="range" id="s1T" min="0.3" max="4" step="0.01" value="1.2"><output id="o1T"></output></div>
+      <div class="ctrl"><label for="s1m">Mass of the ball</label><input type="range" id="s1m" min="0.05" max="0.5" step="0.01" value="0.1"><output id="o1m"></output></div>
+      <div class="row"><b style="font-size:.85rem;color:var(--muted)">When I change r, keep the same:</b>
+        <div class="seg" id="s1hold"><button data-h="T" class="on">period T</button><button data-h="v">speed v</button></div>
+      </div>
+      <div class="readouts">
+        <div class="ro"><div class="k">Speed v</div><div class="v" id="r1v"></div></div>
+        <div class="ro big"><div class="k">Pull on your hand</div><div class="v" id="r1F"></div></div>
+        <div class="ro"><div class="k">Feels like holding</div><div class="v" id="r1kg"></div></div>
+      </div>
+      <div class="gauge"><i id="g1"></i></div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h3><span class="tag">Your daily life</span>Which one pulls harder?</h3>
+        <div id="everyday" class="stack" style="gap:10px"></div>
+      </div>
+      <div class="discuss" id="paradox" hidden>
+        <span class="tag">💬 Wait a moment…</span>
+        <p>On the <b>merry-go-round</b>, the <b>bigger</b> radius needed more force. In the <b>car</b>, the <b>smaller</b> radius needed more force. Can both be right?</p>
+        <p style="color:var(--muted);font-size:.9rem">Hint: what stays the same in each case? Try it: in the simulator switch between “keep the same <b>period</b>” and “keep the same <b>speed</b>”, and move the radius.</p>
+        <textarea class="say" data-say="paradox" placeholder="Discuss with your partner and write what you think…"></textarea>
+        <div class="wc" data-wc="paradox" data-min="6"></div>
+        <button class="reveal" id="paradoxBtn" style="justify-self:start" disabled>Show the answer (write first)</button>
+        <div id="paradoxAns" hidden class="note good">Both are right. <b>Same period</b> (merry-go-round, everybody turns together): a bigger circle means a faster ball, and the force <b>grows</b> with r. <b>Same speed</b> (car at 40 km/h): a bigger circle bends the path more gently, and the force <b>drops</b> with r. “Bigger r → bigger force?” has no answer until you say what you keep fixed.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ STATION 2 ═════════════ -->
+<section class="station" data-st="2" hidden>
+  <h2><small>Station 2</small>Take the lab apart, one idea at a time</h2>
+  <p class="lead">Our lab mixed three ideas at once. Here we pull them apart: <b>A</b> the tension <i>is</i> the centripetal force, <b>B</b> the force depends on the radius, <b>C</b> the force depends on the period. Then <b>D</b> we put them together.</p>
+  <div class="subtabs" id="sub2">
+    <button data-s="A" class="on"><b>Idea A</b>Tension = centripetal force</button>
+    <button data-s="B"><b>Idea B</b>Change the radius</button>
+    <button data-s="C"><b>Idea C</b>Change the period</button>
+    <button data-s="D"><b>Idea D</b>Put it together</button>
+  </div>
+
+  <!-- A -->
+  <div data-s="A">
+    <div class="cols">
+      <div class="card">
+        <h3><span class="tag">Redo the lab · game</span>Keep the heavy mass at the mark</h3>
+        <canvas class="sim" id="c2a" width="560" height="460"></canvas>
+        <div class="ctrl"><label for="s2v">Swing speed</label><input type="range" id="s2v" min="3" max="9" step="0.01" value="5.2"><output id="o2v"></output></div>
+        <div class="row">
+          <button class="btn" id="s2slow">◀ slower</button><button class="btn" id="s2fast">faster ▶</button>
+          <span style="font-size:.85rem;color:var(--muted)">Mark: heavy mass</span>
+          <div class="seg" id="s2target"><button data-d="0.05">5 cm</button><button data-d="0.15" class="on">15 cm</button><button data-d="0.25">25 cm</button><button data-d="0.35">35 cm</button></div>
+          <span style="font-size:.85rem;color:var(--muted)">below the tube</span>
+        </div>
+        <div class="row"><label style="font-size:.85rem;display:flex;gap:6px;align-items:center"><input type="checkbox" id="s2fbd" checked> Show the forces</label></div>
+        <div class="status-line" id="s2status"></div>
+        <div class="note" style="font-size:.85rem">Light mass <b>m = 30 g</b> goes around. Heavy mass <b>M = 150 g</b> hangs below, so its weight is <b>Mg = 1.47 N</b>. String from the top of the tube to the heavy mass: 1.00 m. Keep the heavy mass at the mark: the timer counts 10 laps by itself.</div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h3><span class="tag">Think first</span>Who pulls the light mass toward the center?</h3>
+          <div class="q" data-q="a1">
+            <div class="choices">
+              <button>Its own weight</button>
+              <button data-ok>The string (the tension)</button>
+              <button>The centrifugal force</button>
+              <button>Nothing: it moves by itself</button>
+            </div>
+            <div class="fb" hidden>The only thing touching it that can pull it <b>toward the center</b> is the string. The tension is the centripetal force: “centripetal” is not a new kind of force, it is the <b>job</b> the tension is doing.</div>
+          </div>
+          <div class="q" data-q="a2">
+            <div class="qt">While the heavy mass hangs still, how big is the tension?</div>
+            <div class="choices">
+              <button data-ok>Equal to the weight of the heavy mass, Mg</button>
+              <button>Equal to the weight of the light mass, mg</button>
+              <button>Bigger than Mg, because it is spinning</button>
+            </div>
+            <div class="fb" hidden>The heavy mass is at rest: string up, weight down, so they must be equal. <b>T = Mg</b>. If it moves up or down, they are not equal any more: that's why it has to stay still.</div>
+          </div>
+        </div>
+        <div class="card">
+          <h3><span class="tag">Your trials</span>Does m·v²/r really equal Mg?</h3>
+          <div class="table-wrap"><table class="data"><thead><tr><th>#</th><th>r (m)</th><th>10 laps (s)</th><th>T (s)</th><th>v = 2πr/T</th><th>m·v²/r (N)</th><th>Mg (N)</th><th>diff</th></tr></thead><tbody id="t2a"><tr><td colspan="8" style="color:var(--muted)">Hold the mass at a mark to get a trial…</td></tr></tbody></table></div>
+        </div>
+        <div class="card">
+          <h3><span class="tag">Your lab</span>What probably went wrong in YOUR group's lab?</h3>
+          <textarea class="say" data-say="labWrong" placeholder="Think about what you did that day. Then open the list below and compare."></textarea>
+          <div class="wc" data-wc="labWrong" data-min="8"></div>
+        </div>
+        <details class="box">
+          <summary>🔧 Possible reasons our real lab went wrong</summary>
+          <div>
+            <ul>
+              <li><b>The heavy mass wasn't still.</b> If it moves up or down, the tension isn't Mg any more.</li>
+              <li><b>Friction in the tube.</b> The string rubs on the edge, so the pull at the top isn't exactly the weight below.</li>
+              <li><b>Timing.</b> F depends on <b>1/T²</b>: a 3 % error in T becomes a 6 % error in F. Being 0.3 s off over 10 short laps is easy.</li>
+              <li><b>The radius.</b> Pinching the string late, or measuring to the edge instead of the center of the mass, changes r.</li>
+              <li><b>Units.</b> Grams instead of kilograms gives forces 1000 times too big.</li>
+            </ul>
+            <p style="color:var(--muted)">Nice fact: the string never is exactly horizontal (the light mass has weight too). But if you use the <b>string length</b> as r, the tension still comes out right.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- B & C share the bench -->
+  <div data-s="BC" hidden>
+    <div class="cols">
+      <div class="card">
+        <h3><span class="tag">Force-sensor bench</span><span id="benchTitle"></span></h3>
+        <canvas class="sim" id="c2b" width="560" height="400"></canvas>
+        <div class="ctrl"><label for="s3r">Radius r</label><input type="range" id="s3r" min="0.1" max="1" step="0.01" value="0.5"><output id="o3r"></output></div>
+        <div class="ctrl"><label for="s3T">Period T</label><input type="range" id="s3T" min="0.5" max="3" step="0.01" value="1"><output id="o3T"></output></div>
+        <div class="readouts">
+          <div class="ro"><div class="k">Mass</div><div class="v">0.100 <small>kg</small></div></div>
+          <div class="ro big"><div class="k">Sensor reads</div><div class="v" id="r3F"></div></div>
+        </div>
+        <div class="row"><button class="btn primary" id="s3rec">📌 Record point</button><button class="btn" id="s3clr">Clear</button><span id="s3lock" style="font-size:.85rem;color:var(--muted)"></span></div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h3><span class="tag">Graph</span><span id="plotTitle"></span></h3>
+          <div class="row" id="s3axis" hidden><span style="font-size:.85rem;color:var(--muted)">Horizontal axis:</span><div class="seg"><button data-x="T" class="on">T</button><button data-x="invT2">1/T²</button></div></div>
+          <canvas class="sim" id="p2" width="560" height="360"></canvas>
+          <div class="row"><button class="btn" id="s3fit">Draw the best straight line through 0</button><span id="s3fitOut" style="font-weight:700"></span></div>
+        </div>
+        <div class="discuss" id="s3disc"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- D -->
+  <div data-s="D" hidden>
+    <div class="cols">
+      <div class="card">
+        <h3><span class="tag">Put it together</span>From three facts to one law</h3>
+        <div class="derive" id="derive"></div>
+        <div class="row"><button class="btn primary" id="dNext">Next step ▶</button><button class="btn" id="dReset">Start again</button></div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h3><span class="tag">Find the number k</span>Use one point from the bench</h3>
+          <p>We know <b>F = k · m · r / T²</b>. Take one point from your bench graph (or any r, T you like):</p>
+          <div class="grid2" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+            <label style="font-size:.8rem;font-weight:700;color:var(--muted)">r (m)<input type="number" id="kr" value="0.5" step="0.01"></label>
+            <label style="font-size:.8rem;font-weight:700;color:var(--muted)">T (s)<input type="number" id="kT" value="1" step="0.01"></label>
+            <label style="font-size:.8rem;font-weight:700;color:var(--muted)">F measured (N)<input type="number" id="kF" value="1.97" step="0.01"></label>
+          </div>
+          <div class="math">k = <span class="frac"><span>F · T²</span><span>m · r</span></span> = <b class="hl" id="kOut"></b></div>
+          <button class="reveal" id="kBtn" style="justify-self:start">What number is that?</button>
+          <div class="note good" id="kAns" hidden>k ≈ 39.5 ≈ <b>4π²</b>. The 2π comes from the circle: one lap is 2πr long. That's the clue for the last step on the left.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ STATION 3 ═════════════ -->
+<section class="station" data-st="3" hidden>
+  <h2><small>Station 3</small>Up in the sky: the same rule, bigger strings</h2>
+  <p class="lead">The Moon goes around the Earth in a circle (almost). Something must be pulling it toward the center, like the string. We can measure <b>how hard</b>, with nothing more than <b>r</b>, <b>T</b> and our formula. No new law needed.</p>
+  <div class="cols">
+    <div class="card">
+      <h3><span class="tag">Orbit viewer</span><span id="orbName"></span></h3>
+      <div class="seg" id="orbSel" style="flex-wrap:wrap"></div>
+      <canvas class="sim" id="c3" width="560" height="460"></canvas>
+      <div class="row"><label style="font-size:.85rem;display:flex;gap:6px;align-items:center"><input type="checkbox" id="s3rope"> Tie it with a rope</label><span id="orbWarp" style="font-size:.8rem;color:var(--muted)"></span></div>
+      <div class="legend"><span style="--c:var(--green)">velocity v</span><span style="--c:var(--red)">acceleration toward the center</span></div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h3><span class="tag">Calculate first, then check</span>Speed and acceleration of everything that goes around the Earth</h3>
+        <p style="font-size:.85rem;color:var(--muted)">v = 2πr/T and a = v²/r. Work them out in your notebook, then tap <b>show</b>.</p>
+        <div class="table-wrap"><table class="data" id="orbTable"></table></div>
+        <p style="font-size:.82rem;color:var(--muted)">Why does your own row break the pattern in the last column? You aren't in orbit: the ground holds you up too. You only need 0.034 m/s² toward the center, so at the equator a scale reads you about 0.3 % lighter.</p>
+      </div>
+      <div class="card">
+        <h3><span class="tag">🌕 Tie the Moon to the Earth</span>How strong would the rope be?</h3>
+        <p>The Moon's mass is 7.35 × 10<sup>22</sup> kg. If gravity were a rope, its tension would be the centripetal force <b>F = m·a</b>.</p>
+        <div class="row"><button class="reveal" data-rv="rope1">Show F</button></div>
+        <div class="note" data-rvd="rope1" hidden>F = 7.35 × 10<sup>22</sup> kg × 0.00272 m/s² ≈ <b>2.0 × 10<sup>20</sup> N</b>. A steel cable that strong would be about <b>700 km thick</b>. Gravity does it with no cable at all.</div>
+        <div class="q" data-q="m1">
+          <div class="qt">Now imagine a Moon <b>twice as heavy</b>, same distance, same 27.3 days. What changes?</div>
+          <div class="choices">
+            <button>The acceleration doubles</button>
+            <button data-ok>The rope's tension doubles; the acceleration stays the same</button>
+            <button>Nothing at all changes</button>
+          </div>
+          <div class="fb" hidden>a = 4π²r/T² has <b>no mass in it</b>. A heavier Moon needs a stronger pull, but goes around in exactly the same way. A pebble at the Moon's distance would also take 27.3 days. So the orbit <b>can't tell us the Moon's mass</b>, only how hard the Earth pulls on each kilogram there.</div>
+        </div>
+        <details class="box">
+          <summary>🍎 A clue Newton found</summary>
+          <div>
+            <p>The apple falls with <b>9.8 m/s²</b>. The Moon “falls” toward the Earth with <b>0.00272 m/s²</b>. Divide: 9.8 / 0.00272 ≈ <b>3600 = 60 × 60</b>.</p>
+            <p>And the Moon is about <b>60 Earth radii</b> away. Sixty times farther, 60 × 60 times weaker. Look at the last column of the table: <b>a·r²</b> is the same for every satellite. That is a law hiding in the data: a story for next year.</p>
+          </div>
+        </details>
+      </div>
+      <div class="card">
+        <h3><span class="tag">🚀 Astronauts</span>The ISS accelerates at 8.7 m/s², almost g. So why do astronauts float?</h3>
+        <button class="reveal" data-rv="iss" style="justify-self:start">Show</button>
+        <div class="note good" data-rvd="iss" hidden>Gravity is still there (almost 90 % of what you feel). The station and the astronauts <b>fall together</b> with the same acceleration around the Earth, so nothing pushes them against the floor. They are always falling, and always missing the Earth.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ STATION 4 ═════════════ -->
+<section class="station" data-st="4" hidden>
+  <h2><small>Station 4</small>Who's watching? Centripetal is real, centrifugal depends on you</h2>
+  <p class="lead">A puck is tied to the center of a spinning turntable. We watch it <b>twice</b>: from a camera on the ceiling, and from a camera riding on the turntable. Same puck, same moment. Two very different stories.</p>
+  <div class="cols">
+    <div class="card">
+      <div class="seg" id="s4mode"><button data-m="cut" class="on">✂️ Cut the string</button><button data-m="throw">🎯 Throw to your friend</button></div>
+      <div class="twin">
+        <div><h4>📷 Ceiling camera<small>does not turn</small></h4><canvas class="sim" id="c4a" width="380" height="380"></canvas></div>
+        <div><h4>🎠 Rider's camera<small>turns with the turntable</small></h4><canvas class="sim" id="c4b" width="380" height="380"></canvas></div>
+      </div>
+      <div class="ctrl"><label for="s4T">Turntable: one turn in</label><input type="range" id="s4T" min="3" max="12" step="0.1" value="6"><output id="o4T"></output></div>
+      <div class="ctrl" id="s4aimRow" hidden><label for="s4aim">Aim ahead of friend</label><input type="range" id="s4aim" min="-30" max="120" step="1" value="0"><output id="o4aim"></output></div>
+      <div class="row"><button class="btn primary" id="s4go">✂️ Cut!</button><button class="btn" id="s4reset">Reset</button><span class="status-line" id="s4status"></span></div>
+      <div class="legend"><span style="--c:var(--red)">tension (real: the string pulls)</span><span class="dash" style="--c:var(--purple)">centrifugal (only the rider “needs” it)</span><span style="--c:var(--green)">velocity</span></div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h3><span class="tag">Before you cut</span>Is the puck moving?</h3>
+        <p><b>Ceiling camera:</b> yes, in a circle. Its velocity keeps changing direction, so something must pull it in: the <b>tension</b>. One force, pointing to the center. Everything adds up.</p>
+        <p><b>Rider:</b> no! The puck sits still next to them. But the string is clearly pulling it inward… To explain why it doesn't move, the rider <b>invents</b> a force pushing outward: <b style="color:var(--purple)">centrifugal force</b>.</p>
+      </div>
+      <div class="card">
+        <h3><span class="tag">After you cut</span>Which way does it go?</h3>
+        <div class="q" data-q="c1">
+          <div class="choices">
+            <button>Straight out, away from the center</button>
+            <button data-ok>In a straight line, along the direction it was moving</button>
+            <button>On a curve, slowly spiralling away</button>
+          </div>
+          <div class="fb" hidden>From the ceiling: a <b>straight line</b>, tangent to the circle. No force, so no change of velocity. The rider sees it curve away and says “centrifugal force threw it out”. Both describe the same puck. Only the ceiling camera needs no invented forces.</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3><span class="tag">🚗 In the car</span>The car turns left and you slide to the right, against the door.</h3>
+        <button class="reveal" data-rv="car" style="justify-self:start">What is really happening?</button>
+        <div class="note purple" data-rvd="car" hidden>Nothing pushes you to the right. Your body just keeps going <b>straight</b>, while the car turns left under you. The door catches you and pushes you <b>left, toward the center</b>: that push is your centripetal force. “Being thrown outward” is the story told from inside the car, the rider's camera.</div>
+      </div>
+      <div class="card">
+        <h3><span class="tag">✍️ Your answer</span>A friend says: “Centrifugal force threw the puck out when the string broke.” What do you answer?</h3>
+        <textarea class="say" data-say="centri" placeholder="Use what the two cameras showed you…"></textarea>
+        <div class="wc" data-wc="centri" data-min="10"></div>
+      </div>
+      <div class="discuss">
+        <span class="tag">💬 The big idea</span>
+        <p><b>Centripetal</b> force is real: a string, a door, gravity, friction. Everybody agrees it is there. <b>Centrifugal</b> force only appears for someone <b>turning with</b> the object: it depends on the observer, and nothing in the world is doing the pushing.</p>
+      </div>
+    </div>
+  </div>
+  <div class="final">
+    <p style="font-size:1.1rem;font-weight:700">Done with the four stations? Wait for your teacher, then take the test with your partner.</p>
+    <a class="btn primary" id="testLink2" href="circular_motion_test.html">📝 Go to the pair test</a>
+  </div>
+</section>
+</main>
+<footer>Ergosfera teaching tools · Circular motion</footer>
+
+<script src="circular_motion.js"></script>
+<script src="../lab-closing.js"></script>
+<script src="../lab-privacy.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const TAU = Math.PI * 2, G = 9.81;
+let C = {};
+let P = null;   // the pair's progress (set further down, sent to the teacher's sheet)
+function readColors() {
+  const cs = getComputedStyle(document.body);
+  ['bg','surface','surface2','border','text','muted','accent','green','red','amber','purple'].forEach(k => C[k] = cs.getPropertyValue('--' + k).trim());
+}
+
+// ── theme ─────────────────────────────────────────
+function setTheme(light) {
+  document.body.classList.toggle('light', light);
+  $('theme').textContent = light ? '☾ Dark' : '☀ Light';
+  try { localStorage.setItem('circ-theme', light ? 'light' : 'dark'); } catch (e) {}
+  readColors();
+}
+let savedTheme = null; try { savedTheme = localStorage.getItem('circ-theme'); } catch (e) {}
+setTheme(savedTheme === 'light');
+$('theme').onclick = () => setTheme(!document.body.classList.contains('light'));
+
+// ── stations nav ──────────────────────────────────
+let station = '1';
+function showStation(s) {
+  station = s;
+  if (P) { P.station = +s; touch(); }
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.st === s));
+  document.querySelectorAll('section.station').forEach(x => x.hidden = x.dataset.st !== s);
+  try { localStorage.setItem('circ-station', s); } catch (e) {}
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => showStation(b.dataset.st));
+try { const s = localStorage.getItem('circ-station'); if (s) showStation(s); } catch (e) {}
+
+// ── helpers ───────────────────────────────────────
+function prep(cv) {
+  const ctx = cv.getContext('2d');
+  const W = +cv.getAttribute('width'), H = +cv.getAttribute('height');
+  if (!cv._dpr) {
+    const d = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = W * d; cv.height = H * d; cv._dpr = d; cv._W = W; cv._H = H;
+  }
+  ctx.setTransform(cv._dpr, 0, 0, cv._dpr, 0, 0);
+  ctx.clearRect(0, 0, cv._W, cv._H);
+  return [ctx, cv._W, cv._H];
+}
+function arrow(ctx, x1, y1, x2, y2, color, w = 3, dash = null, head = 11) {
+  const L = Math.hypot(x2 - x1, y2 - y1); if (L < 2) return;
+  const ux = (x2 - x1) / L, uy = (y2 - y1) / L, h = Math.min(head, L * .6);
+  ctx.save(); ctx.strokeStyle = ctx.fillStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round';
+  if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2 - ux * h * .8, y2 - uy * h * .8); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2 - ux * h - uy * h * .5, y2 - uy * h + ux * h * .5);
+  ctx.lineTo(x2 - ux * h + uy * h * .5, y2 - uy * h - ux * h * .5); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function label(ctx, t, x, y, color, size = 13, align = 'center', weight = 700) {
+  ctx.save(); ctx.font = `${weight} ${size}px Segoe UI, system-ui, sans-serif`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.fillText(t, x, y); ctx.restore();
+}
+function f(x, d = 2) { return (+x).toFixed(d); }
+function sci(x, d = 3) {
+  if (!isFinite(x)) return '—'; if (x === 0) return '0';
+  const e = Math.floor(Math.log10(Math.abs(x)));
+  if (e >= -2 && e < 5) return (+x.toPrecision(d)).toLocaleString('en-US', { maximumFractionDigits: 6 });
+  return `${(x / 10 ** e).toFixed(d - 1)} × 10<sup>${e}</sup>`;
+}
+function niceStep(max) { const raw = max / 5, p = 10 ** Math.floor(Math.log10(raw)), n = raw / p; return (n < 1.5 ? 1 : n < 3 ? 2 : n < 7 ? 5 : 10) * p; }
+
+// quick multiple-choice questions anywhere on the page
+document.querySelectorAll('.q[data-q]').forEach(q => {
+  const btns = q.querySelectorAll('.choices button'), fb = q.querySelector('.fb');
+  btns.forEach(b => b.onclick = () => {
+    btns.forEach(x => { x.classList.remove('right', 'wrong'); });
+    b.classList.add(b.hasAttribute('data-ok') ? 'right' : 'wrong');
+    track(q.dataset.q, b.textContent.trim(), b.hasAttribute('data-ok'));
+    if (b.hasAttribute('data-ok')) { if (fb) fb.hidden = false; }
+    else if (fb) fb.hidden = true;
+  });
+});
+// reveal buttons
+document.querySelectorAll('[data-rv]').forEach(b => b.onclick = () => {
+  document.querySelectorAll(`[data-rvd="${b.dataset.rv}"]`).forEach(x => x.hidden = false); b.hidden = true;
+  P.rv[b.dataset.rv] = true; touch();
+});
+function seg(id, cb) {
+  const el = $(id);
+  el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); cb(b);
+  }));
+}
+
+// ═════════════ STATION 1 ═════════════
+const s1 = { r: .6, T: 1.2, m: .1, phi: 0, hold: 'T', v: 0 };
+function s1sync(from) {
+  s1.r = +$('s1r').value; s1.m = +$('s1m').value;
+  if (s1.hold === 'v' && from === 'r') { s1.T = TAU * s1.r / s1.v; $('s1T').value = s1.T; }
+  else { s1.T = +$('s1T').value; }
+  if (s1.hold === 'v' && from === 'T') s1.v = TAU * s1.r / s1.T;
+  $('o1r').textContent = f(s1.r) + ' m'; $('o1T').textContent = f(s1.T) + ' s'; $('o1m').textContent = Math.round(s1.m * 1000) + ' g';
+  const v = TAU * s1.r / s1.T, F = s1.m * v * v / s1.r;
+  $('r1v').innerHTML = f(v, 1) + ' <small>m/s</small>';
+  $('r1F').innerHTML = (F < 10 ? f(F, 2) : f(F, 1)) + ' <small>N</small>';
+  const kg = F / G; $('r1kg').innerHTML = kg < 1 ? Math.round(kg * 1000) + ' <small>g</small>' : f(kg, 1) + ' <small>kg</small>';
+  $('g1').style.width = Math.min(100, F / 40 * 100) + '%';
+}
+['s1r', 's1T', 's1m'].forEach(id => $(id).addEventListener('input', () => s1sync(id.slice(2))));
+seg('s1hold', b => { s1.hold = b.dataset.h; s1.v = TAU * s1.r / s1.T; });
+s1sync();
+
+function drawS1(dt) {
+  s1.phi += TAU * dt / s1.T;
+  const [ctx, W, H] = prep($('c1'));
+  const cx = W / 2, cy = H / 2 + 5, sc = 165 / 1.2, R = s1.r * sc;
+  const v = TAU * s1.r / s1.T, F = s1.m * v * v / s1.r;
+  // grid rings
+  ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+  for (let k = .2; k <= 1.21; k += .2) { ctx.beginPath(); ctx.arc(cx, cy, k * sc, 0, TAU); ctx.stroke(); }
+  label(ctx, '1 m', cx + sc + 4, cy - 8, C.muted, 11, 'left', 600);
+  // path
+  ctx.save(); ctx.setLineDash([5, 6]); ctx.strokeStyle = C.muted; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke(); ctx.restore();
+  const bx = cx + R * Math.cos(s1.phi), by = cy - R * Math.sin(s1.phi);
+  const ux = Math.cos(s1.phi), uy = -Math.sin(s1.phi);
+  // spring (stretches with force)
+  const springL = Math.min(R - 16, 14 + Math.min(F, 40) / 40 * Math.max(0, R - 40));
+  ctx.save(); ctx.strokeStyle = C.amber; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(cx, cy);
+  const coils = 9;
+  for (let i = 1; i <= coils * 2; i++) {
+    const t = i / (coils * 2), side = (i % 2 ? 1 : -1) * 6;
+    ctx.lineTo(cx + ux * springL * t - uy * side, cy + uy * springL * t + ux * side);
+  }
+  ctx.lineTo(cx + ux * springL, cy + uy * springL); ctx.stroke();
+  ctx.strokeStyle = C.text; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx + ux * springL, cy + uy * springL); ctx.lineTo(bx, by); ctx.stroke(); ctx.restore();
+  // hand
+  ctx.fillStyle = C.surface2; ctx.strokeStyle = C.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, 13, 0, TAU); ctx.fill(); ctx.stroke();
+  label(ctx, '✋', cx, cy + 1, C.text, 15);
+  // ball
+  const br = 7 + Math.sqrt(s1.m) * 14;
+  ctx.fillStyle = C.accent; ctx.beginPath(); ctx.arc(bx, by, br, 0, TAU); ctx.fill();
+  // force arrow (toward center)
+  const aL = 12 + Math.min(F, 40) / 40 * 130;
+  arrow(ctx, bx - ux * (br + 2), by - uy * (br + 2), bx - ux * (br + 2 + aL), by - uy * (br + 2 + aL), C.red, 4);
+  // velocity arrow
+  const vL = 10 + Math.min(v, 12) / 12 * 80;
+  const tx = -Math.sin(s1.phi), ty = -Math.cos(s1.phi); // tangent (counter-clockwise, screen coords)
+  arrow(ctx, bx + tx * (br + 2), by + ty * (br + 2), bx + tx * (br + 2 + vL), by + ty * (br + 2 + vL), C.green, 3);
+  label(ctx, 'F = ' + (F < 10 ? f(F, 2) : f(F, 1)) + ' N', 16, 20, C.red, 15, 'left', 800);
+  label(ctx, 'v = ' + f(v, 1) + ' m/s', 16, 42, C.green, 15, 'left', 800);
+  label(ctx, 'top view', W - 12, 18, C.muted, 11, 'right', 600);
+}
+
+// everyday cards
+const EVERY = [
+  { em: '🧺', q: 'Washing machine, same drum. Which spin pulls harder on a wet sock?', a: '600 rpm: one turn every 0.10 s', b: '1200 rpm: one turn every 0.05 s', ok: 'b',
+    why: 'Same radius, <b>half the period</b>: the force is <b>4 times</b> bigger (F grows like 1/T²). That is why the fast spin dries better.' },
+  { em: '🎠', q: 'Merry-go-round, one turn every 4 s. Who has to hold on harder? (same mass)', a: 'A kid near the center, r = 0.5 m', b: 'A kid at the edge, r = 2 m', ok: 'b',
+    why: 'Everyone on the ride has the <b>same period</b>. With the same T, the force grows with r: the kid at the edge needs <b>4 times</b> more force.' },
+  { em: '🚗', q: 'Your car goes at 40 km/h. Where are you pushed harder against the door?', a: 'A tight roundabout, r = 15 m', b: 'A wide highway curve, r = 150 m', ok: 'a',
+    why: 'Here the <b>speed</b> is the same, not the period. With the same v, a smaller circle needs more force: 10 times smaller radius, <b>10 times</b> more force.' },
+  { em: '🪣', q: 'You swing a bucket of water over your head. When does the water fall out at the top?', a: 'If you swing it fast', b: 'If you swing it slowly', ok: 'b',
+    why: 'Slowly, the water needs <b>less</b> force to stay on the circle than its own weight, so gravity bends it down faster than the bucket goes: it falls out. Fast, the bucket has to push the water toward the center too: it stays in.' },
+  { em: '🥏', q: 'A sling, one turn every 0.5 s. Which string pulls harder on your hand?', a: 'A short string', b: 'A long string', ok: 'b',
+    why: 'Same period, bigger radius: the stone goes faster <b>and</b> farther, and the force grows with r. That is why hammer throwers use long wires.' },
+];
+let answered = 0;
+EVERY.forEach((e, i) => {
+  const d = document.createElement('div'); d.className = 'ev';
+  d.innerHTML = `<div class="qq"><span class="em">${e.em}</span>${e.q}</div>
+    <div class="opts"><button data-k="a">${e.a}</button><button data-k="b">${e.b}</button></div><div class="why" hidden></div>`;
+  const bs = d.querySelectorAll('button'), why = d.querySelector('.why');
+  bs.forEach(b => b.onclick = () => {
+    const right = b.dataset.k === e.ok;
+    bs.forEach(x => { x.classList.remove('right', 'wrong'); });
+    b.classList.add(right ? 'right' : 'wrong');
+    track('ev' + i, b.textContent.trim(), right);
+    if (right) { why.innerHTML = '<b>✓</b> ' + e.why; why.hidden = false; bs.forEach(x => x.disabled = true); answered++; if (i >= 2 || answered >= 3) $('paradox').hidden = false; }
+  });
+  $('everyday').appendChild(d);
+});
+$('paradoxBtn').onclick = () => { $('paradoxAns').hidden = false; $('paradoxBtn').hidden = true; P.rv.paradox = true; touch(); };
+
+// ═════════════ STATION 2 ═════════════
+let sub = 'A';
+seg('sub2', b => {
+  sub = b.dataset.s;
+  document.querySelectorAll('[data-st="2"] > div[data-s]').forEach(x => x.hidden = !(x.dataset.s === sub || (x.dataset.s === 'BC' && (sub === 'B' || sub === 'C'))));
+  if (sub === 'B' || sub === 'C') benchMode(sub);
+});
+
+// ── A: the tube apparatus ──
+const A = { m: .03, M: .15, L: 1.0, r: .8, rd: 0, v: 5.2, phi: 0, target: .15, steadyT: 0, timing: false, tStart: 0, laps: 0, lapPhi: 0, trials: [], showF: true, sum: 0, n: 0 };
+function aTargetR() { return A.L - A.target; }
+function aSpeed(v) { A.v = Math.round(Math.min(9, Math.max(3, v)) * 100) / 100; $('s2v').value = A.v; $('o2v').textContent = f(A.v) + ' m/s'; }
+$('s2v').addEventListener('input', () => aSpeed(+$('s2v').value));
+$('s2slow').onclick = () => aSpeed(A.v - .05);
+$('s2fast').onclick = () => aSpeed(A.v + .05);
+aSpeed(A.v);
+seg('s2target', b => { A.target = +b.dataset.d; A.timing = false; A.steadyT = 0; A.saved = false; });
+$('s2fbd').onchange = e => A.showF = e.target.checked;
+
+function stepA(dt) {
+  // (m+M) r'' = m v²/r − M g − c r'   (the swinger keeps the speed v of the light mass)
+  const sub = 4, h = dt / sub;
+  for (let i = 0; i < sub; i++) {
+    const acc = (A.m * A.v * A.v / A.r - A.M * G - .9 * A.rd) / (A.m + A.M);
+    A.rd += acc * h; A.r += A.rd * h;
+    if (A.r < .12) { A.r = .12; A.rd = Math.max(0, A.rd); }
+    if (A.r > A.L - .01) { A.r = A.L - .01; A.rd = Math.min(0, A.rd); }
+  }
+  const dphi = A.v / A.r * dt; A.phi += dphi;
+  const near = Math.abs(A.r - aTargetR()) < .02 && Math.abs(A.rd) < .03;
+  if (A.saved) { setStatusA('✅ Trial saved! Pick another mark (or the same one again) and repeat.', C.green); return; }
+  if (!A.timing) {
+    A.steadyT = near ? A.steadyT + dt : 0;
+    if (A.steadyT > 1.2) { A.timing = true; A.tStart = 0; A.lapPhi = 0; A.laps = 0; A.sum = 0; A.n = 0; }
+  } else {
+    if (!near) { A.timing = false; A.steadyT = 0; setStatusA('❌ The heavy mass moved: timing stopped. Find the steady speed again.', C.red); return; }
+    A.tStart += dt; A.lapPhi += dphi; A.sum += A.r; A.n++;
+    A.laps = Math.floor(A.lapPhi / TAU);
+    if (A.laps >= 10) {
+      const t10 = A.tStart - (A.lapPhi - 10 * TAU) / (A.v / A.r) + (Math.random() - .5) * .16; // human reaction error
+      const r = Math.round(A.sum / A.n * 100) / 100;
+      A.trials.push({ r, t10: Math.round(t10 * 100) / 100 }); P.trials = A.trials; touch(); A.timing = false; A.steadyT = 0; A.saved = true; renderA(); return;
+    }
+  }
+  if (A.timing) setStatusA(`⏱ Steady! Timing… lap ${A.laps} of 10 · ${f(A.tStart, 1)} s`, C.accent);
+  else if (near) setStatusA('Hold it there…', C.amber);
+  else setStatusA(A.r > aTargetR() ? '⬆ The heavy mass is too high: swing slower' : '⬇ The heavy mass is too low: swing faster', C.muted);
+}
+function setStatusA(t, c) { const el = $('s2status'); if (el.textContent !== t) { el.textContent = t; el.style.color = c; } }
+function renderA() {
+  const tb = $('t2a'); tb.innerHTML = '';
+  A.trials.forEach((t, i) => {
+    const T = t.t10 / 10, v = TAU * t.r / T, Fc = A.m * v * v / t.r, Mg = A.M * G, d = (Fc - Mg) / Mg * 100;
+    tb.insertAdjacentHTML('beforeend', `<tr><td>${i + 1}</td><td>${f(t.r)}</td><td>${f(t.t10)}</td><td>${f(T, 3)}</td><td>${f(v)} m/s</td><td class="hl">${f(Fc)}</td><td>${f(Mg)}</td><td class="${Math.abs(d) < 5 ? 'ok' : 'bad'}">${d > 0 ? '+' : ''}${f(d, 1)} %</td></tr>`);
+  });
+}
+function drawA() {
+  const [ctx, W, H] = prep($('c2a'));
+  const sx = 230, cx = W / 2, top = 120, tubeL = 60, sy = 280; // px per m horizontally / vertically
+  const rx = A.r * sx, ry = rx * .22;
+  const px = cx + rx * Math.cos(A.phi), py = top - ry * Math.sin(A.phi);
+  const behind = Math.sin(A.phi) > 0;
+  // orbit ellipse
+  ctx.save(); ctx.setLineDash([5, 6]); ctx.strokeStyle = C.muted; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.ellipse(cx, top, rx, ry, 0, 0, TAU); ctx.stroke(); ctx.restore();
+  const drawStopper = () => {
+    ctx.strokeStyle = C.text; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx, top); ctx.lineTo(px, py); ctx.stroke();
+    ctx.fillStyle = C.accent; ctx.beginPath(); ctx.arc(px, py, 9, 0, TAU); ctx.fill();
+  };
+  if (behind) drawStopper();
+  // tube and hand
+  ctx.fillStyle = C.surface2; ctx.strokeStyle = C.muted; ctx.lineWidth = 2;
+  ctx.fillRect(cx - 6, top, 12, tubeL); ctx.strokeRect(cx - 6, top, 12, tubeL);
+  label(ctx, '✊', cx - 2, top + tubeL * .6, C.text, 26);
+  // string below + heavy mass
+  const depth = A.L - A.r, my = top + tubeL + depth * sy;
+  ctx.strokeStyle = C.text; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx, top + tubeL); ctx.lineTo(cx, my); ctx.stroke();
+  // mark
+  const ty = top + tubeL + A.target * sy;
+  ctx.save(); ctx.setLineDash([6, 5]); ctx.strokeStyle = C.amber; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 70, ty + 14); ctx.lineTo(cx + 70, ty + 14); ctx.stroke(); ctx.restore();
+  label(ctx, `mark: ${Math.round(A.target * 100)} cm`, cx + 76, ty + 14, C.amber, 12, 'left');
+  ctx.fillStyle = A.timing ? C.green : C.muted; ctx.fillRect(cx - 16, my, 32, 28);
+  label(ctx, 'M', cx, my + 14, '#fff', 14, 'center', 800);
+  if (!behind) drawStopper();
+  // forces
+  if (A.showF) {
+    const T = A.m * A.v * A.v / A.r; // tension felt by the light mass (string pulls toward the tube)
+    const k = 38; // px per newton
+    const ux = (cx - px), uy = (top - py), L = Math.hypot(ux, uy) || 1;
+    arrow(ctx, px, py, px + ux / L * T * k, py + uy / L * T * k, C.red, 3.5);
+    label(ctx, 'tension ' + f(T) + ' N', px + (px > cx ? 6 : -6), py - 20, C.red, 12, px > cx ? 'left' : 'right');
+    arrow(ctx, cx + 24, my + 14, cx + 24, my + 14 - T * k, C.red, 3.5);
+    arrow(ctx, cx + 40, my + 14, cx + 40, my + 14 + A.M * G * k, C.purple, 3.5);
+    label(ctx, 'T', cx + 24, my + 14 - T * k - 10, C.red, 12);
+    label(ctx, 'Mg', cx + 40, my + 14 + A.M * G * k + 10, C.purple, 12);
+  }
+  label(ctx, `r = ${f(A.r)} m`, 14, 22, C.text, 15, 'left', 800);
+  label(ctx, `v = ${f(A.v)} m/s`, 14, 44, C.green, 15, 'left', 800);
+  if (A.timing) label(ctx, `⏱ ${f(A.tStart, 1)} s · lap ${A.laps}`, W - 14, 22, C.accent, 15, 'right', 800);
+}
+
+// ── B & C: force bench ──
+const B = { r: .5, T: 1, m: .1, phi: 0, mode: 'B', pts: [], lockV: null, xAxis: 'T', fit: false, noise: 1 };
+function benchMode(m) {
+  B.mode = m; B.pts = []; B.fit = false; B.lockV = null; $('s3fitOut').textContent = '';
+  $('s3axis').hidden = m !== 'C';
+  if (m === 'B') {
+    $('benchTitle').textContent = 'Same period, change the radius';
+    $('plotTitle').textContent = 'Force F against radius r';
+    $('s3disc').innerHTML = `<span class="tag">💬 Your turn</span><p>Choose a period, then record 5 points with <b>different radii</b>. What shape do the points make? If you double r, what happens to F?</p><button class="reveal" data-x>Show the answer</button><p hidden class="note good">A straight line through the origin: <b>F ∝ r</b>. Double the radius, double the force (with the same period).</p>`;
+  } else {
+    $('benchTitle').textContent = 'Same radius, change the period';
+    $('plotTitle').textContent = 'Force F against period T';
+    $('s3disc').innerHTML = `<span class="tag">💬 Your turn</span><p>Choose a radius, then record 5 points with <b>different periods</b>. Is F against T a straight line? Now switch the axis to <b>1/T²</b>.</p><button class="reveal" data-x>Show the answer</button><p hidden class="note good">F against T is a curve that drops fast. F against 1/T² is a straight line: <b>F ∝ 1/T²</b>. Spin twice as fast (half the period) and the force is <b>4 times</b> bigger.</p>`;
+  }
+  const rb = $('s3disc').querySelector('[data-x]'); rb.onclick = () => { rb.hidden = true; rb.nextElementSibling.hidden = false; };
+  benchSync(); drawPlot();
+}
+function benchSync() {
+  B.r = +$('s3r').value; B.T = +$('s3T').value;
+  $('o3r').textContent = f(B.r) + ' m'; $('o3T').textContent = f(B.T) + ' s';
+  const locked = B.pts.length > 0;
+  $('s3T').disabled = B.mode === 'B' && locked; $('s3r').disabled = B.mode === 'C' && locked;
+  $('s3lock').textContent = locked ? (B.mode === 'B' ? `🔒 Period fixed at ${f(B.T)} s` : `🔒 Radius fixed at ${f(B.r)} m`) : '';
+  B.noise = 1 + (Math.random() - .5) * .03;
+  $('r3F').innerHTML = f(benchF()) + ' <small>N</small>';
+}
+function benchF() { return 4 * Math.PI * Math.PI * B.m * B.r / (B.T * B.T) * B.noise; }
+['s3r', 's3T'].forEach(id => $(id).addEventListener('input', benchSync));
+function benchTrack() {
+  const linear = B.mode === 'B' || B.xAxis === 'invT2';
+  P['bench' + B.mode] = { n: B.pts.length, fit: !!(B.fit && linear && B.pts.length), pts: B.pts.map(p => [+p.r.toFixed(2), +p.T.toFixed(2), +p.F.toFixed(3)]) };
+  touch();
+}
+$('s3rec').onclick = () => { B.pts.push({ r: B.r, T: B.T, F: benchF() }); benchSync(); drawPlot(); benchTrack(); };
+$('s3clr').onclick = () => { B.pts = []; B.fit = false; $('s3fitOut').textContent = ''; benchSync(); drawPlot(); benchTrack(); };
+$('s3fit').onclick = () => { B.fit = true; drawPlot(); benchTrack(); };
+seg('s3axis', b => { B.xAxis = b.dataset.x; drawPlot(); if (B.fit) benchTrack(); });
+function xOf(p) { return B.mode === 'B' ? p.r : (B.xAxis === 'T' ? p.T : 1 / (p.T * p.T)); }
+function drawPlot() {
+  const [ctx, W, H] = prep($('p2'));
+  const L = 58, R = 18, T = 16, Bm = 46, pw = W - L - R, ph = H - T - Bm;
+  const xl = B.mode === 'B' ? 'r (m)' : (B.xAxis === 'T' ? 'T (s)' : '1/T² (1/s²)');
+  const pts = B.pts.map(p => ({ x: xOf(p), y: p.F }));
+  const xmax = Math.max(B.mode === 'B' ? 1 : (B.xAxis === 'T' ? 3 : 1), ...pts.map(p => p.x)) * 1.08;
+  const ymax = Math.max(1, ...pts.map(p => p.y)) * 1.12;
+  const xs = niceStep(xmax), ys = niceStep(ymax);
+  const X = x => L + x / xmax * pw, Y = y => T + ph - y / ymax * ph;
+  ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+  for (let x = 0; x <= xmax + 1e-9; x += xs) { ctx.beginPath(); ctx.moveTo(X(x), T); ctx.lineTo(X(x), T + ph); ctx.stroke(); label(ctx, +x.toPrecision(3) + '', X(x), T + ph + 14, C.muted, 11, 'center', 600); }
+  for (let y = 0; y <= ymax + 1e-9; y += ys) { ctx.beginPath(); ctx.moveTo(L, Y(y)); ctx.lineTo(L + pw, Y(y)); ctx.stroke(); label(ctx, +y.toPrecision(3) + '', L - 6, Y(y), C.muted, 11, 'right', 600); }
+  ctx.strokeStyle = C.muted; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(L, T); ctx.lineTo(L, T + ph); ctx.lineTo(L + pw, T + ph); ctx.stroke();
+  label(ctx, xl, L + pw / 2, H - 10, C.text, 13);
+  ctx.save(); ctx.translate(16, T + ph / 2); ctx.rotate(-Math.PI / 2); label(ctx, 'F (N)', 0, 0, C.text, 13); ctx.restore();
+  if (B.fit && pts.length) {
+    const linear = B.mode === 'B' || B.xAxis === 'invT2';
+    if (linear) {
+      const k = pts.reduce((s, p) => s + p.x * p.y, 0) / pts.reduce((s, p) => s + p.x * p.x, 0);
+      ctx.save(); ctx.setLineDash([7, 4]); ctx.strokeStyle = C.green; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(xmax), Y(k * xmax)); ctx.stroke(); ctx.restore();
+      const resid = Math.sqrt(pts.reduce((s, p) => s + (p.y - k * p.x) ** 2, 0) / pts.length) / ymax;
+      $('s3fitOut').innerHTML = `slope = ${f(k, 2)} ${B.mode === 'B' ? 'N/m' : 'N·s²'} · ${resid < .03 ? '<span style="color:var(--green)">the points sit on the line ✓</span>' : '<span style="color:var(--red)">the points miss the line</span>'}`;
+    } else {
+      $('s3fitOut').innerHTML = '<span style="color:var(--red)">No straight line through 0 fits F against T. Try 1/T².</span>';
+    }
+  }
+  ctx.fillStyle = C.accent; pts.forEach(p => { ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 5.5, 0, TAU); ctx.fill(); });
+  if (!pts.length) label(ctx, 'Record points to see them here', L + pw / 2, T + ph / 2, C.muted, 14);
+}
+function drawBench(dt) {
+  B.phi += TAU * dt / B.T;
+  const [ctx, W, H] = prep($('c2b'));
+  const cx = W / 2, cy = H / 2, sc = 175, R = B.r * sc, F = benchF();
+  ctx.fillStyle = C.surface2; ctx.strokeStyle = C.border; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, 1 * sc + 12, 0, TAU); ctx.fill(); ctx.stroke();
+  const ux = Math.cos(B.phi), uy = -Math.sin(B.phi), bx = cx + ux * R, by = cy + uy * R;
+  ctx.strokeStyle = C.muted; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(cx - ux * 30, cy - uy * 30); ctx.lineTo(cx + ux * (sc + 4), cy + uy * (sc + 4)); ctx.stroke();
+  ctx.strokeStyle = C.text; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(bx, by); ctx.stroke();
+  ctx.fillStyle = C.amber; ctx.fillRect(cx - 14, cy - 14, 28, 28); label(ctx, 'F', cx, cy, '#000', 13, 'center', 800);
+  ctx.fillStyle = C.accent; ctx.beginPath(); ctx.arc(bx, by, 11, 0, TAU); ctx.fill();
+  const aL = 10 + Math.min(F, 30) / 30 * 140;
+  arrow(ctx, bx - ux * 13, by - uy * 13, bx - ux * (13 + aL), by - uy * (13 + aL), C.red, 4);
+  label(ctx, 'sensor', cx, cy + 26, C.muted, 11, 'center', 600);
+  label(ctx, 'F = ' + f(F) + ' N', 14, 22, C.red, 15, 'left', 800);
+}
+
+// ── D: derivation ──
+const DER = [
+  { m: 'F ∝ r', w: 'Idea B: same period, double the radius → double the force.' },
+  { m: 'F ∝ <span class="frac"><span>1</span><span>T²</span></span>', w: 'Idea C: half the period → four times the force.' },
+  { m: 'F ∝ m', w: 'A twice-as-heavy ball needs twice the pull (you felt it in station 1).' },
+  { m: 'F = k · <span class="frac"><span>m · r</span><span>T²</span></span>', w: 'Put the three together. k is a number we measure (right panel): it comes out 4π².' },
+  { m: 'F = <span class="frac"><span>4π² m r</span><span>T²</span></span>', w: 'This is the law, written with the period.' },
+  { m: 'v = <span class="frac"><span>2πr</span><span>T</span></span> &nbsp;⟹&nbsp; <span class="frac"><span>4π²r²</span><span>T²</span></span> = v²', w: 'One lap: distance 2πr in time T. Square it.' },
+  { m: 'F = <span class="frac"><span>m</span><span>r</span></span> · <span class="hl"><span class="frac"><span>4π² r²</span><span>T²</span></span></span> = <span class="frac"><span>m</span><span>r</span></span> · <span class="hl">v²</span>', w: 'Multiply top and bottom by r, and swap in v².' },
+  { m: '<span class="gr">F = <span class="frac"><span>m v²</span><span>r</span></span></span>', w: 'The centripetal force. In our lab, F was the tension, and the tension was Mg.', big: 1 },
+];
+let dStep = 0;
+function renderDerive() {
+  $('derive').innerHTML = DER.slice(0, dStep + 1).map(d => `<div class="stepx"><div class="math${d.big ? ' big' : ''}">${d.m}</div><div class="why">${d.w}</div></div>`).join('');
+  $('dNext').disabled = dStep >= DER.length - 1;
+}
+$('dNext').onclick = () => { dStep++; renderDerive(); P.derive = Math.max(P.derive || 0, dStep); touch(); };
+$('dReset').onclick = () => { dStep = 0; renderDerive(); };
+renderDerive();
+function kCalc() { const r = +$('kr').value, T = +$('kT').value, F = +$('kF').value; $('kOut').textContent = r > 0 && T > 0 ? f(F * T * T / (.1 * r), 1) : '—'; return r > 0 && T > 0 ? F * T * T / (.1 * r) : 0; }
+['kr', 'kT', 'kF'].forEach(id => $(id).addEventListener('input', () => { P.k = +kCalc().toFixed(2); P.kIn = [$('kr').value, $('kT').value, $('kF').value]; touch(); })); kCalc();
+$('kBtn').onclick = () => { $('kAns').hidden = false; $('kBtn').hidden = true; P.rv.k = true; touch(); };
+
+// ═════════════ STATION 3 ═════════════
+const RE = 6.371e6;
+const ORB = [
+  { id: 'eq', name: 'You, at the equator', icon: '🧍', r: 6.378e6, T: 86164, note: 'The Earth turns once a day, and carries you around a circle.' },
+  { id: 'iss', name: 'Space Station (ISS)', icon: '🛰️', r: 6.791e6, T: 5562, note: '420 km above the ground, one lap every 92.7 minutes.' },
+  { id: 'gps', name: 'GPS satellite', icon: '📡', r: 2.656e7, T: 43082, note: 'Two laps a day, 20 200 km up.' },
+  { id: 'geo', name: 'Geostationary satellite', icon: '📺', r: 4.2164e7, T: 86164, note: 'One lap a day, the same time the Earth takes to turn: it hangs over the same spot. TV and weather satellites.' },
+  { id: 'moon', name: 'The Moon', icon: '🌕', r: 3.844e8, T: 2.3606e6, note: 'One lap every 27.3 days, about 60 Earth radii away.' },
+];
+let orb = ORB[4], orbPhi = 0;
+function dur(s) { return s < 7200 ? f(s / 60, 1) + ' min' : s < 3 * 86400 ? f(s / 3600, 2) + ' h' : f(s / 86400, 1) + ' days'; }
+ORB.forEach(o => {
+  const b = document.createElement('button'); b.textContent = o.icon + ' ' + o.name.replace(' satellite', ''); b.dataset.id = o.id; if (o === orb) b.className = 'on';
+  $('orbSel').appendChild(b);
+});
+seg('orbSel', b => { orb = ORB.find(o => o.id === b.dataset.id); orbPhi = 0; orbInfo(); });
+function orbInfo() { $('orbName').textContent = orb.icon + ' ' + orb.name; $('orbWarp').textContent = `${orb.note} Shown ${Math.round(orb.T / 8).toLocaleString('en-US')} times faster than real.`; }
+orbInfo();
+(function orbTable() {
+  let h = '<thead><tr><th></th><th>r (m)</th><th>T</th><th>v (m/s)</th><th>a (m/s²)</th><th>a·r²</th></tr></thead><tbody>';
+  ORB.forEach(o => {
+    const v = TAU * o.r / o.T, a = v * v / o.r;
+    h += `<tr><td>${o.icon} ${o.name}</td><td>${sci(o.r)}</td><td>${dur(o.T)}</td>
+      <td class="hl"><button class="reveal">show</button><span hidden>${sci(v)}</span></td>
+      <td class="hl"><button class="reveal">show</button><span hidden>${sci(a)}</span></td>
+      <td><button class="reveal">show</button><span hidden>${sci(a * o.r * o.r)}</span></td></tr>`;
+  });
+  $('orbTable').innerHTML = h + '</tbody>';
+  $('orbTable').querySelectorAll('.reveal').forEach(b => b.onclick = () => { b.hidden = true; b.nextElementSibling.hidden = false; P.reveals = (P.reveals || 0) + 1; touch(); });
+})();
+const STARS = Array.from({ length: 70 }, () => [Math.random(), Math.random(), Math.random()]);
+function drawOrbit(dt) {
+  orbPhi += TAU * dt / 8;
+  const [ctx, W, H] = prep($('c3'));
+  const cx = W / 2, cy = H / 2, sc = Math.min(W, H) * .4 / orb.r, Rp = Math.max(RE * sc, 3);
+  ctx.fillStyle = C.muted; STARS.forEach(s => { ctx.globalAlpha = .25 + s[2] * .4; ctx.fillRect(s[0] * W, s[1] * H, 1.5, 1.5); }); ctx.globalAlpha = 1;
+  // earth
+  const g = ctx.createRadialGradient(cx - Rp * .3, cy - Rp * .3, Rp * .1, cx, cy, Rp);
+  g.addColorStop(0, '#6cb6ff'); g.addColorStop(1, '#1f4e8c'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, Rp, 0, TAU); ctx.fill();
+  if (Rp > 6) label(ctx, 'Earth', cx, cy, '#fff', Math.min(16, Rp / 3), 'center', 800);
+  const R = orb.r * sc;
+  ctx.save(); ctx.setLineDash([4, 6]); ctx.strokeStyle = C.muted; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.stroke(); ctx.restore();
+  const ux = Math.cos(orbPhi), uy = -Math.sin(orbPhi), x = cx + ux * R, y = cy + uy * R;
+  if ($('s3rope').checked) { ctx.strokeStyle = C.amber; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x, y); ctx.stroke(); }
+  const tx = -Math.sin(orbPhi), ty = -Math.cos(orbPhi);
+  arrow(ctx, x, y, x + tx * 70, y + ty * 70, C.green, 3);
+  arrow(ctx, x, y, x - ux * 55, y - uy * 55, C.red, 3.5);
+  label(ctx, orb.icon, x, y, C.text, orb.id === 'moon' ? 30 : 24);
+  const v = TAU * orb.r / orb.T, a = v * v / orb.r;
+  label(ctx, `v = ${(+v.toPrecision(3)).toLocaleString('en-US')} m/s`, 14, 20, C.green, 14, 'left', 800);
+  label(ctx, `a = ${+a.toPrecision(3)} m/s²`, 14, 42, C.red, 14, 'left', 800);
+  label(ctx, `r = ${f(orb.r / RE, orb.r / RE < 2 ? 2 : 1)} Earth radii`, W - 14, 20, C.muted, 12, 'right', 700);
+}
+
+// ═════════════ STATION 4 ═════════════
+const S4 = { T: 6, t: 0, mode: 'cut', state: 'tied', r0: 100, Rd: 150, tCut: 0, p0: null, v0: null, aim: 0, trailA: [], trailB: [], result: '' };
+function s4w() { return TAU / S4.T; }
+$('s4T').addEventListener('input', () => { S4.T = +$('s4T').value; $('o4T').textContent = f(S4.T, 1) + ' s'; s4reset(); });
+$('o4T').textContent = f(S4.T, 1) + ' s';
+$('s4aim').addEventListener('input', () => { S4.aim = +$('s4aim').value; $('o4aim').textContent = S4.aim + '°'; });
+$('o4aim').textContent = '0°';
+seg('s4mode', b => {
+  S4.mode = b.dataset.m; $('s4aimRow').hidden = S4.mode !== 'throw';
+  $('s4go').textContent = S4.mode === 'cut' ? '✂️ Cut!' : '🎯 Throw!'; s4reset();
+});
+function s4reset() { S4.state = 'tied'; S4.trailA = []; S4.trailB = []; $('s4status').textContent = ''; S4.result = ''; }
+$('s4reset').onclick = s4reset;
+$('s4go').onclick = () => {
+  const w = s4w(), th = w * S4.t;
+  s4reset();
+  if (S4.mode === 'cut') {
+    S4.p0 = [S4.r0 * Math.cos(th), S4.r0 * Math.sin(th)];
+    S4.v0 = [-w * S4.r0 * Math.sin(th), w * S4.r0 * Math.cos(th)];
+  } else {
+    const u = 110, dir = th + S4.aim * Math.PI / 180; // friend sits at disk angle 0
+    S4.p0 = [0, 0]; S4.v0 = [u * Math.cos(dir), u * Math.sin(dir)];
+  }
+  S4.state = 'free'; S4.tCut = S4.t;
+  if (S4.mode === 'cut') P.cuts = (P.cuts || 0) + 1; else P.throws = (P.throws || 0) + 1;
+  touch();
+};
+function s4pos() {
+  const w = s4w();
+  if (S4.state === 'tied') {
+    if (S4.mode === 'throw') return [0, 0];
+    const th = w * S4.t; return [S4.r0 * Math.cos(th), S4.r0 * Math.sin(th)];
+  }
+  const dt = S4.t - S4.tCut; return [S4.p0[0] + S4.v0[0] * dt, S4.p0[1] + S4.v0[1] * dt];
+}
+function rot(p, a) { const c = Math.cos(a), s = Math.sin(a); return [p[0] * c - p[1] * s, p[0] * s + p[1] * c]; }
+function stepS4(dt) {
+  if (S4.state === 'free') {
+    const p = s4pos(), d = Math.hypot(p[0], p[1]);
+    if (S4.mode === 'throw' && d >= S4.Rd && !S4.result) {
+      const w = s4w(), friendAng = w * S4.t, ballAng = Math.atan2(p[1], p[0]);
+      let diff = ((ballAng - friendAng) % TAU + TAU * 1.5) % TAU - Math.PI;
+      const deg = Math.round(diff * 180 / Math.PI);
+      const need = Math.round(w * S4.Rd / 110 * 180 / Math.PI);
+      if (Math.abs(deg) < 9) { S4.result = `🎉 Caught! You had to aim about ${need}° ahead.`; P.caught = true; touch(); }
+      else S4.result = deg < 0 ? `Missed: the ball passed ${-deg}° behind your friend. Aim more ahead.` : `Missed: the ball passed ${deg}° ahead of your friend. Aim less ahead.`;
+      $('s4status').textContent = S4.result; $('s4status').style.color = S4.result[0] === '🎉' ? C.green : C.red;
+    }
+    if (d > 260) { S4.state = 'done'; if (S4.mode === 'cut') { $('s4status').textContent = 'Compare the two paths. Same puck!'; $('s4status').style.color = C.accent; } return; }
+  }
+  if (S4.state === 'done') return;
+  S4.t += dt;
+  const p = s4pos(); S4.trailA.push(p); S4.trailB.push(rot(p, -s4w() * S4.t));
+  if (S4.trailA.length > 400) { S4.trailA.shift(); S4.trailB.shift(); }
+}
+function drawS4(cv, rotating) {
+  const [ctx, W, H] = prep(cv);
+  const cx = W / 2, cy = H / 2, w = s4w(), diskAng = rotating ? 0 : w * S4.t;
+  const P = p => [cx + p[0], cy - p[1]];
+  // room: a lamp and a door fixed to the room
+  const roomAng = rotating ? -w * S4.t : 0;
+  [[0, '🚪'], [Math.PI * .75, '🪴'], [Math.PI * 1.35, '💡']].forEach(([a, e]) => {
+    const q = P(rot([172, 0], a + roomAng)); label(ctx, e, q[0], q[1], C.text, 18);
+  });
+  // disk
+  ctx.fillStyle = C.surface2; ctx.strokeStyle = C.border; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, S4.Rd, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = C.border; ctx.lineWidth = 1.5;
+  for (let k = 0; k < 6; k++) { const q = P(rot([S4.Rd, 0], diskAng + k * TAU / 6 + .26)); ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(q[0], q[1]); ctx.stroke(); }
+  // friend / rider on the edge at disk angle 0
+  const fr = P(rot([S4.Rd - 14, 0], diskAng)); label(ctx, '🧍', fr[0], fr[1], C.text, 20);
+  if (S4.mode === 'throw') { label(ctx, '🙋', cx, cy - 2, C.text, 18); }
+  // trail
+  const tr = rotating ? S4.trailB : S4.trailA;
+  if (tr.length > 1 && S4.state !== 'tied') {
+    ctx.strokeStyle = C.accent; ctx.globalAlpha = .55; ctx.lineWidth = 2; ctx.beginPath();
+    const start = Math.max(0, tr.length - Math.round((S4.t - S4.tCut) * 60) - 1);
+    tr.slice(start).forEach((p, i) => { const q = P(p); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }); ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  // puck
+  let p = s4pos(); if (rotating) p = rot(p, -w * S4.t);
+  const q = P(p), d = Math.hypot(p[0], p[1]) || 1, ux = p[0] / d, uy = p[1] / d;
+  if (S4.state === 'tied' && S4.mode === 'cut') {
+    ctx.strokeStyle = C.text; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(q[0], q[1]); ctx.stroke();
+    arrow(ctx, q[0] - ux * 12, q[1] + uy * 12, q[0] - ux * 62, q[1] + uy * 62, C.red, 3.5);
+    if (rotating) arrow(ctx, q[0] + ux * 12, q[1] - uy * 12, q[0] + ux * 62, q[1] - uy * 62, C.purple, 3.5, [6, 4]);
+    else { const v = [-uy, ux]; arrow(ctx, q[0] + v[0] * 12, q[1] - v[1] * 12, q[0] + v[0] * 70, q[1] - v[1] * 70, C.green, 3); }
+  } else if (S4.state !== 'tied') {
+    if (rotating && d > 5) arrow(ctx, q[0] + ux * 12, q[1] - uy * 12, q[0] + ux * 52, q[1] - uy * 52, C.purple, 3, [6, 4]);
+    if (!rotating) { const v = S4.v0, vl = Math.hypot(v[0], v[1]); arrow(ctx, q[0] + v[0] / vl * 12, q[1] - v[1] / vl * 12, q[0] + v[0] / vl * 64, q[1] - v[1] / vl * 64, C.green, 3); }
+  }
+  ctx.fillStyle = S4.mode === 'throw' ? C.amber : C.accent; ctx.beginPath(); ctx.arc(q[0], q[1], 10, 0, TAU); ctx.fill();
+  if (S4.state === 'tied' && S4.mode === 'cut') label(ctx, rotating ? 'at rest: pulled in AND pushed out?' : 'goes around: pulled in', cx, H - 14, C.muted, 12);
+  else if (S4.state !== 'tied') label(ctx, rotating ? 'it curves away…' : 'a straight line: no force', cx, H - 14, C.muted, 12);
+}
+
+// ═════════════ progress: saved here, sent live to the teacher's sheet ═════════════
+// The class link (from the teacher page) carries ?api=…&session=…&mode=…. Without it the page works
+// the same, but nothing is sent. Every change is saved on this computer; a few seconds after the last
+// change the whole progress object is sent, with the same id, so the sheet keeps one row per pair.
+const params = new URLSearchParams(location.search);
+const API = params.get('api') || '', LINK_SESSION = params.get('session') || '';
+const LINK_MODE = ['group', 'individual'].includes(params.get('mode')) ? params.get('mode') : '';
+const STORE = 'lab_' + CIRCLES.classId + '_' + (LINK_SESSION || 'default');
+function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+let S = { schema: 1, lab: CIRCLES.classId, id: rid(), session: LINK_SESSION, mode: LINK_MODE || 'group', group: '', students: ['', ''], startedAt: new Date().toISOString(), p: {} };
+try { const sv = JSON.parse(localStorage.getItem(STORE) || 'null'); if (sv && sv.lab === CIRCLES.classId) S = Object.assign(S, sv); } catch (e) {}
+if (LINK_SESSION) S.session = LINK_SESSION;
+P = S.p = Object.assign({ station: 1, ev: {}, q: {}, rv: {}, trials: [], paradox: '', labWrong: '', centri: '' }, S.p);
+let dirty = false, sending = false, sendTimer = null, lastSent = S.lastSent || null, closedMsg = '';
+
+// First try of a choice question: what they picked first, and whether they got there in the end
+function track(id, text, right) {
+  const box = id.startsWith('ev') ? P.ev : P.q;
+  if (!box[id]) box[id] = { first: text, firstOk: right, tries: 0, done: false };
+  box[id].tries++; if (right) box[id].done = true;
+  touch();
+}
+function doneCount() { return CIRCLES.checkpoints.filter(c => c.done(P)).length; }
+function persist() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
+function touch() {
+  persist(); dirty = true; syncLine();
+  if (API && named()) { clearTimeout(sendTimer); sendTimer = setTimeout(sendNow, 4000); }
+}
+function named() { return !!(S.students[0].trim() && String(S.group).trim() && String(S.session).trim()); }
+function syncLine() {
+  const el = $('sync'); if (!el) return;
+  el.hidden = false;
+  const n = doneCount(), tot = CIRCLES.checkpoints.length;
+  el.classList.toggle('warn', !API || !!closedMsg);
+  el.innerHTML = `<b>${n}/${tot} ✓</b> · ` + (!API ? 'not connected to your teacher'
+    : closedMsg ? closedMsg
+    : sending ? 'sending…' : lastSent ? 'teacher updated ' + new Date(lastSent).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'not sent yet');
+}
+async function sendNow() {
+  if (!API || !named() || sending) return;
+  if (!dirty && lastSent) return;
+  sending = true; dirty = false; syncLine();
+  const body = JSON.stringify({ ...S, lastSent: undefined, done: doneCount(), submittedAt: new Date().toISOString(), client: 'circular_motion_class/1' });
+  let ok = false;
+  try {
+    const j = await (await fetch(API, { method: 'POST', body })).json();
+    if (j.closed) { closedMsg = 'your teacher has closed this activity'; }
+    else if (j.ok) ok = true;
+    else if (j.busy) dirty = true;
+  } catch (e) {
+    try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; } catch (e2) { dirty = true; }
+  }
+  sending = false;
+  if (ok) { lastSent = S.lastSent = new Date().toISOString(); persist(); }
+  syncLine();
+}
+setInterval(() => { if (dirty) sendNow(); }, 30000);   // retry a send that failed
+
+// Text answers
+function wcLine(id) {
+  const el = document.querySelector(`[data-wc="${id}"]`), n = CIRCLES.words(P[id]), min = +el.dataset.min;
+  el.textContent = `${n} word${n === 1 ? '' : 's'} · at least ${min}`; el.classList.toggle('ok', n >= min);
+  if (id === 'paradox' && !$('paradoxBtn').hidden) { $('paradoxBtn').disabled = n < min; $('paradoxBtn').textContent = n < min ? 'Show the answer (write first)' : 'Show the answer'; }
+}
+document.querySelectorAll('[data-say]').forEach(t => {
+  const id = t.dataset.say; t.value = P[id] || ''; wcLine(id);
+  t.addEventListener('input', () => { P[id] = t.value; wcLine(id); touch(); });
+});
+// Put back what this computer already did
+if (P.trials.length) { A.trials = P.trials; renderA(); }
+if (P.rv.paradox) { $('paradox').hidden = false; $('paradoxAns').hidden = false; $('paradoxBtn').hidden = true; }
+else if (Object.keys(P.ev).length) $('paradox').hidden = false;
+if (P.derive) { dStep = P.derive; renderDerive(); }
+if (P.kIn) { [$('kr').value, $('kT').value, $('kF').value] = P.kIn; kCalc(); }
+
+// Who is working here (only with the class link)
+function whoInit() {
+  const box = $('who'); box.hidden = !API || named();
+  document.body.classList.toggle('needs-who', !box.hidden);
+  $('wSession').value = S.session; $('wSession').readOnly = !!LINK_SESSION;
+  $('wGroup').value = S.group; $('wS1').value = S.students[0]; $('wS2').value = S.students[1];
+  const check = () => {
+    const ok = $('wSession').value.trim() && $('wGroup').value.trim() && $('wS1').value.trim();
+    $('wGo').disabled = !ok; $('wMsg').textContent = ok ? '' : 'Write the session, your pair number and at least one name.';
+  };
+  ['wSession', 'wGroup', 'wS1', 'wS2'].forEach(id => $(id).addEventListener('input', check)); check();
+  $('wGo').onclick = () => {
+    S.session = $('wSession').value.trim(); S.group = $('wGroup').value.trim();
+    S.students = [$('wS1').value.trim(), $('wS2').value.trim()];
+    S.mode = LINK_MODE || (S.students[1] ? 'group' : 'individual');
+    box.hidden = true; document.body.classList.remove('needs-who'); touch(); sendNow();
+  };
+}
+whoInit();
+// The test keeps the class connection
+if (location.search) { $('testLink').href += location.search; $('testLink2').href += location.search; }
+labPrivacy.init({ api: API, live: true });
+labClosing.watch(API, CIRCLES.classId, S.session);
+syncLine();
+if (API && named() && !lastSent) sendNow();
+
+// ═════════════ animation loop ═════════════
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (station === '1') drawS1(dt);
+  else if (station === '2') {
+    if (sub === 'A') { stepA(dt); drawA(); }
+    else if (sub === 'B' || sub === 'C') drawBench(dt);
+  }
+  else if (station === '3') drawOrbit(dt);
+  else if (station === '4') { stepS4(dt); drawS4($('c4a'), false); drawS4($('c4b'), true); }
+  requestAnimationFrame(frame);
+}
+renderA(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

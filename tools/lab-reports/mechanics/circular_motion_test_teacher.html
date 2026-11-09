@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Circles Pair Test Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="../lab-teacher.css">
+<style>
+  .qblock { display: grid; gap: 6px; }
+  .qblock .qh { font-size: .86rem; font-weight: 700; }
+  .qblock .qh small { color: var(--muted); font-weight: 600; }
+  .slide .qblock .qh { font-size: clamp(.9rem, 1.3vw, 1.3rem); }
+  .ok-mark { color: var(--green); font-weight: 800; }
+</style>
+</head>
+<body>
+<script src="../lab-teacher.js"></script>
+<script src="circular_motion.js"></script>
+<script>
+// Circles pair test: each pair answers on one device; answers arrive live and the final version when they
+// hand in. In circular_motion.js the first option of each question is the right one (option index 0).
+const QS = CIRCLES.test, N = QS.length;
+const qNum = q => QS.indexOf(q) + 1;
+
+// How many pairs chose each option; the right one first and marked
+function answerBars(q) {
+  const counts = [0, 0, 0, 0];
+  let n = 0;
+  GROUPS.forEach(G => { const a = G.s.ans?.[q.id]; if (a != null) { counts[a]++; n++; } });
+  return `<div class="qblock"><div class="qh">${counts[0]}/${n} right <small>· ${esc(q.e)}</small></div>
+    <div class="bars">${q.o.map((o, k) => bar((k === 0 ? '✓ ' : '') + o, counts[k])).join('')}</div></div>`;
+}
+function accuracyBars() {
+  return `<div class="bars">${QS.map(q => ({ q, n: GROUPS.filter(G => G.ok[q.id]).length }))
+    .sort((a, b) => a.n - b.n).map(({ q, n }) => bar(`Q${qNum(q)} · ${q.q.slice(0, 48)}${q.q.length > 48 ? '…' : ''}`, n)).join('')}</div>`;
+}
+
+LabTeacher({
+  id: CIRCLES.testId,
+  title: 'Circles Pair Test',
+  icon: '📝',
+  studentPage: 'circular_motion_test.html',
+  tagline: 'Centripetal force, the lab, the Moon and the rider on the turntable',
+  titleExtra: () => GROUPS.length ? ` · median score ${fmt(median(GROUPS.map(G => G.score)))}/${N}` : '',
+
+  errors: {},
+  questions: [
+    ...QS.map(q => ({ id: q.id, title: q.q, chart: q.id })),
+    { id: CIRCLES.testText.id, title: CIRCLES.testText.title, get: s => s.explain },
+  ],
+  questionChart: q => answerBars(QS.find(x => x.id === q.chart)),
+  jump: () => [...QS.map(q => [q.id, 'Q' + qNum(q)]), [CIRCLES.testText.id, '✍ Written']],
+
+  analyze(s) {
+    const a = s.ans || {}, ok = {};
+    QS.forEach(q => { ok[q.id] = a[q.id] === 0; });
+    return { ok, score: QS.filter(q => ok[q.id]).length, answered: QS.filter(q => a[q.id] != null).length, finished: !!s.finished };
+  },
+  checks(G) {
+    const out = [];
+    if (!G.finished) out.push([`Still working (${G.answered}/${N})`, '']);
+    if (G.finished && G.answered < N) out.push([`${N - G.answered} left blank`, 'red']);
+    if (G.finished && words(G.s.explain) < 15) out.push(['Short written answer', '']);
+    return out;
+  },
+
+  summaryHtml: `
+    <div class="card">
+      <h3>Right answers, by question (most missed first)</h3>
+      <div id="acc"></div>
+    </div>`,
+  renderSummary() {
+    const done = GROUPS.filter(G => G.finished);
+    const missed = QS.map(q => ({ q, n: GROUPS.filter(G => G.ok[q.id]).length })).sort((a, b) => a.n - b.n)[0];
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Pairs</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'}</div></div>
+      <div class="tile"><div class="k">Handed in</div><div class="v">${done.length}<small>/${GROUPS.length}</small></div><div class="s">the others are still working</div></div>
+      <div class="tile"><div class="k">Median score</div><div class="v">${done.length ? fmt(median(done.map(G => G.score))) : '—'}<small>/${N}</small></div><div class="s">pairs that handed in</div></div>
+      <div class="tile"><div class="k">Most missed</div><div class="v" style="font-size:1rem">${GROUPS.length ? `Q${qNum(missed.q)}` : '—'}</div><div class="s">${GROUPS.length ? `${esc(missed.q.q.slice(0, 60))} · ${missed.n}/${GROUPS.length} right` : ''}</div></div>`;
+    document.getElementById('acc').innerHTML = accuracyBars();
+  },
+
+  resultsHead: '<th>Score</th><th>Status</th>' + QS.map(q => `<th title="${esc(q.q)}">Q${qNum(q)}</th>`).join(''),
+  resultsRow(G) {
+    return `<td><b>${G.score}</b><span class="muted">/${N}</span></td><td>${G.finished ? '✓ handed in' : `<span class="muted">working ${G.answered}/${N}</span>`}</td>` +
+      QS.map(q => `<td>${G.ok[q.id] ? '<span class="ok-mark">✓</span>' : G.s.ans?.[q.id] != null ? '✗' : '<span class="muted">—</span>'}</td>`).join('');
+  },
+
+  slides: () => [{ html: `<h2>Right answers, by question</h2><div class="card">${accuracyBars()}</div>` }],
+
+  detail(G) {
+    const a = G.s.ans || {};
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">Score</div><div class="v">${G.score}<small>/${N}</small></div><div class="s">${G.finished ? 'handed in ' + (G.s.finishedAt ? new Date(G.s.finishedAt).toLocaleTimeString() : '') : 'still working'}</div></div>
+        ${sentTile(G)}
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="card"><h3>Answers</h3><div class="table-wrap"><table class="t">
+        <thead><tr><th></th><th>Question</th><th>Their answer</th><th></th></tr></thead>
+        <tbody>${QS.map(q => `<tr><td>Q${qNum(q)}</td><td>${esc(q.q)}</td><td>${a[q.id] == null ? '<span class="muted">—</span>' : esc(q.o[a[q.id]])}</td><td>${G.ok[q.id] ? '<span class="ok-mark">✓</span>' : a[q.id] == null ? '' : '✗ · ' + esc(q.o[0])}</td></tr>`).join('')}</tbody></table></div></div>
+      <div class="answers">${detailAnswer(CIRCLES.testText.title, G.s.explain)}</div>`;
+  },
+
+  computed: G => ({ score: G.score, out_of: N, finished: G.finished, right: QS.filter(q => G.ok[q.id]).map(q => q.id) }),
+  csv: {
+    head: ['session', 'group', 'students', 'finished', 'score', ...QS.map(q => `Q${qNum(q)}_${q.id}`), ...QS.map(q => `Q${qNum(q)}_ok`), 'written'],
+    rows: G => [[G.s.session, G.s.group, who(G), G.finished, G.score, ...QS.map(q => G.s.ans?.[q.id] != null ? QS.find(x => x === q).o[G.s.ans[q.id]] : ''), ...QS.map(q => G.ok[q.id]), G.s.explain || '']],
+  },
+
+  demo() {
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz', 'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva'];
+    const hard = ['centrif', 'spin', 'error', 'sameV', 'heavy'];
+    const texts = ['Centripetal force is a real force that pulls something toward the center of its circle, like the string on a ball. Centrifugal force is not real: it is what you feel in a car when it turns, but really your body just wants to go straight.',
+      'Centripetal goes in and centrifugal goes out and they cancel.'];
+    const reports = [];
+    for (let i = 0; i < 6; i++) {
+      const strong = i % 3 !== 2, ans = {};
+      QS.forEach((q, qi) => {
+        if (i === 5 && qi > 10) return;   // still working
+        const wrong = Math.random() < (strong ? .15 : .4) + (hard.includes(q.id) ? .3 : 0);
+        ans[q.id] = wrong ? 1 + Math.floor(Math.random() * 3) : 0;
+      });
+      reports.push({ schema: 1, lab: CIRCLES.testId, id: 'demo' + i, session: 'DEMO', mode: 'group', group: String(i + 1), students: [names[2 * i], names[2 * i + 1]],
+        ans, explain: i === 5 ? '' : texts[strong ? 0 : 1], finished: i !== 5, finishedAt: new Date().toISOString(),
+        startedAt: new Date().toISOString(), submittedAt: new Date(Date.now() - i * 60000).toISOString() });
+    }
+    return reports;
+  },
+});
+</script>
+</body>
+</html>
