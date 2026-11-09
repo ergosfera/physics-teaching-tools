@@ -190,9 +190,17 @@ public class MainActivity extends Activity {
     // Shows the box for pasting the script's link
     private void askLink(String why) {
         showMessage(why, "Connect", v -> {
-            String link = Drive.findLink(linkField.getText().toString());
+            String pasted = linkField.getText().toString();
+            String link = Drive.findLink(pasted);
+            if (link == null && Drive.isTestLink(pasted)) {
+                messageText.setText("This is the script's test link (it has /dev in it), which only works on the computer. "
+                        + "In the script, open Deploy \u2192 Manage deployments and copy the Web app URL (it ends with /exec). "
+                        + "Paste it here, then a space, then this test link after it.");
+                return;
+            }
             if (link == null) {
-                messageText.setText("That isn't the whole link. It starts with https://script.google.com/ and ends with ?key= and a long code.");
+                messageText.setText("That isn't the whole link. It starts with https://script.google.com/, has /exec in it, "
+                        + "and ends with ?key= and a long code.");
                 return;
             }
             store.setLink(link);

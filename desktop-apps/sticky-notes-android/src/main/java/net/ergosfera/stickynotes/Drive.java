@@ -55,7 +55,23 @@ final class Drive {
             java.util.regex.Matcher m = LINK.matcher(text);
             while (m.find()) if (best == null || m.group().length() > best.length()) best = m.group();
         }
-        return best;
+        if (best != null) return best;
+        // The web app address (…/exec) and the key pasted separately, for example the Web app URL from
+        // "Manage deployments" and then the test link (…/dev?key=…) that showLink sometimes prints
+        java.util.regex.Matcher exec = EXEC.matcher(pasted);
+        java.util.regex.Matcher key = KEY.matcher(pasted);
+        if (exec.find() && key.find()) return exec.group(1) + "?key=" + key.group(1).toLowerCase(java.util.Locale.ROOT);
+        return null;
+    }
+
+    private static final java.util.regex.Pattern EXEC =
+            java.util.regex.Pattern.compile("(https://script\\.google(?:usercontent)?\\.com/[^\\s?]+?/exec)(?![\\w/])");
+    private static final java.util.regex.Pattern KEY =
+            java.util.regex.Pattern.compile("(?<![0-9a-zA-Z])(?:key=)?([0-9a-fA-F]{32,})(?![0-9a-zA-Z])");
+
+    // A test link (…/dev?key=…) only works signed in on the computer, so the app can't use it
+    static boolean isTestLink(String pasted) {
+        return pasted != null && pasted.contains("script.google.com") && pasted.contains("/dev") && !EXEC.matcher(pasted).find();
     }
 
     static boolean looksLikeLink(String s) { return s != null && s.equals(findLink(s)); }

@@ -18,7 +18,13 @@ var FOLDER_MIME = 'application/vnd.google-apps.folder';
 function showLink() {
   var url = ScriptApp.getService().getUrl();
   if (!url) throw new Error('Deploy the script as a web app first (Deploy > New deployment > Web app), then run showLink again.');
-  Logger.log('Your Sticky Notes link (paste it in the phone app; keep it private):\n' + url + '?key=' + key_());
+  if (/\/exec$/.test(url)) {
+    Logger.log('Your Sticky Notes link (paste it in the phone app; keep it private):\n' + url + '?key=' + key_());
+  } else {
+    // Run from the editor, Google sometimes gives the test address (…/dev), which the phone can't use
+    Logger.log('Open Deploy > Manage deployments and copy the Web app URL (it ends with /exec). '
+        + 'In the phone app, paste that URL, a space, and then this key (keep it private):\n' + key_());
+  }
 }
 
 // Makes a new key: the old link stops working, and showLink prints the new one

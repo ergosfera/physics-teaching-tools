@@ -29,6 +29,9 @@ Use the Google account where your notes are (the one Google Drive for desktop us
      the app (it is your own script): click **Advanced → Go to Sticky Notes (unsafe)**, then **Allow**.
 4. In the editor, choose **showLink** in the menu next to **Run** at the top, and click **Run**.
    The log at the bottom shows your link: `https://script.google.com/macros/s/…/exec?key=…`
+   If Google gives the script its test address instead (with `/dev`), the log shows only the key:
+   then copy the **Web app URL** from **Deploy → Manage deployments** (it ends with `/exec`), and in
+   the app paste that URL, a space, and the key.
 5. Send that link to your phone (email it to yourself, for example), open Sticky Notes on the phone,
    paste it in the box and tap **Connect**.
 

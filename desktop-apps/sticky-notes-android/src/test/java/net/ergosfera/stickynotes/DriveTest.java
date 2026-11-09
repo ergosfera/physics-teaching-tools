@@ -158,5 +158,14 @@ public class DriveTest {
         assertEquals(good, Drive.findLink("  " + good + " \n"));
         assertEquals(good, Drive.findLink("https://script.google.com/macros/s/AKfy_x-1/exec?key=0123456789abcdef\n0123456789abcdef"));
         assertEquals(null, Drive.findLink("hello"));
+        String key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        String dev = "https://script.google.com/a/macros/ergosfera.net/s/SCRIPTID/dev?key=" + key;
+        String exec = "https://script.google.com/a/macros/ergosfera.net/s/AKfycbDEPLOY/exec";
+        assertEquals(null, Drive.findLink(dev));
+        assertTrue(Drive.isTestLink(dev));
+        assertEquals(exec + "?key=" + key, Drive.findLink(exec + " " + dev));
+        assertEquals(exec + "?key=" + key, Drive.findLink(exec + "\n" + key));
+        assertEquals(exec + "?key=" + key, Drive.findLink(exec + "?key=" + key.toUpperCase()));
+        assertFalse(Drive.isTestLink(exec + " " + dev));
     }
 }
