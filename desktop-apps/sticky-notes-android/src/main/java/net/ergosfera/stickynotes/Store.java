@@ -59,6 +59,7 @@ final class Store {
     private String folderId, link, tagsText = "", lastSync = "";
     private long tagsVersion = -1;
     private final List<Runnable> listeners = new ArrayList<>();
+    private final List<String> order = new ArrayList<>();
 
     private Store(Context app) {
         this.app = app;
@@ -68,10 +69,31 @@ final class Store {
 
     // MARK: Reading (main thread)
 
+    // The notes in the order they are shown: notes not placed yet (new ones) first, newest first,
+    // then the order set by dragging them. The order is this phone's own, like the desktop windows' places.
     synchronized List<Entry> all() {
-        List<Entry> list = new ArrayList<>(notes.values());
-        Collections.sort(list, (a, b) -> modified(b).compareTo(modified(a)));
-        return list;
+        List<Entry> fresh = new ArrayList<>(), placed = new ArrayList<>();
+        Map<String, Integer> at = new HashMap<>();
+        for (int i = 0; i < order.size(); i++) at.put(order.get(i), i);
+        for (Entry e : notes.values()) (at.containsKey(e.id) ? placed : fresh).add(e);
+        Collections.sort(fresh, (a, b) -> modified(b).compareTo(modified(a)));
+        Collections.sort(placed, (a, b) -> Integer.compare(at.get(a.id), at.get(b.id)));
+        fresh.addAll(placed);
+        return fresh;
+    }
+
+    // Puts a dragged note where another one is (the other moves along by one)
+    synchronized void move(String dragged, String target) {
+        if (dragged.equals(target)) return;
+        List<String> ids = new ArrayList<>();
+        for (Entry e : all()) ids.add(e.id);
+        int to = ids.indexOf(target);
+        if (to < 0 || !ids.remove(dragged)) return;
+        ids.add(to, dragged);
+        order.clear();
+        order.addAll(ids);
+        persist();
+        changed();
     }
 
     private static String modified(Entry e) { return e.note.modified == null ? "" : e.note.modified; }
@@ -356,6 +378,7 @@ final class Store {
                 arr.put(j);
             }
             o.put("notes", arr);
+            o.put("order", new JSONArray(order));
             File tmp = new File(file.getPath() + ".tmp");
             try (FileOutputStream out = new FileOutputStream(tmp)) { out.write(o.toString().getBytes(StandardCharsets.UTF_8)); }
             if (!tmp.renameTo(file)) throw new IOException("rename");
@@ -371,6 +394,8 @@ final class Store {
             tagsText = o.optString("tags");
             tagsVersion = o.optLong("tagsVersion", -1);
             lastSync = o.optString("lastSync");
+            JSONArray ord = o.optJSONArray("order");
+            for (int i = 0; ord != null && i < ord.length(); i++) order.add(ord.getString(i));
             JSONArray arr = o.optJSONArray("notes");
             for (int i = 0; arr != null && i < arr.length(); i++) {
                 JSONObject j = arr.getJSONObject(i);

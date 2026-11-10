@@ -31,6 +31,19 @@ public class MainActivity extends Activity {
 
     private Store store;
     private LinearLayout columns;
+    private ScrollView scroll;
+    // While a card is dragged: its note, whether it went over another card, and the edge scrolling
+    private String dragging;
+    private boolean draggedOver, showLater;
+    private int edgeScroll;
+    private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable scrollStep = new Runnable() {
+        public void run() {
+            if (dragging == null || edgeScroll == 0) return;
+            scroll.scrollBy(0, edgeScroll);
+            handler.postDelayed(this, 16);
+        }
+    };
     private TextView status;
     private EditText search;
     private View message;
@@ -119,7 +132,7 @@ public class MainActivity extends Activity {
         mlp.setMargins(dp(10), dp(8), dp(10), 0);
         root.addView(message, mlp);
 
-        ScrollView scroll = new ScrollView(this);
+        scroll = new ScrollView(this);
         columns = new LinearLayout(this);
         columns.setPadding(dp(5), dp(5), dp(5), dp(24));
         scroll.addView(columns);
@@ -243,12 +256,13 @@ public class MainActivity extends Activity {
     // MARK: Cards
 
     private void show() {
+        // Rebuilding the cards would end a drag: wait for the drop
+        if (dragging != null) { showLater = true; return; }
         updateStatus();
         columns.removeAllViews();
         float widthDp = getResources().getDisplayMetrics().widthPixels / getResources().getDisplayMetrics().density;
         int n = Math.max(2, (int) (widthDp / 210));
         LinearLayout[] cols = new LinearLayout[n];
-        int[] heights = new int[n];
         for (int i = 0; i < n; i++) {
             cols[i] = new LinearLayout(this);
             cols[i].setOrientation(LinearLayout.VERTICAL);
@@ -260,12 +274,8 @@ public class MainActivity extends Activity {
         for (Store.Entry e : store.all()) {
             NoteFile.Note note = e.note;
             if (q.length() > 0 && !(note.title + "\n" + note.text).toLowerCase(Locale.ROOT).contains(q)) continue;
-            // Each card goes in the shortest column, by a guess of its height
-            int best = 0;
-            for (int i = 1; i < n; i++) if (heights[i] < heights[best]) best = i;
-            int lines = Math.min(12, note.text.split("\n", -1).length) + (note.title.isEmpty() ? 0 : 2) + 2;
-            heights[best] += lines;
-            cols[best].addView(card(e, tags));
+            // Across, then down: the order a dragged note is put in is the order on the screen
+            cols[shown % n].addView(card(e, tags));
             shown++;
         }
         if (shown == 0) {
@@ -308,7 +318,7 @@ public class MainActivity extends Activity {
             inner.addView(t);
         }
         TextView body = new TextView(this);
-        body.setText(Look.render(note.text, tags, true));
+        body.setText(Look.render(note.text, tags));
         body.setTextColor(Look.INK);
         body.setTextSize(14);
         body.setMaxLines(12);
@@ -326,11 +336,71 @@ public class MainActivity extends Activity {
         c.addView(inner);
 
         c.setOnClickListener(v -> open(e.id));
-        c.setOnLongClickListener(v -> { cardMenu(e); return true; });
         FrameLayout wrap = new FrameLayout(this);
         wrap.setPadding(dp(5), dp(5), dp(5), dp(5));
         wrap.addView(c);
+        // Long press picks the card up; dropped on another card, it takes that card's place.
+        // Let go without moving onto another card, and the color and delete menu opens instead.
+        c.setOnLongClickListener(v -> {
+            dragging = e.id;
+            draggedOver = false;
+            c.startDragAndDrop(android.content.ClipData.newPlainText("note", e.id), new View.DragShadowBuilder(c), e.id, 0);
+            c.setAlpha(0.35f);
+            return true;
+        });
+        wrap.setOnDragListener((v, ev) -> {
+            switch (ev.getAction()) {
+                case android.view.DragEvent.ACTION_DRAG_STARTED:
+                    return dragging != null;
+                case android.view.DragEvent.ACTION_DRAG_ENTERED:
+                    if (!e.id.equals(dragging)) { draggedOver = true; wrap.setForeground(dropMark()); }
+                    return true;
+                case android.view.DragEvent.ACTION_DRAG_LOCATION:
+                    edgeScrollAt(wrap, ev.getY());
+                    return true;
+                case android.view.DragEvent.ACTION_DRAG_EXITED:
+                    wrap.setForeground(null);
+                    return true;
+                case android.view.DragEvent.ACTION_DROP:
+                    wrap.setForeground(null);
+                    if (dragging != null && !e.id.equals(dragging)) store.move(dragging, e.id); // the list redraws after the drop
+                    return true;
+                case android.view.DragEvent.ACTION_DRAG_ENDED:
+                    wrap.setForeground(null);
+                    if (e.id.equals(ev.getLocalState())) {
+                        c.setAlpha(1f);
+                        boolean menu = !draggedOver;
+                        dragging = null;
+                        edgeScroll = 0;
+                        if (showLater) { showLater = false; show(); }
+                        if (menu) cardMenu(e);
+                    }
+                    return true;
+            }
+            return false;
+        });
         return wrap;
+    }
+
+    private android.graphics.drawable.Drawable dropMark() {
+        GradientDrawable g = new GradientDrawable();
+        g.setStroke(dp(3), 0xFF3A3A3A);
+        g.setCornerRadius(dp(8));
+        return g;
+    }
+
+    // Near the top or bottom of the list, a dragged card scrolls it
+    private void edgeScrollAt(View over, float y) {
+        int[] a = new int[2], b = new int[2];
+        over.getLocationOnScreen(a);
+        scroll.getLocationOnScreen(b);
+        float inList = a[1] + y - b[1];
+        int zone = dp(72), speed = 0;
+        if (inList < zone) speed = -Math.round(dp(14) * (1 - inList / zone));
+        else if (inList > scroll.getHeight() - zone) speed = Math.round(dp(14) * (1 - (scroll.getHeight() - inList) / zone));
+        boolean was = edgeScroll != 0;
+        edgeScroll = speed;
+        if (!was && speed != 0) handler.post(scrollStep);
     }
 
     private void cardMenu(Store.Entry e) {

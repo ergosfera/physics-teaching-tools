@@ -40,18 +40,8 @@ final class Look {
         }
     }
 
-    // A tag in the editor: the "[#name]" text stays, on its color with white letters (only for showing)
-    static final class TagMark extends CharacterStyle implements UpdateAppearance {
-        final int color;
-        TagMark(int color) { this.color = color; }
-        @Override public void updateDrawState(TextPaint tp) {
-            tp.bgColor = color;
-            tp.setColor(0xFFFFFFFF);
-            tp.setFakeBoldText(true);
-        }
-    }
-
-    // A tag in the list of notes: a rounded label with the tag's name, or the date as "Oct 30"
+    // A tag, in the list and in the editor: a rounded label with the tag's name, or the date as "Oct 30".
+    // The text stays "[#name]" underneath (only for showing, never saved).
     static final class Chip extends ReplacementSpan {
         final String label;
         final int color;
@@ -84,26 +74,20 @@ final class Look {
         }
     }
 
-    // The note text as it is shown: boxes as ☐/☑, bold and colored runs, and (for the list) tags as labels
-    static SpannableStringBuilder render(String markup, List<String[]> tagDefs, boolean chips) {
+    // The note text as it is shown: boxes as ☐/☑, bold and colored runs, and tags as labels
+    static SpannableStringBuilder render(String markup, List<String[]> tagDefs) {
         List<NoteFile.Span> bold = new ArrayList<>(), ink = new ArrayList<>();
         SpannableStringBuilder s = new SpannableStringBuilder(NoteFile.parseMarkup(markup, bold, ink));
         for (NoteFile.Span b : bold) s.setSpan(new StyleSpan(Typeface.BOLD), b.start, b.start + b.length, Spanned.SPAN_EXCLUSIVE_INCLUSIVE);
         for (NoteFile.Span k : ink) s.setSpan(new Ink(k.name), k.start, k.start + k.length, Spanned.SPAN_EXCLUSIVE_INCLUSIVE);
-        if (chips) {
-            int year = Calendar.getInstance().get(Calendar.YEAR);
-            for (NoteFile.Tag t : NoteFile.findTags(s))
-                s.setSpan(new Chip(NoteFile.tagLabel(t.token, year), rgb(NoteFile.tagHex(tagDefs, t.token))),
-                        t.start, t.start + t.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        }
-        decorate(s, tagDefs, !chips);
+        decorate(s, tagDefs);
         return s;
     }
 
-    // Puts back the marks that only show things (checked items, tags in the editor) after the text changed
-    static void decorate(Spannable s, List<String[]> tagDefs, boolean tagMarks) {
+    // Puts back the marks that only show things (checked items, tag labels) after the text changed
+    static void decorate(Spannable s, List<String[]> tagDefs) {
         for (Done d : s.getSpans(0, s.length(), Done.class)) s.removeSpan(d);
-        for (TagMark t : s.getSpans(0, s.length(), TagMark.class)) s.removeSpan(t);
+        for (Chip c : s.getSpans(0, s.length(), Chip.class)) s.removeSpan(c);
         String t = s.toString();
         int start = 0;
         while (start <= t.length()) {
@@ -113,9 +97,19 @@ final class Look {
                 s.setSpan(new Done(), start + 2, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             start = end + 1;
         }
-        if (tagMarks)
-            for (NoteFile.Tag g : NoteFile.findTags(t))
-                s.setSpan(new TagMark(rgb(NoteFile.tagHex(tagDefs, g.token))), g.start, g.start + g.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        int year = Calendar.getInstance().get(Calendar.YEAR);
+        for (NoteFile.Tag g : NoteFile.findTags(t))
+            s.setSpan(new Chip(NoteFile.tagLabel(g.token, year), rgb(NoteFile.tagHex(tagDefs, g.token))),
+                    g.start, g.start + g.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+    }
+
+    // The tag label around position i (start < i < end), if any: {start, end}
+    static int[] chipAround(Spanned s, int i) {
+        for (Chip c : s.getSpans(i, i, Chip.class)) {
+            int a = s.getSpanStart(c), b = s.getSpanEnd(c);
+            if (a < i && i < b) return new int[] { a, b };
+        }
+        return null;
     }
 
     // The edited text back as markup, from its bold and ink runs

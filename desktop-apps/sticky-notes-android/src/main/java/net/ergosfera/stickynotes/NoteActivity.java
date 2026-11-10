@@ -37,6 +37,7 @@ public class NoteActivity extends Activity {
     private TextView state;
     private boolean applying, dirty, isNew;
     private int newline = -1;
+    private int[] tagCut;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable commit = this::commit;
     private final Runnable send = () -> store.push(e -> showState());
@@ -75,7 +76,7 @@ public class NoteActivity extends Activity {
         header.addView(button("⋯", "Color or delete", v -> menu(), 24));
         root.addView(header);
 
-        body = new EditText(this);
+        body = new NoteText(this);
         body.setGravity(Gravity.TOP | Gravity.START);
         body.setTextSize(16);
         body.setTextColor(Look.INK);
@@ -101,16 +102,31 @@ public class NoteActivity extends Activity {
         load(e.note);
 
         TextWatcher watcher = new TextWatcher() {
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                // Backspace on a tag label takes the whole tag
+                tagCut = null;
+                if (!applying && count == 1 && after == 0 && s instanceof Spanned)
+                    for (Look.Chip c : ((Spanned) s).getSpans(start, start + 1, Look.Chip.class)) {
+                        int a = ((Spanned) s).getSpanStart(c), b = ((Spanned) s).getSpanEnd(c);
+                        if (a <= start && start + 1 <= b) tagCut = new int[] { a, b - 1 };
+                    }
+            }
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 if (!applying && before == 0 && count == 1 && s.charAt(start) == '\n') newline = start;
             }
             public void afterTextChanged(Editable s) {
                 if (applying) return;
                 if (s == body.getText()) {
+                    if (tagCut != null) {
+                        int[] cut = tagCut;
+                        tagCut = null;
+                        applying = true;
+                        if (cut[1] > cut[0] && cut[1] <= s.length()) s.delete(cut[0], cut[1]);
+                        applying = false;
+                    }
                     if (newline >= 0) continueList(newline);
                     newline = -1;
-                    Look.decorate(body.getText(), store.tags(), true);
+                    Look.decorate(body.getText(), store.tags());
                 }
                 edited();
             }
@@ -173,7 +189,7 @@ public class NoteActivity extends Activity {
         color = n.color;
         title.setText(n.title);
         int sel = body.getSelectionStart();
-        body.setText(Look.render(n.text, store.tags(), false), TextView.BufferType.EDITABLE);
+        body.setText(Look.render(n.text, store.tags()), TextView.BufferType.EDITABLE);
         if (sel >= 0 && sel <= body.length()) body.setSelection(sel);
         applying = false;
         dirty = false;
@@ -392,5 +408,17 @@ public class NoteActivity extends Activity {
         body.setSelection(at + text.length());
         body.requestFocus();
         ((InputMethodManager) getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(body, 0);
+    }
+
+    // The note text box: the cursor never stops inside a tag label, so typing can't split a tag
+    static final class NoteText extends EditText {
+        NoteText(android.content.Context c) { super(c); }
+
+        @Override protected void onSelectionChanged(int a, int b) {
+            super.onSelectionChanged(a, b);
+            if (a != b || getText() == null) return;
+            int[] chip = Look.chipAround(getText(), a);
+            if (chip != null) setSelection(a - chip[0] < chip[1] - a ? chip[0] : chip[1]);
+        }
     }
 }
