@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sticky Notes — Desktop App</title>
+  <title>Sticky Notes — Desktop and Android App</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗒️</text></svg>">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -157,18 +157,19 @@
   </div>
 
   <h1>🗒️ Sticky Notes</h1>
-  <p class="subtitle">Sticky notes on your desktop that sync between your computers through Google Drive: write a note at work on the Mac, and it's there when you open the Windows PC at home.</p>
+  <p class="subtitle">Sticky notes on your desktop that sync between your computers through Google Drive: write a note at work on the Mac, and it's there when you open the Windows PC at home. The Android app shows the same notes on your phone or tablet, and you can edit them there too.</p>
   <div class="chips">
     <span class="chip">💻 Desktop app</span>
     <span class="chip">Windows 10 / 11</span>
     <span class="chip">macOS 11 or later</span>
+    <span class="chip">📱 Android 8 or later</span>
     <span class="chip">Syncs with Google Drive for desktop</span>
     <span class="chip">Free · MIT License</span>
   </div>
 
   <div class="notice">
     <strong>This is a download, not a web page.</strong>
-    Unlike the other tools on this site, Sticky Notes is a program that you download and run on your own computer.
+    Unlike the other tools on this site, Sticky Notes is a program that you download and run on your own computer, phone or tablet.
     Before downloading, please read the <a href="#about">About</a> and the <a href="#license">License</a> below.
     The download buttons unlock once you have scrolled through the license and accepted it.
   </div>
@@ -207,11 +208,36 @@
             Turn on <strong>Start with Windows</strong> (tray icon menu) or <strong>Open at Login</strong> (Sticky Notes menu, macOS 13 or later) so your notes are there when the computer starts. On Windows it starts from a copy of the app on the computer, so it works even if you keep <code>StickyNotes.exe</code> in Google Drive.</li>
       </ul>
 
+      <h3>On an Android phone or tablet</h3>
+      <ul>
+        <li>The notes appear as colored cards, with their checklists, bold text, text colors, tags and titles, as on the computers. Search finds a note by any word in it.</li>
+        <li>Tap a note to read or edit it, and tap a box to check it. The buttons at the bottom make a checklist, bold text, colored text, or insert a tag or a date (the tags are the ones you set on a computer).</li>
+        <li><strong>+</strong> makes a new note. Hold a card and drag it to move it among the others, or hold it and let go to change its color or delete it.</li>
+        <li>Edits are kept on the phone as you type and sent to Google Drive a few seconds later. Without a connection the app shows the notes from the last sync and sends your edits when you're back online.</li>
+        <li>If a note changed on a computer while you were editing it on the phone, you get both versions as separate notes, so nothing is lost.</li>
+      </ul>
+
+      <h3>Setting up the Android app (once)</h3>
+      <p>The phone reaches your notes through a small script in your own Google account. You don't need a Google Cloud project or a credit card.
+         The script only works with the files in <strong>StickyNotes</strong>, and it only answers requests that carry its secret key.
+         Do these steps on a computer, signed in to the Google account that holds your notes.</p>
+      <ul>
+        <li>Open <a href="https://script.google.com/" target="_blank" rel="noopener">script.google.com</a>, click <strong>New project</strong>, and name it “Sticky Notes”.</li>
+        <li>Delete what is in the editor, paste the whole of <a href="https://raw.githubusercontent.com/ergosfera/physics-teaching-tools/main/desktop-apps/sticky-notes-android/apps-script/Code.gs" target="_blank" rel="noopener">the Sticky Notes script</a>, and save it.</li>
+        <li>Click <strong>Deploy → New deployment</strong>, then the gear next to “Select type”, and choose <strong>Web app</strong>. Set <strong>Execute as: Me</strong> and <strong>Who has access: Anyone</strong> (the key in the link keeps it private). Click <strong>Deploy</strong>, then <strong>Authorize access</strong>. Google says it hasn't verified the app, because it is your own script: click <strong>Advanced → Go to Sticky Notes (unsafe)</strong>, then <strong>Allow</strong>.</li>
+        <li>Choose <strong>showLink</strong> in the menu next to <strong>Run</strong> and click <strong>Run</strong>. The log shows your link, which ends with <code>/exec?key=</code> and a long code.
+            If the log shows only a key, copy the <strong>Web app URL</strong> from <strong>Deploy → Manage deployments</strong> and use that URL, a space, and the key.</li>
+        <li>Send the link to your phone (email it to yourself, for example). Open Sticky Notes on the phone, paste the link and tap <strong>Connect</strong>.</li>
+      </ul>
+      <p>Keep the link private: anyone who has it can read and change your notes. If it gets out, run <strong>newKey</strong> in the script the same way, and paste the new link in the app (<strong>⋮ → Change the script link</strong>).</p>
+
       <h3>Privacy</h3>
       <p>Sticky Notes <strong>collects no personal data and never connects to the internet</strong>.
          Each note is a small text file in the folder you choose, normally your Google Drive folder. Google Drive for desktop, not this app,
          copies that folder between your computers, under your Google account's terms.
          The app also saves its own settings (the notes folder and where each note sits on screen) on your computer.</p>
+      <p>The Android app connects only to your own Sticky Notes script, which runs in your Google account and reads and writes the notes folder for it.
+         It keeps a copy of your notes and the script link on the phone. Nothing goes to the author or anyone else.</p>
 
       <h3>Installing</h3>
       <ul>
@@ -220,13 +246,15 @@
         <li><strong>macOS:</strong> open <code>StickyNotes.dmg</code> and drag <strong>Sticky Notes</strong> into <strong>Applications</strong>.
             The app isn't signed with a paid Apple Developer ID, so the first time macOS may block it. Open <strong>System Settings → Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>.
             macOS may also ask to let it access files in Google Drive: click <strong>Allow</strong>.</li>
+        <li><strong>Android:</strong> download <code>StickyNotes.apk</code> on the phone and open it. It isn't from the Play Store, so Android asks you to allow installing apps from your browser or Files app: allow it, then tap <strong>Install</strong>.
+            If Play Protect warns about an unknown app, choose <strong>More details → Install anyway</strong>. A newer version installs over the old one and keeps your notes and link.</li>
       </ul>
 
       <h3>Disclaimer</h3>
       <p>This software is free and is provided <strong>“as is”, without warranty of any kind</strong>.
          Keep your own copy of anything important: syncing depends on Google Drive, and a note could be lost or overwritten.
          The author is not liable for any claim, damages or other liability arising from its use.
-         Choose <strong>About Sticky Notes</strong> from the tray icon menu (Windows) or the Sticky Notes menu (Mac) to see this information again.</p>
+         On a computer, choose <strong>About Sticky Notes</strong> from the tray icon menu (Windows) or the Sticky Notes menu (Mac) to see this information again.</p>
     </div>
   </section>
 
@@ -260,7 +288,7 @@ SOFTWARE.</div>
     <h2><span class="step">3</span>Accept and download</h2>
     <label class="accept disabled" id="accept-label">
       <input type="checkbox" id="accept" disabled>
-      <span>I have read the About and the License. I understand that Sticky Notes is a program I download and run on my own computer,
+      <span>I have read the About and the License. I understand that Sticky Notes is a program I download and run on my own computer, phone or tablet,
             and I accept that it is provided “as is”, without warranty of any kind.</span>
     </label>
 
@@ -274,6 +302,11 @@ SOFTWARE.</div>
          data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/sticky-notes/StickyNotes.dmg">
         <span class="t">⬇ Download for macOS</span>
         <span class="d">StickyNotes.dmg · about 0.5 MB · macOS 11 or later (Apple Silicon and Intel)</span>
+      </a>
+      <a class="dl" id="dl-android" aria-disabled="true" role="link"
+         data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/sticky-notes/StickyNotes.apk">
+        <span class="t">⬇ Download for Android</span>
+        <span class="d">StickyNotes.apk · about 50 KB · Android 8 or later, phone or tablet</span>
       </a>
     </div>
     <p class="source">The source code is public:
@@ -300,7 +333,7 @@ SOFTWARE.</div>
   const hint = document.getElementById('license-hint');
   const accept = document.getElementById('accept');
   const acceptLabel = document.getElementById('accept-label');
-  const links = [document.getElementById('dl-win'), document.getElementById('dl-mac')];
+  const links = ['dl-win', 'dl-mac', 'dl-android'].map(id => document.getElementById(id));
 
   function licenseRead() {
     if (box.scrollTop + box.clientHeight < box.scrollHeight - 4) return;
