@@ -292,8 +292,23 @@
     .leftover { margin-top: 8px; font-size: 13px; }
 
     /* Groups only: no exercise column, field or slots */
-    .no-ex .ex-field, .no-ex .ex-col, .no-ex .ex-slot { display: none; }
-    .no-ex .stage { grid-template-columns: minmax(190px, 250px) minmax(0, 1fr); grid-template-areas: "pool groups"; }
+    body.no-ex:not(.turns) .ex-field, body.no-ex:not(.turns) .ex-col, body.no-ex:not(.turns) .ex-slot { display: none; }
+    body.no-ex:not(.turns) .stage { grid-template-columns: minmax(190px, 250px) minmax(0, 1fr); grid-template-areas: "pool groups"; }
+
+    /* Mode switch: Groups (all at once) vs One at a time (turn by turn) */
+    body.turns .g-only, body:not(.turns) .t-only { display: none !important; }
+
+    /* ---- One at a time: the "now presenting" card and the turn log ---- */
+    .now { max-width: 720px; }
+    .now .slot { font-size: 30px; min-height: 1.7em; }
+    .now .ex-slot { flex-direction: column; align-items: stretch; gap: 4px; }
+    .now .ex-slot .val { text-align: left; font-size: 20px; padding: 6px 8px; min-height: 1.9em; }
+    .turn-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .log { margin-top: 14px; padding-left: 2.6em; font-size: 14px; display: grid; gap: 3px; }
+    .log li::marker { font-family: var(--font-mono); font-weight: 700; }
+    .log .who { font-weight: 700; }
+    .log .what { font-family: var(--font-mono); font-size: 13px; }
+    .log li:first-child { background: var(--field-bg); padding: 1px 6px; margin-left: -6px; }
 
     /* ---- Footer ---- */
     footer {
@@ -364,7 +379,13 @@
 
     <section class="setup" id="setup">
       <div class="opts">
-        <div class="opt">Group size
+        <div class="opt">Mode
+          <div class="seg" id="modeSeg" role="group" aria-label="Mode">
+            <button data-mode="groups" aria-pressed="true">Groups</button>
+            <button data-mode="turns" aria-pressed="false">One at a time</button>
+          </div>
+        </div>
+        <div class="opt g-only">Group size
           <div class="seg" id="sizeSeg" role="group" aria-label="Group size">
             <button data-size="2" aria-pressed="true">2</button>
             <button data-size="3" aria-pressed="false">3</button>
@@ -373,14 +394,16 @@
             <button data-size="6" aria-pressed="false">6</button>
           </div>
         </div>
-        <button class="btn" id="exBtn" aria-pressed="true">Exercises: on</button>
+        <button class="btn g-only" id="exBtn" aria-pressed="true">Exercises: on</button>
+        <button class="btn t-only" id="fairBtn" aria-pressed="true"
+          title="On: everyone presents once (in random order) before anyone presents again. Off: every turn draws from all students.">Fair rounds: on</button>
       </div>
       <div class="field">
         <label for="names">Students <small id="nameCount"></small></label>
         <textarea id="names" spellcheck="false" placeholder="One name per line"></textarea>
       </div>
       <div class="field ex-field">
-        <label for="exercises">Exercises <small id="exCount"></small></label>
+        <label for="exercises"><span id="exLabel">Exercises</span> <small id="exCount"></small></label>
         <textarea id="exercises" spellcheck="false" placeholder="One exercise per line"></textarea>
       </div>
       <p class="note" id="note"></p>
@@ -393,10 +416,22 @@
       </section>
       <section class="col groups-col">
         <h2><span id="groupHead">Pairs</span> <span class="count" id="groupCount"></span></h2>
-        <div class="groups" id="groups"></div>
+        <div class="groups g-only" id="groups"></div>
+        <div class="t-only">
+          <article class="group now" id="nowCard">
+            <div class="g-head"><span class="lbl">Now presenting</span><span class="n" id="nowNum"></span></div>
+            <div class="slot" id="nowName"></div>
+            <div class="ex-slot"><span class="lbl">Question / exercise</span><span class="val" id="nowItem"></span></div>
+          </article>
+          <div class="turn-tools">
+            <button class="btn" id="undoBtn">Undo last turn</button>
+            <button class="btn" id="restartBtn">Start over</button>
+          </div>
+          <ol class="log" id="log" reversed></ol>
+        </div>
       </section>
       <section class="col ex-col">
-        <h2>Exercise drum <span class="count" id="exPoolCount"></span></h2>
+        <h2><span id="drumHead">Exercise drum</span> <span class="count" id="exPoolCount"></span></h2>
         <div class="hat" id="exPool"></div>
         <p class="leftover" id="leftover" hidden></p>
       </section>
@@ -432,6 +467,10 @@
   };
   let speed = reduceMotion ? 'fast' : 'normal';
   let size = 2, useEx = true;
+  // One-at-a-time mode: each turn is { name, item, round }.
+  let mode = 'groups', fair = true, turns = [];
+  const nowCard = $('#nowCard'), nowName = $('#nowName'), nowItem = $('#nowItem'), logEl = $('#log');
+  const undoBtn = $('#undoBtn'), restartBtn = $('#restartBtn');
 
   // ---------- true randomness ----------
   // Uniform integer in [0, n) from crypto, rejecting the biased tail of the 32-bit range.
@@ -453,7 +492,7 @@
     try { return JSON.parse(localStorage.getItem(STORE) || 'null'); } catch { return null; }
   }
   function save() {
-    try { localStorage.setItem(STORE, JSON.stringify({ names: namesEl.value, ex: exEl.value, speed, size, useEx })); } catch {}
+    try { localStorage.setItem(STORE, JSON.stringify({ names: namesEl.value, ex: exEl.value, speed, size, useEx, mode, fair, turns })); } catch {}
   }
 
   const parseNames = t => t.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
@@ -509,6 +548,12 @@
   }
 
   function renderIdle() {
+    const turnMode = mode === 'turns';
+    document.body.classList.toggle('turns', turnMode);
+    $('#exLabel').textContent = turnMode ? 'Questions & exercises' : 'Exercises';
+    $('#drumHead').textContent = turnMode ? 'Question drum' : 'Exercise drum';
+    exEl.placeholder = turnMode ? 'One question or exercise per line' : 'One exercise per line';
+    if (turnMode) { renderTurns(); return; }
     const names = parseNames(namesEl.value), ex = parseEx(exEl.value);
     const sizes = groupSizes(names.length, size);
     const err = validate(names, ex, sizes);
@@ -749,10 +794,132 @@
     copyBtn.disabled = false;
   }
 
+  // ---------- one at a time ----------
+  // Grey out the chips whose text was already used (as many copies as were used) and return the rest.
+  function markUsed(chips, used) {
+    const m = new Map();
+    used.forEach(x => m.set(x, (m.get(x) || 0) + 1));
+    return chips.filter(c => {
+      const k = m.get(c.textContent) || 0;
+      if (!k) return true;
+      m.set(c.textContent, k - 1);
+      c.classList.add('gone');
+      return false;
+    });
+  }
+
+  // Everything is derived from the turn log, so editing the lists mid-activity keeps the history.
+  function turnState() {
+    const items = markUsed([...exPoolEl.children], turns.map(t => t.item));
+    let nameChips = [...poolEl.children];
+    let round = turns.length ? turns.at(-1).round : 1, newRound = !turns.length;
+    if (fair && turns.length) {
+      const avail = markUsed(nameChips, turns.filter(t => t.round === round).map(t => t.name));
+      if (avail.length) nameChips = avail;
+      else { nameChips.forEach(c => c.classList.remove('gone')); round++; newRound = true; }
+    }
+    return { names: nameChips, items, round, newRound };
+  }
+
+  function setNow(t) {
+    nowName.textContent = t ? t.name : '';
+    nowItem.textContent = t ? t.item : '';
+    nowName.classList.toggle('filled', !!t);
+    nowItem.classList.toggle('filled', !!t);
+    $('#nowNum').textContent = t ? turns.length : '';
+  }
+
+  function renderTurns() {
+    const names = parseNames(namesEl.value), ex = parseEx(exEl.value);
+    poolEl.replaceChildren(...names.map(n => chip(n)));
+    exPoolEl.replaceChildren(...ex.map(e => chip(e, 'ex')));
+    leftoverEl.hidden = true;
+    const st = turnState();
+
+    $('#nameCount').textContent = `${names.length} names`;
+    $('#exCount').textContent = `${ex.length} items`;
+    $('#poolCount').textContent = st.names.length;
+    $('#exPoolCount').textContent = st.items.length;
+    $('#groupHead').textContent = 'Turns';
+    $('#groupCount').textContent = turns.length || '';
+
+    setNow(turns.at(-1));
+    logEl.replaceChildren(...turns.map(t => {
+      const li = document.createElement('li');
+      const who = document.createElement('span'), what = document.createElement('span');
+      who.className = 'who'; who.textContent = t.name;
+      what.className = 'what'; what.textContent = t.item;
+      li.append(who, ' — ', what);
+      return li;
+    }).reverse());
+
+    const err = !names.length ? 'Add at least one student.' : !ex.length ? 'Add at least one question or exercise.' : '';
+    const done = !err && !st.items.length;
+    const isExample = namesEl.value.trim() === EXAMPLE_NAMES.join('\n');
+    noteEl.className = err ? 'note err' : 'note';
+    noteEl.textContent = err || ((isExample ? 'These are example names. Replace them with your students, one per line. ' : '') +
+      'Each click draws one student, then one question or exercise. ' +
+      (fair ? 'Fair rounds: everyone presents once, in random order, before anyone repeats, and nobody goes twice in a row.'
+            : 'Every turn draws from all students, so someone may present several times in a row.'));
+    $('#summary').textContent = err ? 'Fix the lists to draw.' :
+      `${names.length} student${names.length === 1 ? '' : 's'} · ${turns.length} presented · ${st.items.length} of ${ex.length} left in the drum` +
+      (fair && turns.length ? ` · round ${st.round}` : '');
+
+    drawBtn.disabled = !!err || done;
+    drawBtn.textContent = done ? 'All presented' : turns.length ? 'Next turn' : 'First turn';
+    undoBtn.disabled = restartBtn.disabled = !turns.length;
+    copyBtn.disabled = !turns.length;
+    copyOut.hidden = true;
+    return st;
+  }
+
+  async function drawTurn() {
+    if (running) { skip(); return; }
+    const st = renderTurns();
+    if (drawBtn.disabled) return;
+
+    running = true; skipping = false;
+    initAudio();
+    setRunning(true);
+    setNow(null);
+    nowCard.classList.add('active');
+    scrollNear(nowCard);
+
+    // With fair rounds, the first pick of a new round can't be whoever just presented.
+    const prev = turns.at(-1)?.name;
+    let cands = st.names;
+    if (fair && st.newRound && prev != null && cands.length > 1) cands = cands.filter(c => c.textContent !== prev);
+
+    const i = randInt(cands.length), nameEl = cands[i];
+    await spin(cands, i);
+    await fly(nameEl, nowName, false);
+    await sleep(SPEEDS[speed].pause);
+
+    const j = randInt(st.items.length), itemEl = st.items[j];
+    await spin(st.items, j);
+    await fly(itemEl, nowItem, true);
+
+    turns.push({ name: nameEl.textContent, item: itemEl.textContent, round: st.round });
+    save();
+    const wasSkipped = skipping;
+    skipping = false;
+    if (!wasSkipped) fanfare();
+    nowCard.classList.remove('active');
+    running = false;
+    setRunning(false);
+    renderTurns();
+  }
+
+  undoBtn.addEventListener('click', () => { if (running) return; turns.pop(); save(); renderTurns(); });
+  restartBtn.addEventListener('click', () => {
+    if (running || !confirm('Clear every turn and put all students and questions back?')) return;
+    turns = []; save(); renderTurns();
+  });
+
   function setRunning(on) {
     drawBtn.textContent = on ? 'Skip to result' : (lastResult ? 'Draw again' : 'Draw');
     namesEl.disabled = exEl.disabled = on;
-    document.querySelectorAll('#sizeSeg button, #exBtn').forEach(b => { b.disabled = on; });
+    document.querySelectorAll('#sizeSeg button, #exBtn, #modeSeg button, #fairBtn, #undoBtn, #restartBtn').forEach(b => { b.disabled = on; });
     if (on) toggleSetup(false);
   }
 
@@ -787,6 +954,19 @@
   });
   $('#exBtn').addEventListener('click', () => { useEx = !useEx; showEx(); reset(); });
 
+  function showMode() {
+    document.querySelectorAll('#modeSeg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.mode === mode)));
+  }
+  function showFair() {
+    const b = $('#fairBtn');
+    b.setAttribute('aria-pressed', String(fair));
+    b.textContent = 'Fair rounds: ' + (fair ? 'on' : 'off');
+  }
+  document.querySelectorAll('#modeSeg button').forEach(b => {
+    b.addEventListener('click', () => { mode = b.dataset.mode; showMode(); reset(); });
+  });
+  $('#fairBtn').addEventListener('click', () => { fair = !fair; showFair(); save(); renderTurns(); });
+
   $('#soundBtn').addEventListener('click', e => {
     soundOn = !soundOn;
     e.currentTarget.setAttribute('aria-pressed', String(soundOn));
@@ -804,16 +984,17 @@
     fsBtn.textContent = document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen';
   });
 
-  drawBtn.addEventListener('click', draw);
+  drawBtn.addEventListener('click', () => (mode === 'turns' ? drawTurn() : draw()));
 
   function resultText() {
+    if (mode === 'turns') return turns.map((t, i) => `${i + 1}. ${t.name} — ${t.item}`).join('\n');
     const lines = lastResult.result.map((r, i) =>
       `${label(r.names.length)} ${i + 1}: ${r.names.slice(0, -1).join(', ')} & ${r.names.at(-1)}` + (r.ex ? ` — ${r.ex}` : ''));
     if (lastResult.leftovers.length) lines.push(`Not assigned: ${lastResult.leftovers.join(', ')}`);
     return lines.join('\n');
   }
   copyBtn.addEventListener('click', () => {
-    if (!lastResult) return;
+    if (mode === 'turns' ? !turns.length : !lastResult) return;
     const text = resultText();
     const fallback = () => { copyOut.value = text; copyOut.hidden = false; copyOut.focus(); copyOut.select(); copyBtn.textContent = 'Select and copy below'; };
     try {
@@ -837,8 +1018,12 @@
   if (saved?.speed && SPEEDS[saved.speed] && !reduceMotion) speed = saved.speed;
   if ([2, 3, 4, 5, 6].includes(saved?.size)) size = saved.size;
   if (typeof saved?.useEx === 'boolean') useEx = saved.useEx;
+  if (saved?.mode === 'turns') mode = 'turns';
+  if (typeof saved?.fair === 'boolean') fair = saved.fair;
+  if (Array.isArray(saved?.turns)) turns = saved.turns.filter(t => t && typeof t.name === 'string' && typeof t.item === 'string')
+    .map(t => ({ name: t.name, item: t.item, round: Number.isInteger(t.round) ? t.round : 1 }));
   document.querySelectorAll('#speedSeg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.speed === speed)));
-  showSize(); showEx();
+  showSize(); showEx(); showMode(); showFair();
   renderIdle();
 })();
 </script>
