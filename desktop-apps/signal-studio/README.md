@@ -9,7 +9,6 @@ A desktop edition of the existing Signal Studio visualization, with cassette pla
 ## Install
 
 - **Apple Silicon Mac:** open `SignalStudio-mac-arm64.dmg` and copy Signal Studio to Applications.
-- **Intel Mac:** use `SignalStudio-mac-x64.dmg`.
 - **Windows x64:** run `SignalStudio-win-x64.exe`, the installer.
 
 These builds are unsigned and the Mac builds are not notarized. The operating system may display an unknown-publisher or security prompt. For public distribution, configure signing and Apple notarization with the author’s own credentials; none are bundled here.
@@ -41,7 +40,7 @@ npm run build:mac
 npm run build:win
 ```
 
-Outputs go to `dist/`. The macOS build produces separate Apple Silicon and Intel packages. Windows is x64. Build configuration is in `package.json`, dependencies are pinned in `package-lock.json`, and the repository's `.github/workflows/desktop-apps.yml` builds the Mac and Windows installers on every push to `main` and publishes them on the `signal-studio` GitHub release.
+Outputs go to `dist/`. `npm run build:mac` also makes an Intel package, but the repository's CI publishes only the Apple Silicon one. Windows is x64. Build configuration is in `package.json`, dependencies are pinned in `package-lock.json`, and the repository's `.github/workflows/desktop-apps.yml` builds the Mac and Windows installers on every push to `main` and publishes them on the `signal-studio` GitHub release.
 
 The Windows configuration skips executable resource editing to allow building on this Mac without Wine. The executable retains Electron’s default icon/embedded vendor metadata, though its filename, app title, and installer identify Signal Studio. A future signed release should configure a dedicated icon and native resource editing/signing.
 

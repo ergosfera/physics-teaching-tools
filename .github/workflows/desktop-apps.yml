@@ -12,7 +12,7 @@
 #   "clock-bar":          ClockBar.dmg (Mac) and ClockBar.exe (Windows)
 #   "citorio":            Citorio.dmg (Mac) and Citorio.exe (Windows)
 #   "disk-led":           DiskLED.dmg (Mac) and DiskLED.exe (Windows)
-#   "signal-studio":      SignalStudio-mac-arm64.dmg, SignalStudio-mac-x64.dmg (Mac) and SignalStudio-win-x64.exe (Windows)
+#   "signal-studio":      SignalStudio-mac-arm64.dmg (Apple Silicon Mac) and SignalStudio-win-x64.exe (Windows)
 # Pull requests only build the apps, so a broken build shows up before it reaches main.
 name: Desktop apps
 
@@ -327,7 +327,7 @@ jobs:
           cache-dependency-path: desktop-apps/signal-studio/package-lock.json
       - run: npm ci
       - run: npm test
-      - run: npx electron-builder --mac dmg --arm64 --x64 --publish never
+      - run: npx electron-builder --mac dmg --arm64 --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - uses: actions/upload-artifact@v4
@@ -686,4 +686,4 @@ jobs:
           # Start fresh each time: a stale release, a hidden draft or a missing tag can't get in the way
           gh release delete signal-studio -R "$REPO" --yes --cleanup-tag > /dev/null 2>&1 || true
           gh release create signal-studio dist/* -R "$REPO" --latest=false --title "Signal Studio" --target "$GITHUB_SHA" \
-            --notes "A cassette-style audio player for learning about amplitude, frequency, decibels and the equalizer. Apple Silicon Mac: SignalStudio-mac-arm64.dmg. Intel Mac: SignalStudio-mac-x64.dmg. Windows: SignalStudio-win-x64.exe (installer)."
+            --notes "A sound lab for learning about decibels, waves and frequency with your own music. Mac (Apple Silicon): SignalStudio-mac-arm64.dmg. Windows: SignalStudio-win-x64.exe (installer)."

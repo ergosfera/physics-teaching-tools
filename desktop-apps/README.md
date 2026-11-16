@@ -15,7 +15,7 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 - **Paint 95** (macOS): a bitmap painter that looks and works like the Windows 95 Paint.
 - **Clock Bar**: the date and time in bold, outlined letters on a see-through bar that stays on top.
 - **Citorio**: every so often a small window pops up with a quote, then hides again. Comes with 1,315 quotes in Spanish; add your own categories as text files.
-- **Signal Studio**: a cassette-style audio player with VU and peak meters, waveforms, a spectrum and a ten-band equalizer, each with a guide to the physics of sound.
+- **Signal Studio**: a sound lab for learning about decibels, waves and frequency with your own music: VU and peak meters, waveforms, a spectrum and a ten-band equalizer, each with a guide to the physics of sound.
 
 ## Download and install
 
@@ -304,13 +304,13 @@ files whose name starts with `_` are ignored. The built-in lists are in [`citori
 
 ## Signal Studio
 
-A cassette-style audio player for learning about sound: amplitude, frequency, decibels, RMS and peak levels, and what an equalizer does.
+A learning tool for the physics of sound, in the form of a cassette player: play your own music and study its amplitude, frequency, decibels, RMS and peak levels, and what an equalizer does. Each display has a guide, and the meters behave like studio instruments, so students can test what they read.
 Its source is in [`signal-studio/`](signal-studio/) and, unlike the other apps, it is an Electron app (see its [README](signal-studio/README.md) to build and test it).
 
 - Plays local audio files, and the sound of video files, in a playlist that can be saved and opened as a `.signalplaylist` file (it stores references to the files, not copies).
 - **Stereo VU** and **peak level** meters, **left/right waveforms**, a **spectrum** from 20 Hz to 20 kHz and a **ten-band equalizer** (31 Hz to 16 kHz, ±12 dB), plus a master volume.
 - Each display has an ⓘ button that opens a guide in a separate window: decibels and reference levels, dBFS versus dB SPL, RMS versus peak, frequency and wavelength, acoustic power and intensity, and why the app can't measure real sound levels without a calibrated microphone.
-- Installing: on a Mac, pick `SignalStudio-mac-arm64.dmg` (Apple Silicon) or `SignalStudio-mac-x64.dmg` (Intel). On Windows, `SignalStudio-win-x64.exe` is an **installer** (the other apps here run without one).
+- Installing: on a Mac (Apple Silicon only), `SignalStudio-mac-arm64.dmg`. On Windows, `SignalStudio-win-x64.exe` is an **installer** (the other apps here run without one).
 - Inspired by the cassette animations of Valentyn Vieshchunov's *Casse-o-player*, with more player ideas from Fab2. Written with the help of OpenAI Codex.
 
 ## Notepad 95

@@ -160,11 +160,12 @@
   </div>
 
   <h1>📼 Signal Studio</h1>
-  <p class="subtitle">A cassette-style audio player for learning about sound. Play your own music and watch it on VU and peak meters, left and right waveforms, a frequency spectrum and a ten-band equalizer, each with a guide to the physics behind it.</p>
+  <p class="subtitle"><strong>A sound lab for physics class</strong>, built around your own music. Play any song and see its sound as numbers and graphs: loudness in decibels, the shape of the wave, and which frequencies it is made of. Change the equalizer and watch every display respond. Each display comes with a guide to the physics behind it.</p>
   <div class="chips">
+    <span class="chip">🔊 Learning tool: sound and waves</span>
     <span class="chip">💻 Desktop app</span>
     <span class="chip">Windows 10 / 11 (64-bit)</span>
-    <span class="chip">macOS (Apple Silicon and Intel)</span>
+    <span class="chip">macOS (Apple Silicon)</span>
     <span class="chip">Free · MIT License</span>
   </div>
 
@@ -183,21 +184,41 @@
   <section id="about">
     <h2><span class="step">1</span>About</h2>
     <div class="panel">
-      <h3>What it does</h3>
+      <h3>What you can learn with it</h3>
+      <p>Signal Studio is not just a music player: it is a set of measuring instruments for sound, the kind found in a recording studio, with explanations.
+         Each display has an <strong>ⓘ</strong> button that opens a guide in its own window, next to the player, so students can keep listening while they read.</p>
       <ul>
-        <li>Plays <strong>audio files</strong> from your computer, and the sound of <strong>video files</strong>, with play, pause, stop, seeking and jumps of 10 seconds. The cassette's reels turn while it plays, and the song title is handwritten on its label.</li>
-        <li>A <strong>playlist</strong> plays the tracks in order. <strong>Save playlist</strong> writes a <code>.signalplaylist</code> file and <strong>Open playlist</strong> brings it back. It stores where the files are, not copies of them, so keep the music where it was (or move it together with the playlist).</li>
-        <li><strong>Stereo VU</strong>: needles that follow the average (RMS) loudness of each channel.</li>
+        <li><strong>Decibels:</strong> why loudness is measured on a logarithmic scale, what a reference level is, and why dBFS (digital level) is not dB SPL (sound pressure in the room).</li>
+        <li><strong>Average versus peak:</strong> the VU needles follow the average (RMS) level, while the peak bars catch the loudest instants. A drum hit and a held note look very different on the two.</li>
+        <li><strong>Waves:</strong> the waveform shows amplitude against time over 20 milliseconds, so you can see the period of a note and how it relates to frequency and wavelength.</li>
+        <li><strong>Frequency:</strong> the spectrum splits the sound into bands from 20 Hz to 20 kHz, the range of human hearing, showing which pitches carry the energy.</li>
+        <li><strong>Filters and gain:</strong> boost or cut a band on the equalizer and see the change on the spectrum, the meters and the waveform; the guide explains how a gain in dB becomes a ratio of amplitudes.</li>
+        <li><strong>Physics of sound:</strong> acoustic power in watts, intensity in W/m², pressure in pascals, and what you would need to measure them for real.</li>
+      </ul>
+
+      <h3>Ideas for class</h3>
+      <ul>
+        <li>Compare a track with sharp drum hits and one with a sustained instrument: how far apart are the VU and peak readings?</li>
+        <li>Turn up only the 63 Hz band, then only the 4 kHz band. Which displays change, and how does it sound?</li>
+        <li>Play a single sustained note and estimate its frequency from the waveform's period, then check it on the spectrum.</li>
+        <li>Boost several equalizer bands on a loud song until the peak meter reaches 0 dBFS. Why is 0 dBFS the top of a digital scale, and what happens to a signal that tries to go above it?</li>
+      </ul>
+      <p>An honest limit, which is a lesson too: the meters measure the <strong>digital signal</strong>, not the sound in the room. Signal Studio can't tell how loud your speakers are without a calibrated microphone. The VU meter is livelier than a real VU instrument, and the two waveforms are aligned separately, so they can't show the delay between the channels.</p>
+
+      <h3>The displays</h3>
+      <ul>
+        <li><strong>Stereo VU</strong>: needles that follow the average (RMS) loudness of each channel; 0 VU is −11 dBFS.</li>
         <li><strong>Stereo level</strong>: the peak level of each channel in dBFS, from −60 to 0, holding the highest peak for about a second.</li>
         <li><strong>Stereo waveform</strong>: the left and right signals over 20 milliseconds, from −1 to +1.</li>
-        <li><strong>Spectrum</strong>: how strong each range of frequencies is, from 20 Hz to 20 kHz in 32 bands. Click a band to read its values.</li>
+        <li><strong>Spectrum</strong>: 32 bands from 20 Hz to 20 kHz. Click a band to read its values.</li>
         <li><strong>Ten-band equalizer</strong> from 31 Hz to 16 kHz, ±12 dB per band, with <strong>EQ on/off</strong> and <strong>Flat</strong>, and a master <strong>volume</strong>. The equalizer and volume are remembered for next time.</li>
       </ul>
 
-      <h3>For learning</h3>
-      <p>Each display has an <strong>ⓘ</strong> button that opens a guide in its own window, next to the player, so you can keep listening while you read.
-         The guides cover decibels and reference levels, dBFS versus dB SPL, RMS versus peak, frequency, period and wavelength, the range of human hearing, acoustic power, intensity and pressure, and how a change on the equalizer shows up on the other displays.</p>
-      <p>The meters measure the <strong>digital signal</strong>, not the sound in the room: Signal Studio can't tell how loud your speakers are without a calibrated microphone. The VU meter is livelier than a real VU instrument, and the waveforms are aligned separately, so they can't show the delay between the two channels.</p>
+      <h3>The player</h3>
+      <ul>
+        <li>Plays <strong>audio files</strong> from your computer, and the sound of <strong>video files</strong>, with play, pause, stop, seeking and jumps of 10 seconds. The cassette's reels turn while it plays, and the song title is handwritten on its label.</li>
+        <li>A <strong>playlist</strong> plays the tracks in order. <strong>Save playlist</strong> writes a <code>.signalplaylist</code> file and <strong>Open playlist</strong> brings it back, handy for preparing the examples for a lesson. It stores where the files are, not copies of them, so keep the music where it was (or move it together with the playlist).</li>
+      </ul>
 
       <h3>Credits</h3>
       <p>Inspired by the realistic cassette animations of <strong>Casse-o-player</strong> by <a href="https://play.google.com/store/apps/details?id=com.hornwerk.compactcassetteplayer&amp;hl=en" target="_blank" rel="noopener">Valentyn Vieshchunov</a>, with more player ideas from <a href="https://fab2m.fr/" target="_blank" rel="noopener">Fab2</a>.
@@ -211,7 +232,7 @@
       <ul>
         <li><strong>Windows:</strong> run <code>SignalStudio-win-x64.exe</code>. It is an <strong>installer</strong>: you can choose the folder, and it adds a desktop and Start menu shortcut.
             The app isn't signed with a paid certificate, so Windows may show “Windows protected your PC”. Click <strong>More info</strong>, then <strong>Run anyway</strong>.</li>
-        <li><strong>macOS:</strong> download the file for your Mac: <strong>Apple Silicon</strong> (M1 or newer) or <strong>Intel</strong>. If you're not sure, open the <strong>Apple menu → About This Mac</strong>: “Chip: Apple M…” means Apple Silicon, “Processor: Intel” means Intel.
+        <li><strong>macOS:</strong> for Macs with <strong>Apple Silicon</strong> (M1 or newer; in the <strong>Apple menu → About This Mac</strong> it says “Chip: Apple M…”). There is no version for Intel Macs.
             Open the <code>.dmg</code> and drag <strong>Signal Studio</strong> into <strong>Applications</strong>.
             The app isn't signed with a paid Apple Developer ID, so the first time macOS may block it. Open <strong>System Settings → Privacy &amp; Security</strong> and click <strong>Open Anyway</strong>.</li>
         <li>The download is large (about 120 MB) because the app carries its own copy of the Chromium engine to play and analyze sound.</li>
@@ -265,13 +286,8 @@ SOFTWARE.</div>
       </a>
       <a class="dl" id="dl-mac" aria-disabled="true" role="link"
          data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/signal-studio/SignalStudio-mac-arm64.dmg">
-        <span class="t">⬇ Download for Mac (Apple Silicon)</span>
-        <span class="d">SignalStudio-mac-arm64.dmg · about 120 MB · M1 or newer</span>
-      </a>
-      <a class="dl" id="dl-mac-intel" aria-disabled="true" role="link"
-         data-href="https://github.com/ergosfera/physics-teaching-tools/releases/download/signal-studio/SignalStudio-mac-x64.dmg">
-        <span class="t">⬇ Download for Mac (Intel)</span>
-        <span class="d">SignalStudio-mac-x64.dmg · about 125 MB · Intel processor</span>
+        <span class="t">⬇ Download for Mac</span>
+        <span class="d">SignalStudio-mac-arm64.dmg · about 120 MB · Apple Silicon (M1 or newer)</span>
       </a>
     </div>
     <p class="source">The source code is public:
@@ -298,7 +314,7 @@ SOFTWARE.</div>
   const hint = document.getElementById('license-hint');
   const accept = document.getElementById('accept');
   const acceptLabel = document.getElementById('accept-label');
-  const links = [document.getElementById('dl-win'), document.getElementById('dl-mac'), document.getElementById('dl-mac-intel')];
+  const links = [document.getElementById('dl-win'), document.getElementById('dl-mac')];
 
   function licenseRead() {
     if (box.scrollTop + box.clientHeight < box.scrollHeight - 4) return;
