@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Signal Studio</title><link rel="stylesheet" href="player.css"></head><body><div class="desktop-titlebar"><span>Signal Studio</span><div class="desktop-window-controls"><button type="button" data-window-action="minimize" aria-label="Minimize window">−</button><button type="button" data-window-action="maximize" aria-label="Maximize window">□</button><button type="button" data-window-action="close" aria-label="Close window">×</button></div></div>
+
+<header id="signal-studio-heading">
+  <h1>SIGNAL <span>STUDIO</span></h1>
+  <button type="button" class="studio-about-link cursor-interaction" aria-haspopup="dialog">About</button>
+</header>
+
+
+<div id="cassette-rack-scroll"><div id="tape-stereo-system">
+<div class="rack-left"><div id="square-tape-player-v2" aria-label="Backlit cassette player">
+  <section class="deck" aria-label="Cassette deck">
+    <header><span class="brand">STEREO <span>/ CASSETTE DECK</span></span><span class="power"><b></b> POWER</span></header>
+    <div class="well"><canvas role="img" aria-label="Clear Memorex cassette with yellow reels that turn during playback"></canvas></div>
+    <div class="deck-caption"><span>PRECISION TAPE TRANSPORT</span><span>TYPE I · SIDE B</span></div>
+  </section>
+  <section class="console" aria-label="Playback controls">
+    <div class="display"><span class="mode" aria-live="polite">IDLE</span><span class="track" hidden>Add tracks to begin</span><span class="clock">00:00</span></div>
+    <div class="timeline"><input class="playback-position" type="range" min="0" max="1000" value="0" step="1" aria-label="Playback position"></div>
+    <div class="keys">
+      <button type="button" data-action="rewind" aria-label="Rewind 10 seconds"><i data-lucide="rewind" aria-hidden="true"></i><span>−10s</span><b></b></button>
+      <button type="button" data-action="play" aria-label="Play" aria-pressed="false"><i data-lucide="play" aria-hidden="true"></i><span>PLAY</span><b></b></button>
+      <button type="button" data-action="pause" aria-label="Pause" aria-pressed="false"><i data-lucide="pause" aria-hidden="true"></i><span>PAUSE</span><b></b></button>
+      <button type="button" data-action="stop" aria-label="Stop" aria-pressed="false"><i data-lucide="square" aria-hidden="true"></i><span>STOP</span><b></b></button>
+      <button type="button" data-action="forward" aria-label="Fast-forward 10 seconds"><i data-lucide="fast-forward" aria-hidden="true"></i><span>+10s</span><b></b></button>
+    </div>
+  </section>
+  <input class="audio-file" type="file" multiple accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.flac,.aac,.aif,.aiff,.opus,.mp4,.m4v,.mov,.webm,.mkv,.avi" hidden>
+  <video class="media-source" preload="metadata" playsinline aria-hidden="true"></video>
+</div>
+<section id="tape-playlist" class="lower-panel" aria-label="Playlist">
+ <header><span>PLAYLIST</span><button type="button" class="panel-button add-tracks">+ ADD TRACKS</button></header>
+ <div class="playlist-actions"><button type="button" class="panel-button open-playlist">OPEN PLAYLIST</button><button type="button" class="panel-button save-playlist">SAVE PLAYLIST</button></div><div class="playlist-status" role="status" hidden></div>
+ <div class="queue-heading"><span>PLAY ORDER</span><span class="track-count">0 TRACKS</span></div>
+ <div class="queue-list"></div>
+ <div class="queue-empty"><i data-lucide="list-music" aria-hidden="true"></i><span>Your next mixtape</span><small>Add audio or video files to your playlist.</small></div>
+ <footer><button type="button" class="panel-button page-prev" aria-label="Previous playlist page">‹</button><span class="queue-page">LOCAL MEDIA</span><button type="button" class="panel-button page-next" aria-label="Next playlist page">›</button></footer>
+</section></div>
+<section id="tape-meter-panel" aria-label="Stereo VU, level, and waveform monitors"><section class="meter-third"><header><span class="module-title">STEREO VU<button type="button" class="module-info cursor-interaction" data-sound-info="vu" aria-label="Learn about stereo vu" aria-haspopup="dialog"><span aria-hidden="true">i</span></button></span><span>0 VU = −11 dBFS</span></header><div class="meter-screen needle-screen"><canvas class="needles" role="img" aria-label="Left and right needle VU meters"></canvas></div></section><section class="meter-third"><header><span class="module-title">STEREO LEVEL<button type="button" class="module-info cursor-interaction" data-sound-info="level" aria-label="Learn about stereo level" aria-haspopup="dialog"><span aria-hidden="true">i</span></button></span><span>PEAK · dBFS</span></header><div class="meter-screen"><canvas class="linear-vu" role="img" aria-label="Horizontal left and right level meters with peak hold"></canvas></div></section><section class="meter-third"><header><span class="module-title">STEREO WAVEFORM<button type="button" class="module-info cursor-interaction" data-sound-info="waveform" aria-label="Learn about stereo waveform" aria-haspopup="dialog"><span aria-hidden="true">i</span></button></span><span>L / R · 20 ms</span></header><div class="meter-screen"><canvas class="waveform" role="img" aria-label="Separate live left and right audio waveforms, twenty milliseconds per channel"></canvas></div></section></section>
+<section id="tape-right-column" aria-label="Frequency spectrum and equalizer"><section class="meter-third"><header><span class="module-title">SPECTRUM<button type="button" class="module-info cursor-interaction" data-sound-info="spectrum" aria-label="Learn about spectrum" aria-haspopup="dialog"><span aria-hidden="true">i</span></button></span><output class="band-detail"></output><span class="signal-source">IDLE</span></header><div class="meter-screen"><canvas class="spectrum" role="img" aria-label="Frequency spectrum from 20 hertz to 20 kilohertz"></canvas><input class="spectrum-picker" type="range" min="0" max="31" step="1" value="16" aria-label="Inspect frequency band"></div></section><section id="tape-equalizer" class="lower-panel" aria-label="Ten-band equalizer">
+ <header><span class="module-title">10-BAND EQUALIZER<button type="button" class="module-info cursor-interaction" data-sound-info="equalizer" aria-label="Learn about 10-band equalizer" aria-haspopup="dialog"><span aria-hidden="true">i</span></button></span><button type="button" class="panel-button eq-toggle" aria-pressed="true">EQ ON</button></header>
+ <div class="eq-summary"><span>GAIN ±12 dB</span><span>FREQUENCY · Hz</span></div>
+ <div class="fader-grid"></div>
+ <footer><span class="eq-footnote">DRAG ↑↓ · ±12 dB</span><button type="button" class="panel-button eq-flat">FLAT</button></footer>
+ <div class="master-volume-control"><label class="master-volume-tag" for="signal-studio-volume">VOLUME</label><input id="signal-studio-volume" class="master-volume" type="range" min="0" max="100" value="100" step="1" aria-label="Master volume"></div>
+</section></section>
+</div></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="state.js"></script><script src="assets/lucide.min.js"></script><script src="player.js"></script><script src="window.js"></script></body></html>

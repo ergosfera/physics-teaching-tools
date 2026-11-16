@@ -40,3 +40,5 @@ desktop-apps/disk-led/windows/DiskLED.exe
 desktop-apps/disk-led/windows/app.ico
 desktop-apps/disk-led/windows/graph-preview.png
 desktop-apps/disk-led/mac/build/
+desktop-apps/signal-studio/node_modules/
+desktop-apps/signal-studio/dist/

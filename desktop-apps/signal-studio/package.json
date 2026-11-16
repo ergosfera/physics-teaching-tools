@@ -1,0 +1,51 @@
+{
+  "name": "signal-studio",
+  "version": "1.2.0",
+  "description": "A cassette-inspired sound learning studio",
+  "author": "Mauricio Mendivelso-Villaquir\u00e1n",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test scripts/*.test.cjs",
+    "build:mac": "electron-builder --mac dmg zip --arm64 --x64",
+    "build:win": "electron-builder --win nsis zip --x64"
+  },
+  "devDependencies": {
+    "electron": "45.3.2",
+    "electron-builder": "26.18.0",
+    "lucide": "0.468.0"
+  },
+  "build": {
+    "appId": "com.signalstudio.desktop",
+    "productName": "Signal Studio",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.cjs",
+      "app/**/*",
+      "package.json",
+      "preload.cjs",
+      "playlists.cjs"
+    ],
+    "artifactName": "SignalStudio-${os}-${arch}.${ext}",
+    "mac": {
+      "category": "public.app-category.education",
+      "identity": null
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
