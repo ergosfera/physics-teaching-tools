@@ -342,7 +342,9 @@ The Windows 95 Paint for the Mac, with its tool box, options box, color box and 
 - All 16 tools: free-form and rectangular select, eraser (right-drag: color eraser), fill, pick color, magnifier, pencil, brush (12 shapes),
   airbrush (3 sizes), text, line and curve (5 widths), rectangle, polygon, ellipse and rounded rectangle (outline, outline + fill, fill).
 - Left button draws with the drawing color, right button (or Control-click) with the background color. Shift: 45° lines, squares, circles.
-- Selections: move, Option-drag to copy, opaque or transparent (the background color shows through), cut/copy/paste with other apps, Copy To / Paste From files.
+- Selections: move, Option-drag to copy, **turn by dragging the round handle** above them (Shift: 15° steps; Option+←/→: 1°, with Shift 15°),
+  opaque or transparent (the background color shows through), cut/copy/paste with other apps, Copy To / Paste From files.
+  A selection can be turned again and again without blurring: each turn is redrawn from the pixels first selected.
 - Image: Flip/Rotate (quarter turns, or **any angle** with optional smooth edges; the picture grows to fit), Stretch/Skew, Invert Colors, Attributes (size in pixels), Clear Image; or drag the handles at the picture's edges. These work on the selection if there is one.
 - Zoom: **any size from 10% to 3200%** with View → Custom Zoom, Zoom In/Out in steps, the Magnifier, or a trackpad pinch around the pointer. A pixel grid from 400%.
 - Opens any picture macOS can read; saves PNG, 24-bit BMP, JPEG, GIF or TIFF. Undo up to 50 steps (fewer for very large pictures).
@@ -354,6 +356,7 @@ The Windows 95 Paint for the Mac, with its tool box, options box, color box and 
 | Undo / Repeat | Edit menu | ⌘Z / ⇧⌘Z |
 | Cut, copy, paste, clear selection, select all | Edit menu | ⌘X, ⌘C, ⌘V, Delete, ⌘A |
 | Move a selection by one pixel | — | Arrow keys |
+| Turn a selection | Drag its round handle (Shift: 15° steps) | Option+← / → 1°, Shift+Option 15° |
 | Finish a polygon | Double-click, or click its first point | Return |
 | Cancel what's in progress | — | Esc |
 | Zoom | Magnifier tool, View menu, pinch on the trackpad | ⌘0 normal, ⌘4 large, ⌘+ / ⌘−, ⌥⌘0 custom, ⌘G grid |

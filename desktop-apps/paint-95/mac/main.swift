@@ -217,8 +217,8 @@ enum Tool: Int, CaseIterable {
 
     var hint: String {
         switch self {
-        case .freeSelect: return "Selects a free-form part of the picture to move, copy, or edit."
-        case .select: return "Selects a rectangular part of the picture to move, copy, or edit."
+        case .freeSelect: return "Selects a free-form part of the picture to move, copy, or edit. Drag the round handle to turn it."
+        case .select: return "Selects a rectangular part of the picture to move, copy, or edit. Drag the round handle to turn it."
         case .eraser: return "Erases a portion of the picture, using the selected eraser shape."
         case .fill: return "Fills an area with the current drawing color."
         case .pick: return "Picks up a color from the picture for drawing."
@@ -337,6 +337,8 @@ final class Floating {
     var x: Int, y: Int
     var path: CGPath?        // free-form outline, in the selection's own pixels
     var lifted: Bool         // the area under it has already been cleared to the background color
+    var source: Bitmap?      // the selection before it was turned; each turn is redrawn from it so it doesn't blur
+    var angle = 0.0          // degrees clockwise from `source`
 
     init(bitmap: Bitmap, x: Int, y: Int, path: CGPath?, lifted: Bool) {
         self.bitmap = bitmap; self.x = x; self.y = y; self.path = path; self.lifted = lifted
@@ -661,7 +663,24 @@ final class CanvasView: FlippedView {
             p.setLineDash(dash, count: 2, phase: 0)
             W95.navy.setStroke(); p.stroke()
         }
-        if let f = doc.floating { dashed(NSBezierPath(rect: fromImage(f.rect).insetBy(dx: -0.5, dy: -0.5))) }
+        if let f = doc.floating {
+            dashed(NSBezierPath(rect: fromImage(f.rect).insetBy(dx: -0.5, dy: -0.5)))
+            if let knob = rotateKnob() {
+                // Round handle on a short stalk: drag it to turn the selection
+                let r = fromImage(f.rect)
+                let stalk = NSBezierPath()
+                stalk.move(to: NSPoint(x: knob.midX, y: knob.midY < r.minY ? r.minY : r.maxY))
+                stalk.line(to: NSPoint(x: knob.midX, y: knob.midY < r.minY ? knob.maxY : knob.minY))
+                stalk.lineWidth = 1 / W95.scale
+                W95.navy.setStroke(); stalk.stroke()
+                cg.setShouldAntialias(true)
+                let o = NSBezierPath(ovalIn: knob)
+                W95.white.setFill(); o.fill()
+                o.lineWidth = 1.5 / W95.scale
+                W95.navy.setStroke(); o.stroke()
+                cg.setShouldAntialias(false)
+            }
+        }
         if let box = doc.dragBox { dashed(NSBezierPath(rect: fromImage(box))) }
         if doc.freeTrail.count > 1 {
             let p = NSBezierPath()
@@ -675,11 +694,25 @@ final class CanvasView: FlippedView {
         }
     }
 
+    /// Where the turning handle of the selection is, in canvas units (above it, or below when there's no room)
+    func rotateKnob() -> NSRect? {
+        guard let doc, let f = doc.floating, doc.tool.isSelect else { return nil }
+        let r = fromImage(f.rect), size: CGFloat = 7, gap: CGFloat = 12
+        let y = r.minY - gap - size >= 1 ? r.minY - gap - size : r.maxY + gap
+        return NSRect(x: r.midX - size / 2, y: y, width: size, height: size)
+    }
+    private var turning = false
+
     // Mouse: left draws with the drawing color, right with the background color
     private func begin(_ e: NSEvent, right: Bool) {
         guard let doc else { return }
         window?.makeFirstResponder(self)
         let p = convert(e.locationInWindow, from: nil)
+        if !right, let knob = rotateKnob(), knob.insetBy(dx: -3, dy: -3).contains(p) {
+            turning = true
+            doc.beginTurn(toImage(p))
+            return
+        }
         if !right, let (h, _) = handleRects().first(where: { $0.1.insetBy(dx: -1, dy: -1).contains(p) }) {
             doc.finishPending()
             handleDrag = (h, CGSize(width: doc.bitmap.width, height: doc.bitmap.height))
@@ -690,6 +723,10 @@ final class CanvasView: FlippedView {
     private func move(_ e: NSEvent) {
         guard let doc else { return }
         let p = convert(e.locationInWindow, from: nil)
+        if turning {
+            doc.turn(toward: toImage(p), snap: e.modifierFlags.contains(.shift))
+            return
+        }
         if let (h, _) = handleDrag {
             let ip = toImage(p)
             let w = h == .bottom ? CGFloat(doc.bitmap.width) : max(1, ip.x.rounded())
@@ -704,6 +741,12 @@ final class CanvasView: FlippedView {
     }
     private func end(_ e: NSEvent) {
         guard let doc else { return }
+        if turning {
+            turning = false
+            doc.turn(toward: toImage(convert(e.locationInWindow, from: nil)), snap: e.modifierFlags.contains(.shift))
+            doc.endTurn()
+            return
+        }
         if let (_, size) = handleDrag {
             handleDrag = nil
             doc.resizeImage(width: Int(size.width), height: Int(size.height))
@@ -743,6 +786,8 @@ final class CanvasView: FlippedView {
         case 51, 117: doc.clearSelection()                       // Delete, forward delete
         case 53: doc.cancelPending()                             // Esc
         case 36, 76: doc.finishPending()                         // Return
+        case 123 where e.modifierFlags.contains(.option): doc.turnSelection(by: e.modifierFlags.contains(.shift) ? -15 : -1)
+        case 124 where e.modifierFlags.contains(.option): doc.turnSelection(by: e.modifierFlags.contains(.shift) ? 15 : 1)
         case 123: doc.nudge(-1, 0)
         case 124: doc.nudge(1, 0)
         case 125: doc.nudge(0, 1)
@@ -1169,6 +1214,52 @@ final class PaintDoc: NSObject, NSWindowDelegate {
         floating = Floating(bitmap: piece, x: x, y: y, path: local, lifted: false)
         status.size = "\(x2 - x)x\(y2 - y)"
     }
+
+    // MARK: Turning the selection
+
+    private var turnStart: (center: CGPoint, pointer: Double, angle: Double)?
+
+    /// Turns the selection to `angle` degrees (clockwise) from how it was selected, around `center`
+    func setSelectionAngle(_ angle: Double, center c: CGPoint? = nil) {
+        guard let f = floating else { return }
+        commitText()
+        lift(f)
+        let center = c ?? CGPoint(x: f.rect.midX, y: f.rect.midY)
+        if f.source == nil { f.source = f.bitmap; f.angle = 0 }
+        var a = angle.truncatingRemainder(dividingBy: 360)
+        if a > 180 { a -= 360 } else if a <= -180 { a += 360 }
+        f.angle = a
+        f.bitmap = f.source!.rotated(by: a, fill: nil, smooth: PaintDoc.smoothRotation)
+        f.x = Int((center.x - CGFloat(f.bitmap.width) / 2).rounded())
+        f.y = Int((center.y - CGFloat(f.bitmap.height) / 2).rounded())
+        f.path = nil
+        floatCache = nil
+        status.size = "\(String(format: "%g", (a * 10).rounded() / 10))°"
+        canvas.needsDisplay = true
+    }
+
+    func turnSelection(by degrees: Double) {
+        guard let f = floating else { return }
+        setSelectionAngle(f.angle + degrees)
+    }
+
+    func beginTurn(_ p: CGPoint) {
+        guard let f = floating else { return }
+        commitText()
+        lift(f)
+        let c = CGPoint(x: f.rect.midX, y: f.rect.midY)
+        turnStart = (c, atan2(Double(p.y - c.y), Double(p.x - c.x)) * 180 / .pi, f.angle)
+    }
+
+    /// Rows run downward, so the pointer's angle grows clockwise, the same way the picture turns
+    func turn(toward p: CGPoint, snap: Bool) {
+        guard let t = turnStart else { return }
+        var a = t.angle + atan2(Double(p.y - t.center.y), Double(p.x - t.center.x)) * 180 / .pi - t.pointer
+        if snap { a = (a / 15).rounded() * 15 }
+        setSelectionAngle(a, center: t.center)
+    }
+
+    func endTurn() { turnStart = nil }
 
     func nudge(_ dx: Int, _ dy: Int) {
         guard let f = floating else { return }
@@ -1774,6 +1865,8 @@ final class PaintDoc: NSObject, NSWindowDelegate {
                 fl.y -= (fl.bitmap.height - old.height) / 2
             }
             fl.path = nil
+            fl.source = nil
+            fl.angle = 0
             floatCache = nil
             status.size = "\(fl.bitmap.width)x\(fl.bitmap.height)"
         } else {
@@ -1793,7 +1886,8 @@ final class PaintDoc: NSObject, NSWindowDelegate {
         var radios: [W95Radio] = [], angles: [W95Radio] = []
         var other: W95Field?, smooth: W95Check?
         let ok = runDialog(title: "Flip and Rotate", client: NSSize(width: 290, height: 168), over: window) { c, d in
-            c.addSubview(W95Group("Flip or rotate", frame: NSRect(x: 8, y: 6, width: 190, height: 154)))
+            c.addSubview(W95Group(floating != nil ? "Flip or rotate the selection" : "Flip or rotate the picture",
+                                  frame: NSRect(x: 8, y: 6, width: 190, height: 154)))
             for (i, t) in ["Flip &horizontal", "Flip &vertical", "&Rotate by angle"].enumerated() {
                 let r = W95Radio(t, frame: NSRect(x: 18, y: 24 + CGFloat(i) * 20, width: 150, height: 16), isOn: i == 0)
                 r.onSelect = {
@@ -1846,6 +1940,10 @@ final class PaintDoc: NSObject, NSWindowDelegate {
             }
         }
         guard ok else { return }
+        if choice == 2, floating != nil {
+            turnSelection(by: angle == 3 ? degrees : Double([90, 180, 270][angle]))
+            return
+        }
         if choice == 2 {
             let deg = angle == 3 ? degrees : Double([90, 180, 270][angle])
             // A rotated selection keeps see-through corners; the whole picture gets the background color
