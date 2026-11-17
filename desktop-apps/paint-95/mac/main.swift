@@ -84,13 +84,36 @@ final class Bitmap {
     }
 
     /// A new bitmap of the given size with this one drawn through `t` on a `fill` background
-    func transformed(width w: Int, height h: Int, fill: RGBA?, _ t: CGAffineTransform) -> Bitmap {
+    /// (`smooth` blends neighboring pixels; otherwise pixels stay crisp, as Windows 95 drew them)
+    func transformed(width w: Int, height h: Int, fill: RGBA?, smooth: Bool = false, _ t: CGAffineTransform) -> Bitmap {
         let b = Bitmap(width: w, height: h, fill: fill)
         b.ctx.saveGState()
         b.ctx.concatenate(t)
+        if smooth { b.ctx.interpolationQuality = .high }
         b.draw(image(), in: CGRect(x: 0, y: 0, width: width, height: height))
         b.ctx.restoreGState()
         return b
+    }
+
+    /// Turned clockwise by any angle (negative turns left). Quarter turns are exact; other angles
+    /// make the bitmap bigger to fit, with `fill` in the new corners (nil leaves them transparent).
+    func rotated(by degrees: Double, fill: RGBA?, smooth: Bool) -> Bitmap {
+        let w = CGFloat(width), h = CGFloat(height)
+        switch (degrees.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360) {
+        case 0: return copy()
+        case 90: return transformed(width: height, height: width, fill: nil, CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: h, ty: 0))
+        case 180: return transformed(width: width, height: height, fill: nil, CGAffineTransform(a: -1, b: 0, c: 0, d: -1, tx: w, ty: h))
+        case 270: return transformed(width: height, height: width, fill: nil, CGAffineTransform(a: 0, b: -1, c: 1, d: 0, tx: 0, ty: w))
+        default:
+            // Rows run downward, so a positive angle turns the picture clockwise on screen
+            let r = CGAffineTransform(rotationAngle: CGFloat(degrees * .pi / 180))
+            let box = CGRect(x: 0, y: 0, width: w, height: h).applying(r)
+            let nw = min(8000, max(1, Int(ceil(box.width - 0.001)))), nh = min(8000, max(1, Int(ceil(box.height - 0.001))))
+            // Center the turned picture in the new bitmap
+            let t = r.concatenating(CGAffineTransform(translationX: (CGFloat(nw) - box.width) / 2 - box.minX,
+                                                      y: (CGFloat(nh) - box.height) / 2 - box.minY))
+            return transformed(width: nw, height: nh, fill: fill, smooth: smooth, t)
+        }
     }
 
     /// Bresenham line, one pixel wide
@@ -605,7 +628,8 @@ final class CanvasView: FlippedView {
     override func draw(_ dirtyRect: NSRect) {
         guard let doc, let cg = NSGraphicsContext.current?.cgContext else { return }
         let r = imageRect()
-        cg.interpolationQuality = .none
+        // Magnified pixels stay square; a picture shown smaller than 100% is smoothed so it stays readable
+        cg.interpolationQuality = (doc.zoom < 1) ? .high : .none
         cg.setShouldAntialias(false)
         func put(_ img: CGImage, _ rect: NSRect) {
             cg.saveGState()
@@ -704,6 +728,14 @@ final class CanvasView: FlippedView {
         doc.mouseMoved(p)
     }
     override func mouseExited(with event: NSEvent) { doc?.status.position = "" }
+
+    /// Trackpad pinch zooms around the pointer
+    override func magnify(with e: NSEvent) {
+        guard let doc else { return }
+        let p = convert(e.locationInWindow, from: nil)
+        let clip = doc.scroll.contentView
+        doc.setZoom(doc.zoom * (1 + e.magnification), around: toImage(p), at: convert(p, to: clip))
+    }
 
     override func keyDown(with e: NSEvent) {
         guard let doc else { return }
@@ -958,6 +990,7 @@ final class PaintDoc: NSObject, NSWindowDelegate {
          MenuItem95("&Large Size", "Cmd+4", checked: { [weak self] in self?.zoom == 4 }) { [weak self] in self?.setZoom(4, around: nil) },
          MenuItem95("Zoom &In", "Cmd++") { [weak self] in self?.zoomStep(1) },
          MenuItem95("Zoom O&ut", "Cmd+-") { [weak self] in self?.zoomStep(-1) },
+         MenuItem95("Custo&m Zoom...", "Opt+Cmd+0") { [weak self] in self?.customZoom() },
          MenuItem95("Show &Grid", "Cmd+G", enabled: { [weak self] in (self?.zoom ?? 1) >= 4 },
                     checked: { [weak self] in self?.showGrid ?? false }) { [weak self] in self?.toggleGrid() },
          .separator,
@@ -1440,7 +1473,7 @@ final class PaintDoc: NSObject, NSWindowDelegate {
             }
             setTool(previousTool)
         case .magnifier:
-            setZoom(zoom == 1 ? 4 : 1, around: p)
+            setZoom(zoom > 1 ? 1 : 4, around: p)
         case .text:
             if let box = dragBox {
                 dragBox = nil
@@ -1622,23 +1655,82 @@ final class PaintDoc: NSObject, NSWindowDelegate {
         layoutPanels()
     }
 
-    func setZoom(_ z: CGFloat, around p: CGPoint?) {
+    static let minZoom: CGFloat = 0.1, maxZoom: CGFloat = 32
+
+    /// Any magnification from 10% to 3200% (less for very big pictures, so the view stays a sane size).
+    /// `p` (picture pixels) stays where it is on screen; nil keeps the middle of the view.
+    func setZoom(_ z: CGFloat, around p: CGPoint?, at screenPoint: NSPoint? = nil) {
         commitText()
         let clip = scroll.contentView
-        let center = p ?? canvas.toImage(NSPoint(x: clip.bounds.midX, y: clip.bounds.midY))
+        let largest = CGFloat(max(bitmap.width, bitmap.height))
+        let z = max(PaintDoc.minZoom, min(PaintDoc.maxZoom, 30000 / largest, z))
+        guard abs(z - zoom) > 0.0001 else { return }
+        let anchor = screenPoint ?? NSPoint(x: clip.bounds.midX, y: clip.bounds.midY)
+        let center = p ?? canvas.toImage(anchor)
+        let offset = NSPoint(x: anchor.x - clip.bounds.minX, y: anchor.y - clip.bounds.minY)
         zoom = z
         if zoom < 4 { showGrid = false }
         canvas.updateSize()
         let target = canvas.fromImage(CGRect(origin: center, size: .zero)).origin
-        clip.scroll(to: NSPoint(x: max(0, target.x - clip.bounds.width / 2), y: max(0, target.y - clip.bounds.height / 2)))
+        let ox = screenPoint == nil ? clip.bounds.width / 2 : offset.x, oy = screenPoint == nil ? clip.bounds.height / 2 : offset.y
+        clip.scroll(to: NSPoint(x: max(0, target.x - ox), y: max(0, target.y - oy)))
         scroll.reflectScrolledClipView(clip)
         toolBox.needsDisplay = true
+        status.size = zoomText
     }
 
+    var zoomText: String { "\(Int((zoom * 100).rounded()))%" }
+
     func zoomStep(_ d: Int) {
-        let levels: [CGFloat] = [1, 2, 4, 6, 8]
-        let i = levels.firstIndex(of: zoom) ?? 0
-        setZoom(levels[max(0, min(levels.count - 1, i + d))], around: nil)
+        let levels: [CGFloat] = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, 24, 32]
+        let next = d > 0 ? levels.first { $0 > zoom + 0.001 } : levels.last { $0 < zoom - 0.001 }
+        if let next { setZoom(next, around: nil) }
+    }
+
+    /// View → Custom Zoom: the Windows 95 sizes, or any percentage
+    func customZoom() {
+        let presets: [CGFloat] = [1, 2, 4, 6, 8]
+        var pick = presets.firstIndex { abs($0 - zoom) < 0.001 } ?? presets.count
+        var percent = zoom * 100
+        var custom: W95Field?
+        let ok = runDialog(title: "Custom Zoom", client: NSSize(width: 290, height: 150), over: window) { c, d in
+            c.addSubview(W95Label("Current zoom:  \(zoomText)", frame: NSRect(x: 12, y: 10, width: 180, height: 14)))
+            c.addSubview(W95Group("Zoom to", frame: NSRect(x: 8, y: 30, width: 190, height: 112)))
+            var radios: [W95Radio] = []
+            for (i, z) in presets.enumerated() {
+                let r = W95Radio("&\(Int(z * 100))%", frame: NSRect(x: 18 + CGFloat(i % 2) * 86, y: 48 + CGFloat(i / 2) * 20, width: 80, height: 16),
+                                 isOn: i == pick)
+                r.onSelect = { pick = i }
+                radios.append(r)
+                c.addSubview(r)
+            }
+            let o = W95Radio("&Other:", frame: NSRect(x: 104, y: 88, width: 62, height: 16), isOn: pick == presets.count)
+            o.onSelect = { pick = presets.count }
+            radios.append(o)
+            c.addSubview(o)
+            radios.forEach { $0.group = radios }
+            let f = W95Field(frame: NSRect(x: 104, y: 110, width: 52, height: 21))
+            f.field.stringValue = String(format: "%g", (zoom * 1000).rounded() / 10)
+            f.field.delegate = d
+            c.addSubview(f)
+            custom = f
+            c.addSubview(W95Label("%", frame: NSRect(x: 160, y: 114, width: 20, height: 14)))
+            let typed = f.field.stringValue
+            return {
+                // Typing a number in the box means Other, even without clicking its button
+                if custom?.field.stringValue != typed { pick = presets.count }
+                guard pick == presets.count else { percent = presets[pick] * 100; return true }
+                let text = (custom?.field.stringValue ?? "").replacingOccurrences(of: ",", with: ".")
+                    .replacingOccurrences(of: "%", with: "").trimmingCharacters(in: .whitespaces)
+                guard let v = Double(text), v >= 10, v <= 3200 else {
+                    messageBox("Type a zoom between 10 and 3200 percent.", icon: .warning, over: nil)
+                    return false
+                }
+                percent = CGFloat(v)
+                return true
+            }
+        }
+        if ok { setZoom(percent / 100, around: nil) }
     }
 
     func toggleGrid() {
@@ -1671,11 +1763,16 @@ final class PaintDoc: NSObject, NSWindowDelegate {
     // MARK: Image
 
     /// Runs an image change on the selection if there is one, otherwise on the whole picture
-    private func transform(_ f: (Bitmap) -> Bitmap) {
+    private func transform(keepCenter: Bool = false, _ f: (Bitmap) -> Bitmap) {
         commitText()
         if let fl = floating {
             lift(fl)
-            fl.bitmap = f(fl.bitmap)
+            let old = fl.bitmap
+            fl.bitmap = f(old)
+            if keepCenter {
+                fl.x -= (fl.bitmap.width - old.width) / 2
+                fl.y -= (fl.bitmap.height - old.height) / 2
+            }
             fl.path = nil
             floatCache = nil
             status.size = "\(fl.bitmap.width)x\(fl.bitmap.height)"
@@ -1687,38 +1784,81 @@ final class PaintDoc: NSObject, NSWindowDelegate {
         canvas.needsDisplay = true
     }
 
+    /// Remembered between uses of Flip/Rotate
+    private static var lastAngle = "45"
+    private static var smoothRotation = true
+
     func flipRotate() {
-        var choice = 0, angle = 0
+        var choice = 0, angle = 0, degrees = 0.0
         var radios: [W95Radio] = [], angles: [W95Radio] = []
-        let ok = runDialog(title: "Flip and Rotate", client: NSSize(width: 290, height: 120), over: window) { c, _ in
-            c.addSubview(W95Group("Flip or rotate", frame: NSRect(x: 8, y: 6, width: 190, height: 106)))
+        var other: W95Field?, smooth: W95Check?
+        let ok = runDialog(title: "Flip and Rotate", client: NSSize(width: 290, height: 168), over: window) { c, d in
+            c.addSubview(W95Group("Flip or rotate", frame: NSRect(x: 8, y: 6, width: 190, height: 154)))
             for (i, t) in ["Flip &horizontal", "Flip &vertical", "&Rotate by angle"].enumerated() {
                 let r = W95Radio(t, frame: NSRect(x: 18, y: 24 + CGFloat(i) * 20, width: 150, height: 16), isOn: i == 0)
-                r.onSelect = { choice = i; angles.forEach { $0.isEnabled = i == 2 } }
+                r.onSelect = {
+                    choice = i
+                    angles.forEach { $0.isEnabled = i == 2 }
+                    smooth?.isEnabled = i == 2 && angle == 3
+                }
                 radios.append(r)
                 c.addSubview(r)
             }
             for (i, t) in ["&90°", "&180°", "&270°"].enumerated() {
                 let r = W95Radio(t, frame: NSRect(x: 36 + CGFloat(i) * 54, y: 86, width: 52, height: 16), isOn: i == 0)
-                r.isEnabled = false
-                r.onSelect = { angle = i }
                 angles.append(r)
                 c.addSubview(r)
             }
+            // Any angle, typed in degrees
+            let o = W95Radio("&Other:", frame: NSRect(x: 36, y: 110, width: 62, height: 16), isOn: false)
+            angles.append(o)
+            c.addSubview(o)
+            let f = W95Field(frame: NSRect(x: 100, y: 107, width: 44, height: 21))
+            f.field.stringValue = PaintDoc.lastAngle
+            f.field.delegate = d
+            c.addSubview(f)
+            other = f
+            c.addSubview(W95Label("degrees", frame: NSRect(x: 148, y: 111, width: 46, height: 14)))
+            let s = W95Check("&Smooth edges", frame: NSRect(x: 36, y: 134, width: 120, height: 16), isOn: PaintDoc.smoothRotation)
+            c.addSubview(s)
+            smooth = s
+            for (i, r) in angles.enumerated() {
+                r.isEnabled = false
+                r.group = angles
+                r.onSelect = { angle = i; smooth?.isEnabled = i == 3 }
+            }
+            s.isEnabled = false
             radios.forEach { $0.group = radios }
-            angles.forEach { $0.group = angles }
-            return { true }
+            let typed = f.field.stringValue
+            return {
+                // Typing an angle means Rotate by that angle, even without clicking the buttons
+                if other?.field.stringValue != typed { choice = 2; angle = 3 }
+                guard choice == 2 && angle == 3 else { return true }
+                let text = (other?.field.stringValue ?? "").replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
+                guard let v = Double(text.replacingOccurrences(of: "°", with: "")), v.isFinite, abs(v) <= 3600 else {
+                    messageBox("Type the angle in degrees, for example 30 or -12.5.\nPositive angles turn clockwise.", icon: .warning, over: nil)
+                    return false
+                }
+                degrees = v
+                PaintDoc.lastAngle = text
+                PaintDoc.smoothRotation = smooth?.isOn ?? true
+                return true
+            }
         }
         guard ok else { return }
+        if choice == 2 {
+            let deg = angle == 3 ? degrees : Double([90, 180, 270][angle])
+            // A rotated selection keeps see-through corners; the whole picture gets the background color
+            let fill: RGBA? = floating == nil ? bg : nil
+            let smooth = angle == 3 && PaintDoc.smoothRotation
+            transform(keepCenter: true) { $0.rotated(by: deg, fill: fill, smooth: smooth) }
+            return
+        }
         transform { b in
             let w = CGFloat(b.width), h = CGFloat(b.height)
-            switch (choice, angle) {
-            case (0, _): return b.transformed(width: b.width, height: b.height, fill: nil, CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: w, ty: 0))
-            case (1, _): return b.transformed(width: b.width, height: b.height, fill: nil, CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: h))
-            case (_, 0): return b.transformed(width: b.height, height: b.width, fill: nil, CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: h, ty: 0))
-            case (_, 1): return b.transformed(width: b.width, height: b.height, fill: nil, CGAffineTransform(a: -1, b: 0, c: 0, d: -1, tx: w, ty: h))
-            default: return b.transformed(width: b.height, height: b.width, fill: nil, CGAffineTransform(a: 0, b: -1, c: 1, d: 0, tx: 0, ty: w))
-            }
+            return choice == 0
+                ? b.transformed(width: b.width, height: b.height, fill: nil, CGAffineTransform(a: -1, b: 0, c: 0, d: 1, tx: w, ty: 0))
+                : b.transformed(width: b.width, height: b.height, fill: nil, CGAffineTransform(a: 1, b: 0, c: 0, d: -1, tx: 0, ty: h))
         }
     }
 
@@ -2116,6 +2256,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     @objc func largeSize(_ s: Any?) { doc { $0.setZoom(4, around: nil) } }
     @objc func zoomIn(_ s: Any?) { doc { $0.zoomStep(1) } }
     @objc func zoomOut(_ s: Any?) { doc { $0.zoomStep(-1) } }
+    @objc func customZoomAction(_ s: Any?) { doc { $0.customZoom() } }
     @objc func gridAction(_ s: Any?) { doc { $0.toggleGrid() } }
     @objc func viewBitmapAction(_ s: Any?) { doc { $0.viewBitmap() } }
     @objc func textFontAction(_ s: Any?) { doc { $0.showFonts() } }
@@ -2209,6 +2350,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             item("Large Size", #selector(largeSize(_:)), "4"),
             item("Zoom In", #selector(zoomIn(_:)), "+"),
             item("Zoom Out", #selector(zoomOut(_:)), "-"),
+            item("Custom Zoom…", #selector(customZoomAction(_:)), "0", [.command, .option]),
             item("Show Grid", #selector(gridAction(_:)), "g"), sep(),
             item("View Bitmap", #selector(viewBitmapAction(_:)), "f"),
             item("Text Font…", #selector(textFontAction(_:))),
@@ -2252,6 +2394,15 @@ func selfTest() -> Bool {
     check(flipped.get(34, 5) == red.u32 && flipped.get(25, 5) == red.u32, "flip horizontal")
     let turned = b.transformed(width: 30, height: 40, fill: nil, CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: 30, ty: 0))
     check(turned.get(24, 5) == red.u32 && turned.get(0, 0) == navy.u32, "rotate 90°")
+    let q = b.rotated(by: 90, fill: nil, smooth: false), back = b.rotated(by: -270, fill: nil, smooth: false)
+    check(q.data == turned.data && back.data == turned.data, "rotate by angle: 90° and -270° are exact quarter turns")
+    check(b.rotated(by: 360, fill: nil, smooth: false).data == b.data, "rotate by 360° changes nothing")
+    let corner = RGBA(1, 2, 3)
+    let tilted = b.rotated(by: 45, fill: corner, smooth: false)
+    check(tilted.width == 50 && tilted.height == 50, "rotate by 45° grows the picture to fit (\(tilted.width)x\(tilted.height))")
+    check(tilted.get(0, 0) == corner.u32 && tilted.get(49, 49) == corner.u32, "new corners get the background color")
+    check(tilted.get(25, 25) == b.get(20, 15), "the middle stays in the middle")
+    check(b.rotated(by: 30, fill: nil, smooth: true).get(0, 0) == 0, "a rotated selection keeps see-through corners")
     let dir = FileManager.default.temporaryDirectory.appendingPathComponent("paint95-selftest-\(getpid())")
     try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: dir) }

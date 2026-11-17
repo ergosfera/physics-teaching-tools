@@ -343,7 +343,8 @@ The Windows 95 Paint for the Mac, with its tool box, options box, color box and 
   airbrush (3 sizes), text, line and curve (5 widths), rectangle, polygon, ellipse and rounded rectangle (outline, outline + fill, fill).
 - Left button draws with the drawing color, right button (or Control-click) with the background color. Shift: 45° lines, squares, circles.
 - Selections: move, Option-drag to copy, opaque or transparent (the background color shows through), cut/copy/paste with other apps, Copy To / Paste From files.
-- Image: Flip/Rotate, Stretch/Skew, Invert Colors, Attributes (size in pixels), Clear Image; or drag the handles at the picture's edges. These work on the selection if there is one.
+- Image: Flip/Rotate (quarter turns, or **any angle** with optional smooth edges; the picture grows to fit), Stretch/Skew, Invert Colors, Attributes (size in pixels), Clear Image; or drag the handles at the picture's edges. These work on the selection if there is one.
+- Zoom: **any size from 10% to 3200%** with View → Custom Zoom, Zoom In/Out in steps, the Magnifier, or a trackpad pinch around the pointer. A pixel grid from 400%.
 - Opens any picture macOS can read; saves PNG, 24-bit BMP, JPEG, GIF or TIFF. Undo up to 50 steps (fewer for very large pictures).
 
 | Action | Mouse | Keyboard |
@@ -355,7 +356,7 @@ The Windows 95 Paint for the Mac, with its tool box, options box, color box and 
 | Move a selection by one pixel | — | Arrow keys |
 | Finish a polygon | Double-click, or click its first point | Return |
 | Cancel what's in progress | — | Esc |
-| Zoom | Magnifier tool, View menu | ⌘0 normal, ⌘4 large, ⌘+ / ⌘−, ⌘G grid |
+| Zoom | Magnifier tool, View menu, pinch on the trackpad | ⌘0 normal, ⌘4 large, ⌘+ / ⌘−, ⌥⌘0 custom, ⌘G grid |
 | Tool box, color box | View menu | ⌘T, ⌘L |
 | Flip/Rotate, Stretch/Skew, Invert, Attributes, Clear | Image menu | ⌘R, ⌥⌘W, ⌘I, ⌘E, ⇧⌘N |
 
