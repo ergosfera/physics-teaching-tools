@@ -110,6 +110,13 @@ enum Geometry {
         return dx == 0 && dy == 0 ? nil : (dx, dy)
     }
 
+    // The timer sits just under the clear window at its right end, or just over it if there's no room under it
+    static func timerSpot(hole h: NSRect, size: NSSize, screen s: NSRect, gap: CGFloat = 6) -> NSPoint {
+        let x = min(s.maxX - size.width - 6, max(s.minX + 6, h.maxX - size.width))
+        let under = h.minY - gap - size.height
+        return NSPoint(x: x, y: under >= s.minY + 4 ? under : min(s.maxY - size.height - 4, h.maxY + gap))
+    }
+
     static func clampW(_ w: CGFloat) -> CGFloat { min(maxW, max(minW, w)) }
     static func clampH(_ h: CGFloat) -> CGFloat { min(maxH, max(minH, h)) }
     static func percent(_ v: Double) -> String { "\(Int((v * 100).rounded()))%" }
@@ -132,6 +139,9 @@ enum Geometry {
         check(edge(NSPoint(x: 50, y: 150), r, band: false) == nil, "far")
         check(clampW(10) == minW && clampW(5000) == maxW && clampH(100) == 100, "clamp")
         check(percent(0.6) == "60%" && percent(0.955) == "96%", "percent")
+        let ts = NSSize(width: 80, height: 20)
+        check(timerSpot(hole: NSRect(x: 100, y: 300, width: 400, height: 100), size: ts, screen: screen) == NSPoint(x: 420, y: 274), "timer under")
+        check(timerSpot(hole: NSRect(x: 0, y: 10, width: 1000, height: 50), size: ts, screen: screen) == NSPoint(x: 914, y: 66), "timer over")
         fails += ReadTimer.selfTest()
         return fails
     }
@@ -215,7 +225,7 @@ final class Settings {
     }
 }
 
-// MARK: - The timer in the screen's upper-right corner: click to start / pause, double-click to reset
+// MARK: - The timer, just under the clear window: click to start / pause, double-click to reset
 
 final class TimerWindow: NSPanel {
     override var canBecomeKey: Bool { false }
@@ -224,8 +234,8 @@ final class TimerWindow: NSPanel {
 
 final class TimerView: NSView {
     weak var app: AppDelegate!
-    static let width: CGFloat = 112, height: CGFloat = 32
-    let font = NSFont.monospacedDigitSystemFont(ofSize: 15, weight: .bold)
+    static let width: CGFloat = 92, height: CGFloat = 22
+    let font = NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .bold)
 
     override var isFlipped: Bool { true }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
@@ -235,28 +245,42 @@ final class TimerView: NSView {
         if e.clickCount >= 2 { app.resetTimer() } else { app.startPauseTimer() }
     }
 
+    // No box: light digits right on the shade, with a soft dark outline so they read over any page
     override func draw(_ dirtyRect: NSRect) {
-        Skin.face.setFill(); bounds.fill(); Skin.raised(bounds)
+        NSColor.clear.set()
+        bounds.fill(using: .copy)
+        NSColor(white: 0, alpha: 0.01).setFill()       // all but invisible, so the whole timer takes the click
+        bounds.fill()
         let now = Date(), t = app.timer
         // Time's up: orange, blinking for a few seconds, then steady
         let done = t.finished(now)
         let blinkOff = done && now < app.blinkUntil && Int(now.timeIntervalSinceReferenceDate * 3) % 2 == 1
-        let lcd = bounds.insetBy(dx: 3, dy: 3)
-        (done && !blinkOff ? Skin.alarm : Skin.lcd).setFill(); lcd.fill(); Skin.sunken(lcd)
+        let color = blinkOff ? Skin.text.withAlphaComponent(0.35) : done ? Skin.alarm : Skin.text.withAlphaComponent(0.9)
+
+        let sh = NSShadow()
+        sh.shadowColor = NSColor(white: 0, alpha: 0.9)
+        sh.shadowBlurRadius = 2
+        sh.shadowOffset = .zero
+        NSGraphicsContext.saveGraphicsState()
+        sh.set()
 
         // What it's doing: ▶ running, ❚❚ paused
-        let g = NSRect(x: lcd.minX + 8, y: lcd.midY - 5, width: 9, height: 10)
-        Skin.lcdDigit.setFill()
+        let str = ReadTimer.format(t.shown(now))
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
+        let sz = (str as NSString).size(withAttributes: attrs)
+        let tx = bounds.maxX - 3 - sz.width
+        let g = NSRect(x: tx - 13, y: bounds.midY - 4.5, width: 8, height: 9)
+        color.setFill()
         if t.running {
             let p = NSBezierPath()
             p.move(to: NSPoint(x: g.minX, y: g.minY)); p.line(to: NSPoint(x: g.maxX, y: g.midY)); p.line(to: NSPoint(x: g.minX, y: g.maxY))
             p.close(); p.fill()
         } else {
-            NSRect(x: g.minX, y: g.minY, width: 3, height: g.height).fill()
-            NSRect(x: g.maxX - 3, y: g.minY, width: 3, height: g.height).fill()
+            NSRect(x: g.minX, y: g.minY, width: 2.5, height: g.height).fill()
+            NSRect(x: g.maxX - 2.5, y: g.minY, width: 2.5, height: g.height).fill()
         }
-        Skin.draw(ReadTimer.format(t.shown(now)), font, Skin.lcdDigit,
-                  in: NSRect(x: g.maxX + 4, y: lcd.minY, width: lcd.maxX - 8 - g.maxX - 4, height: lcd.height), right: true)
+        (str as NSString).draw(at: NSPoint(x: tx, y: bounds.midY - sz.height / 2), withAttributes: attrs)
+        NSGraphicsContext.restoreGraphicsState()
     }
 }
 
@@ -425,7 +449,7 @@ final class PanelView: NSView {
         case .onOff: app.toggleShade()
         case .about: app.showAbout()
         case .timer: app.toggleTimer()
-        case .shape(let s): app.cfg.shape = s; app.holeChanged()
+        case .shape(let s): app.useShape(s)
         default: break
         }
     }
@@ -492,7 +516,7 @@ final class PanelView: NSView {
         let fHint = Skin.font("Tahoma", 11)
         Skin.draw("Click: hold / follow  ·  Drag just outside its edge: resize", fHint, Skin.muted,
                   in: NSRect(x: 8, y: rcColor.maxY + 4, width: bounds.width - 16, height: 20), left: true)
-        Skin.draw("Timer: click it to pause / go on  ·  Double-click: reset", fHint, Skin.muted,
+        Skin.draw("Timer (window held): click to pause / go on, double-click to reset", fHint, Skin.muted,
                   in: NSRect(x: 8, y: rcColor.maxY + 22, width: bounds.width - 16, height: 20), left: true)
     }
 }
@@ -715,6 +739,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             }
         }
         lastHole = h
+        placeTimer()
         panel.needsDisplay = true
     }
 
@@ -735,17 +760,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         timerWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         timerWindow.isReleasedWhenClosed = false
         timerWindow.hidesOnDeactivate = false
-        timerWindow.hasShadow = true
+        timerWindow.hasShadow = false
+        timerWindow.isOpaque = false
+        timerWindow.backgroundColor = .clear
         timer.minutes = cfg.timerMinutes
         placeTimer()
         if cfg.timerOn { timer.start(Date()); timerWindow.orderFrontRegardless() }
     }
 
-    // Upper-right corner of the screen with the menu bar, just under the menu bar
+    // Just under the clear window, at its right end; in the screen's upper-right corner while the shade is off
     func placeTimer() {
-        guard let w = timerWindow, let s = NSScreen.screens.first else { return }
-        let v = s.visibleFrame
-        w.setFrameOrigin(NSPoint(x: v.maxX - TimerView.width - 8, y: v.maxY - TimerView.height - 6))
+        guard let w = timerWindow else { return }
+        let size = NSSize(width: TimerView.width, height: TimerView.height)
+        if cfg.enabled, let s = NSScreen.screens.first(where: { $0.frame.contains(center) }) ?? NSScreen.main {
+            w.setFrameOrigin(Geometry.timerSpot(hole: hole, size: size, screen: s.frame))
+        } else if let s = NSScreen.screens.first {
+            let v = s.visibleFrame
+            w.setFrameOrigin(NSPoint(x: v.maxX - size.width - 8, y: v.maxY - size.height - 6))
+        }
     }
 
     func clockTick() {
@@ -857,8 +889,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     @objc func setShape(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let s = HoleShape(rawValue: raw) else { return }
+        useShape(s)
+    }
+
+    // The reading band gets the screen to itself: the panel hides (⌘0 or the Dock icon brings it back).
+    // Any other shape brings the panel back.
+    func useShape(_ s: HoleShape) {
         cfg.shape = s
         holeChanged(force: true)
+        if s == .band { panelWindow.orderOut(nil) } else if !panelWindow.isVisible { showPanel() }
     }
 
     @objc func showPanel() { panelWindow.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
@@ -874,7 +913,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "Reading Window",
-            .applicationVersion: "1.1.0",
+            .applicationVersion: "1.2.0",
             .version: "",
             .credits: credits,
             NSApplication.AboutPanelOptionKey(rawValue: "Copyright"): "© 2026 Mauricio Mendivelso · MIT License",

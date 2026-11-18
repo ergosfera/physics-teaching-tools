@@ -200,9 +200,11 @@ A focus aid for reading, for example for people with ADHD: the whole screen is d
 - The clear window follows the pointer, and the page under it can still be scrolled. A click holds it in place,
   and another click makes it follow again (the clicks also reach the page). While held, drag just outside its edge to resize it.
 - The panel stays above the shade, and the clear window doesn't follow the pointer onto it. Closing the panel quits.
-- A small timer in the screen's upper-right corner, shown on command: a stopwatch counting up, or a countdown
-  of 5–60 minutes that turns orange and blinks when time is up (no sound). Showing it starts it; click it to pause
-  or go on, double-click to reset. It stays above the shade.
+- A small see-through timer, shown on command, just under the clear window at its right end (it moves with it):
+  a stopwatch counting up, or a countdown of 5–60 minutes that turns orange and blinks when time is up (no sound).
+  Showing it starts it; while the window is held, click the timer to pause or go on, double-click to reset.
+- Choosing the reading band hides the panel, so the band has the screen to itself. ⌘0 or the Dock icon brings it back
+  on Mac; its taskbar button on Windows. Choosing another shape brings it back too.
 
 | Action | Mouse | Keyboard (panel) |
 |---|---|---|
@@ -212,7 +214,8 @@ A focus aid for reading, for example for people with ADHD: the whole screen is d
 | Shade on/off | **Shade: On/Off** | ⌘S on Mac, Ctrl+S on Windows |
 | Timer on/off | **Timer: On/Off** | ⌘T on Mac, Ctrl+T on Windows |
 | Stopwatch or countdown | The menu next to **Timer** (picking one shows and starts the timer) | — |
-| Pause / go on · reset the timer | Click the timer · double-click it | — |
+| Pause / go on · reset the timer | Click the timer · double-click it (with the window held) | — |
+| Show the panel again | Dock icon (Mac) · taskbar button (Windows) | ⌘0 on Mac |
 
 ## Net LEDs
 

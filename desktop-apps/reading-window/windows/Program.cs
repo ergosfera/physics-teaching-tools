@@ -17,8 +17,8 @@ using Microsoft.Win32;
 [assembly: AssemblyTitle("Reading Window")]
 [assembly: AssemblyProduct("Reading Window")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Mauricio Mendivelso. MIT License.")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 namespace ReadingWindow
 {
@@ -209,6 +209,15 @@ namespace ReadingWindow
             return dx != 0 || dy != 0;
         }
 
+        // The timer sits just under the clear window at its right end, or just over it if there's no room under it
+        public static Point TimerSpot(RectangleF h, Size size, Rectangle s, int gap)
+        {
+            int x = (int)Math.Min(s.Right - size.Width - gap, Math.Max(s.Left + gap, h.Right - size.Width));
+            int under = (int)Math.Round(h.Bottom) + gap;
+            int y = under + size.Height <= s.Bottom - 4 ? under : (int)Math.Max(s.Top + 4, Math.Round(h.Top) - gap - size.Height);
+            return new Point(x, y);
+        }
+
         public static float ClampW(float w) { return Math.Min(MaxW, Math.Max(MinW, w)); }
         public static float ClampH(float h) { return Math.Min(MaxH, Math.Max(MinH, h)); }
         public static string Percent(double v) { return ((int)Math.Round(v * 100, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture) + "%"; }
@@ -234,6 +243,9 @@ namespace ReadingWindow
             check(!Edge(new PointF(50, 150), r, false, Grip, out dx, out dy), "far");
             check(ClampW(10) == MinW && ClampW(5000) == MaxW && ClampH(100) == 100, "clamp");
             check(Percent(0.6) == "60%" && Percent(0.955) == "96%", "percent");
+            var ts = new Size(80, 20);
+            check(TimerSpot(new RectangleF(100, 300, 400, 100), ts, screen, 6) == new Point(420, 406), "timer under");
+            check(TimerSpot(new RectangleF(0, 740, 1000, 50), ts, screen, 6) == new Point(914, 714), "timer over");
             fails += ReadTimer.SelfTest();
             Console.WriteLine(fails == 0 ? "Self-test passed" : "Self-test: " + fails + " failed");
             return fails;
@@ -493,13 +505,15 @@ namespace ReadingWindow
         }
     }
 
-    // ── The timer in the screen's upper-right corner: click to start / pause, double-click to reset ──
+    // ── The timer, just under the clear window: click to start / pause, double-click to reset. No box: light
+    // digits right on the shade (everything else in the window is see-through). ──
     class TimerForm : Form
     {
+        static readonly Color Key = Color.FromArgb(1, 2, 3);       // the see-through color
         readonly PanelForm app;
         readonly float k;
         readonly Font font;
-        public const float W = 112, H = 32;
+        public const float W = 92, H = 22;
 
         public TimerForm(PanelForm app, float k)
         {
@@ -512,17 +526,19 @@ namespace ReadingWindow
             Text = "Reading Window timer";
             Cursor = Cursors.Hand;
             AutoScaleMode = AutoScaleMode.None;
+            BackColor = Key;
+            TransparencyKey = Key;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
-            font = new Font("Segoe UI", 15 * k, FontStyle.Bold, GraphicsUnit.Pixel);
+            font = new Font("Segoe UI", 14 * k, FontStyle.Bold, GraphicsUnit.Pixel);
             ClientSize = new Size(S(W), S(H));
-            Place();
         }
 
         int S(float v) { return (int)Math.Round(v * k); }
 
-        // Upper-right corner of the main screen, inside the work area
-        public void Place()
+        // Under the clear window, at its right end; in the main screen's upper-right corner while the shade is off
+        public void Place(bool shadeOn, RectangleF hole, Rectangle screen)
         {
+            if (shadeOn) { Location = Geometry.TimerSpot(hole, Size, screen, S(6)); return; }
             var wa = Screen.PrimaryScreen.WorkingArea;
             Location = new Point(wa.Right - Width - S(8), wa.Top + S(6));
         }
@@ -556,38 +572,38 @@ namespace ReadingWindow
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
-            int t = Math.Max(1, (int)Math.Round(k));
-            g.Clear(Skin.Face);
-            var all = new Rectangle(0, 0, ClientSize.Width, ClientSize.Height);
-            Skin.Raised(g, all, t);
+            g.Clear(Key);
             var now = DateTime.UtcNow;
             var tm = app.Reading;
             // Time's up: orange, blinking for a few seconds, then steady
             bool done = tm.Finished(now);
             bool blinkOff = done && now < app.BlinkUntil && (long)(now.Ticks / (TimeSpan.TicksPerSecond / 3)) % 2 == 1;
-            var lcd = Rectangle.Inflate(all, -3 * t, -3 * t);
-            using (var b = new SolidBrush(done && !blinkOff ? Skin.Alarm : Skin.Lcd)) g.FillRectangle(b, lcd);
-            Skin.Sunken(g, lcd, t);
+            var fg = blinkOff ? Skin.Muted : done ? Skin.Alarm : Skin.Text;
+            var outline = Color.FromArgb(8, 8, 8);
+
+            string str = ReadTimer.Format(tm.Shown(now));
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+            var fmt = StringFormat.GenericTypographic;
+            var sz = g.MeasureString(str, font, 1000, fmt);
+            float tx = ClientSize.Width - S(3) - sz.Width, ty = (ClientSize.Height - sz.Height) / 2f;
 
             // What it's doing: a triangle while running, two bars while paused
-            var gl = new RectangleF(lcd.X + S(8), lcd.Y + lcd.Height / 2f - S(5), S(9), S(10));
-            using (var b = new SolidBrush(Skin.LcdDigit))
+            var gl = new RectangleF(tx - S(13), ClientSize.Height / 2f - S(4.5f), S(8), S(9));
+            using (var path = new GraphicsPath())
             {
+                path.AddString(str, font.FontFamily, (int)font.Style, font.Size, new PointF(tx, ty), fmt);
                 if (tm.Running)
-                {
-                    g.SmoothingMode = SmoothingMode.AntiAlias;
-                    g.FillPolygon(b, new[] { new PointF(gl.Left, gl.Top), new PointF(gl.Right, gl.Top + gl.Height / 2), new PointF(gl.Left, gl.Bottom) });
-                    g.SmoothingMode = SmoothingMode.None;
-                }
+                    path.AddPolygon(new[] { new PointF(gl.Left, gl.Top), new PointF(gl.Right, gl.Top + gl.Height / 2), new PointF(gl.Left, gl.Bottom) });
                 else
                 {
-                    g.FillRectangle(b, gl.Left, gl.Top, S(3), gl.Height);
-                    g.FillRectangle(b, gl.Right - S(3), gl.Top, S(3), gl.Height);
+                    path.AddRectangle(new RectangleF(gl.Left, gl.Top, S(2.5f), gl.Height));
+                    path.AddRectangle(new RectangleF(gl.Right - S(2.5f), gl.Top, S(2.5f), gl.Height));
                 }
+                // A dark outline so the digits read over any page, then the digits
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                using (var pen = new Pen(outline, 3 * k) { LineJoin = LineJoin.Round }) g.DrawPath(pen, path);
+                using (var b = new SolidBrush(fg)) g.FillPath(b, path);
             }
-            var tr = new Rectangle((int)gl.Right + S(4), lcd.Y, lcd.Right - S(8) - (int)gl.Right - S(4), lcd.Height);
-            TextRenderer.DrawText(g, ReadTimer.Format(tm.Shown(now)), font, tr, Skin.LcdDigit,
-                TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
         }
     }
 
@@ -667,7 +683,7 @@ namespace ReadingWindow
             base.OnLoad(e);
             timerForm = new TimerForm(this, k);
             Reading.Minutes = Cfg.TimerMinutes;
-            if (Cfg.TimerOn) { Reading.Start(DateTime.UtcNow); timerForm.Show(); }
+            if (Cfg.TimerOn) { Reading.Start(DateTime.UtcNow); HoleChanged(); timerForm.Show(); }     // placed before it shows
             BuildShades();
             SystemEvents.DisplaySettingsChanged += OnDisplayChanged;
             try
@@ -681,7 +697,7 @@ namespace ReadingWindow
             clock.Start();
         }
 
-        void OnDisplayChanged(object sender, EventArgs e) { BeginInvoke((Action)delegate { BuildShades(); timerForm.Place(); }); }
+        void OnDisplayChanged(object sender, EventArgs e) { BeginInvoke((Action)BuildShades); }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
@@ -741,6 +757,7 @@ namespace ReadingWindow
             K = Screens.Scale(Center);
             var h = Hole;
             foreach (var s in shades) if (s.Visible) s.UpdateShade(h, Cfg.Shape, K);
+            if (timerForm != null) timerForm.Place(Cfg.Enabled, h, Screen.FromPoint(Center).Bounds);
             Invalidate();
         }
 
@@ -872,11 +889,15 @@ namespace ReadingWindow
             return m;
         }
 
+        // The reading band gets the screen to itself: the panel minimizes (its taskbar button brings it back).
+        // Any other shape brings the panel back.
         void SetShape(HoleShape s)
         {
             Cfg.Shape = s;
             Cfg.Save();
             HoleChanged();
+            if (s == HoleShape.Band) WindowState = FormWindowState.Minimized;
+            else if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
         }
 
         void SetColor(Color c)
@@ -1113,7 +1134,7 @@ namespace ReadingWindow
 
             TextRenderer.DrawText(g, "Click: hold / follow  ·  Drag just outside its edge: resize", fHint,
                 new Rectangle(S(8), RcColor.Bottom + S(4), ClientSize.Width - S(16), S(20)), Skin.Muted, left);
-            TextRenderer.DrawText(g, "Timer: click it to pause / go on  ·  Double-click: reset", fHint,
+            TextRenderer.DrawText(g, "Timer (window held): click to pause / go on, double-click to reset", fHint,
                 new Rectangle(S(8), RcColor.Bottom + S(22), ClientSize.Width - S(16), S(20)), Skin.Muted, left);
         }
 
@@ -1166,7 +1187,7 @@ namespace ReadingWindow
             Controls.Add(icon);
 
             Controls.Add(new Label { Text = "Reading Window", Location = new Point(76, 16), AutoSize = true, Font = new Font("Segoe UI Semibold", 12F) });
-            Controls.Add(new Label { Text = "Version 1.1.0  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
+            Controls.Add(new Label { Text = "Version 1.2.0  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
             Controls.Add(new Label
             {
                 Text = "Free software, provided \"as is\", without warranty of any kind.\r\n" +
