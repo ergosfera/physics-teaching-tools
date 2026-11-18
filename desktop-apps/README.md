@@ -261,6 +261,7 @@ The time is on a 12-hour clock without AM/PM.
 - Drag it into place once (for example at the top of the screen); it remembers where it goes. **Lock position** stops it moving by accident.
 - It stays in front of other windows, the taskbar and the Mac menu bar. Hover over it for the full date.
 - On a Mac it has no Dock icon; right-click it to quit.
+- **Start with Windows** keeps a copy of the app in `%LOCALAPPDATA%\Programs\ClockBar`, because Google Drive isn't ready yet when Windows starts its startup apps; opening a newer ClockBar.exe updates that copy.
 
 | Action | Mouse |
 |---|---|

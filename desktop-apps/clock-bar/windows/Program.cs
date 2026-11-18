@@ -19,8 +19,8 @@ using Timer = System.Windows.Forms.Timer;
 [assembly: AssemblyTitle("Clock Bar")]
 [assembly: AssemblyProduct("Clock Bar")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Mauricio Mendivelso. MIT License.")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.0.1.0")]
+[assembly: AssemblyFileVersion("1.0.1.0")]
 
 namespace ClockBar
 {
@@ -411,6 +411,8 @@ namespace ClockBar
             // Twice a second: the minute turns over on time, and the bar gets back in front of the taskbar
             timer.Interval = 500;
             timer.Tick += delegate { Tick(); };
+
+            RefreshStartupCopy();
         }
 
         protected override CreateParams CreateParams
@@ -544,14 +546,52 @@ namespace ClockBar
             catch { return false; }
         }
 
+        // Windows starts the bar from a copy on this computer: ClockBar.exe is often kept in Google Drive,
+        // and the G: drive isn't there yet when Windows runs its startup apps.
+        static readonly string StartupExe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                                                         "Programs", "ClockBar", "ClockBar.exe");
+
+        static bool RunningStartupCopy()
+        {
+            return string.Equals(Path.GetFullPath(Application.ExecutablePath), Path.GetFullPath(StartupExe), StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Puts this version in the startup copy and points Windows at it
+        static void InstallStartupCopy(RegistryKey key)
+        {
+            if (!RunningStartupCopy())
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(StartupExe));
+                File.Copy(Application.ExecutablePath, StartupExe, true);
+            }
+            key.SetValue(RunValue, "\"" + StartupExe + "\"");
+        }
+
+        // When Start with Windows is on and this is a ClockBar.exe opened from elsewhere, the copy gets updated
+        // (this also moves the setting over from 1.0, which pointed Windows at the original file).
+        static void RefreshStartupCopy()
+        {
+            if (RunningStartupCopy()) return;
+            try
+            {
+                using (var key = Registry.CurrentUser.OpenSubKey(RunKey, true))
+                    if (key != null && key.GetValue(RunValue) != null) InstallStartupCopy(key);
+            }
+            catch { }
+        }
+
         void ToggleStartup()
         {
             try
             {
                 using (var key = Registry.CurrentUser.CreateSubKey(RunKey))
                 {
-                    if (StartsWithWindows()) key.DeleteValue(RunValue, false);
-                    else key.SetValue(RunValue, "\"" + Application.ExecutablePath + "\"");
+                    if (key.GetValue(RunValue) != null)
+                    {
+                        key.DeleteValue(RunValue, false);
+                        if (!RunningStartupCopy()) try { File.Delete(StartupExe); } catch { }
+                    }
+                    else InstallStartupCopy(key);
                 }
             }
             catch (Exception ex)
