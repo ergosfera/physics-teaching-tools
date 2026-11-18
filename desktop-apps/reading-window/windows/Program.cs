@@ -17,8 +17,8 @@ using Microsoft.Win32;
 [assembly: AssemblyTitle("Reading Window")]
 [assembly: AssemblyProduct("Reading Window")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Mauricio Mendivelso. MIT License.")]
-[assembly: AssemblyVersion("1.0.1.0")]
-[assembly: AssemblyFileVersion("1.0.1.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace ReadingWindow
 {
@@ -64,6 +64,7 @@ namespace ReadingWindow
         public static readonly Color Lcd = Color.FromArgb(0x7f, 0xae, 0x86);
         public static readonly Color LcdDigit = Color.FromArgb(0x16, 0x32, 0x1c);
         public static readonly Color Accent = Color.FromArgb(0x16, 0x3a, 0x70);
+        public static readonly Color Alarm = Color.FromArgb(0xe8, 0x93, 0x4a);       // the timer's "time's up"
 
         // Shade colors: dark and calm, so the clear window stands out
         public static readonly string[,] Palette = {
@@ -233,7 +234,65 @@ namespace ReadingWindow
             check(!Edge(new PointF(50, 150), r, false, Grip, out dx, out dy), "far");
             check(ClampW(10) == MinW && ClampW(5000) == MaxW && ClampH(100) == 100, "clamp");
             check(Percent(0.6) == "60%" && Percent(0.955) == "96%", "percent");
+            fails += ReadTimer.SelfTest();
             Console.WriteLine(fails == 0 ? "Self-test passed" : "Self-test: " + fails + " failed");
+            return fails;
+        }
+    }
+
+    // ── The reading timer: a stopwatch counting up, or a countdown (same rules as the Mac app) ──
+    class ReadTimer
+    {
+        public static readonly int[] Choices = { 0, 5, 10, 15, 20, 25, 30, 45, 60 };     // 0: stopwatch; else minutes to count down
+        public int Minutes;
+        public double Banked;               // seconds counted before the last start
+        public DateTime? StartedAt;         // set while running
+
+        public bool Running { get { return StartedAt.HasValue; } }
+        public double Elapsed(DateTime now) { return Banked + (StartedAt.HasValue ? (now - StartedAt.Value).TotalSeconds : 0); }
+        public bool Finished(DateTime now) { return Minutes > 0 && Elapsed(now) >= Minutes * 60; }
+
+        // Whole seconds to show: up from 0:00, or down from the set time to 0:00
+        public int Shown(DateTime now)
+        {
+            double e = Elapsed(now);
+            return Minutes == 0 ? (int)Math.Floor(e) : Math.Max(0, (int)Math.Ceiling(Minutes * 60 - e));
+        }
+
+        public void Start(DateTime now) { if (!StartedAt.HasValue) StartedAt = now; }
+        public void Pause(DateTime now) { Banked = Elapsed(now); StartedAt = null; }
+        public void Reset() { Banked = 0; StartedAt = null; }
+
+        public static string Format(int s)
+        {
+            var inv = CultureInfo.InvariantCulture;
+            return s >= 3600 ? string.Format(inv, "{0}:{1:00}:{2:00}", s / 3600, s / 60 % 60, s % 60)
+                             : string.Format(inv, "{0}:{1:00}", s / 60, s % 60);
+        }
+        public static string Title(int m) { return m == 0 ? "Stopwatch" : m.ToString(CultureInfo.InvariantCulture) + " min"; }
+
+        public static int SelfTest()
+        {
+            int fails = 0;
+            Action<bool, string> check = delegate(bool ok, string what)
+            {
+                if (!ok) { fails++; Console.WriteLine("FAIL: " + what); }
+            };
+            check(Format(0) == "0:00" && Format(65) == "1:05" && Format(3599) == "59:59" && Format(3661) == "1:01:01", "timer format");
+            var t0 = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var t = new ReadTimer { Minutes = 20 };
+            check(t.Shown(t0) == 1200 && !t.Finished(t0), "countdown at rest");
+            t.Start(t0);
+            check(t.Shown(t0.AddSeconds(0.4)) == 1200 && t.Shown(t0.AddSeconds(1)) == 1199, "countdown ticking");
+            t.Pause(t0.AddSeconds(100));
+            check(!t.Running && t.Shown(t0.AddSeconds(500)) == 1100, "countdown paused");
+            t.Start(t0.AddSeconds(500));
+            check(t.Finished(t0.AddSeconds(1600)) && t.Shown(t0.AddSeconds(1700)) == 0, "countdown done");
+            var s = new ReadTimer();
+            s.Start(t0);
+            check(s.Shown(t0.AddSeconds(61.9)) == 61 && !s.Finished(t0.AddSeconds(99999)), "stopwatch");
+            s.Reset();
+            check(!s.Running && s.Shown(t0.AddSeconds(50)) == 0, "reset");
             return fails;
         }
     }
@@ -246,6 +305,8 @@ namespace ReadingWindow
         public double Darkness = 0.6;
         public Color ShadeColor = Color.Black;
         public bool Enabled = true;
+        public bool TimerOn = false;
+        public int TimerMinutes = 0;
         public Point PanelAt = new Point(int.MinValue, 0);
 
         static string Dir
@@ -277,6 +338,8 @@ namespace ReadingWindow
                         case "Darkness": if (isNum) s.Darkness = Math.Min(0.95, Math.Max(0.1, d)); break;
                         case "Color": Color c; if (Skin.TryHex(val, out c)) s.ShadeColor = c; break;
                         case "Enabled": if (bool.TryParse(val, out b)) s.Enabled = b; break;
+                        case "Timer": if (bool.TryParse(val, out b)) s.TimerOn = b; break;
+                        case "TimerMinutes": if (isInt && Array.IndexOf(ReadTimer.Choices, n) >= 0) s.TimerMinutes = n; break;
                         case "PanelX": if (isInt) px = n; break;
                         case "PanelY": if (isInt) py = n; break;
                     }
@@ -295,7 +358,8 @@ namespace ReadingWindow
                 var inv = CultureInfo.InvariantCulture;
                 var lines = new List<string> {
                     "Width=" + Width.ToString("R", inv), "Height=" + Height.ToString("R", inv), "Shape=" + Geometry.Key(Shape),
-                    "Darkness=" + Darkness.ToString("R", inv), "Color=" + Skin.HexString(ShadeColor), "Enabled=" + Enabled };
+                    "Darkness=" + Darkness.ToString("R", inv), "Color=" + Skin.HexString(ShadeColor), "Enabled=" + Enabled,
+                    "Timer=" + TimerOn, "TimerMinutes=" + TimerMinutes.ToString(inv) };
                 if (PanelAt.X != int.MinValue)
                 {
                     lines.Add("PanelX=" + PanelAt.X.ToString(inv));
@@ -416,6 +480,7 @@ namespace ReadingWindow
                 Cursor = dx != 0 && dy == 0 ? Cursors.SizeWE : dx == 0 ? Cursors.SizeNS : (dx == dy ? Cursors.SizeNWSE : Cursors.SizeNESW);
             else
                 Cursor = Cursors.Hand;
+            AutoScaleMode = AutoScaleMode.None;
         }
 
         protected override void OnMouseUp(MouseEventArgs e)
@@ -425,6 +490,104 @@ namespace ReadingWindow
             resizing = false;
             Capture = false;
             app.Cfg.Save();
+        }
+    }
+
+    // ── The timer in the screen's upper-right corner: click to start / pause, double-click to reset ──
+    class TimerForm : Form
+    {
+        readonly PanelForm app;
+        readonly float k;
+        readonly Font font;
+        public const float W = 112, H = 32;
+
+        public TimerForm(PanelForm app, float k)
+        {
+            this.app = app;
+            this.k = k;
+            FormBorderStyle = FormBorderStyle.None;
+            ShowInTaskbar = false;
+            StartPosition = FormStartPosition.Manual;
+            TopMost = true;
+            Text = "Reading Window timer";
+            Cursor = Cursors.Hand;
+            AutoScaleMode = AutoScaleMode.None;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
+            font = new Font("Segoe UI", 15 * k, FontStyle.Bold, GraphicsUnit.Pixel);
+            ClientSize = new Size(S(W), S(H));
+            Place();
+        }
+
+        int S(float v) { return (int)Math.Round(v * k); }
+
+        // Upper-right corner of the main screen, inside the work area
+        public void Place()
+        {
+            var wa = Screen.PrimaryScreen.WorkingArea;
+            Location = new Point(wa.Right - Width - S(8), wa.Top + S(6));
+        }
+
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                var cp = base.CreateParams;
+                cp.ExStyle |= 0x00000080 | 0x08000000;     // WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE
+                return cp;
+            }
+        }
+
+        protected override bool ShowWithoutActivation { get { return true; } }
+
+        protected override void WndProc(ref Message m)
+        {
+            const int WM_MOUSEACTIVATE = 0x21, MA_NOACTIVATE = 3;
+            if (m.Msg == WM_MOUSEACTIVATE) { m.Result = new IntPtr(MA_NOACTIVATE); return; }
+            base.WndProc(ref m);
+        }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (e.Button != MouseButtons.Left) return;
+            if (e.Clicks >= 2) app.ResetTimer(); else app.StartPauseTimer();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = e.Graphics;
+            int t = Math.Max(1, (int)Math.Round(k));
+            g.Clear(Skin.Face);
+            var all = new Rectangle(0, 0, ClientSize.Width, ClientSize.Height);
+            Skin.Raised(g, all, t);
+            var now = DateTime.UtcNow;
+            var tm = app.Reading;
+            // Time's up: orange, blinking for a few seconds, then steady
+            bool done = tm.Finished(now);
+            bool blinkOff = done && now < app.BlinkUntil && (long)(now.Ticks / (TimeSpan.TicksPerSecond / 3)) % 2 == 1;
+            var lcd = Rectangle.Inflate(all, -3 * t, -3 * t);
+            using (var b = new SolidBrush(done && !blinkOff ? Skin.Alarm : Skin.Lcd)) g.FillRectangle(b, lcd);
+            Skin.Sunken(g, lcd, t);
+
+            // What it's doing: a triangle while running, two bars while paused
+            var gl = new RectangleF(lcd.X + S(8), lcd.Y + lcd.Height / 2f - S(5), S(9), S(10));
+            using (var b = new SolidBrush(Skin.LcdDigit))
+            {
+                if (tm.Running)
+                {
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.FillPolygon(b, new[] { new PointF(gl.Left, gl.Top), new PointF(gl.Right, gl.Top + gl.Height / 2), new PointF(gl.Left, gl.Bottom) });
+                    g.SmoothingMode = SmoothingMode.None;
+                }
+                else
+                {
+                    g.FillRectangle(b, gl.Left, gl.Top, S(3), gl.Height);
+                    g.FillRectangle(b, gl.Right - S(3), gl.Top, S(3), gl.Height);
+                }
+            }
+            var tr = new Rectangle((int)gl.Right + S(4), lcd.Y, lcd.Right - S(8) - (int)gl.Right - S(4), lcd.Height);
+            TextRenderer.DrawText(g, ReadTimer.Format(tm.Shown(now)), font, tr, Skin.LcdDigit,
+                TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
         }
     }
 
@@ -438,11 +601,15 @@ namespace ReadingWindow
         [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
         delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
 
-        enum HitKind { None, OnOff, About, Shape, Color, Slider }
+        enum HitKind { None, OnOff, About, Shape, Color, Slider, Timer, TimerMode }
 
         public readonly Settings Cfg = Settings.Load();
         readonly List<ShadeForm> shades = new List<ShadeForm>();
         readonly Timer tick;
+        readonly Timer clock;
+        TimerForm timerForm;
+        public readonly ReadTimer Reading = new ReadTimer();     // the timer's count
+        public DateTime BlinkUntil = DateTime.MinValue;
         readonly LowLevelMouseProc hookProc;
         IntPtr hook = IntPtr.Zero;
         public Point Center;
@@ -453,7 +620,7 @@ namespace ReadingWindow
         int pressedIndex = -1;
         readonly Font fButton, fLabel, fStatus, fHint;
 
-        const float Width_ = 380, Height_ = 246;
+        const float Width_ = 380, Height_ = 264;
 
         public PanelForm()
         {
@@ -485,6 +652,8 @@ namespace ReadingWindow
             hookProc = MouseHook;
             tick = new Timer { Interval = 15 };
             tick.Tick += delegate { Tick(); };
+            clock = new Timer { Interval = 200 };
+            clock.Tick += delegate { ClockTick(); };
         }
 
         int S(float v) { return (int)Math.Round(v * k); }
@@ -496,6 +665,9 @@ namespace ReadingWindow
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
+            timerForm = new TimerForm(this, k);
+            Reading.Minutes = Cfg.TimerMinutes;
+            if (Cfg.TimerOn) { Reading.Start(DateTime.UtcNow); timerForm.Show(); }
             BuildShades();
             SystemEvents.DisplaySettingsChanged += OnDisplayChanged;
             try
@@ -506,13 +678,16 @@ namespace ReadingWindow
             }
             catch { }
             tick.Start();
+            clock.Start();
         }
 
-        void OnDisplayChanged(object sender, EventArgs e) { BeginInvoke((Action)BuildShades); }
+        void OnDisplayChanged(object sender, EventArgs e) { BeginInvoke((Action)delegate { BuildShades(); timerForm.Place(); }); }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             tick.Stop();
+            clock.Stop();
+            timerForm.Close();
             if (hook != IntPtr.Zero) UnhookWindowsHookEx(hook);
             SystemEvents.DisplaySettingsChanged -= OnDisplayChanged;
             if (WindowState == FormWindowState.Normal) Cfg.PanelAt = Location;
@@ -544,10 +719,12 @@ namespace ReadingWindow
             KeepOnTop();
         }
 
-        // The panel stays above the shade
+        // The panel and the timer stay above the shade
         void KeepOnTop()
         {
             SetWindowPos(Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);     // HWND_TOPMOST, NOSIZE | NOMOVE | NOACTIVATE
+            if (timerForm != null && timerForm.Visible)
+                SetWindowPos(timerForm.Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
         }
 
         public RectangleF Hole
@@ -567,7 +744,16 @@ namespace ReadingWindow
             Invalidate();
         }
 
-        bool MouseOverPanel { get { return Visible && WindowState != FormWindowState.Minimized && Bounds.Contains(Control.MousePosition); } }
+        // The panel and the timer: the clear window doesn't follow onto them, and clicks there are their own
+        bool MouseOverPanel
+        {
+            get
+            {
+                var g = Control.MousePosition;
+                return (Visible && WindowState != FormWindowState.Minimized && Bounds.Contains(g)) ||
+                       (timerForm != null && timerForm.Visible && timerForm.Bounds.Contains(g));
+            }
+        }
 
         void Tick()
         {
@@ -625,6 +811,67 @@ namespace ReadingWindow
             UpdateVisibility();
         }
 
+        // ── The timer ──
+
+        void ClockTick()
+        {
+            if (!Cfg.TimerOn) return;
+            var now = DateTime.UtcNow;
+            if (Reading.Running && Reading.Finished(now))
+            {
+                Reading.Pause(now);
+                BlinkUntil = now.AddSeconds(3);
+            }
+            timerForm.Invalidate();
+        }
+
+        // Showing the timer starts it from the beginning; hiding it stops it
+        void ToggleTimer()
+        {
+            Cfg.TimerOn = !Cfg.TimerOn;
+            Cfg.Save();
+            Reading.Reset();
+            if (Cfg.TimerOn) { Reading.Start(DateTime.UtcNow); timerForm.Show(); KeepOnTop(); } else timerForm.Hide();
+            timerForm.Invalidate();
+            Invalidate();
+        }
+
+        public void StartPauseTimer()
+        {
+            var now = DateTime.UtcNow;
+            if (Reading.Finished(now)) { Reading.Reset(); Reading.Start(now); }
+            else if (Reading.Running) Reading.Pause(now); else Reading.Start(now);
+            timerForm.Invalidate();
+        }
+
+        public void ResetTimer()
+        {
+            Reading.Reset();
+            timerForm.Invalidate();
+        }
+
+        // Picking a stopwatch or a countdown shows the timer and starts it
+        void PickTimerMode(int minutes)
+        {
+            Cfg.TimerMinutes = minutes;
+            Reading.Minutes = minutes;
+            if (Cfg.TimerOn) { Cfg.Save(); Reading.Reset(); Reading.Start(DateTime.UtcNow); timerForm.Invalidate(); } else ToggleTimer();
+            Invalidate();
+        }
+
+        ContextMenuStrip TimerMenu()
+        {
+            var m = new ContextMenuStrip();
+            foreach (int minutes in ReadTimer.Choices)
+            {
+                int mm = minutes;
+                m.Items.Add(new ToolStripMenuItem(mm == 0 ? "Stopwatch (count up)" : "Countdown: " + mm.ToString(CultureInfo.InvariantCulture) + " min",
+                    null, delegate { PickTimerMode(mm); }) { Checked = mm == Cfg.TimerMinutes });
+                if (mm == 0) m.Items.Add(new ToolStripSeparator());
+            }
+            return m;
+        }
+
         void SetShape(HoleShape s)
         {
             Cfg.Shape = s;
@@ -649,6 +896,8 @@ namespace ReadingWindow
         Rectangle RcSliderRow(int i) { return new Rectangle(S(8), S(78 + i * 34), ClientSize.Width - S(16), S(28)); }
         Rectangle RcTrack(int i) { var r = RcSliderRow(i); return new Rectangle(r.X + S(88), r.Y + r.Height / 2 - S(4), r.Width - S(88 + 70), S(8)); }
         Rectangle RcColor { get { return new Rectangle(S(8), S(184), S(160), S(26)); } }
+        Rectangle RcTimer { get { return new Rectangle(S(176), S(184), S(100), S(26)); } }
+        Rectangle RcTimerMode { get { return new Rectangle(S(282), S(184), ClientSize.Width - S(290), S(26)); } }
 
         // Sliders: 0 darkness, 1 width, 2 height
         double SliderValue(int i)
@@ -703,6 +952,8 @@ namespace ReadingWindow
                 }
             }
             if (RcColor.Contains(p)) return HitKind.Color;
+            if (RcTimer.Contains(p)) return HitKind.Timer;
+            if (RcTimerMode.Contains(p)) return HitKind.TimerMode;
             return HitKind.None;
         }
 
@@ -715,6 +966,11 @@ namespace ReadingWindow
             if (pressed == HitKind.Color)
             {
                 ColorMenu().Show(this, new Point(RcColor.Left, RcColor.Bottom + S(2)));
+                pressed = HitKind.None;
+            }
+            if (pressed == HitKind.TimerMode)
+            {
+                TimerMenu().Show(this, new Point(RcTimerMode.Left, RcTimerMode.Bottom + S(2)));
                 pressed = HitKind.None;
             }
             Invalidate();
@@ -741,6 +997,7 @@ namespace ReadingWindow
             {
                 case HitKind.OnOff: ToggleShade(); break;
                 case HitKind.About: ShowAbout(); break;
+                case HitKind.Timer: ToggleTimer(); break;
                 case HitKind.Shape: SetShape(Geometry.Shapes[index]); break;
             }
         }
@@ -761,6 +1018,7 @@ namespace ReadingWindow
             switch (keyData)
             {
                 case Keys.Control | Keys.S: ToggleShade(); return true;
+                case Keys.Control | Keys.T: ToggleTimer(); return true;
                 case Keys.Control | Keys.D1: SetShape(HoleShape.Rect); return true;
                 case Keys.Control | Keys.D2: SetShape(HoleShape.Rounded); return true;
                 case Keys.Control | Keys.D3: SetShape(HoleShape.Ellipse); return true;
@@ -847,8 +1105,16 @@ namespace ReadingWindow
             using (var p = new Pen(Skin.Text)) g.DrawRectangle(p, sw);
             TextRenderer.DrawText(g, "▾", fButton, new Rectangle(RcColor.Right - S(20), RcColor.Y, S(14), RcColor.Height), Skin.Text,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+
+            Button(g, RcTimer, Cfg.TimerOn || pressed == HitKind.Timer, Cfg.TimerOn ? "Timer: On" : "Timer: Off", true, false);
+            Button(g, RcTimerMode, pressed == HitKind.TimerMode, ReadTimer.Title(Cfg.TimerMinutes), true, true);
+            TextRenderer.DrawText(g, "▾", fButton, new Rectangle(RcTimerMode.Right - S(20), RcTimerMode.Y, S(14), RcTimerMode.Height), Skin.Text,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+
             TextRenderer.DrawText(g, "Click: hold / follow  ·  Drag just outside its edge: resize", fHint,
                 new Rectangle(S(8), RcColor.Bottom + S(4), ClientSize.Width - S(16), S(20)), Skin.Muted, left);
+            TextRenderer.DrawText(g, "Timer: click it to pause / go on  ·  Double-click: reset", fHint,
+                new Rectangle(S(8), RcColor.Bottom + S(22), ClientSize.Width - S(16), S(20)), Skin.Muted, left);
         }
 
         public void ShowAbout()
@@ -900,7 +1166,7 @@ namespace ReadingWindow
             Controls.Add(icon);
 
             Controls.Add(new Label { Text = "Reading Window", Location = new Point(76, 16), AutoSize = true, Font = new Font("Segoe UI Semibold", 12F) });
-            Controls.Add(new Label { Text = "Version 1.0.1  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
+            Controls.Add(new Label { Text = "Version 1.1.0  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
             Controls.Add(new Label
             {
                 Text = "Free software, provided \"as is\", without warranty of any kind.\r\n" +

@@ -200,6 +200,9 @@ A focus aid for reading, for example for people with ADHD: the whole screen is d
 - The clear window follows the pointer, and the page under it can still be scrolled. A click holds it in place,
   and another click makes it follow again (the clicks also reach the page). While held, drag just outside its edge to resize it.
 - The panel stays above the shade, and the clear window doesn't follow the pointer onto it. Closing the panel quits.
+- A small timer in the screen's upper-right corner, shown on command: a stopwatch counting up, or a countdown
+  of 5–60 minutes that turns orange and blinks when time is up (no sound). Showing it starts it; click it to pause
+  or go on, double-click to reset. It stays above the shade.
 
 | Action | Mouse | Keyboard (panel) |
 |---|---|---|
@@ -207,6 +210,9 @@ A focus aid for reading, for example for people with ADHD: the whole screen is d
 | Resize | Drag just outside its edge while held, or the Width/Height sliders | Scroll over a slider to fine-tune |
 | Shape | Rect, Round, Ellipse, Band buttons | ⌘1–⌘4 on Mac, Ctrl+1–4 on Windows |
 | Shade on/off | **Shade: On/Off** | ⌘S on Mac, Ctrl+S on Windows |
+| Timer on/off | **Timer: On/Off** | ⌘T on Mac, Ctrl+T on Windows |
+| Stopwatch or countdown | The menu next to **Timer** (picking one shows and starts the timer) | — |
+| Pause / go on · reset the timer | Click the timer · double-click it | — |
 
 ## Net LEDs
 
@@ -370,7 +376,7 @@ They only save their own settings on your computer (for example the last time se
 options, always-on-top and the window position).
 
 Screen Ruler and Screen Shapes don't capture or record the screen; they only remember where their tools and shapes are, their units, scales and colors, and any screen-size correction.
-Reading Window doesn't capture or record the screen either; it only follows the pointer and clicks to move and hold its clear window, and remembers its shape, size, darkness, color and panel position.
+Reading Window doesn't capture or record the screen either; it only follows the pointer and clicks to move and hold its clear window, and remembers its shape, size, darkness, color, timer settings and panel position.
 Notepad 95 only opens and saves the files you choose, and remembers its font, word wrap, window position and last search.
 Paint 95 only opens and saves the pictures you choose, and remembers its window position.
 

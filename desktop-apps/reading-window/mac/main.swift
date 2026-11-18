@@ -28,6 +28,7 @@ enum Skin {
     static let lcd = rgb(0x7f, 0xae, 0x86)
     static let lcdDigit = rgb(0x16, 0x32, 0x1c)
     static let accent = rgb(0x16, 0x3a, 0x70)
+    static let alarm = rgb(0xe8, 0x93, 0x4a)       // the timer's "time's up"
 
     // Shade colors: dark and calm, so the clear window stands out
     static let palette: [(String, String)] = [
@@ -131,6 +132,56 @@ enum Geometry {
         check(edge(NSPoint(x: 50, y: 150), r, band: false) == nil, "far")
         check(clampW(10) == minW && clampW(5000) == maxW && clampH(100) == 100, "clamp")
         check(percent(0.6) == "60%" && percent(0.955) == "96%", "percent")
+        fails += ReadTimer.selfTest()
+        return fails
+    }
+}
+
+// MARK: - The reading timer: a stopwatch counting up, or a countdown (same rules as the Windows app)
+
+struct ReadTimer {
+    static let choices = [0, 5, 10, 15, 20, 25, 30, 45, 60]     // 0: stopwatch; else minutes to count down
+    var minutes = 0
+    var banked: TimeInterval = 0        // time counted before the last start
+    var startedAt: Date?                // set while running
+
+    var running: Bool { startedAt != nil }
+    func elapsed(_ now: Date) -> TimeInterval { banked + (startedAt.map { now.timeIntervalSince($0) } ?? 0) }
+    func finished(_ now: Date) -> Bool { minutes > 0 && elapsed(now) >= Double(minutes * 60) }
+
+    // Whole seconds to show: up from 0:00, or down from the set time to 0:00
+    func shown(_ now: Date) -> Int {
+        let e = elapsed(now)
+        return minutes == 0 ? Int(e) : max(0, Int(ceil(Double(minutes * 60) - e)))
+    }
+
+    mutating func start(_ now: Date) { if startedAt == nil { startedAt = now } }
+    mutating func pause(_ now: Date) { banked = elapsed(now); startedAt = nil }
+    mutating func reset() { banked = 0; startedAt = nil }
+
+    static func format(_ s: Int) -> String {
+        s >= 3600 ? String(format: "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60) : String(format: "%d:%02d", s / 60, s % 60)
+    }
+    static func title(_ m: Int) -> String { m == 0 ? "Stopwatch" : "\(m) min" }
+
+    static func selfTest() -> Int {
+        var fails = 0
+        func check(_ ok: Bool, _ what: String) { if !ok { fails += 1; print("FAIL: \(what)") } }
+        check(format(0) == "0:00" && format(65) == "1:05" && format(3599) == "59:59" && format(3661) == "1:01:01", "timer format")
+        let t0 = Date(timeIntervalSinceReferenceDate: 1000)
+        var t = ReadTimer(minutes: 20)
+        check(t.shown(t0) == 1200 && !t.finished(t0), "countdown at rest")
+        t.start(t0)
+        check(t.shown(t0 + 0.4) == 1200 && t.shown(t0 + 1) == 1199, "countdown ticking")
+        t.pause(t0 + 100)
+        check(!t.running && t.shown(t0 + 500) == 1100, "countdown paused")
+        t.start(t0 + 500)
+        check(t.finished(t0 + 1600) && t.shown(t0 + 1700) == 0, "countdown done")
+        var s = ReadTimer()
+        s.start(t0)
+        check(s.shown(t0 + 61.9) == 61 && !s.finished(t0 + 99999), "stopwatch")
+        s.reset()
+        check(!s.running && s.shown(t0 + 50) == 0, "reset")
         return fails
     }
 }
@@ -142,7 +193,7 @@ final class Settings {
 
     init() {
         d.register(defaults: ["width": 640.0, "height": 120.0, "shape": "rounded", "darkness": 0.6,
-                              "color": "000000", "enabled": true])
+                              "color": "000000", "enabled": true, "timer": false, "timerMinutes": 0])
     }
 
     var width: CGFloat { get { Geometry.clampW(CGFloat(d.double(forKey: "width"))) } set { d.set(Double(newValue), forKey: "width") } }
@@ -157,6 +208,56 @@ final class Settings {
         set { d.set(Skin.hexString(newValue), forKey: "color") }
     }
     var enabled: Bool { get { d.bool(forKey: "enabled") } set { d.set(newValue, forKey: "enabled") } }
+    var timerOn: Bool { get { d.bool(forKey: "timer") } set { d.set(newValue, forKey: "timer") } }
+    var timerMinutes: Int {
+        get { let m = d.integer(forKey: "timerMinutes"); return ReadTimer.choices.contains(m) ? m : 0 }
+        set { d.set(newValue, forKey: "timerMinutes") }
+    }
+}
+
+// MARK: - The timer in the screen's upper-right corner: click to start / pause, double-click to reset
+
+final class TimerWindow: NSPanel {
+    override var canBecomeKey: Bool { false }
+    override var canBecomeMain: Bool { false }
+}
+
+final class TimerView: NSView {
+    weak var app: AppDelegate!
+    static let width: CGFloat = 112, height: CGFloat = 32
+    let font = NSFont.monospacedDigitSystemFont(ofSize: 15, weight: .bold)
+
+    override var isFlipped: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: .pointingHand) }
+
+    override func mouseDown(with e: NSEvent) {
+        if e.clickCount >= 2 { app.resetTimer() } else { app.startPauseTimer() }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        Skin.face.setFill(); bounds.fill(); Skin.raised(bounds)
+        let now = Date(), t = app.timer
+        // Time's up: orange, blinking for a few seconds, then steady
+        let done = t.finished(now)
+        let blinkOff = done && now < app.blinkUntil && Int(now.timeIntervalSinceReferenceDate * 3) % 2 == 1
+        let lcd = bounds.insetBy(dx: 3, dy: 3)
+        (done && !blinkOff ? Skin.alarm : Skin.lcd).setFill(); lcd.fill(); Skin.sunken(lcd)
+
+        // What it's doing: ▶ running, ❚❚ paused
+        let g = NSRect(x: lcd.minX + 8, y: lcd.midY - 5, width: 9, height: 10)
+        Skin.lcdDigit.setFill()
+        if t.running {
+            let p = NSBezierPath()
+            p.move(to: NSPoint(x: g.minX, y: g.minY)); p.line(to: NSPoint(x: g.maxX, y: g.midY)); p.line(to: NSPoint(x: g.minX, y: g.maxY))
+            p.close(); p.fill()
+        } else {
+            NSRect(x: g.minX, y: g.minY, width: 3, height: g.height).fill()
+            NSRect(x: g.maxX - 3, y: g.minY, width: 3, height: g.height).fill()
+        }
+        Skin.draw(ReadTimer.format(t.shown(now)), font, Skin.lcdDigit,
+                  in: NSRect(x: g.maxX + 4, y: lcd.minY, width: lcd.maxX - 8 - g.maxX - 4, height: lcd.height), right: true)
+    }
 }
 
 // MARK: - The shade: one see-through window per screen, dark everywhere but the clear window
@@ -230,11 +331,11 @@ final class ShadeView: NSView {
 // MARK: - The panel
 
 final class PanelView: NSView {
-    enum Hit: Equatable { case none, onOff, about, shape(HoleShape), color, slider(Int) }
+    enum Hit: Equatable { case none, onOff, about, shape(HoleShape), color, slider(Int), timer, timerMode }
 
     weak var app: AppDelegate!
     var pressed: Hit = .none
-    static let width: CGFloat = 380, height: CGFloat = 246
+    static let width: CGFloat = 380, height: CGFloat = 264
 
     let fButton = Skin.font("Tahoma", 12, bold: true)
     let fLabel = Skin.font("Tahoma", 12, bold: true)
@@ -250,6 +351,8 @@ final class PanelView: NSView {
     func rcSliderRow(_ i: Int) -> NSRect { NSRect(x: 8, y: 78 + CGFloat(i) * 34, width: bounds.width - 16, height: 28) }
     func rcTrack(_ i: Int) -> NSRect { let r = rcSliderRow(i); return NSRect(x: r.minX + 88, y: r.midY - 4, width: r.width - 88 - 70, height: 8) }
     var rcColor: NSRect { NSRect(x: 8, y: 184, width: 160, height: 26) }
+    var rcTimer: NSRect { NSRect(x: 176, y: 184, width: 100, height: 26) }
+    var rcTimerMode: NSRect { NSRect(x: 282, y: 184, width: bounds.width - 290, height: 26) }
 
     // Sliders: 0 darkness, 1 width, 2 height
     func sliderValue(_ i: Int) -> Double {
@@ -286,6 +389,8 @@ final class PanelView: NSView {
             return i == 1 && app.cfg.shape == .band ? .none : .slider(i)
         }
         if rcColor.contains(p) { return .color }
+        if rcTimer.contains(p) { return .timer }
+        if rcTimerMode.contains(p) { return .timerMode }
         return .none
     }
 
@@ -295,6 +400,10 @@ final class PanelView: NSView {
         if case .slider(let i) = pressed { setSlider(i, Double((p.x - rcTrack(i).minX) / rcTrack(i).width)) }
         if pressed == .color {
             app.colorMenu().popUp(positioning: nil, at: NSPoint(x: rcColor.minX, y: rcColor.maxY + 2), in: self)
+            pressed = .none
+        }
+        if pressed == .timerMode {
+            app.timerMenu().popUp(positioning: nil, at: NSPoint(x: rcTimerMode.minX, y: rcTimerMode.maxY + 2), in: self)
             pressed = .none
         }
         needsDisplay = true
@@ -315,6 +424,7 @@ final class PanelView: NSView {
         switch h {
         case .onOff: app.toggleShade()
         case .about: app.showAbout()
+        case .timer: app.toggleTimer()
         case .shape(let s): app.cfg.shape = s; app.holeChanged()
         default: break
         }
@@ -374,8 +484,16 @@ final class PanelView: NSView {
         app.cfg.color.setFill(); sw.fill()
         Skin.text.setStroke(); NSBezierPath(rect: sw.insetBy(dx: 0.5, dy: 0.5)).stroke()
         Skin.draw("▾", fButton, Skin.text, in: NSRect(x: rcColor.maxX - 18, y: rcColor.minY, width: 12, height: rcColor.height))
-        Skin.draw("Click: hold / follow  ·  Drag just outside its edge: resize", Skin.font("Tahoma", 11), Skin.muted,
+
+        button(rcTimer, down: app.cfg.timerOn || pressed == .timer, app.cfg.timerOn ? "Timer: On" : "Timer: Off")
+        button(rcTimerMode, down: pressed == .timerMode, ReadTimer.title(app.cfg.timerMinutes), left: true)
+        Skin.draw("▾", fButton, Skin.text, in: NSRect(x: rcTimerMode.maxX - 18, y: rcTimerMode.minY, width: 12, height: rcTimerMode.height))
+
+        let fHint = Skin.font("Tahoma", 11)
+        Skin.draw("Click: hold / follow  ·  Drag just outside its edge: resize", fHint, Skin.muted,
                   in: NSRect(x: 8, y: rcColor.maxY + 4, width: bounds.width - 16, height: 20), left: true)
+        Skin.draw("Timer: click it to pause / go on  ·  Double-click: reset", fHint, Skin.muted,
+                  in: NSRect(x: 8, y: rcColor.maxY + 22, width: bounds.width - 16, height: 20), left: true)
     }
 }
 
@@ -456,7 +574,7 @@ enum IconArt {
 
 // MARK: - App
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate {
     let cfg = Settings()
     var shades: [ShadeWindow] = []
     var panelWindow: NSWindow!
@@ -466,6 +584,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var following = true
     var clickMonitor: Any?
     var lastHole = NSRect.zero
+    var timerWindow: TimerWindow!
+    var timerView: TimerView!
+    var timer = ReadTimer()
+    var clock: Timer?
+    var blinkUntil = Date.distantPast
 
     var hole: NSRect {
         let s = NSScreen.screens.first { $0.frame.contains(center) } ?? NSScreen.main ?? NSScreen.screens[0]
@@ -493,12 +616,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         center = NSEvent.mouseLocation
         buildShades()
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil,
-                                               queue: .main) { [weak self] _ in self?.buildShades() }
+                                               queue: .main) { [weak self] _ in self?.buildShades(); self?.placeTimer() }
+        buildTimer()
         panelWindow.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
         poll = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] _ in self?.tick() }
         RunLoop.main.add(poll!, forMode: .common)
+        clock = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in self?.clockTick() }
+        RunLoop.main.add(clock!, forMode: .common)
 
         // Each click on the page (in another app) holds the window, or makes a held one follow again; the click
         // also reaches the page. Clicks on the shade itself are handled by the shade, and the panel's are its own.
@@ -532,7 +658,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         holeChanged(force: true)
     }
 
-    var mouseOverPanel: Bool { panelWindow.isVisible && panelWindow.frame.contains(NSEvent.mouseLocation) }
+    // The panel and the timer: the clear window doesn't follow onto them, and clicks there are their own
+    var mouseOverPanel: Bool {
+        let g = NSEvent.mouseLocation
+        return (panelWindow.isVisible && panelWindow.frame.contains(g)) || (timerWindow.isVisible && timerWindow.frame.contains(g))
+    }
 
     func toggleFollow() {
         guard cfg.enabled, !mouseOverPanel else { return }
@@ -592,6 +722,94 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         cfg.enabled.toggle()
         following = true
         updateVisibility()
+    }
+
+    // MARK: Timer
+
+    func buildTimer() {
+        timerView = TimerView(frame: NSRect(x: 0, y: 0, width: TimerView.width, height: TimerView.height))
+        timerView.app = self
+        timerWindow = TimerWindow(contentRect: timerView.frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        timerWindow.contentView = timerView
+        timerWindow.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 1)     // above the shade
+        timerWindow.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        timerWindow.isReleasedWhenClosed = false
+        timerWindow.hidesOnDeactivate = false
+        timerWindow.hasShadow = true
+        timer.minutes = cfg.timerMinutes
+        placeTimer()
+        if cfg.timerOn { timer.start(Date()); timerWindow.orderFrontRegardless() }
+    }
+
+    // Upper-right corner of the screen with the menu bar, just under the menu bar
+    func placeTimer() {
+        guard let w = timerWindow, let s = NSScreen.screens.first else { return }
+        let v = s.visibleFrame
+        w.setFrameOrigin(NSPoint(x: v.maxX - TimerView.width - 8, y: v.maxY - TimerView.height - 6))
+    }
+
+    func clockTick() {
+        guard cfg.timerOn else { return }
+        let now = Date()
+        if timer.running && timer.finished(now) {
+            timer.pause(now)
+            blinkUntil = now.addingTimeInterval(3)
+        }
+        timerView.needsDisplay = true
+    }
+
+    // Showing the timer starts it from the beginning; hiding it stops it
+    @objc func toggleTimer() {
+        cfg.timerOn.toggle()
+        timer.reset()
+        if cfg.timerOn { timer.start(Date()); timerWindow.orderFrontRegardless() } else { timerWindow.orderOut(nil) }
+        timerView.needsDisplay = true
+        panel.needsDisplay = true
+    }
+
+    @objc func startPauseTimer() {
+        let now = Date()
+        if timer.finished(now) { timer.reset(); timer.start(now) }
+        else if timer.running { timer.pause(now) } else { timer.start(now) }
+        timerView.needsDisplay = true
+    }
+
+    @objc func resetTimer() {
+        timer.reset()
+        timerView.needsDisplay = true
+    }
+
+    // Picking a stopwatch or a countdown shows the timer and starts it
+    @objc func pickTimerMode(_ sender: NSMenuItem) {
+        cfg.timerMinutes = sender.tag
+        timer.minutes = sender.tag
+        if cfg.timerOn { timer.reset(); timer.start(Date()); timerView.needsDisplay = true } else { toggleTimer() }
+        panel.needsDisplay = true
+    }
+
+    func addTimerModes(to m: NSMenu) {
+        for minutes in ReadTimer.choices {
+            let it = m.addItem(withTitle: minutes == 0 ? "Stopwatch (count up)" : "Countdown: \(minutes) min",
+                               action: #selector(pickTimerMode(_:)), keyEquivalent: "")
+            it.target = self
+            it.tag = minutes
+            it.state = minutes == cfg.timerMinutes ? .on : .off
+            if minutes == 0 { m.addItem(.separator()) }
+        }
+    }
+
+    func timerMenu() -> NSMenu { let m = NSMenu(); addTimerModes(to: m); return m }
+
+    // Keep the Timer menu's check marks current
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+        let show = menu.addItem(withTitle: "Show Timer", action: #selector(toggleTimer), keyEquivalent: "t")
+        show.target = self
+        show.state = cfg.timerOn ? .on : .off
+        menu.addItem(withTitle: "Start / Pause", action: #selector(startPauseTimer), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Reset", action: #selector(resetTimer), keyEquivalent: "").target = self
+        menu.addItem(.separator())
+        addTimerModes(to: menu)
     }
 
     func redrawAll() { for w in shades { w.contentView?.needsDisplay = true }; panel.needsDisplay = true }
@@ -656,7 +874,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "Reading Window",
-            .applicationVersion: "1.0.1",
+            .applicationVersion: "1.1.0",
             .version: "",
             .credits: credits,
             NSApplication.AboutPanelOptionKey(rawValue: "Copyright"): "© 2026 Mauricio Mendivelso · MIT License",
@@ -688,6 +906,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         shadeItem.submenu = shade
         main.addItem(shadeItem)
+
+        let timerItem = NSMenuItem()
+        let timerM = NSMenu(title: "Timer")
+        timerM.delegate = self
+        menuNeedsUpdate(timerM)
+        timerItem.submenu = timerM
+        main.addItem(timerItem)
 
         let winItem = NSMenuItem()
         let win = NSMenu(title: "Window")
