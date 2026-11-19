@@ -6,7 +6,7 @@ Small, free desktop apps for Windows and macOS, made for teaching:
 - **Physics Calculator**: the calculator from the Ergosfera *Notebook & Physics Calculator* web tool, where numbers carry units.
 - **Field**: the Ergosfera *Field* dot timer, a field of dots that go dark as time runs out, with big numbers drawn in dots. A tribute to Untime by Perceptor.
 - **Sticky Notes**: sticky notes on your desktop that sync between your Mac and Windows computers through Google Drive.
-- **Screen Ruler**: up to three rulers and a protractor that float over anything on the screen.
+- **Screen Ruler**: up to three rulers and three protractors that float over anything on the screen.
 - **Screen Shapes**: lines, rectangles, circles and guide lines that float over the screen and measure what's under them.
 - **Reading Window**: shades the screen except a clear window that follows the pointer, to help focus while reading.
 - **Net LEDs**: green and red lights next to the clock that blink with download and upload traffic, with a live graph.
@@ -149,25 +149,27 @@ How it works:
 
 ## Screen Ruler
 
-- Up to three see-through rulers and a protractor, always on top of other windows. Clicks on empty space around them go to the window underneath.
+- Up to three see-through rulers and three protractors, always on top of other windows. Clicks on empty space around them go to the window underneath.
 - Each ruler measures from its 0 to its red marker, and shows its own angle.
 - Units (right-click a ruler): cm, in and px on the screen, or m, km and cm to a scale you set. Each ruler keeps its own scale.
 - **Set Scale…**: lay the ruler along a length you know (a map's scale bar, an object in a photo), put the marker at its end and type its real length.
 - **Correct Screen Size…**: when centimeters on screen don't match a real ruler (projectors often report no size), hold a real ruler against the screen, put the marker on a length you can read and type it.
-- The protractor's arm reads the angle from its baseline. Where two rulers cross, the angle between them is shown, and the panel lists every reading.
-- **Colored guides and marks**: right-click a ruler for **Add Guide Here**, or the protractor for **Add Mark Here** (up to 8 each). Each one shows its own reading, here and in the panel. Right-click one to change its color or remove it.
+- Each protractor's arm reads the angle from its baseline. Where two rulers cross, the angle between them is shown, and the panel lists every reading.
+- **Colored guides and marks**: right-click a ruler for **Add Guide Here**, or a protractor for **Add Mark Here** (up to 8 each). Each one shows its own reading, here and in the panel. Right-click one to change its color or remove it.
+- **Measure between two lines**: right-click the red marker (or arm), a guide or a mark and choose **Measure To ▸** another one. The distance (or angle) between them appears as a Δ dimension line under the ruler (an arc on the protractor) and in the panel, and follows the lines as you drag them. Up to 4 per tool; right-click one to remove it.
+- **Transparency**: right-click a tool and pick how see-through it is, from 0% (solid) to 90%. Its ticks, numbers and lines stay solid.
 - Closing the panel quits; the tools come back where they were.
 
 | Action | Mouse | Keyboard (on a tool you clicked) |
 |---|---|---|
-| Add a ruler / the protractor | **+ Ruler** / **+ Protractor** in the panel, or right-click a tool | ⌘N / ⇧⌘N on Mac |
+| Add a ruler / a protractor | **+ Ruler** / **+ Protractor** in the panel, or right-click a tool | ⌘N / ⇧⌘N on Mac |
 | Move a tool | Drag it | Arrows: 1 pixel (Shift: 10) |
 | Turn a tool | Drag its round knob (Shift: 15° steps) | Alt/⌥ + ← / →: 0.1° (Shift: 1°) |
 | Make a ruler longer or shorter | Drag its far end (the three lines) | — |
 | Read a length | Drag the red marker (Shift: snap to ticks) | — |
-| Read an angle | Drag the protractor's red arm (Shift: 5° steps); drag its rim to resize | — |
-| Move a guide or mark | Drag it (Shift: ticks on a ruler, 5° steps on the protractor) | — |
-| Units, scale, screen size, remove | Right-click a tool | Delete removes the tool |
+| Read an angle | Drag a protractor's red arm (Shift: 5° steps); drag its rim to resize | — |
+| Move a guide or mark | Drag it (Shift: ticks on a ruler, 5° steps on a protractor) | — |
+| Units, scale, screen size, transparency, measurements, remove | Right-click a tool | Delete removes the tool |
 
 ## Screen Shapes
 

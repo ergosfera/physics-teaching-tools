@@ -1,4 +1,4 @@
-// Screen Ruler for macOS: up to three rulers and a protractor that float over everything on screen
+// Screen Ruler for macOS: up to three rulers and three protractors that float over everything on screen
 // (twin of ../windows/Program.cs). Single-file AppKit app; build.sh makes Screen Ruler.app and a .dmg.
 import AppKit
 
@@ -21,7 +21,7 @@ enum Skin {
 
     // The tools: a pale tint for each ruler, dark ticks, a red marker
     static let tints = [rgb(0xf6, 0xe7, 0xa1), rgb(0xbf, 0xe6, 0xf0), rgb(0xf3, 0xc9, 0xd9)]
-    static let protractorTint = rgb(0xcd, 0xec, 0xcc)
+    static let protractorTints = [rgb(0xcd, 0xec, 0xcc), rgb(0xe0, 0xd6, 0xf5), rgb(0xfb, 0xdc, 0xc0)]
     static let ink = rgb(0x1e, 0x1e, 0x22)
     static let marker = rgb(0xd0, 0x1c, 0x1c)
 
@@ -29,6 +29,15 @@ enum Skin {
     static let markColors = [rgb(0x15, 0x65, 0xd8), rgb(0x11, 0x8a, 0x3c), rgb(0xe0, 0x7b, 0x00),
                              rgb(0x8e, 0x24, 0xaa), rgb(0xd8, 0x1b, 0x8c), rgb(0x1e, 0x1e, 0x22)]
     static let markColorNames = ["Blue", "Green", "Orange", "Purple", "Magenta", "Black"]
+
+    // A small color square for menu items
+    static func swatch(_ c: NSColor) -> NSImage {
+        NSImage(size: NSSize(width: 12, height: 12), flipped: false) { r in
+            c.setFill()
+            r.fill()
+            return true
+        }
+    }
 
     static func font(_ name: String, _ size: CGFloat, bold: Bool = false) -> NSFont {
         var f = NSFont(name: name, size: size) ?? NSFont.systemFont(ofSize: size)
@@ -108,6 +117,28 @@ final class Mark {
     init(at: Double, color: Int) { self.at = at; self.color = color }
 }
 
+// One of a tool's lines: its red marker (the arm, on a protractor) or one of its guides or marks
+enum Line: Equatable {
+    case marker
+    case mark(Mark)
+
+    static func == (l: Line, r: Line) -> Bool {
+        switch (l, r) {
+        case (.marker, .marker): return true
+        case let (.mark(a), .mark(b)): return a === b
+        default: return false
+        }
+    }
+}
+
+// A measurement between two of a tool's lines: the distance (ruler) or angle (protractor) from one to the other
+final class Span {
+    let a: Line, b: Line
+    init(_ a: Line, _ b: Line) { self.a = a; self.b = b }
+    func joins(_ x: Line, _ y: Line) -> Bool { (a == x && b == y) || (a == y && b == x) }
+    func has(_ m: Mark) -> Bool { a == .mark(m) || b == .mark(m) }
+}
+
 enum Measure {
     static let minMajor = 70.0     // least spacing between labels, in 96-dpi pixels
 
@@ -184,6 +215,22 @@ enum Measure {
         return marks
     }
 
+    // Measurements saved as a:b;a:b, where -1 is the red marker (or arm) and 0… the guides (or marks) in order
+    static func spansText(_ pairs: [(Int, Int)]) -> String {
+        pairs.map { "\($0.0):\($0.1)" }.joined(separator: ";")
+    }
+
+    static func parseSpans(_ s: String, marks: Int, max limit: Int) -> [(Int, Int)] {
+        var out: [(Int, Int)] = []
+        for part in s.split(separator: ";") {
+            let f = part.split(separator: ":").map { Int($0) }
+            guard f.count == 2, let a = f[0], let b = f[1], a != b, a >= -1, b >= -1, a < marks, b < marks,
+                  out.count < limit, !out.contains(where: { ($0.0 == a && $0.1 == b) || ($0.0 == b && $0.1 == a) }) else { continue }
+            out.append((a, b))
+        }
+        return out
+    }
+
     static func selfTest() -> Int {
         var fails = 0
         func check(_ ok: Bool, _ what: String) { if !ok { fails += 1; print("FAIL: \(what)") } }
@@ -224,6 +271,10 @@ enum Measure {
         check(marksText(saved) == "120.5:2;300.0:0", "marks text")
         check(parseMarks("bad;1:99;2:0", max: 8).count == 2 && parseMarks("1:99", max: 8)[0].color == 5, "marks bad input")
         check(parseMarks("1:0;2:0;3:0", max: 2).count == 2, "marks limit")
+        let spans = parseSpans("-1:0;1:0;0:-1;2:2;5:1;x:1;1:-1", marks: 3, max: 4)
+        check(spans.count == 3 && spans[0] == (-1, 0) && spans[1] == (1, 0) && spans[2] == (1, -1), "spans parse")
+        check(spansText(spans) == "-1:0;1:0;1:-1", "spans text")
+        check(parseSpans("-1:0;-1:1;-1:2;0:1;0:2", marks: 3, max: 4).count == 4, "spans limit")
         return fails
     }
 }
@@ -264,7 +315,7 @@ enum Screens {
 
 // MARK: - Tools
 
-enum Region { case none, body, marker, knob, grip, arm, rim, mark }
+enum Region { case none, body, marker, knob, grip, arm, rim, mark, span }
 
 final class ToolWindow: NSWindow {
     override var canBecomeKey: Bool { true }
@@ -291,6 +342,40 @@ class Tool: NSObject {
     func markReading(_ m: Mark) -> String { "" }
     func markAt(_ p: NSPoint) -> Mark? { nil }
     func markValue(_ p: NSPoint) -> Double { 0 }
+
+    // How solid the tool's face is (its ticks, numbers and lines stay solid); set with Transparency in its menu
+    static let defaultOpacity: CGFloat = 0.8
+    var opacity = Tool.defaultOpacity
+
+    // Measurements between two of the tool's lines
+    static let maxSpans = 4
+    var spans: [Span] = []
+    var storeKey: String { "" }         // where its settings are saved
+    var markerName: String { "" }       // the red line's name in menus, and in the panel
+    var markerShort: String { "" }
+    func lineValue(_ l: Line) -> Double { 0 }
+    func spanReading(_ s: Span) -> String { "" }
+    func spanAt(_ p: NSPoint) -> Span? { nil }
+    func lineAt(_ p: NSPoint) -> Line? { nil }
+    func spansChanged() { view.needsDisplay = true }
+
+    var lines: [Line] { [.marker] + marks.map { .mark($0) } }
+    func lineIndex(_ l: Line) -> Int {
+        if case .mark(let m) = l { return marks.firstIndex { $0 === m } ?? -1 }
+        return -1
+    }
+    func line(_ i: Int) -> Line { i < 0 ? .marker : .mark(marks[i]) }
+    func lineName(_ l: Line) -> String { l == .marker ? markerName : "\(markName) \(lineIndex(l) + 1)" }
+    func shortName(_ l: Line) -> String { l == .marker ? markerShort : "\(markName.prefix(1))\(lineIndex(l) + 1)" }
+    func lineColor(_ l: Line) -> NSColor {
+        if case .mark(let m) = l { return Skin.markColors[m.color] }
+        return Skin.marker
+    }
+    func spanName(_ s: Span) -> String { "Δ " + shortName(s.a) + " ↔ " + shortName(s.b) }
+    var spansText: String { Measure.spansText(spans.map { (lineIndex($0.a), lineIndex($0.b)) }) }
+    func loadSpans(_ s: String) {
+        spans = Measure.parseSpans(s, marks: marks.count, max: Tool.maxSpans).map { Span(line($0.0), line($0.1)) }
+    }
 
     var localBounds: NSRect { .zero }
     func hit(_ p: NSPoint) -> Region { .none }
@@ -385,7 +470,7 @@ class Tool: NSObject {
 
     func drag(_ g: NSPoint, shift: Bool) {
         switch grabbed {
-        case .body:
+        case .body, .span:
             // Keep the grabbed point under the mouse
             let r = angle * .pi / 180, c = CGFloat(cos(r)), s = CGFloat(sin(r))
             origin = NSPoint(x: g.x - (grabLocal.x * c - grabLocal.y * s), y: g.y - (grabLocal.x * s + grabLocal.y * c))
@@ -413,6 +498,16 @@ class Tool: NSObject {
 
     func baseMenu(_ m: NSMenu) {
         m.addItem(.separator())
+        let tr = m.addItem(withTitle: "Transparency", action: nil, keyEquivalent: "")
+        let levels = NSMenu()
+        let now = Int(((1 - opacity) * 100).rounded())
+        for pct in stride(from: 0, through: 90, by: 10) {
+            let it = levels.addItem(withTitle: pct == 0 ? "0% (Solid)" : "\(pct)%", action: #selector(pickOpacity(_:)), keyEquivalent: "")
+            it.target = self
+            it.tag = pct
+            it.state = now == pct ? .on : .off
+        }
+        tr.submenu = levels
         let r0 = m.addItem(withTitle: "Turn to 0°", action: #selector(turnFlat), keyEquivalent: "")
         r0.target = self
         let r90 = m.addItem(withTitle: "Turn to 90°", action: #selector(turnUp), keyEquivalent: "")
@@ -427,30 +522,83 @@ class Tool: NSObject {
         m.addItem(withTitle: "Quit Screen Ruler", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
     }
 
-    // On a guide or mark: its color and Remove. Anywhere else on the tool: add one here.
+    // On a measurement: Remove. On a line: Measure To, and for a guide or mark its color and Remove.
+    // Anywhere else on the tool (or on the red line): add a guide or mark here.
     func addMarkItems(_ m: NSMenu) {
-        guard let over = markAt(menuAt) else {
+        if let s = spanAt(menuAt) {
+            let rm = m.addItem(withTitle: "Remove This Measurement", action: #selector(removeSpanItem(_:)), keyEquivalent: "")
+            rm.target = self
+            rm.representedObject = s
+            return
+        }
+        let line = lineAt(menuAt)
+        if let from = line { addMeasureItem(m, from: from) }
+        guard case .mark(let over)? = line else {
             guard marks.count < Tool.maxMarks else { return }
             let add = m.addItem(withTitle: "Add \(markName) Here", action: #selector(addMarkHere(_:)), keyEquivalent: "")
             add.target = self
             add.representedObject = NSNumber(value: markValue(menuAt))
             return
         }
+        m.addItem(.separator())
         for (i, name) in Skin.markColorNames.enumerated() {
             let it = m.addItem(withTitle: name, action: #selector(pickMarkColor(_:)), keyEquivalent: "")
             it.target = self
             it.tag = i
             it.representedObject = over
             it.state = over.color == i ? .on : .off
-            it.image = NSImage(size: NSSize(width: 12, height: 12), flipped: false) { r in
-                Skin.markColors[i].setFill()
-                r.fill()
-                return true
-            }
+            it.image = Skin.swatch(Skin.markColors[i])
         }
         let rm = m.addItem(withTitle: "Remove This \(markName)", action: #selector(removeMarkItem(_:)), keyEquivalent: "")
         rm.target = self
         rm.representedObject = over
+    }
+
+    // Measure To ▸ every other line not yet measured from this one
+    func addMeasureItem(_ m: NSMenu, from a: Line) {
+        let others = lines.filter { b in b != a && !spans.contains { $0.joins(a, b) } }
+        if lines.count < 2 {
+            m.addItem(withTitle: "Measure To… (add a \(markName.lowercased()) first)", action: nil, keyEquivalent: "")
+            return
+        }
+        if spans.count >= Tool.maxSpans || others.isEmpty {
+            m.addItem(withTitle: spans.count >= Tool.maxSpans ? "Measure To… (\(Tool.maxSpans) at most)" : "Measure To…",
+                      action: nil, keyEquivalent: "")
+            return
+        }
+        let item = m.addItem(withTitle: "Measure To", action: nil, keyEquivalent: "")
+        let sub = NSMenu()
+        for b in others {
+            let it = sub.addItem(withTitle: lineName(b), action: #selector(addSpanItem(_:)), keyEquivalent: "")
+            it.target = self
+            it.representedObject = Span(a, b)
+            it.image = Skin.swatch(lineColor(b))
+        }
+        item.submenu = sub
+    }
+
+    @objc func addSpanItem(_ sender: NSMenuItem) {
+        guard let s = sender.representedObject as? Span, spans.count < Tool.maxSpans,
+              !spans.contains(where: { $0.joins(s.a, s.b) }) else { return }
+        spans.append(s)
+        spansChanged()
+        app.changed()
+    }
+
+    @objc func removeSpanItem(_ sender: NSMenuItem) {
+        if let s = sender.representedObject as? Span { removeSpan(s) }
+    }
+
+    func removeSpan(_ s: Span) {
+        spans.removeAll { $0 === s }
+        spansChanged()
+        app.changed()
+    }
+
+    @objc func pickOpacity(_ sender: NSMenuItem) {
+        opacity = 1 - CGFloat(sender.tag) / 100
+        view.needsDisplay = true
+        app.changed()
     }
 
     @objc func addMarkHere(_ sender: NSMenuItem) {
@@ -475,7 +623,8 @@ class Tool: NSObject {
 
     func removeMark(_ m: Mark) {
         marks.removeAll { $0 === m }
-        view.needsDisplay = true
+        spans.removeAll { $0.has(m) }
+        spansChanged()
         app.changed()
     }
 
@@ -519,7 +668,7 @@ final class ToolView: NSView {
 
     func cursor(_ r: Region) -> NSCursor {
         switch r {
-        case .body: return tool.grabbed == .body ? .closedHand : .openHand
+        case .body, .span: return tool.grabbed == r ? .closedHand : .openHand
         case .none: return .arrow
         default: return .pointingHand
         }
@@ -578,7 +727,7 @@ final class ToolView: NSView {
 
 final class Ruler: Tool {
     static let height: CGFloat = 72, zeroMargin: CGFloat = 16, endMargin: CGFloat = 52, tagRoom: CGFloat = 26
-    static let minLength: CGFloat = 80, maxLength: CGFloat = 3000
+    static let minLength: CGFloat = 80, maxLength: CGFloat = 3000, spanRow: CGFloat = 20
 
     let index: Int
     var length: CGFloat = 400
@@ -593,13 +742,27 @@ final class Ruler: Tool {
     override var tint: NSColor { Skin.tints[index] }
     override var markName: String { "Guide" }
     override func markReading(_ m: Mark) -> String { Measure.format(m.at / unitPoints, unit) }
+    override var storeKey: String { "ruler.\(index)" }
+    override var markerName: String { "Red Marker" }
+    override var markerShort: String { "Red" }
+    override func lineValue(_ l: Line) -> Double {
+        if case .mark(let m) = l { return m.at }
+        return Double(marker)
+    }
+    override func spanReading(_ s: Span) -> String { Measure.format(abs(lineValue(s.a) - lineValue(s.b)) / unitPoints, unit) }
+    override func spansChanged() { layout() }
+
+    // The measurements hang below the ruler, one row each
+    var spanRoom: CGFloat { spans.isEmpty ? 0 : 6 + CGFloat(spans.count) * Ruler.spanRow }
+    func spanY(_ i: Int) -> CGFloat { -Ruler.height - 6 - Ruler.spanRow * (CGFloat(i) + 0.5) }
 
     var body: NSRect {
         NSRect(x: -Ruler.zeroMargin, y: -Ruler.height, width: length + Ruler.zeroMargin + Ruler.endMargin, height: Ruler.height)
     }
     override var localBounds: NSRect {
         var b = body
-        b.size.height += Ruler.tagRoom
+        b.size.height += Ruler.tagRoom + spanRoom
+        b.origin.y -= spanRoom
         return b
     }
     var knob: NSPoint { NSPoint(x: length + 24, y: -Ruler.height / 2) }
@@ -620,7 +783,7 @@ final class Ruler: Tool {
     var reading: String { Measure.format(Double(marker) / unitPoints, unit) }
 
     override func hit(_ p: NSPoint) -> Region {
-        guard body.contains(p) else { return .none }
+        guard body.contains(p) else { return spanAt(p) != nil ? .span : .none }
         if abs(p.x - marker) <= 6 && p.x <= length + 6 { return .marker }
         if markAt(p) != nil { return .mark }
         if hypot(p.x - knob.x, p.y - knob.y) <= 15 { return .knob }
@@ -641,6 +804,21 @@ final class Ruler: Tool {
     }
 
     override func markValue(_ p: NSPoint) -> Double { Double(min(length, max(0, p.x))) }
+
+    override func lineAt(_ p: NSPoint) -> Line? {
+        guard body.contains(p) else { return nil }
+        if abs(p.x - marker) <= 6 && p.x <= length + 6 { return .marker }
+        return markAt(p).map { .mark($0) }
+    }
+
+    // A measurement's row, from end to end (and under its reading)
+    override func spanAt(_ p: NSPoint) -> Span? {
+        for (i, s) in spans.enumerated() where abs(p.y - spanY(i)) <= Ruler.spanRow / 2 {
+            let xa = CGFloat(lineValue(s.a)), xb = CGFloat(lineValue(s.b)), mid = (xa + xb) / 2
+            if p.x >= min(xa, xb, mid - 45) - 4 && p.x <= max(xa, xb, mid + 45) + 4 { return s }
+        }
+        return nil
+    }
 
     override func begin(_ region: Region, _ g: NSPoint) {
         super.begin(region, g)
@@ -682,7 +860,7 @@ final class Ruler: Tool {
     override func drawLocal() {
         let b = body
         let shape = NSBezierPath(roundedRect: b, xRadius: 4, yRadius: 4)
-        tint.withAlphaComponent(0.84).setFill()
+        tint.withAlphaComponent(opacity).setFill()
         shape.fill()
         Skin.ink.withAlphaComponent(0.55).setStroke()
         shape.lineWidth = 1
@@ -733,6 +911,8 @@ final class Ruler: Tool {
         }
         drawMarker(at: marker, Skin.marker, reading, redTag, fRead)
 
+        for (i, s) in spans.enumerated() { drawSpan(s, y: spanY(i), fRead) }
+
         drawKnob(knob, 12)
 
         // Grip at the far end: drag to make the ruler longer or shorter
@@ -769,6 +949,54 @@ final class Ruler: Tool {
         if taken.contains(where: { $0.intersects(tag) }) && !taken.contains(where: { $0.intersects(lower) }) { tag = lower }
         taken.append(tag)
         return tag
+    }
+
+    // A dimension line below the ruler, between two of its lines, with dashed lines up to the edge in their colors
+    func drawSpan(_ s: Span, y: CGFloat, _ font: NSFont) {
+        let xa = CGFloat(lineValue(s.a)), xb = CGFloat(lineValue(s.b))
+        let lo = min(xa, xb), hi = max(xa, xb)
+        for (x, l) in [(xa, s.a), (xb, s.b)] {
+            let e = NSBezierPath()
+            e.move(to: NSPoint(x: x, y: -Ruler.height))
+            e.line(to: NSPoint(x: x, y: y - 6))
+            e.setLineDash([3, 2], count: 2, phase: 0)
+            e.lineWidth = 3
+            Skin.rgb(255, 255, 255, 0.7).setStroke()
+            e.stroke()
+            e.lineWidth = 1.2
+            lineColor(l).setStroke()
+            e.stroke()
+        }
+        let d = NSBezierPath()
+        d.move(to: NSPoint(x: lo, y: y))
+        d.line(to: NSPoint(x: hi, y: y))
+        d.lineWidth = 3.5
+        Skin.rgb(255, 255, 255, 0.75).setStroke()
+        d.stroke()
+        d.lineWidth = 1.3
+        Skin.ink.setStroke()
+        d.stroke()
+        if hi - lo >= 14 {
+            Skin.ink.setFill()
+            for (x, dir) in [(lo, CGFloat(1)), (hi, CGFloat(-1))] {
+                let a = NSBezierPath()
+                a.move(to: NSPoint(x: x, y: y))
+                a.line(to: NSPoint(x: x + 7 * dir, y: y + 3.5))
+                a.line(to: NSPoint(x: x + 7 * dir, y: y - 3.5))
+                a.close()
+                a.fill()
+            }
+        }
+        let label = "Δ " + spanReading(s)
+        let w = Skin.size(label, font).width + 10
+        let box = NSRect(x: (lo + hi) / 2 - w / 2, y: y - 8, width: w, height: 16)
+        Skin.rgb(255, 255, 255, 0.92).setFill()
+        let p = NSBezierPath(roundedRect: box, xRadius: 3, yRadius: 3)
+        p.fill()
+        Skin.ink.setStroke()
+        p.lineWidth = 1
+        p.stroke()
+        text(label, font, Skin.ink, at: NSPoint(x: box.midX, y: box.midY))
     }
 
     func drawMarker(at x: CGFloat, _ color: NSColor, _ s: String, _ tag: NSRect, _ font: NSFont) {
@@ -894,11 +1122,44 @@ final class Protractor: Tool {
     static let bar: CGFloat = 26, minRadius: CGFloat = 70
     var radius: CGFloat = 150
     var arm = 60.0          // degrees from the baseline, 0…180
+    let index: Int
 
-    override var title: String { "Protractor" }
-    override var tint: NSColor { Skin.protractorTint }
+    init(index: Int) { self.index = index }
+
+    override var title: String { "Protractor \(index + 1)" }
+    override var tint: NSColor { Skin.protractorTints[index] }
     override var markName: String { "Mark" }
     override func markReading(_ m: Mark) -> String { Measure.angle(m.at) }
+    override var storeKey: String { index == 0 ? "protractor" : "protractor.\(index)" }   // the first as in 1.1
+    override var markerName: String { "Red Arm" }
+    override var markerShort: String { "Arm" }
+    override func lineValue(_ l: Line) -> Double {
+        if case .mark(let m) = l { return m.at }
+        return arm
+    }
+    override func spanReading(_ s: Span) -> String { Measure.angle(abs(lineValue(s.a) - lineValue(s.b))) }
+
+    // The measurements are arcs around the center, one inside the other
+    func spanRadius(_ i: Int) -> CGFloat { 44 + CGFloat(i) * max(14, min(24, (radius - 95) / 3)) }
+    let fSpan = Skin.font("Menlo", 11, bold: true)
+
+    // Where each measurement's reading goes: the middle of its arc, or further along it if that would cover another one
+    func spanLabels() -> [NSRect] {
+        var out: [NSRect] = []
+        for (i, s) in spans.enumerated() {
+            let va = lineValue(s.a), vb = lineValue(s.b), rr = spanRadius(i)
+            let w = Skin.size("Δ " + spanReading(s), fSpan).width + 10
+            var pick: NSRect?
+            for f in [0.5, 0.3, 0.7, 0.15, 0.85] {
+                let c = polar(va + (vb - va) * f, rr)
+                let box = NSRect(x: c.x - w / 2, y: c.y - 8, width: w, height: 16)
+                if pick == nil { pick = box }
+                if !out.contains(where: { $0.insetBy(dx: -2, dy: -1).intersects(box) }) { pick = box; break }
+            }
+            out.append(pick!)
+        }
+        return out
+    }
 
     var armLength: CGFloat { radius + 36 }
     var knob: NSPoint { NSPoint(x: radius + 24, y: -Protractor.bar / 2) }
@@ -919,6 +1180,7 @@ final class Protractor: Tool {
         let len = hypot(e.x, e.y), t = (p.x * e.x + p.y * e.y) / len
         if t > 20 && t <= len && abs(p.x * e.y - p.y * e.x) / len <= 5 { return .arm }
         if markAt(p) != nil { return .mark }
+        if spanAt(p) != nil { return .span }
         if hypot(p.x - knob.x, p.y - knob.y) <= 14 { return .knob }
         let r = hypot(p.x, p.y)
         if p.y >= 0 && r <= radius { return r >= radius - 8 ? .rim : .body }
@@ -940,6 +1202,26 @@ final class Protractor: Tool {
             if d <= 4 && d < reach { best = m; reach = d }
         }
         return best
+    }
+
+    override func lineAt(_ p: NSPoint) -> Line? {
+        let e = armEnd
+        let len = hypot(e.x, e.y), t = (p.x * e.x + p.y * e.y) / len
+        if hypot(p.x - e.x, p.y - e.y) <= 11 || (t > 20 && t <= len && abs(p.x * e.y - p.y * e.x) / len <= 5) { return .marker }
+        return markAt(p).map { .mark($0) }
+    }
+
+    // A measurement's arc, or its reading
+    override func spanAt(_ p: NSPoint) -> Span? {
+        guard !spans.isEmpty else { return nil }
+        let r = hypot(p.x, p.y), a = atan2(Double(p.y), Double(p.x)) * 180 / .pi
+        let labels = spanLabels()
+        for (i, s) in spans.enumerated() where labels[i].contains(p) { return s }
+        for (i, s) in spans.enumerated() {
+            let va = lineValue(s.a), vb = lineValue(s.b), rr = spanRadius(i)
+            if abs(r - rr) <= 5 && a >= min(va, vb) - 1 && a <= max(va, vb) + 1 { return s }
+        }
+        return nil
     }
 
     // The angle of a point seen from the center, 0…180°
@@ -980,7 +1262,7 @@ final class Protractor: Tool {
                                 xRadius: 4, yRadius: 4)
         shape.append(base)
         shape.windingRule = .nonZero
-        tint.withAlphaComponent(0.8).setFill()
+        tint.withAlphaComponent(opacity).setFill()
         shape.fill()
         Skin.ink.withAlphaComponent(0.55).setStroke()
         shape.lineWidth = 1
@@ -1047,6 +1329,36 @@ final class Protractor: Tool {
         Skin.ink.setFill()
         NSBezierPath(ovalIn: NSRect(x: -2.5, y: -2.5, width: 5, height: 5)).fill()
 
+        // The measurements: an arc between two lines, with a dot in each line's color and the angle between them
+        let labels = spanLabels()
+        for (i, s) in spans.enumerated() {
+            let va = lineValue(s.a), vb = lineValue(s.b), rr = spanRadius(i)
+            let arc = NSBezierPath()
+            arc.appendArc(withCenter: .zero, radius: rr, startAngle: CGFloat(min(va, vb)), endAngle: CGFloat(max(va, vb)))
+            arc.lineWidth = 3.5
+            Skin.rgb(255, 255, 255, 0.75).setStroke()
+            arc.stroke()
+            arc.lineWidth = 1.4
+            Skin.ink.setStroke()
+            arc.stroke()
+            for (v, l) in [(va, s.a), (vb, s.b)] {
+                let c = polar(v, rr)
+                lineColor(l).setFill()
+                NSBezierPath(ovalIn: NSRect(x: c.x - 3.5, y: c.y - 3.5, width: 7, height: 7)).fill()
+            }
+        }
+        // Readings after all the arcs, so no arc crosses one
+        for (i, s) in spans.enumerated() {
+            let box = labels[i]
+            Skin.rgb(255, 255, 255, 0.92).setFill()
+            let p = NSBezierPath(roundedRect: box, xRadius: 3, yRadius: 3)
+            p.fill()
+            Skin.ink.setStroke()
+            p.lineWidth = 1
+            p.stroke()
+            text("Δ " + spanReading(s), fSpan, Skin.ink, at: NSPoint(x: box.midX, y: box.midY))
+        }
+
         let fBig = Skin.font("Menlo", 15, bold: true)
         let label = Measure.angle(arm)
         let mid = (arm < 90 ? arm + 90 : arm - 90) * .pi / 180     // away from the arm
@@ -1066,12 +1378,12 @@ final class Protractor: Tool {
             (marks.isEmpty ? "" : "," + Measure.marksText(marks))
     }
 
-    static func parse(_ s: String) -> Protractor? {
+    static func parse(_ s: String, index: Int) -> Protractor? {
         let fields = s.split(separator: ",").map(String.init)
         guard fields.count == 5 || fields.count == 6 else { return nil }
         let f = fields.prefix(5).compactMap { Double($0) }
         guard f.count == 5 else { return nil }
-        let p = Protractor()
+        let p = Protractor(index: index)
         p.origin = NSPoint(x: f[0], y: f[1])
         p.angle = Measure.norm180(f[2])
         p.radius = max(minRadius, CGFloat(f[3]))
@@ -1090,7 +1402,7 @@ final class Protractor: Tool {
 
 final class PanelView: NSView {
     enum Hit: Equatable { case none, addRuler, addProtractor, about, row(Int), close(Int) }
-    struct Row { let tool: Tool?; let name: String; let values: [String]; let tint: NSColor?; var mark: Mark? = nil }
+    struct Row { let tool: Tool?; let name: String; let values: [String]; let tint: NSColor?; var mark: Mark? = nil; var span: Span? = nil }
 
     weak var app: AppDelegate!
     var rows: [Row] = []
@@ -1127,7 +1439,7 @@ final class PanelView: NSView {
     func enabled(_ h: Hit) -> Bool {
         switch h {
         case .addRuler: return app.rulers.count < 3
-        case .addProtractor: return app.protractor == nil
+        case .addProtractor: return app.protractors.count < 3
         default: return true
         }
     }
@@ -1150,7 +1462,7 @@ final class PanelView: NSView {
         case .row(let i): if let t = rows[i].tool { t.window.orderFrontRegardless(); t.window.makeKey() }
         case .close(let i):
             if let t = rows[i].tool {
-                if let m = rows[i].mark { t.removeMark(m) } else { app.remove(t) }
+                if let s = rows[i].span { t.removeSpan(s) } else if let m = rows[i].mark { t.removeMark(m) } else { app.remove(t) }
             }
         case .none: break
         }
@@ -1299,7 +1611,7 @@ enum IconArt {
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItemValidation {
     var rulers: [Ruler] = []
-    var protractor: Protractor?
+    var protractors: [Protractor] = []
     var panelWindow: NSWindow!
     var panel: PanelView!
     var poll: Timer?
@@ -1318,10 +1630,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         buildMenu()
 
         for i in 0..<3 {
-            if let s = d.string(forKey: "ruler.\(i)"), let r = Ruler.parse(s, index: i) { attach(r) }
+            if let s = d.string(forKey: "ruler.\(i)"), let r = Ruler.parse(s, index: i) { restoreExtras(r); attach(r) }
         }
-        if let s = d.string(forKey: "protractor"), let p = Protractor.parse(s) { attach(p) }
-        if rulers.isEmpty && protractor == nil { addRuler() }
+        for i in 0..<3 {
+            let key = i == 0 ? "protractor" : "protractor.\(i)"
+            if let s = d.string(forKey: key), let p = Protractor.parse(s, index: i) { restoreExtras(p); attach(p) }
+        }
+        if rulers.isEmpty && protractors.isEmpty { addRuler() }
         for t in tools where !NSScreen.screens.contains(where: { $0.frame.contains(t.origin) }) { place(t) }
 
         refreshPanel()
@@ -1338,7 +1653,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         poll = Timer.scheduledTimer(withTimeInterval: 1.0 / 30, repeats: true) { [weak self] _ in self?.updatePassThrough() }
     }
 
-    var tools: [Tool] { rulers.map { $0 as Tool } + (protractor.map { [$0 as Tool] } ?? []) }
+    var tools: [Tool] { rulers.map { $0 as Tool } + protractors.map { $0 as Tool } }
+
+    // Transparency and measurements, saved beside the tool's own setting
+    func restoreExtras(_ t: Tool) {
+        let o = d.double(forKey: t.storeKey + ".opacity")
+        if o > 0 { t.opacity = CGFloat(min(1, max(0.1, o))) }
+        if let s = d.string(forKey: t.storeKey + ".spans") { t.loadSpans(s) }
+    }
 
     func updatePassThrough() {
         let g = NSEvent.mouseLocation
@@ -1351,7 +1673,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     func attach(_ t: Tool) {
         t.app = self
         if let r = t as? Ruler { rulers.append(r); rulers.sort { $0.index < $1.index } }
-        if let p = t as? Protractor { protractor = p }
+        if let p = t as? Protractor { protractors.append(p); protractors.sort { $0.index < $1.index } }
         t.makeWindow()
     }
 
@@ -1363,7 +1685,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             r.marker = floor(r.length / 2)
             r.origin = NSPoint(x: v.midX - r.length / 2, y: v.midY + 120 - CGFloat(r.index) * 110)
         } else if let p = t as? Protractor {
-            p.origin = NSPoint(x: v.midX, y: max(v.minY + 50, v.midY - 120 - p.radius - 30))
+            p.origin = NSPoint(x: v.midX + CGFloat(p.index) * 60, y: max(v.minY + 50, v.midY - 120 - p.radius - 30) + CGFloat(p.index) * 30)
         }
         t.angle = 0
         t.layout()
@@ -1379,8 +1701,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
 
     @objc func addProtractor() {
-        guard protractor == nil else { return }
-        let p = Protractor()
+        guard let i = (0..<3).first(where: { i in !protractors.contains { $0.index == i } }) else { return }
+        let p = Protractor(index: i)
         attach(p)
         place(p)
         changed()
@@ -1388,8 +1710,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     func remove(_ t: Tool) {
         t.close()
-        if let r = t as? Ruler { rulers.removeAll { $0 === r }; d.removeObject(forKey: "ruler.\(r.index)") }
-        if t === protractor { protractor = nil; d.removeObject(forKey: "protractor") }
+        rulers.removeAll { $0 === t }
+        protractors.removeAll { $0 === t }
+        for k in ["", ".opacity", ".spans"] { d.removeObject(forKey: t.storeKey + k) }
         changed()
     }
 
@@ -1400,8 +1723,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         updateCrossings()
         refreshPanel()
         guard save else { return }
-        for r in rulers { d.set(r.serialize(), forKey: "ruler.\(r.index)") }
-        if let p = protractor { d.set(p.serialize(), forKey: "protractor") }
+        for t in tools {
+            d.set(t.serialize(), forKey: t.storeKey)
+            d.set(Double(t.opacity), forKey: t.storeKey + ".opacity")
+            if t.spans.isEmpty { d.removeObject(forKey: t.storeKey + ".spans") } else { d.set(t.spansText, forKey: t.storeKey + ".spans") }
+        }
     }
 
     func updateCrossings() {
@@ -1432,6 +1758,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 rows.append(.init(tool: t, name: "\(t.markName) \(i + 1)", values: [t.markReading(m), ""],
                                   tint: Skin.markColors[m.color], mark: m))
             }
+            for s in t.spans {
+                rows.append(.init(tool: t, name: t.spanName(s), values: [t.spanReading(s), ""], tint: nil, span: s))
+            }
         }
         for r in rulers {
             rows.append(.init(tool: r, name: r.title, values: r.readouts(), tint: r.tint))
@@ -1443,7 +1772,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                                   values: [Measure.angle(Measure.between(a.angle, b.angle))], tint: nil))
             }
         }
-        if let p = protractor {
+        for p in protractors {
             rows.append(.init(tool: p, name: p.title, values: p.readouts(), tint: p.tint))
             addMarkRows(p)
         }
@@ -1503,7 +1832,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "Screen Ruler",
-            .applicationVersion: "1.1",
+            .applicationVersion: "1.2",
             .version: "",
             .credits: credits,
             NSApplication.AboutPanelOptionKey(rawValue: "Copyright"): "© 2026 Mauricio Mendivelso · MIT License",
@@ -1543,7 +1872,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if item.action == #selector(addRuler) { return rulers.count < 3 }
-        if item.action == #selector(addProtractor) { return protractor == nil }
+        if item.action == #selector(addProtractor) { return protractors.count < 3 }
         return true
     }
 
