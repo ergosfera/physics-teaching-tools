@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Measuring Force Teacher</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+<link rel="stylesheet" href="../lab-teacher.css">
+<style>
+  .ck { text-align: center; padding: 8px 4px !important; }
+  table.t th.ck { font-size: .66rem; white-space: normal; min-width: 54px; line-height: 1.2; vertical-align: bottom; }
+  table.t th.ck i { display: block; font-style: normal; color: var(--accent); }
+  .ok-mark { color: var(--green); font-weight: 800; }
+  .meter { display: inline-block; width: 70px; height: 9px; border-radius: 5px; background: var(--surface2); border: 1px solid var(--border); vertical-align: middle; margin-left: 6px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--green); }
+  .cklist { display: grid; gap: 4px; font-size: .9rem; }
+  .st-tiles { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .st-tiles div { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 8px; text-align: center; font-size: .78rem; color: var(--muted); }
+  .st-tiles b { display: block; font-size: 1.4rem; color: var(--text); }
+  .exit-col { text-align: center; font-weight: 800; }
+  @media (max-width: 700px) { .st-tiles { grid-template-columns: repeat(4, 1fr); } }
+</style>
+</head>
+<body>
+<script src="../lab-teacher.js"></script>
+<script src="measuring_force.js"></script>
+<script>
+// Measuring Force (class page): how far each pair got, live, and the exit check. Checkpoints, first tries,
+// written answers and the exit questions come from measuring_force.js, everything else from ../lab-teacher.js.
+// Turn "Live" on in the top bar to refresh every 20 seconds while the class works.
+const CK = FORCE.checkpoints, FT = FORCE.firstTry, TOT = CK.length, EX = FORCE.exit;
+const ST = FORCE.stations;
+const minsAgo = G => G.s.submittedAt ? Math.round((Date.now() - new Date(G.s.submittedAt)) / 60000) : null;
+const minsIn = G => G.s.startedAt ? Math.round(((G.s.submittedAt ? new Date(G.s.submittedAt) : Date.now()) - new Date(G.s.startedAt)) / 60000) : null;
+const expected = m => { let a = 0; for (let i = 0; i < FORCE.minutes.length; i++) { a += FORCE.minutes[i]; if (m < a) return i + 1; } return 7; };
+
+function ckBars() {
+  return `<div class="bars">${CK.map(c => bar(`${c.st} · ${c.short}`, GROUPS.filter(G => G.done[c.id]).length)).join('')}</div>`;
+}
+function ftBars() {
+  return `<div class="bars">${FT.map(q => ({ q, n: GROUPS.filter(G => G.ft[q.id] === true).length, t: GROUPS.filter(G => G.ft[q.id] != null).length }))
+    .sort((a, b) => a.n / Math.max(1, a.t) - b.n / Math.max(1, b.t))
+    .map(({ q, n, t }) => bar(`${q.short} (${n}/${t})`, n)).join('')}</div>`;
+}
+function exitBars() {
+  const done = GROUPS.filter(G => G.exit);
+  if (!done.length) return '<p class="muted">No pair has handed in the exit check yet.</p>';
+  return `<div class="bars">${EX.map(q => ({ q, n: done.filter(G => G.exit.ans[q.id] === 0).length }))
+    .sort((a, b) => a.n - b.n).map(({ q, n }) => bar(`${q.ic} ${q.q.slice(0, 60)}${q.q.length > 60 ? '…' : ''} (${n}/${done.length})`, n)).join('')}</div>`;
+}
+function stationTiles() {
+  return `<div class="st-tiles">${ST.map((name, i) => `<div><b>${GROUPS.filter(G => G.station === i + 1).length}</b>${i + 1} · ${esc(name)}<br><span style="font-size:.7rem">${FORCE.minutes[i]} min</span></div>`).join('')}</div>`;
+}
+
+LabTeacher({
+  id: FORCE.classId,
+  title: 'Measuring Force',
+  icon: '💪',
+  studentPage: 'measuring_force_class.html',
+  tagline: '70 minutes of autonomous work: the newton, the kilogram-force and reading a dynamometer with its uncertainty',
+  titleExtra: () => GROUPS.length ? ` · median ${fmt(median(GROUPS.map(G => G.n)))}/${TOT} checkpoints` : '',
+
+  errors: {},
+  questions: [
+    ...FORCE.texts.map(t => ({ id: t.id, title: t.title, get: s => s.p?.[t.id] })),
+  ],
+
+  jump: () => [['predict', 'Q1 · Prediction'], ['define', 'Q2 · Force'], ['scaleAns', 'Q3 · The scale'], ['report', 'Q4 · Zero error']],
+
+  analyze(s) {
+    const p = s.p || {}, done = {}, ft = {};
+    CK.forEach(c => { try { done[c.id] = !!c.done(p); } catch (e) { done[c.id] = false; } });
+    FT.forEach(q => { const f = p.q?.[q.id]; ft[q.id] = f ? !!f.firstOk : null; });
+    const exit = p.exit && p.exit.at ? p.exit : null;
+    return { done, n: CK.filter(c => done[c.id]).length, ft, station: p.station || 1, exit, p };
+  },
+  checks(G) {
+    const out = [], m = minsAgo(G), inn = minsIn(G);
+    if (G.n === TOT) out.push(['All done ✓', '']);
+    else if (m != null && m >= 5) out.push([`Nothing new for ${m} min`, 'red']);
+    if (inn != null && !G.exit && G.station < expected(inn) - 1) out.push([`Behind: should be in station ${expected(inn)}`, 'red']);
+    if (G.p.dyn?.over) out.push(['Overloaded the dynamometer', '']);
+    if (G.station >= 4 && !G.done.oneN) out.push(['Skipped the 1 N mission', '']);
+    if (G.exit && G.exit.score <= 4) out.push([`Exit check ${G.exit.score}/${EX.length}`, 'red']);
+    return out;
+  },
+
+  summaryHtml: `
+    <div class="card"><h3>Where the pairs are now</h3><div id="where"></div></div>
+    <div class="card"><h3>Exit check: right answers per question (hardest first)</h3><div id="exb"></div></div>
+    <div class="card"><h3>Checkpoints: how many pairs have each one</h3><div id="ckb"></div></div>
+    <div class="card"><h3>Right on the first try (hardest first)</h3><div id="ftb"></div></div>`,
+  renderSummary() {
+    const ex = GROUPS.filter(G => G.exit);
+    const ckMiss = CK.map(c => ({ c, n: GROUPS.filter(G => G.done[c.id]).length })).sort((a, b) => a.n - b.n)[0];
+    document.getElementById('tiles').innerHTML = `
+      <div class="tile"><div class="k">Pairs working</div><div class="v">${GROUPS.length}</div><div class="s">${CFG.session ? 'session ' + esc(CFG.session) : 'all sessions'}</div></div>
+      <div class="tile"><div class="k">Median progress</div><div class="v">${fmt(median(GROUPS.map(G => G.n)))}<small>/${TOT}</small></div><div class="s">checkpoints</div></div>
+      <div class="tile"><div class="k">Exit check</div><div class="v">${ex.length ? fmt(median(ex.map(G => G.exit.score))) : '—'}<small>/${EX.length}</small></div><div class="s">median of ${ex.length} handed in</div></div>
+      <div class="tile"><div class="k">Fewest pairs have</div><div class="v" style="font-size:1rem">${ckMiss ? esc(ckMiss.c.short) : '—'}</div><div class="s">${ckMiss ? `${ckMiss.n}/${GROUPS.length} pairs · station ${ckMiss.c.st}` : ''}</div></div>`;
+    document.getElementById('where').innerHTML = stationTiles();
+    document.getElementById('exb').innerHTML = exitBars();
+    document.getElementById('ckb').innerHTML = ckBars();
+    document.getElementById('ftb').innerHTML = ftBars();
+  },
+
+  resultsHead: `<th>Progress</th><th>Now in</th><th>Exit</th><th>Last change</th>` + CK.map(c => `<th class="ck" title="${esc(c.long)}"><i>S${c.st}</i>${esc(c.short)}</th>`).join(''),
+  resultsRow(G) {
+    const m = minsAgo(G);
+    return `<td><b>${G.n}</b><span class="muted">/${TOT}</span><span class="meter"><i style="width:${G.n / TOT * 100}%"></i></span></td>
+      <td>${G.station} · ${esc(ST[G.station - 1] || '')}</td>
+      <td class="exit-col">${G.exit ? G.exit.score + '/' + EX.length : '<span class="muted">—</span>'}</td>
+      <td class="muted">${m == null ? '—' : m < 1 ? 'now' : m + ' min ago'}</td>` +
+      CK.map(c => `<td class="ck">${G.done[c.id] ? '<span class="ok-mark">✓</span>' : '<span class="muted">·</span>'}</td>`).join('');
+  },
+
+  slides: () => [
+    { html: `<h2>Where the pairs are now</h2>${stationTiles()}<div class="card" style="margin-top:14px">${ckBars()}</div>` },
+    { html: `<h2>Exit check</h2><div class="card">${exitBars()}</div>` },
+    { html: `<h2>Right on the first try</h2><div class="card">${ftBars()}</div>` },
+  ],
+
+  detail(G) {
+    const p = G.p, m = minsAgo(G), inn = minsIn(G);
+    const ftRow = q => {
+      const f = p.q?.[q.id];
+      return `<tr><td>${esc(q.short)}</td><td>${f ? esc(f.first) : '<span class="muted">—</span>'}</td><td>${f ? (f.firstOk ? '<span class="ok-mark">✓</span>' : '✗') : ''}</td><td class="muted">${f ? f.tries + (f.tries === 1 ? ' try' : ' tries') : ''}</td></tr>`;
+    };
+    const reads = (p.reads || []).slice(-8);
+    return `
+      <div class="tiles">
+        <div class="tile"><div class="k">Progress</div><div class="v">${G.n}<small>/${TOT}</small></div><div class="s">now in station ${G.station}</div></div>
+        <div class="tile"><div class="k">Working for</div><div class="v">${inn == null ? '—' : inn}<small> min</small></div><div class="s">${inn == null ? '' : 'expected: station ' + expected(inn)}</div></div>
+        <div class="tile"><div class="k">Exit check</div><div class="v">${G.exit ? G.exit.score : '—'}<small>/${EX.length}</small></div><div class="s">${G.exit ? new Date(G.exit.at).toLocaleTimeString() : 'not handed in'}</div></div>
+        <div class="tile"><div class="k">Last change</div><div class="v" style="font-size:1rem">${m == null ? '—' : m < 1 ? 'just now' : m + ' min ago'}</div><div class="s"></div></div>
+      </div>
+      ${G.checks.length ? `<div>${flagsHtml(G)}</div>` : ''}
+      <div class="card"><h3>Checkpoints</h3><div class="cklist">${CK.map(c => `<div>${G.done[c.id] ? '<span class="ok-mark">✓</span>' : '<span class="muted">○</span>'} <b>S${c.st}</b> · ${esc(c.long)}</div>`).join('')}</div></div>
+      ${G.exit ? `<div class="card"><h3>Exit check answers</h3><div class="table-wrap"><table class="t"><thead><tr><th>Question</th><th>Their answer</th><th></th></tr></thead><tbody>
+        ${EX.map(q => { const a = G.exit.ans[q.id]; return `<tr><td>${q.ic} ${esc(q.q)}</td><td>${a == null ? '—' : esc(q.o[a])}</td><td>${a === 0 ? '<span class="ok-mark">✓</span>' : '✗'}</td></tr>`; }).join('')}</tbody></table></div></div>` : ''}
+      <div class="card"><h3>Choice questions: first try</h3><div class="table-wrap"><table class="t">
+        <thead><tr><th>Question</th><th>First choice</th><th></th><th></th></tr></thead><tbody>${FT.map(ftRow).join('')}</tbody></table></div></div>
+      ${reads.length ? `<div class="card"><h3>Scale readings (Station 6A)</h3><div class="table-wrap"><table class="t"><thead><tr><th>Scale</th><th>Pointer at</th><th>They wrote</th><th></th></tr></thead><tbody>
+        ${reads.map(r => `<tr><td>0 – ${r.max} N, div ${r.div}</td><td>${fmt(r.truth, 3)} N</td><td>(${r.val} ± ${r.unc}) N</td><td>${r.ok ? '<span class="ok-mark">✓</span>' : '✗'}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
+      <div class="answers">${FORCE.texts.map(t => detailAnswer(t.title, p[t.id])).join('')}</div>`;
+  },
+
+  computed: G => ({ checkpoints: G.n, out_of: TOT, done: CK.filter(c => G.done[c.id]).map(c => c.id), station: G.station, exit: G.exit ? G.exit.score : null }),
+  csv: {
+    head: ['session', 'group', 'students', 'checkpoints', 'station', 'exit_score', 'last_change', ...CK.map(c => c.id), ...FT.map(q => q.id + '_first_ok'), ...EX.map(q => 'exit_' + q.id), ...FORCE.texts.map(t => t.id)],
+    rows: G => [[G.s.session, G.s.group, who(G), G.n, G.station, G.exit ? G.exit.score : '', G.s.submittedAt, ...CK.map(c => G.done[c.id]), ...FT.map(q => G.ft[q.id] ?? ''),
+      ...EX.map(q => G.exit ? (G.exit.ans[q.id] === 0) : ''), ...FORCE.texts.map(t => G.p[t.id] || '')]],
+  },
+
+  demo() {
+    const names = ['Ana Ruiz', 'Juan Pérez', 'Laura Gómez', 'Andrés Díaz', 'Sofía Castro', 'Mateo Rojas', 'Valentina Mora', 'Samuel Ortiz', 'Isabella Vargas', 'Tomás Herrera', 'Mariana López', 'Nicolás Silva'];
+    const T = {
+      predict: ['I think it measures mass because it says kg.', 'It measures how hard you push on it, so a force, but it shows kg.'],
+      define: ['A force is a push or a pull between two objects, like when I kick a ball: my foot and the ball interact.', 'A force is energy that moves things.'],
+      scaleAns: ['It measures the force we push with, and divides by 9.8 to show kg. On the Moon it would show less kg but our mass is the same.', 'It measures mass.'],
+      report: ['We report (3.0 ± 0.1) N because the dynamometer was not zeroed. It is a systematic error, every reading is 0.2 N too high.', '3.2 N, it was random.'],
+    };
+    const ok = (first = true) => ({ first: 'demo', firstOk: first, tries: first ? 1 : 2, done: true });
+    const reports = [];
+    for (let i = 0; i < 6; i++) {
+      const lvl = [21, 19, 15, 11, 7, 3][i], good = i < 3;
+      const p = { station: lvl >= 20 ? 7 : lvl >= 15 ? 6 : lvl >= 12 ? 5 : lvl >= 9 ? 4 : lvl >= 6 ? 3 : lvl >= 3 ? 2 : 1, q: {}, rv: {}, planets: { earth: true, moon: true, mars: true }, kgfPlanets: {}, runs: [], conv: {}, dyn: { pts: [] }, reads: [], rel: {} };
+      p.q.w1 = ok(Math.random() < .6);
+      p.predict = T.predict[good ? 1 : 0];
+      if (lvl >= 4) { [0, 1, 2, 3].forEach(k => p.q['sc' + k] = ok(Math.random() < (k === 3 ? .35 : .75))); p.q.vec = ok(Math.random() < .5); }
+      if (lvl >= 6) p.define = T.define[good ? 0 : 1] + ' And it can change the shape.';
+      if (lvl >= 7) p.runs = [{ F: 2, m: 2 }, { F: 1, m: 1 }];
+      if (lvl >= 8) { p.q.n1 = ok(Math.random() < .5); p.q.n2 = ok(true); }
+      if (lvl >= 9) [0, 1, 2].forEach(k => p.q['est' + k] = ok(Math.random() < .5));
+      if (lvl >= 10) { p.q.k1 = ok(Math.random() < .3); p.kgfPlanets = { earth: true, moon: true, jupiter: true }; }
+      if (lvl >= 11) p.conv = { 0: { ok: true, tries: 1 }, 1: { ok: true, tries: 2 }, 2: { ok: true, tries: 1 } };
+      if (lvl >= 12) p.scaleAns = T.scaleAns[good ? 0 : 1] + ' That is what we think now after the station.';
+      if (lvl >= 13) { p.dyn = { pts: [1, 2, 3, 5].map(F => ({ F, x: F, z: true })), range: true, div: true, over: i % 2 }; }
+      if (lvl >= 14) { p.q.lin = ok(true); p.q.over = ok(Math.random() < .7); }
+      if (lvl >= 16) p.reads = [{ max: 5, div: .1, truth: 2.35, val: 2.35, unc: .1, ok: false }, { max: 5, div: .1, truth: 2.35, val: 2.35, unc: .05, ok: true }, { max: 1, div: .02, truth: .46, val: .46, unc: .01, ok: true }, { max: 10, div: .2, truth: 6.4, val: 6.4, unc: .1, ok: true }];
+      if (lvl >= 17) { p.eyeMoved = true; p.q.par = ok(true); p.q.choose = ok(Math.random() < .5); p.rel = { a: true, b: true }; }
+      if (lvl >= 18) { p.target = true; p.q.sys = ok(Math.random() < .6); }
+      if (lvl >= 19) p.report = T.report[good ? 0 : 1] + ' The reading had an uncertainty of half a division.';
+      if (lvl >= 21 || (lvl >= 19 && i === 1)) {
+        const ans = {}; EX.forEach(q => ans[q.id] = Math.random() < (good ? .85 : .5) ? 0 : 1 + Math.floor(Math.random() * 3));
+        p.exit = { ans, score: EX.filter(q => ans[q.id] === 0).length, at: new Date(Date.now() - 2 * 60000).toISOString() };
+      }
+      reports.push({ schema: 1, lab: FORCE.classId, id: 'demo' + i, session: 'DEMO', mode: 'group', group: String(i + 1), students: [names[2 * i], names[2 * i + 1]], p,
+        startedAt: new Date(Date.now() - 55 * 60000).toISOString(), submittedAt: new Date(Date.now() - (i === 5 ? 9 : i) * 60000).toISOString() });
+    }
+    return reports;
+  },
+});
+</script>
+</body>
+</html>

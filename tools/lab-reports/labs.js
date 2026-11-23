@@ -57,6 +57,12 @@ const LAB_TOPICS = [
         teacher: 'mechanics/circular_motion_class_teacher.html',
       },
       {
+        id: 'force-class', icon: '💪', title: 'Measuring Force',
+        desc: '70 minutes of work on your own, in seven stations. Take a bathroom scale to the Moon, see forces as interactions, make 1 N on an air track, compare newtons and kilograms-force, open up a dynamometer, and read it with its uncertainty, without parallax or zero errors. It ends with an exit check. Your teacher sees each pair\'s progress live.',
+        student: 'mechanics/measuring_force_class.html',
+        teacher: 'mechanics/measuring_force_class_teacher.html',
+      },
+      {
         id: 'circles-test', icon: '📝', title: 'Going in Circles · Pair Test',
         desc: '16 questions and one written answer on circular motion, done in pairs on one device. Discuss, agree, hand in, and then see your score with the explanations.',
         student: 'mechanics/circular_motion_test.html',

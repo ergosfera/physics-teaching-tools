@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Measuring Force</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💪</text></svg>">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #1c2128; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --accent-soft: rgba(88,166,255,.12);
+    --green: #3fb950; --green-soft: rgba(63,185,80,.12); --amber: #d29922; --amber-soft: rgba(210,153,34,.14);
+    --red: #f85149; --red-soft: rgba(248,81,73,.12); --purple: #bc8cff; --purple-soft: rgba(188,140,255,.13);
+    --radius: 12px;
+  }
+  body.light {
+    --bg: #f6f8fa; --surface: #ffffff; --surface2: #f0f3f6; --border: #d0d7de;
+    --text: #1f2328; --muted: #656d76; --accent: #0969da; --accent-soft: rgba(9,105,218,.08);
+    --green: #1a7f37; --green-soft: rgba(26,127,55,.09); --amber: #9a6700; --amber-soft: rgba(154,103,0,.10);
+    --red: #cf222e; --red-soft: rgba(207,34,46,.08); --purple: #8250df; --purple-soft: rgba(130,80,223,.09);
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.5; min-height: 100vh; }
+  button, input, select { font: inherit; color: inherit; }
+
+  header {
+    position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 10px 16px; display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap;
+  }
+  header a.back { color: var(--muted); text-decoration: none; font-size: .82rem; }
+  header a.back:hover { color: var(--accent); }
+  header h1 { font-size: 1.1rem; font-weight: 800; letter-spacing: -.3px; }
+  header h1 span { color: var(--accent); }
+  nav.stations { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+  nav.stations button {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 20px;
+    padding: 6px 14px; font-size: .85rem; font-weight: 700; cursor: pointer;
+  }
+  nav.stations button:hover { color: var(--accent); border-color: var(--accent); }
+  nav.stations button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  nav.stations a.quiz { background: var(--green); border: 1px solid var(--green); color: #fff; border-radius: 20px; padding: 6px 14px; font-size: .85rem; font-weight: 700; text-decoration: none; }
+  @media (max-width: 760px) {
+    header h1 { flex: 1; }
+    nav.stations { order: 3; flex-basis: 100%; }
+    nav.stations button, nav.stations a.quiz { padding: 5px 10px; font-size: .78rem; }
+  }
+  .pill-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 20px; padding: 5px 12px; font-size: .75rem; font-weight: 600; cursor: pointer; }
+  .pill-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
+  section.station > h2 { font-size: 1.5rem; font-weight: 800; letter-spacing: -.4px; margin-bottom: 4px; }
+  section.station > h2 small { color: var(--accent); font-size: .9rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; display: block; }
+  p.lead { color: var(--muted); font-size: 1rem; margin-bottom: 18px; max-width: 900px; }
+  p.lead b { color: var(--text); }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 920px) { .cols { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: grid; gap: 12px; }
+  .card h3 { font-size: 1.02rem; font-weight: 800; }
+  .card h3 .tag { font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); display: block; }
+  .card p { font-size: .93rem; }
+  .stack { display: grid; gap: 18px; }
+
+  canvas.sim { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; touch-action: manipulation; }
+  .ctrl { display: grid; grid-template-columns: 150px 1fr 90px; align-items: center; gap: 10px; font-size: .88rem; }
+  .ctrl label { font-weight: 700; color: var(--muted); }
+  .ctrl output { font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+  @media (max-width: 520px) { .ctrl { grid-template-columns: 100px 1fr 70px; } }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=range]:disabled { opacity: .4; }
+  input[type=number] { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-size: .95rem; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { background: var(--surface2); border: none; padding: 6px 12px; cursor: pointer; font-size: .85rem; font-weight: 700; color: var(--muted); }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.on { background: var(--accent); color: #fff; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .btn { font-weight: 700; font-size: .9rem; cursor: pointer; border-radius: 8px; padding: 8px 14px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); }
+  .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+  .ro { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; }
+  .ro .k { font-size: .7rem; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+  .ro .v { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .ro .v small { font-size: .78rem; color: var(--muted); font-weight: 600; }
+  .ro.big .v { color: var(--red); }
+  .gauge { height: 14px; border-radius: 7px; background: var(--surface2); border: 1px solid var(--border); overflow: hidden; }
+  .gauge i { display: block; height: 100%; background: linear-gradient(90deg, var(--green), var(--amber), var(--red)); transition: width .15s; }
+
+  .note { border-radius: 8px; padding: 10px 14px; font-size: .92rem; background: var(--accent-soft); border-left: 3px solid var(--accent); }
+  .note.warn { background: var(--amber-soft); border-left-color: var(--amber); }
+  .note.good { background: var(--green-soft); border-left-color: var(--green); }
+  .note.purple { background: var(--purple-soft); border-left-color: var(--purple); }
+  .discuss { border: 2px dashed var(--accent); border-radius: 12px; padding: 14px 16px; display: grid; gap: 8px; background: var(--accent-soft); }
+  .discuss .tag { font-size: .72rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  .discuss p { font-size: 1rem; }
+
+  /* everyday cards */
+  .ev { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; background: var(--surface2); }
+  .ev .qq { font-weight: 700; font-size: .95rem; }
+  .ev .qq .em { font-size: 1.3rem; margin-right: 6px; }
+  .ev .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ev .opts button { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: .88rem; }
+  .ev .opts button:hover:not(:disabled) { border-color: var(--accent); }
+  .ev .opts button.right { border-color: var(--green); background: var(--green-soft); }
+  .ev .opts button.wrong { border-color: var(--red); background: var(--red-soft); }
+  .ev .why { font-size: .88rem; color: var(--text); }
+  .ev .why b { color: var(--green); }
+
+  /* sub tabs */
+  .subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .subtabs button { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; cursor: pointer; font-weight: 700; font-size: .88rem; color: var(--muted); text-align: left; }
+  .subtabs button b { display: block; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .subtabs button.on { border-color: var(--accent); color: var(--text); box-shadow: inset 0 -3px 0 var(--accent); }
+
+  table.data { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  table.data th { text-align: left; font-size: .72rem; color: var(--muted); font-weight: 800; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.data td { padding: 6px 8px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.data td.hl { color: var(--accent); font-weight: 700; }
+  table.data td.ok { color: var(--green); font-weight: 800; }
+  table.data td.bad { color: var(--red); font-weight: 800; }
+  .table-wrap { overflow-x: auto; }
+  .reveal { background: none; border: 1px dashed var(--accent); color: var(--accent); border-radius: 6px; padding: 2px 8px; font-size: .78rem; font-weight: 700; cursor: pointer; }
+
+  .q { display: grid; gap: 6px; }
+  .q .qt { font-weight: 700; font-size: .95rem; }
+  .choices { display: grid; gap: 6px; }
+  .choices button { text-align: left; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: .9rem; background: var(--surface2); cursor: pointer; }
+  .choices button:hover:not(:disabled) { border-color: var(--accent); }
+  .choices button.right { border-color: var(--green); background: var(--green-soft); }
+  .choices button.wrong { border-color: var(--red); background: var(--red-soft); }
+  .fb { font-size: .9rem; }
+
+  .math { font-family: 'Cambria Math', Cambria, 'Times New Roman', serif; font-size: 1.35rem; text-align: center; padding: 6px; }
+  .math.big { font-size: 1.9rem; }
+  .math .hl { color: var(--accent); }
+  .math .gr { color: var(--green); }
+  .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 3px; }
+  .frac > span:first-child { border-bottom: 2px solid currentColor; padding: 0 4px; }
+  .derive { display: grid; gap: 10px; }
+  .derive .stepx { border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; background: var(--surface2); display: grid; gap: 4px; }
+  .derive .stepx .why { font-size: .88rem; color: var(--muted); }
+
+  details.box { border: 1px solid var(--border); border-radius: 10px; background: var(--surface2); }
+  details.box summary { cursor: pointer; padding: 10px 14px; font-weight: 800; font-size: .93rem; }
+  details.box > div { padding: 0 14px 14px; display: grid; gap: 8px; font-size: .9rem; }
+  details.box ul { padding-left: 20px; display: grid; gap: 6px; }
+
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); }
+  .legend span::before { content: ''; display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; background: var(--c); border-radius: 2px; }
+  .legend span.dash::before { background: repeating-linear-gradient(90deg, var(--c) 0 5px, transparent 5px 8px); }
+  .status-line { font-weight: 800; font-size: .95rem; min-height: 1.5em; }
+  .twin { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .twin h4 { font-size: .85rem; font-weight: 800; text-align: center; margin-bottom: 6px; }
+  .twin h4 small { display: block; color: var(--muted); font-weight: 600; }
+  @media (max-width: 700px) { .twin { grid-template-columns: 1fr; } }
+  .final { text-align: center; padding: 26px; display: grid; gap: 12px; justify-items: center; }
+  .final a { font-size: 1.15rem; padding: 12px 26px; text-decoration: none; }
+  textarea.say { width: 100%; min-height: 70px; resize: vertical; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: .93rem; color: var(--text); line-height: 1.45; }
+  textarea.say:focus, #who input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .wc { font-size: .72rem; color: var(--muted); text-align: right; }
+  .wc.ok { color: var(--green); }
+  body.needs-who section.station { display: none; }
+  #who { max-width: 720px; margin: 0 auto 20px; border: 2px solid var(--accent); }
+  #who .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  #who label { display: grid; gap: 4px; font-size: .8rem; font-weight: 700; color: var(--muted); }
+  #who input { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: .95rem; width: 100%; }
+  #who input[readonly] { background: var(--surface2); color: var(--muted); }
+  .sync { font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .sync b { color: var(--green); }
+  .sync.warn b { color: var(--amber); }
+  dialog.guide { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); width: min(780px, 94vw); max-height: 90vh; margin: auto; padding: 0; }
+  dialog.guide::backdrop { background: rgba(0,0,0,.55); }
+  .guide-head { position: sticky; top: 0; z-index: 1; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .guide-head h2 { font-size: 1.05rem; font-weight: 800; flex: 1; }
+  .guide-body { padding: 18px; display: grid; gap: 18px; font-size: .92rem; }
+  .guide-body h3 { font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .guide-body ol, .guide-body ul { padding-left: 22px; display: grid; gap: 6px; }
+  footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
+  /* ── Measuring Force additions ── */
+  .plan { position: sticky; top: var(--hh, 56px); z-index: 9; background: var(--surface); border-bottom: 1px solid var(--border); padding: 6px 16px 8px; }
+  @media (max-width: 760px) { .plan { position: static; } }
+  .plan .bar { display: flex; gap: 3px; max-width: 1200px; margin: 0 auto; }
+  .plan .seg2 { position: relative; height: 22px; border-radius: 5px; background: var(--surface2); border: 1px solid var(--border); overflow: hidden; cursor: pointer; font-size: .66rem; font-weight: 800; color: var(--muted); display: flex; align-items: center; justify-content: center; white-space: nowrap; }
+  .plan .seg2 i { position: absolute; inset: 0 auto 0 0; background: var(--green-soft); border-right: 2px solid var(--green); }
+  .plan .seg2 span { position: relative; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; }
+  .plan .seg2.on { border-color: var(--accent); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
+  .plan .seg2.now::after { content: '⏱'; position: absolute; right: 3px; top: 2px; font-size: .7rem; }
+  .plan .clock { max-width: 1200px; margin: 4px auto 0; font-size: .75rem; color: var(--muted); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .plan .clock b { color: var(--text); }
+  .plan .clock .late b { color: var(--amber); }
+  section.station > h2 .mins { font-size: .78rem; font-weight: 700; color: var(--muted); letter-spacing: 0; text-transform: none; margin-left: 8px; }
+  .nextbar { display: flex; justify-content: flex-end; margin-top: 22px; }
+  .qbox { display: grid; gap: 8px; }
+  .qbox .qq { font-weight: 700; font-size: .95rem; }
+  .qbox .qq .em { font-size: 1.3rem; margin-right: 6px; }
+  .qbox .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .qbox .opts.one { grid-template-columns: 1fr; }
+  @media (max-width: 520px) { .qbox .opts { grid-template-columns: 1fr; } }
+  .qbox .opts button { text-align: left; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: .88rem; }
+  .qbox .opts button:hover:not(:disabled) { border-color: var(--accent); }
+  .qbox .opts button:disabled { cursor: default; }
+  .qbox .opts button.right { border-color: var(--green); background: var(--green-soft); }
+  .qbox .opts button.wrong { border-color: var(--red); background: var(--red-soft); }
+  .qbox .why { font-size: .88rem; }
+  .qbox .why b:first-child { color: var(--green); }
+  .qbox.card2 { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--surface2); }
+  .qbox.card2 .opts button { background: var(--surface); }
+  .qbox.card2.doneq { border-color: var(--green); }
+  .numq { display: grid; grid-template-columns: 1fr 110px auto; gap: 8px; align-items: center; font-size: .92rem; }
+  .numq .unit { color: var(--muted); font-size: .85rem; }
+  .numq .st { grid-column: 1 / -1; font-size: .86rem; min-height: 1.2em; }
+  @media (max-width: 520px) { .numq { grid-template-columns: 1fr 90px auto; } }
+  .inrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .92rem; }
+  .inrow input[type=text] { width: 90px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-size: .95rem; }
+  input.num { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-size: .95rem; }
+  input.num.okv { border-color: var(--green); }
+  input.num.badv { border-color: var(--red); }
+  select.pick { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: .88rem; color: var(--text); }
+  select.pick.okv { border-color: var(--green); }
+  select.pick.badv { border-color: var(--red); }
+  .quote { border-left: 3px solid var(--muted); padding: 6px 12px; font-style: italic; color: var(--muted); font-size: .9rem; background: var(--surface2); border-radius: 0 8px 8px 0; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chips span { font-size: .75rem; font-weight: 700; padding: 3px 9px; border-radius: 12px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+  .chips span.ok { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+  .exitq { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--surface); display: grid; gap: 8px; }
+  .exitq .qq { font-weight: 700; }
+  .exitq .opts { display: grid; gap: 6px; }
+  .exitq .opts button { text-align: left; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: .9rem; }
+  .exitq .opts button.sel { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+  .exitq .opts button.right { border-color: var(--green); background: var(--green-soft); }
+  .exitq .opts button.wrong { border-color: var(--red); background: var(--red-soft); }
+  .exitq .opts button:disabled { cursor: default; }
+  .exitq .why { font-size: .88rem; color: var(--muted); }
+  .score { font-size: 2.4rem; font-weight: 800; text-align: center; }
+  .score small { font-size: 1rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<header id="hdr">
+  <a class="back" href="../../../index.html">← Tools</a>
+  <h1>💪 Measuring <span>Force</span></h1>
+  <nav class="stations" id="nav">
+    <button data-st="1" class="on">1 · Warm-up</button>
+    <button data-st="2">2 · What is a force?</button>
+    <button data-st="3">3 · The newton</button>
+    <button data-st="4">4 · The kilogram-force</button>
+    <button data-st="5">5 · The dynamometer</button>
+    <button data-st="6">6 · Reading it right</button>
+    <button data-st="7">7 · Exit check</button>
+  </nav>
+  <span class="sync" id="sync" hidden></span>
+  <button class="pill-btn" id="theme">☀ Light</button>
+</header>
+<div class="plan" id="plan">
+  <div class="bar" id="planBar"></div>
+  <div class="clock"><span id="clockL"></span><span id="clockR"></span></div>
+</div>
+
+<main>
+<div class="card" id="who" hidden>
+  <h3><span class="tag">Before you start</span>Who is working on this computer?</h3>
+  <p style="font-size:.9rem;color:var(--muted)">Work in pairs (or alone if your teacher says so). You have <b>70 minutes</b> for seven stations. The bar at the top shows how long each one should take and how much of it you have done. Your teacher sees your progress live.</p>
+  <div class="grid">
+    <label>Session <input type="text" id="wSession"></label>
+    <label>Pair / group number <input type="text" id="wGroup" inputmode="numeric"></label>
+    <label>Student 1 <input type="text" id="wS1" maxlength="40"></label>
+    <label>Student 2 <input type="text" id="wS2" maxlength="40" placeholder="(if any)"></label>
+  </div>
+  <div class="row"><button class="btn primary" id="wGo" disabled>Start ▶</button><span id="wMsg" style="font-size:.85rem;color:var(--muted)"></span></div>
+</div>
+
+<!-- ═════════════ STATION 1 · WARM-UP ═════════════ -->
+<section class="station" data-st="1">
+  <h2><small>Station 1 <span class="mins">≈ 5 min</span></small>A bathroom scale goes to space</h2>
+  <p class="lead">Stand on a bathroom scale on Earth, then take it to the <b>Moon</b>, <b>Mars</b> and <b>Jupiter</b>. Next to it, a <b>pan balance</b> compares a bag of rice with a 1 kg weight. Press <b>Jump</b> on each world and watch the needle.</p>
+  <div class="cols">
+    <div class="card">
+      <h3><span class="tag">Animation</span>The same student on four worlds</h3>
+      <canvas class="sim" id="c1" width="560" height="360"></canvas>
+      <div class="row"><div class="seg" id="s1w"><button data-w="earth" class="on">🌍 Earth</button><button data-w="moon">🌕 Moon</button><button data-w="mars">🔴 Mars</button><button data-w="jupiter">🟠 Jupiter</button></div>
+        <button class="btn" id="s1jump">⤴ Jump</button></div>
+      <div class="ctrl"><label for="s1m">Student's mass</label><input type="range" id="s1m" min="30" max="100" step="1" value="60"><output id="o1m"></output></div>
+      <div class="readouts">
+        <div class="ro"><div class="k">Mass</div><div class="v" id="r1m"></div></div>
+        <div class="ro"><div class="k">g on this world</div><div class="v" id="r1g"></div></div>
+        <div class="ro big"><div class="k">The scale shows</div><div class="v" id="r1s"></div></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="qbox card2" data-qid="w1"></div>
+      <div class="discuss">
+        <span class="tag">💬 Your prediction</span>
+        <p>The bathroom scale says “<b>kg</b>”. Does it measure your <b>mass</b> or a <b>force</b>? Write what you think <i>now</i>. You will come back to it in Station 4.</p>
+        <textarea class="say" data-say="predict" placeholder="Discuss with your partner and write what you think…"></textarea>
+        <div class="wc" data-wc="predict" data-min="6"></div>
+      </div>
+      <div class="chips" id="s1chips"></div>
+    </div>
+  </div>
+  <div class="nextbar"><button class="btn primary" data-next="2">Next: What is a force? ▶</button></div>
+</section>
+
+<!-- ═════════════ STATION 2 · WHAT IS A FORCE ═════════════ -->
+<section class="station" data-st="2" hidden>
+  <h2><small>Station 2 <span class="mins">≈ 12 min</span></small>What is a force?</h2>
+  <p class="lead">A force is always <b>one object acting on another</b>. Watch four interactions. The <span style="color:var(--red);font-weight:700">red</span> arrow is the force on one object, the <span style="color:var(--purple);font-weight:700">purple</span> one the force back on the other. Then answer one question for each scene.</p>
+  <div class="cols">
+    <div class="card">
+      <h3><span class="tag">Animation</span>Four interactions</h3>
+      <div class="seg" id="s2scene"><button data-s="0" class="on">🛒 Push a cart</button><button data-s="1">🌀 Pull a spring</button><button data-s="2">🧲 Magnets</button><button data-s="3">🍎 An apple</button></div>
+      <canvas class="sim" id="c2" width="560" height="320"></canvas>
+      <div class="ctrl" id="s2Frow"><label for="s2F">Force of the hand</label><input type="range" id="s2F" min="0" max="10" step="0.1" value="4"><output id="o2F"></output></div>
+      <div class="ctrl" id="s2Grow" hidden><label for="s2G">Gap between magnets</label><input type="range" id="s2G" min="1" max="8" step="0.1" value="3"><output id="o2G"></output></div>
+      <div class="row"><button class="btn" id="s2go" hidden>▶ Let go</button><button class="btn" id="s2reset">↺ Reset</button><span class="status-line" id="s2msg" style="font-size:.85rem;color:var(--muted)"></span></div>
+    </div>
+    <div class="stack">
+      <div class="qbox card2" data-qid="sc0"></div>
+      <div class="qbox card2" data-qid="sc1"></div>
+      <div class="qbox card2" data-qid="sc2"></div>
+      <div class="qbox card2" data-qid="sc3"></div>
+      <div class="note good" id="s2sum" hidden><b>So, a force is…</b> an <b>interaction between two objects</b>: a push or a pull. It can <b>change the motion</b> of an object (speed it up, slow it down, turn it) or <b>change its shape</b>. Forces always come in <b>pairs</b>, the same size in opposite directions, one on each object. Some need contact, others (magnets, gravity) act <b>at a distance</b>.</div>
+    </div>
+  </div>
+  <div class="cols" style="margin-top:18px">
+    <div class="card">
+      <h3><span class="tag">Animation</span>Two friends push a box (seen from above)</h3>
+      <canvas class="sim" id="c2b" width="560" height="260"></canvas>
+      <div class="ctrl"><label for="s2ang">Angle between them</label><input type="range" id="s2ang" min="0" max="180" step="1" value="60"><output id="o2ang"></output></div>
+    </div>
+    <div class="stack">
+      <div class="qbox card2" data-qid="vec"></div>
+      <div class="discuss">
+        <span class="tag">✍️ In your own words</span>
+        <p>What is a force? Give <b>one example from your own life</b> and say which two objects interact.</p>
+        <textarea class="say" data-say="define" placeholder="A force is…"></textarea>
+        <div class="wc" data-wc="define" data-min="12"></div>
+      </div>
+    </div>
+  </div>
+  <div class="nextbar"><button class="btn primary" data-next="3">Next: The newton ▶</button></div>
+</section>
+
+<!-- ═════════════ STATION 3 · THE NEWTON ═════════════ -->
+<section class="station" data-st="3" hidden>
+  <h2><small>Station 3 <span class="mins">≈ 12 min</span></small>The newton: how big is 1 N?</h2>
+  <p class="lead">A fan cart sits on an <b>air track</b> with no friction. The fan pushes it with a constant force <b>F</b> for 2 seconds, and the graph shows its speed. <b>Mission:</b> make the <b>1 kg</b> cart speed up by exactly <b>1 m/s every second</b>.</p>
+  <div class="cols">
+    <div class="card">
+      <h3><span class="tag">Animation</span>Fan cart on an air track</h3>
+      <canvas class="sim" id="c3" width="560" height="230"></canvas>
+      <canvas class="sim" id="c3g" width="560" height="220"></canvas>
+      <div class="ctrl"><label for="s3F">Fan force F</label><input type="range" id="s3F" min="0.5" max="5" step="0.5" value="2"><output id="o3F"></output></div>
+      <div class="ctrl"><label for="s3m">Mass of the cart</label><input type="range" id="s3m" min="0.5" max="4" step="0.5" value="2"><output id="o3m"></output></div>
+      <div class="row"><button class="btn primary" id="s3go">▶ Run for 2 s</button><span class="status-line" id="s3msg"></span></div>
+      <div class="table-wrap"><table class="data"><thead><tr><th>F (N)</th><th>m (kg)</th><th>speed after 2 s</th><th>speed gained each second</th></tr></thead><tbody id="s3tb"></tbody></table></div>
+    </div>
+    <div class="stack">
+      <div class="qbox card2" data-qid="n1"></div>
+      <div class="qbox card2" data-qid="n2"></div>
+      <div class="card" id="s3def" hidden>
+        <h3><span class="tag">Definition</span>The newton</h3>
+        <div class="math big">1 N = 1 kg · 1 <span class="frac"><span>m</span><span>s²</span></span></div>
+        <p>One newton is the force that gives a mass of <b>1 kg</b> an acceleration of <b>1 m/s²</b>: its speed grows by 1 m/s every second. It is named after Isaac Newton, and it is the <b>SI unit</b> of force.</p>
+      </div>
+    </div>
+  </div>
+  <div class="cols" style="margin-top:18px">
+    <div class="card">
+      <h3><span class="tag">Feel it</span>What do things weigh in newtons?</h3>
+      <canvas class="sim" id="c3b" width="560" height="230"></canvas>
+      <div class="seg" id="s3obj"><button data-o="0">📎 Paper clip</button><button data-o="1" class="on">🍎 Apple</button><button data-o="2">🥛 1 L of milk</button><button data-o="3">🎒 Backpack</button></div>
+      <p style="font-size:.85rem;color:var(--muted)">On Earth, every kilogram is pulled down with about 9.8 N. A small apple (about 102 g) weighs about <b>1 N</b>: hold an apple and you feel one newton.</p>
+    </div>
+    <div class="stack">
+      <div class="qbox card2" data-qid="est0"></div>
+      <div class="qbox card2" data-qid="est1"></div>
+      <div class="qbox card2" data-qid="est2"></div>
+    </div>
+  </div>
+  <div class="nextbar"><button class="btn primary" data-next="4">Next: The kilogram-force ▶</button></div>
+</section>
+
+<!-- ═════════════ STATION 4 · THE KILOGRAM-FORCE ═════════════ -->
+<section class="station" data-st="4" hidden>
+  <h2><small>Station 4 <span class="mins">≈ 10 min</span></small>The kilogram-force (kgf)</h2>
+  <p class="lead">Two spring scales hold the same mass. They have the <b>same spring</b>, but the left one is marked in <b>newtons</b> and the right one in <b>kilograms-force</b>. Change the mass and the world, and compare the two readings.</p>
+  <div class="cols">
+    <div class="card">
+      <h3><span class="tag">Animation</span>One force, two units</h3>
+      <canvas class="sim" id="c4" width="560" height="380"></canvas>
+      <div class="seg" id="s4w"><button data-w="earth" class="on">🌍 Earth</button><button data-w="moon">🌕 Moon</button><button data-w="mars">🔴 Mars</button><button data-w="jupiter">🟠 Jupiter</button></div>
+      <div class="ctrl"><label for="s4m">Hanging mass</label><input type="range" id="s4m" min="0.1" max="3" step="0.1" value="1"><output id="o4m"></output></div>
+      <div class="readouts">
+        <div class="ro"><div class="k">g here</div><div class="v" id="r4g"></div></div>
+        <div class="ro"><div class="k">Weight in N</div><div class="v" id="r4N"></div></div>
+        <div class="ro"><div class="k">Weight in kgf</div><div class="v" id="r4k"></div></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h3><span class="tag">Definition</span>The kilogram-force</h3>
+        <div class="math">1 kgf = weight of 1 kg where g = 9.80665 <span class="frac"><span>m</span><span>s²</span></span> ≈ <span class="hl">9.8 N</span></div>
+        <p>It is an older unit, still common on gym machines, tyre gauges and hand dynamometers. It is <b>not</b> SI: in physics we use newtons.</p>
+      </div>
+      <div class="qbox card2" data-qid="k1"></div>
+      <div class="card">
+        <h3><span class="tag">Practice</span>Convert (use 1 kgf = 9.8 N)</h3>
+        <div id="conv" class="stack" style="gap:12px"></div>
+      </div>
+    </div>
+  </div>
+  <div class="discuss" style="margin-top:18px">
+    <span class="tag">💬 Back to the warm-up</span>
+    <p>This is what you wrote in Station 1:</p>
+    <div class="quote" id="s4quote"></div>
+    <p>Now: what does a bathroom scale <b>really</b> measure, and why does it show “kg”? Would it be right on the Moon? Correct yourselves if you need to.</p>
+    <textarea class="say" data-say="scaleAns" placeholder="The bathroom scale measures…"></textarea>
+    <div class="wc" data-wc="scaleAns" data-min="10"></div>
+    <button class="reveal" id="scaleBtn" style="justify-self:start" disabled>Show the answer (write first)</button>
+    <div id="scaleAnsBox" hidden class="note good">A bathroom scale measures a <b>force</b>: how hard you push down on it. Inside, a spring (or a strain sensor) is squeezed. The maker divides that force by 9.8 N/kg so the screen shows “kg”. That is fine on Earth, where your weight in kgf has the same number as your mass in kg. On the Moon, a 60 kg student pushes with only about 10 kgf, so the scale shows “10 kg”. The <b>force</b> it reads is right; the <b>mass</b> it claims is not. A pan balance compares masses, so it works on any world.</div>
+  </div>
+  <div class="nextbar"><button class="btn primary" data-next="5">Next: Inside the dynamometer ▶</button></div>
+</section>
+
+<!-- ═════════════ STATION 5 · INSIDE THE DYNAMOMETER ═════════════ -->
+<section class="station" data-st="5" hidden>
+  <h2><small>Station 5 <span class="mins">≈ 10 min</span></small>Inside the dynamometer</h2>
+  <p class="lead">A dynamometer (spring scale) is a spring, a pointer and a scale. <b>First</b>, check that it reads 0 N with nothing on it: if it doesn't, turn the <b>zero screw</b>. Then hang masses, wait for the pointer to stop, and <b>record</b> each point on the graph.</p>
+  <div class="cols">
+    <div class="card">
+      <h3><span class="tag">Animation</span>A 0 – 10 N dynamometer, opened up</h3>
+      <canvas class="sim" id="c5" width="600" height="540"></canvas>
+      <div class="ctrl"><label for="s5z">Zero screw</label><input type="range" id="s5z" min="-1" max="1" step="0.02" value="0"><output id="o5z"></output></div>
+      <div class="row">
+        <button class="btn" data-add="0.05">+50 g</button><button class="btn" data-add="0.1">+100 g</button><button class="btn" data-add="0.2">+200 g</button><button class="btn" data-add="0.5">+500 g</button>
+        <button class="btn" id="s5pop">− last</button><button class="btn" id="s5clear">Take all off</button>
+      </div>
+      <div class="row"><button class="btn primary" id="s5rec">📍 Record point</button><button class="btn" id="s5new" hidden>🔧 Get a new dynamometer</button><span class="status-line" id="s5msg"></span></div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h3><span class="tag">Read the instrument</span>Look at the scale (use the magnifier)</h3>
+        <div class="numq"><span>Its <b>range</b>: from 0 N up to…</span><input class="num" id="s5range" inputmode="decimal"><span class="unit">N</span><div class="st" id="s5rangeSt"></div></div>
+        <div class="numq"><span>Its <b>smallest division</b> (the gap between two marks)</span><input class="num" id="s5div" inputmode="decimal"><span class="unit">N</span><div class="st" id="s5divSt"></div></div>
+        <button class="btn" id="s5chk" style="justify-self:start">Check</button>
+      </div>
+      <div class="qbox card2" data-qid="lin"></div>
+      <div class="qbox card2" data-qid="over"></div>
+      <details class="box"><summary>🔎 How does the spring know the force?</summary><div>
+        <p>The stretch of a good spring is <b>proportional</b> to the force: twice the force, twice the stretch (<b>Hooke's law</b>, F = k·x). So equal steps of force are equal steps on the scale, and the maker can print the marks evenly.</p>
+        <p>This one stretches 1 cm for each newton, so k = 100 N/m. Past its range the spring is <b>damaged</b>: it stays longer and stops being proportional.</p>
+      </div></details>
+    </div>
+  </div>
+  <div class="nextbar"><button class="btn primary" data-next="6">Next: Reading it right ▶</button></div>
+</section>
+
+<!-- ═════════════ STATION 6 · READING IT RIGHT ═════════════ -->
+<section class="station" data-st="6" hidden>
+  <h2><small>Station 6 <span class="mins">≈ 14 min</span></small>Reading it right: precision and error</h2>
+  <p class="lead">No measurement is perfect. Here you learn to write a reading <b>with its uncertainty</b>, avoid <b>parallax</b>, choose the <b>right dynamometer</b>, and tell <b>precision</b> from <b>accuracy</b>. Do the four parts in order.</p>
+  <div class="subtabs" id="sub6">
+    <button data-s="A" class="on"><b>Part A</b>Read ± uncertainty</button>
+    <button data-s="B"><b>Part B</b>Parallax</button>
+    <button data-s="C"><b>Part C</b>Choose the dynamometer</button>
+    <button data-s="D"><b>Part D</b>Precise or accurate?</button>
+  </div>
+
+  <div data-s="A">
+    <div class="cols">
+      <div class="card">
+        <h3><span class="tag">Magnified scale</span>Read where the red pointer is</h3>
+        <canvas class="sim" id="c6a" width="600" height="190"></canvas>
+        <div class="inrow">Reading: <input type="text" id="s6val" inputmode="decimal"> ± <input type="text" id="s6unc" inputmode="decimal"> N
+          <button class="btn primary" id="s6chk">Check</button><button class="btn" id="s6newA">🔄 Another scale</button></div>
+        <div class="status-line" id="s6msg"></div>
+        <div class="chips" id="s6chips"></div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h3><span class="tag">How to</span>Write a reading from an analog scale</h3>
+          <ol style="padding-left:20px;display:grid;gap:6px;font-size:.92rem">
+            <li>Find the <b>smallest division</b>: the value between two neighbouring marks.</li>
+            <li>Read the mark nearest the pointer. If it is right in the middle of two marks, you may give the half.</li>
+            <li>The <b>uncertainty</b> is <b>half of the smallest division</b>.</li>
+            <li>Write <b>(value ± uncertainty) unit</b>, with the value rounded to the same decimal place as the uncertainty.</li>
+          </ol>
+          <div class="math">e.g. divisions of 0.1 N → <span class="hl">(2.35 ± 0.05) N</span></div>
+          <p style="font-size:.88rem;color:var(--muted)">Read three different scales right to finish this part.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div data-s="B" hidden>
+    <div class="cols">
+      <div class="card">
+        <h3><span class="tag">Animation</span>Where is your eye?</h3>
+        <canvas class="sim" id="c6b" width="600" height="300"></canvas>
+        <div class="ctrl"><label for="s6eye">Height of your eye</label><input type="range" id="s6eye" min="30" max="270" step="1" value="60"><output id="o6eye"></output></div>
+      </div>
+      <div class="stack">
+        <div class="note">The pointer is a little <b>in front</b> of the scale. Move your eye up and down: the pointer seems to sit on a different mark. This is called <b>parallax</b>. Some dynamometers have a <b>mirror strip</b> behind the pointer: when the pointer hides its own reflection, your eye is level.</div>
+        <div class="qbox card2" data-qid="par"></div>
+      </div>
+    </div>
+  </div>
+
+  <div data-s="C" hidden>
+    <div class="cols">
+      <div class="card">
+        <h3><span class="tag">Animation</span>The same 0.80 N on two dynamometers</h3>
+        <canvas class="sim" id="c6c" width="600" height="295"></canvas>
+      </div>
+      <div class="stack">
+        <div class="qbox card2" data-qid="choose"></div>
+        <div class="card">
+          <h3><span class="tag">Relative error</span>How big is the uncertainty compared with the value?</h3>
+          <div class="math">relative error = <span class="frac"><span>uncertainty</span><span>value</span></span> × 100 %</div>
+          <div class="numq"><span>0 – 1 N dynamometer: <b>(0.80 ± 0.01) N</b></span><input class="num" id="s6ra" inputmode="decimal"><span class="unit">%</span><div class="st" id="s6raSt"></div></div>
+          <div class="numq"><span>0 – 10 N dynamometer: <b>(0.8 ± 0.1) N</b></span><input class="num" id="s6rb" inputmode="decimal"><span class="unit">%</span><div class="st" id="s6rbSt"></div></div>
+          <button class="btn" id="s6rchk" style="justify-self:start">Check</button>
+          <div class="note good" id="s6rnote" hidden>Same object, but the uncertainty is <b>10 times smaller</b> on the 0 – 1 N dynamometer. Use the <b>smallest range that still holds the load</b>: its divisions are finer. Never go over the range.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div data-s="D" hidden>
+    <div class="cols">
+      <div class="card">
+        <h3><span class="tag">Animation</span>Four dynamometers weigh the same 2.00 N stone, ten times each</h3>
+        <canvas class="sim" id="c6d" width="600" height="330"></canvas>
+        <div class="row"><button class="btn" id="s6again">▶ Measure again</button><span style="font-size:.82rem;color:var(--muted)">The dashed line is the true value, 2.00 N.</span></div>
+        <div id="s6sel" class="stack" style="gap:8px"></div>
+        <div class="row"><button class="btn primary" id="s6tchk">Check</button><span class="status-line" id="s6tmsg"></span></div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <h3><span class="tag">Two different ideas</span>Precision and accuracy</h3>
+          <p><b>Precise</b>: the readings are <b>close to each other</b> (little scatter).<br><b>Accurate</b>: the readings are <b>close to the true value</b> (on average).</p>
+          <p style="font-size:.9rem;color:var(--muted)"><b>Random errors</b> scatter the readings both ways: shaking hands, a pointer that won't settle. <b>Systematic errors</b> push every reading the same way: a dynamometer that isn't zeroed, a damaged spring, always reading from above.</p>
+        </div>
+        <div class="qbox card2" data-qid="sys"></div>
+        <div class="discuss">
+          <span class="tag">✍️ Your report</span>
+          <p>A dynamometer reads <b>0.2 N</b> with nothing on it. With a stone it reads <b>(3.2 ± 0.1) N</b>. What do you report as the weight of the stone, and what kind of error was it?</p>
+          <textarea class="say" data-say="report" placeholder="We report… because…"></textarea>
+          <div class="wc" data-wc="report" data-min="10"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="nextbar"><button class="btn primary" data-next="7">Next: Exit check ▶</button></div>
+</section>
+
+<!-- ═════════════ STATION 7 · EXIT CHECK ═════════════ -->
+<section class="station" data-st="7" hidden>
+  <h2><small>Station 7 <span class="mins">≈ 7 min</span></small>Exit check</h2>
+  <p class="lead">Eight questions on everything you did today. Discuss each one with your partner, choose <b>one</b> answer, and hand in. You can hand in <b>only once</b>; then you see your score and the explanations.</p>
+  <div id="exit" class="stack" style="gap:12px;max-width:860px"></div>
+  <div class="row" style="margin-top:14px"><button class="btn primary" id="exitGo" disabled>📨 Hand in</button><span class="status-line" id="exitMsg" style="color:var(--muted)"></span></div>
+  <div id="exitDone" hidden class="card" style="margin-top:18px;max-width:860px"></div>
+</section>
+</main>
+<footer>Ergosfera teaching tools · Measuring force</footer>
+
+<script src="measuring_force.js"></script>
+<script src="../lab-closing.js"></script>
+<script src="../lab-privacy.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const TAU = Math.PI * 2, G0 = 9.8;
+const WORLDS = {
+  earth:   { name: 'Earth',   g: 9.8,  tint: 'rgba(88,166,255,.16)',  ground: 'rgba(63,185,80,.55)' },
+  moon:    { name: 'Moon',    g: 1.62, tint: 'rgba(139,148,158,.10)', ground: 'rgba(160,160,160,.6)' },
+  mars:    { name: 'Mars',    g: 3.71, tint: 'rgba(230,110,60,.16)',  ground: 'rgba(190,90,50,.65)' },
+  jupiter: { name: 'Jupiter', g: 24.8, tint: 'rgba(210,153,34,.18)',  ground: 'rgba(200,150,90,.6)' },
+};
+let C = {};
+function readColors() {
+  const cs = getComputedStyle(document.body);
+  ['bg','surface','surface2','border','text','muted','accent','green','red','amber','purple'].forEach(k => C[k] = cs.getPropertyValue('--' + k).trim());
+}
+
+// ── theme ─────────────────────────────────────────
+function setTheme(light) {
+  document.body.classList.toggle('light', light);
+  $('theme').textContent = light ? '☾ Dark' : '☀ Light';
+  try { localStorage.setItem('force-theme', light ? 'light' : 'dark'); } catch (e) {}
+  readColors();
+}
+let savedTheme = null; try { savedTheme = localStorage.getItem('force-theme'); } catch (e) {}
+setTheme(savedTheme === 'light');
+$('theme').onclick = () => setTheme(!document.body.classList.contains('light'));
+// the plan bar sits right under the header, whatever its height
+function placePlan() { document.documentElement.style.setProperty('--hh', $('hdr').offsetHeight + 'px'); }
+window.addEventListener('resize', placePlan); placePlan();
+if (window.ResizeObserver) new ResizeObserver(placePlan).observe($('hdr'));
+
+// ── drawing helpers ───────────────────────────────
+function prep(cv) {
+  const ctx = cv.getContext('2d');
+  const W = +cv.getAttribute('width'), H = +cv.getAttribute('height');
+  if (!cv._dpr) {
+    const d = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = W * d; cv.height = H * d; cv._dpr = d; cv._W = W; cv._H = H;
+  }
+  ctx.setTransform(cv._dpr, 0, 0, cv._dpr, 0, 0);
+  ctx.clearRect(0, 0, cv._W, cv._H);
+  return [ctx, cv._W, cv._H];
+}
+function arrow(ctx, x1, y1, x2, y2, color, w = 3, dash = null, head = 11) {
+  const L = Math.hypot(x2 - x1, y2 - y1); if (L < 2) return;
+  const ux = (x2 - x1) / L, uy = (y2 - y1) / L, h = Math.min(head, L * .6);
+  ctx.save(); ctx.strokeStyle = ctx.fillStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round';
+  if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2 - ux * h * .8, y2 - uy * h * .8); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(x2 - ux * h - uy * h * .5, y2 - uy * h + ux * h * .5);
+  ctx.lineTo(x2 - ux * h + uy * h * .5, y2 - uy * h - ux * h * .5); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function label(ctx, t, x, y, color, size = 13, align = 'center', weight = 700) {
+  ctx.save(); ctx.font = `${weight} ${size}px Segoe UI, system-ui, sans-serif`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.fillText(t, x, y); ctx.restore();
+}
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+}
+function spring(ctx, x1, y1, x2, y2, coils, amp, color, w = 2.2) {
+  const L = Math.hypot(x2 - x1, y2 - y1); if (L < 1) return;
+  const ux = (x2 - x1) / L, uy = (y2 - y1) / L, lead = Math.min(8, L * .1);
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 + ux * lead, y1 + uy * lead);
+  const n = coils * 2, body = L - 2 * lead;
+  for (let i = 1; i < n; i++) {
+    const t = lead + body * i / n, s = (i % 2 ? 1 : -1) * amp;
+    ctx.lineTo(x1 + ux * t - uy * s, y1 + uy * t + ux * s);
+  }
+  ctx.lineTo(x2 - ux * lead, y2 - uy * lead); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+}
+function f(x, d = 2) { return (+x).toFixed(d); }
+function num(s) { const v = parseFloat(String(s).trim().replace(',', '.')); return isFinite(v) ? v : NaN; }
+function decimals(x) { const s = String(+x.toPrecision(10)); return s.includes('.') ? s.split('.')[1].length : 0; }
+function seg(id, cb) {
+  const el = $(id);
+  el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    el.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); cb(b);
+  }));
+}
+// a small seeded random generator, so each pair keeps the same numbers after a reload
+function rng(seed) {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) { h = Math.imul(h ^ seed.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; }
+  return () => { h = Math.imul(h ^ h >>> 16, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
+}
+function shuffle(a, r) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); }
+
+// ═════════════ progress state (sent to the teacher further down) ═════════════
+const params = new URLSearchParams(location.search);
+const API = params.get('api') || '', LINK_SESSION = params.get('session') || '';
+const LINK_MODE = ['group', 'individual'].includes(params.get('mode')) ? params.get('mode') : '';
+const STORE = 'lab_' + FORCE.classId + '_' + (LINK_SESSION || 'default');
+function rid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+let S = { schema: 1, lab: FORCE.classId, id: rid(), session: LINK_SESSION, mode: LINK_MODE || 'group', group: '', students: ['', ''], startedAt: new Date().toISOString(), p: {} };
+try { const sv = JSON.parse(localStorage.getItem(STORE) || 'null'); if (sv && sv.lab === FORCE.classId) S = Object.assign(S, sv); } catch (e) {}
+if (LINK_SESSION) S.session = LINK_SESSION;
+const P = S.p = Object.assign({ station: 1, q: {}, rv: {}, planets: {}, kgfPlanets: {}, runs: [], conv: {}, dyn: { pts: [] }, reads: [], rel: {}, exitDraft: {},
+  predict: '', define: '', scaleAns: '', report: '' }, S.p);
+let dirty = false, sending = false, sendTimer = null, lastSent = S.lastSent || null, closedMsg = '';
+
+function doneCount() { return FORCE.checkpoints.filter(c => c.done(P)).length; }
+function persist() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
+function touch() {
+  persist(); dirty = true; syncLine(); planBar();
+  if (API && named()) { clearTimeout(sendTimer); sendTimer = setTimeout(sendNow, 4000); }
+}
+function named() { return !!(S.students[0].trim() && String(S.group).trim() && String(S.session).trim()); }
+// First try of a choice question: what they picked first, and whether they got there in the end
+function track(id, text, right) {
+  if (!P.q[id]) P.q[id] = { first: text, firstOk: right, tries: 0, done: false };
+  P.q[id].tries++; if (right) P.q[id].done = true;
+  touch();
+}
+
+// ── stations nav and the 70-minute plan bar ───────
+let station = '1';
+function showStation(s) {
+  station = String(s);
+  P.station = +station; touch();
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.st === station));
+  document.querySelectorAll('section.station').forEach(x => x.hidden = x.dataset.st !== station);
+  window.scrollTo(0, 0);
+  if (station === '4') $('s4quote').textContent = P.predict.trim() || '(nothing written yet: go back to Station 1)';
+}
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => showStation(b.dataset.st));
+document.querySelectorAll('[data-next]').forEach(b => b.onclick = () => showStation(b.dataset.next));
+
+const MIN = FORCE.minutes, TOTAL_MIN = MIN.reduce((a, b) => a + b, 0);
+function suggestedStation(mins) { let acc = 0; for (let i = 0; i < MIN.length; i++) { acc += MIN[i]; if (mins < acc) return i + 1; } return MIN.length; }
+function planBar() {
+  const bar = $('planBar'); if (!bar) return;
+  const mins = (Date.now() - new Date(S.startedAt)) / 60000, sug = suggestedStation(mins);
+  if (!bar.children.length) {
+    bar.innerHTML = FORCE.stations.map((n, i) => `<div class="seg2" data-st="${i + 1}" style="flex:${MIN[i]}" title="Station ${i + 1} · ${n} · ${MIN[i]} min"><i></i><span>${i + 1} · ${n}</span></div>`).join('');
+    bar.querySelectorAll('.seg2').forEach(d => d.onclick = () => showStation(d.dataset.st));
+  }
+  bar.querySelectorAll('.seg2').forEach(d => {
+    const st = +d.dataset.st, ck = FORCE.checkpoints.filter(c => c.st === st);
+    d.querySelector('i').style.width = (ck.filter(c => c.done(P)).length / ck.length * 100) + '%';
+    d.classList.toggle('on', String(st) === station);
+    d.classList.toggle('now', st === sug && mins < TOTAL_MIN);
+  });
+  const late = +station < sug && mins < TOTAL_MIN;
+  $('clockL').innerHTML = `⏱ <b>${Math.floor(mins)} min</b> since you started · ${doneCount()}/${FORCE.checkpoints.length} checkpoints`;
+  $('clockR').innerHTML = mins >= TOTAL_MIN ? '<span class="late"><b>Time is up:</b> finish the exit check</span>'
+    : +station > sug ? `By the plan: Station ${sug} · <b>you are ahead</b>`
+    : `<span class="${late ? 'late' : ''}">By now you should be in <b>Station ${sug}</b>${late ? ': speed up a little' : ''}</span>`;
+}
+setInterval(planBar, 20000);
+
+// ── choice questions (rendered into every .qbox[data-qid]) ─────────
+// ok: the index of the right option; why: shown once they get it right
+const QS = {
+  w1: { em: '🌕', q: 'On the Moon the scale shows about 10 kg for a 60 kg student. What changed?', ok: 1,
+    o: ['The student\'s mass', 'How hard the Moon pulls on the student', 'Nothing: the scale is broken', 'The amount of matter in the student'],
+    why: 'The student has the same body, the same <b>mass</b>. The Moon pulls about 6 times less, so the student pushes 6 times less on the scale. The <b>pan balance</b> doesn\'t care: both sides lose weight together.' },
+  sc0: { em: '🛒', q: 'The hand pushes the cart. What does the push change?', ok: 0, scene: 0,
+    o: ['Its motion: it speeds up', 'Its shape', 'Nothing: the cart is too heavy'],
+    why: 'And put the force to 0: the cart <b>doesn\'t stop</b>, it keeps its speed on this frictionless floor. A force is needed to <b>change</b> motion, not to keep it.' },
+  sc1: { em: '🌀', q: 'The hand pulls the spring. What does the pull change?', ok: 1, scene: 1,
+    o: ['Its motion: it flies away', 'Its shape: it stretches', 'Its mass'],
+    why: 'The more force, the more stretch. That is exactly how a <b>dynamometer</b> measures force (Station 5).' },
+  sc2: { em: '🧲', q: 'Do the magnets have to touch to push each other?', ok: 2, scene: 2,
+    o: ['Yes: every force needs contact', 'Only the stronger magnet pushes', 'No: some forces act at a distance'],
+    why: 'Magnetic, electric and gravitational forces act <b>at a distance</b>. Look at the arrows too: <b>both</b> magnets get the same push, in opposite directions.' },
+  sc3: { em: '🍎', q: 'The Earth pulls the apple down with 1 N. The apple pulls the Earth…', ok: 0, scene: 3,
+    o: ['up, with 1 N too', 'up, but with much less than 1 N', 'not at all'],
+    why: 'Forces come in <b>pairs</b>: the same size, opposite directions, on <b>different</b> objects. The Earth hardly moves because its mass is enormous.' },
+  vec: { em: '📦', q: 'Two friends push a box with 30 N each. Is the total push always 60 N?', ok: 2,
+    o: ['Yes: 30 + 30 = 60', 'No: it is always less than 60 N', 'No: it depends on the directions'],
+    why: 'From 60 N (same direction) down to 0 N (opposite directions). A force has a <b>size and a direction</b>: it is a <b>vector</b>, and we draw it as an arrow.' },
+  n1: { em: '🛷', q: 'So one newton (1 N) is the force that…', ok: 3, one: true,
+    o: ['holds up a 1 kg mass', 'moves 1 kg by 1 meter', 'a 1 kg mass puts on the table', 'makes 1 kg speed up by 1 m/s every second'],
+    why: '1 N gives 1 kg an <b>acceleration of 1 m/s²</b>. Holding up 1 kg on Earth takes much more: 9.8 N.' },
+  n2: { em: '🧮', q: 'A force of 2 N acts on a 2 kg cart. Its speed grows each second by…', ok: 1,
+    o: ['2 m/s', '1 m/s', '4 m/s', '0.5 m/s'],
+    why: 'a = F / m = 2 N / 2 kg = 1 m/s². Twice the force on twice the mass gives the same acceleration. Try it on the track!' },
+  est0: { em: '📱', q: 'A 200 g phone resting on your hand pushes down with about…', ok: 1,
+    o: ['0.2 N', '2 N', '20 N', '200 N'],
+    why: '0.2 kg × 9.8 m/s² ≈ <b>2 N</b>: about two apples.' },
+  est1: { em: '🍚', q: 'A 5 kg bag of rice weighs about…', ok: 2,
+    o: ['5 N', '0.5 N', '50 N', '500 N'],
+    why: '5 kg × 9.8 m/s² = 49 N ≈ <b>50 N</b>. Quick rule: about 10 N for every kilogram.' },
+  est2: { em: '🚗', q: 'A 1 000 kg car pushes down on the road with about…', ok: 0,
+    o: ['10 000 N', '1 000 N', '100 N', '1 000 000 N'],
+    why: '1 000 kg × 9.8 m/s² ≈ <b>10 000 N</b>, shared by the four tyres.' },
+  k1: { em: '🌕', q: 'A force of 1 kgf on the Moon is…', ok: 0, one: true,
+    o: ['still 9.8 N: 1 kgf is a fixed amount of force', '1.62 N, because g on the Moon is smaller', 'zero', 'the same as 1 kg'],
+    why: 'The kgf is defined with the <b>standard</b> g = 9.80665 m/s², the same number on every world. What changes on the Moon is how many kgf a 1 kg mass weighs: only 0.165 kgf.' },
+  lin: { em: '📈', q: 'Look at your graph. Double the weight hung, and the stretch…', ok: 1,
+    o: ['stays the same', 'doubles', 'becomes 4 times bigger', 'halves'],
+    why: 'The points lie on a <b>straight line through 0</b>: stretch ∝ force. That is why the marks on the scale are evenly spaced.' },
+  over: { em: '⚠️', q: 'Why does every dynamometer have a maximum load?', ok: 2, one: true,
+    o: ['Heavier things would make the pointer fall off, but the spring is fine', 'So that you buy a bigger one', 'Past it, the spring stays stretched for good and the scale is wrong', 'Heavy things have no weight'],
+    why: 'Overloaded, the spring is <b>deformed for good</b>: it no longer reads 0 when empty and it is no longer proportional. Try it if you haven\'t!' },
+  par: { em: '👁️', q: 'Where should your eye be when you read a dynamometer?', ok: 3, one: true,
+    o: ['A bit above, to see the whole scale', 'A bit below, so the numbers look bigger', 'It doesn\'t matter', 'Level with the pointer, looking straight at it'],
+    why: 'Only from straight in front does the pointer line up with its <b>real</b> mark. From above or below you get a <b>parallax error</b>.' },
+  choose: { em: '🔧', q: 'You need to measure about 0.8 N. Which dynamometer?', ok: 1, one: true,
+    o: ['0 – 10 N, divisions of 0.2 N', '0 – 1 N, divisions of 0.02 N', '0 – 50 N, divisions of 1 N', '0 – 0.5 N, divisions of 0.01 N'],
+    why: 'The <b>smallest range that still holds the load</b> gives the finest divisions. The 0 – 0.5 N one would be overloaded and damaged.' },
+  sys: { em: '0️⃣', q: 'A dynamometer reads 0.3 N with nothing on it. This error is…', ok: 0, one: true,
+    o: ['systematic: every reading is 0.3 N too high', 'random: sometimes higher, sometimes lower', 'a parallax error', 'not an error, as long as you read carefully'],
+    why: 'A zero error pushes <b>every</b> reading the same way. Fix it with the zero screw before measuring, or subtract it from every reading.' },
+};
+const qHooks = {};   // id → function called once it is answered right
+function renderQ(box) {
+  const id = box.dataset.qid, Q = QS[id];
+  box.innerHTML = `<div class="qq">${Q.em ? `<span class="em">${Q.em}</span>` : ''}${Q.q}</div>
+    <div class="opts${Q.one ? ' one' : ''}">${Q.o.map((o, i) => `<button data-i="${i}">${o}</button>`).join('')}</div>
+    <div class="why" hidden></div>${Q.scene != null ? `<button class="reveal" data-scene="${Q.scene}" style="justify-self:start">▶ Show this scene</button>` : ''}`;
+  const bs = box.querySelectorAll('.opts button'), why = box.querySelector('.why');
+  const solve = () => {
+    bs.forEach((x, i) => { x.disabled = true; if (i === Q.ok) x.classList.add('right'); });
+    why.innerHTML = '<b>✓</b> ' + Q.why; why.hidden = false; box.classList.add('doneq');
+    if (qHooks[id]) qHooks[id]();
+  };
+  bs.forEach(b => b.onclick = () => {
+    const i = +b.dataset.i, right = i === Q.ok;
+    bs.forEach(x => x.classList.remove('wrong'));
+    track(id, b.textContent.trim(), right);
+    if (right) solve(); else b.classList.add('wrong');
+  });
+  const sb = box.querySelector('[data-scene]');
+  if (sb) sb.onclick = () => { document.querySelector(`#s2scene button[data-s="${Q.scene}"]`).click(); $('c2').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+  box._solve = solve;
+}
+document.querySelectorAll('.qbox[data-qid]').forEach(renderQ);
+function restoreQs() { document.querySelectorAll('.qbox[data-qid]').forEach(b => { if (P.q[b.dataset.qid]?.done) b._solve(); }); }
+
+// ═════════════ STATION 1 · bathroom scale on four worlds ═════════════
+const s1 = { w: 'earth', m: 60, needle: 60, nv: 0, y: 0, vy: 0, air: false, impact: 0, bt: 9 };
+function s1read() { return s1.m * WORLDS[s1.w].g / G0; }
+function s1sync() {
+  s1.m = +$('s1m').value; $('o1m').textContent = s1.m + ' kg';
+  const W = WORLDS[s1.w];
+  $('r1m').innerHTML = s1.m + ' <small>kg</small>';
+  $('r1g').innerHTML = f(W.g, W.g < 10 ? 2 : 1) + ' <small>m/s²</small>';
+  const r = s1read();
+  $('r1s').innerHTML = (r > 200 ? '200+ ' : Math.round(r) + ' ') + '<small>“kg”</small>';
+}
+$('s1m').addEventListener('input', s1sync);
+seg('s1w', b => { s1.w = b.dataset.w; s1.bt = 0; P.planets[s1.w] = true; touch(); s1sync(); s1chips(); });
+$('s1jump').onclick = () => { if (!s1.air) { s1.air = true; s1.vy = 2.4; s1.y = 0.001; } };
+function s1chips() {
+  $('s1chips').innerHTML = Object.keys(WORLDS).map(k => `<span class="${P.planets[k] ? 'ok' : ''}">${P.planets[k] ? '✓' : '○'} ${WORLDS[k].name}</span>`).join('') +
+    `<span style="border:none;background:none">Visit at least three worlds</span>`;
+}
+P.planets.earth = true;
+s1sync(); s1chips();
+
+function stepS1(dt) {
+  const g = WORLDS[s1.w].g;
+  if (s1.air) { s1.vy -= g * dt; s1.y += s1.vy * dt; if (s1.y <= 0) { s1.y = 0; s1.air = false; s1.impact = .25; } }
+  if (s1.impact > 0) s1.impact = Math.max(0, s1.impact - dt);
+  const target = s1.air ? 0 : s1read() * (1 + 1.5 * s1.impact / .25);
+  const a = -45 * (s1.needle - target) - 7 * s1.nv;
+  s1.nv += a * dt; s1.needle += s1.nv * dt; s1.bt += dt;
+}
+function person(ctx, x, foot, m, air, color) {
+  const w = 12 + (m - 30) * .22, hy = foot - 104;
+  ctx.save(); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 5; ctx.lineCap = 'round';
+  // legs
+  ctx.beginPath(); ctx.moveTo(x - 6, foot - 44); ctx.lineTo(x - 9 - (air ? 4 : 0), foot); ctx.moveTo(x + 6, foot - 44); ctx.lineTo(x + 9 + (air ? 4 : 0), foot); ctx.stroke();
+  // body
+  rrect(ctx, x - w / 2 - 4, foot - 90, w + 8, 50, 10); ctx.fill();
+  // arms
+  ctx.beginPath();
+  if (air) { ctx.moveTo(x - w / 2 - 2, foot - 84); ctx.lineTo(x - w / 2 - 16, foot - 112); ctx.moveTo(x + w / 2 + 2, foot - 84); ctx.lineTo(x + w / 2 + 16, foot - 112); }
+  else { ctx.moveTo(x - w / 2 - 2, foot - 84); ctx.lineTo(x - w / 2 - 8, foot - 50); ctx.moveTo(x + w / 2 + 2, foot - 84); ctx.lineTo(x + w / 2 + 8, foot - 50); }
+  ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, hy, 12, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+function drawS1() {
+  const [ctx, W, H] = prep($('c1'));
+  const Wd = WORLDS[s1.w], ground = 300;
+  ctx.fillStyle = Wd.tint; ctx.fillRect(0, 0, W, ground);
+  if (s1.w !== 'earth') { ctx.fillStyle = C.muted; for (let i = 0; i < 26; i++) { const sx = (i * 137) % W, sy = (i * 71) % (ground - 40); ctx.globalAlpha = .35; ctx.fillRect(sx, sy, 2, 2); } ctx.globalAlpha = 1; }
+  ctx.fillStyle = Wd.ground; ctx.fillRect(0, ground, W, H - ground);
+  label(ctx, `${Wd.name} · g = ${Wd.g} m/s²`, 14, 20, C.text, 15, 'left', 800);
+  // bathroom scale + person
+  const sx = 120;
+  ctx.fillStyle = C.surface2; ctx.strokeStyle = C.text; ctx.lineWidth = 2; rrect(ctx, sx - 50, ground - 14, 100, 14, 4); ctx.fill(); ctx.stroke();
+  const foot = ground - 14 - s1.y * 70;
+  person(ctx, sx, foot, s1.m, s1.air, C.accent);
+  // weight arrow (pull of the world on the student)
+  const Wn = s1.m * Wd.g, aL = Math.min(110, 8 + Wn / 25);
+  arrow(ctx, sx + 46, foot - 70, sx + 46, foot - 70 + aL, C.red, 4);
+  label(ctx, `weight ${Math.round(Wn)} N`, sx + 52, foot - 78, C.red, 12, 'left', 800);
+  // dial
+  const cx = 320, cy = 150, R = 78, max = 200, a0 = .75 * Math.PI, sw = 1.5 * Math.PI;
+  ctx.fillStyle = C.surface; ctx.strokeStyle = C.text; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill(); ctx.stroke();
+  for (let v = 0; v <= max; v += 5) {
+    const a = a0 + v / max * sw, big = v % 50 === 0, mid = v % 10 === 0, L = big ? 13 : mid ? 8 : 4;
+    ctx.strokeStyle = C.text; ctx.lineWidth = big ? 2 : 1;
+    ctx.beginPath(); ctx.moveTo(cx + (R - 4) * Math.cos(a), cy + (R - 4) * Math.sin(a)); ctx.lineTo(cx + (R - 4 - L) * Math.cos(a), cy + (R - 4 - L) * Math.sin(a)); ctx.stroke();
+    if (big) label(ctx, String(v), cx + (R - 28) * Math.cos(a), cy + (R - 28) * Math.sin(a), C.text, 11);
+  }
+  const nv = Math.max(-2, Math.min(max + 3, s1.needle)), na = a0 + nv / max * sw;
+  ctx.strokeStyle = C.red; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx - 10 * Math.cos(na), cy - 10 * Math.sin(na)); ctx.lineTo(cx + (R - 12) * Math.cos(na), cy + (R - 12) * Math.sin(na)); ctx.stroke();
+  ctx.fillStyle = C.text; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, TAU); ctx.fill();
+  label(ctx, 'kg', cx, cy + 30, C.muted, 13);
+  if (s1.needle > max) label(ctx, 'over the range!', cx, cy + 48, C.red, 12, 'center', 800);
+  label(ctx, 'bathroom scale dial', cx, cy + R + 14, C.muted, 11, 'center', 600);
+  // pan balance
+  const bx = 480, by = 205, tilt = .12 * Math.sin(s1.bt * 7) * Math.exp(-s1.bt * 2.2), L = 55;
+  ctx.strokeStyle = C.text; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(bx, ground); ctx.lineTo(bx, by); ctx.stroke();
+  ctx.fillStyle = C.text; ctx.beginPath(); ctx.moveTo(bx - 18, ground); ctx.lineTo(bx + 18, ground); ctx.lineTo(bx, ground - 10); ctx.fill();
+  const ex = L * Math.cos(tilt), ey = L * Math.sin(tilt);
+  ctx.beginPath(); ctx.moveTo(bx - ex, by - ey); ctx.lineTo(bx + ex, by + ey); ctx.stroke();
+  [[-1, '🍚', '1 kg rice'], [1, '⚖', '1 kg']].forEach(([s, ic, t]) => {
+    const px = bx + s * ex, py = by + s * ey;
+    ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - 16, py + 40); ctx.moveTo(px, py); ctx.lineTo(px + 16, py + 40); ctx.stroke();
+    ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px - 20, py + 40); ctx.lineTo(px + 20, py + 40); ctx.stroke();
+    if (s < 0) { ctx.fillStyle = C.amber; rrect(ctx, px - 13, py + 20, 26, 20, 5); ctx.fill(); }
+    else { ctx.fillStyle = C.muted; rrect(ctx, px - 10, py + 22, 20, 18, 3); ctx.fill(); label(ctx, '1kg', px, py + 31, C.bg, 9, 'center', 800); }
+    label(ctx, t, px, py + 54, C.muted, 10, 'center', 700);
+  });
+  label(ctx, 'pan balance', bx, ground + 18, C.muted, 11, 'center', 600);
+  label(ctx, Math.abs(tilt) < .01 ? 'still balanced' : '', bx, ground + 34, C.green, 12, 'center', 800);
+  label(ctx, 'bathroom scale', sx, ground + 18, C.muted, 11, 'center', 600);
+}
+
+// ═════════════ STATION 2 · four interactions ═════════════
+const s2 = { sc: 0, F: 4, cart: { x: 0, v: 0, hand: 0 }, spr: { x: 0 }, mag: { gap: .03, d: 0, v: 0, free: false }, apple: { y: 0, v: 0, falling: false, landed: false } };
+function s2ui() {
+  const sc = s2.sc;
+  $('s2Frow').hidden = !(sc === 0 || sc === 1);
+  $('s2Grow').hidden = sc !== 2;
+  $('s2go').hidden = !(sc === 2 || sc === 3);
+  $('s2msg').textContent = ['Set the force to 0 while the cart moves. What happens?', 'Pull harder and watch the shape.', 'Move them closer, then let go.', 'Let the apple go.'][sc];
+}
+seg('s2scene', b => { s2.sc = +b.dataset.s; s2reset(); s2ui(); });
+$('s2F').addEventListener('input', () => { s2.F = +$('s2F').value; $('o2F').textContent = f(s2.F, 1) + ' N'; });
+$('s2G').addEventListener('input', () => { if (!s2.mag.free) s2.mag.gap = +$('s2G').value / 100; $('o2G').textContent = f(+$('s2G').value, 1) + ' cm'; });
+function s2reset() {
+  s2.cart = { x: 0, v: 0, hand: 0 }; s2.mag.d = 0; s2.mag.v = 0; s2.mag.free = false; s2.mag.gap = +$('s2G').value / 100;
+  s2.apple = { y: 0, v: 0, falling: false, landed: false };
+}
+$('s2reset').onclick = s2reset;
+$('s2go').onclick = () => { if (s2.sc === 2) s2.mag.free = true; else s2.apple.falling = true; };
+$('s2F').dispatchEvent(new Event('input')); $('s2G').dispatchEvent(new Event('input')); s2ui();
+const magF = gap => Math.min(12, 1.0 * Math.pow(.03 / gap, 2) * 1.6);
+
+function stepS2(dt) {
+  if (s2.sc === 0) {
+    const c = s2.cart, m = 2;
+    if (s2.F > 0) c.v += s2.F / m * dt;
+    c.x += c.v * dt;
+    if (s2.F > 0) c.hand = c.x;                    // the hand moves with the cart while it pushes
+    if (60 + c.x * 60 > 560) { c.x = 0; c.v = 0; c.hand = 0; }
+  } else if (s2.sc === 1) {
+    s2.spr.x += (s2.F / 40 - s2.spr.x) * Math.min(1, dt * 6);
+  } else if (s2.sc === 2) {
+    const M = s2.mag;
+    if (M.free && M.gap + M.d < .27) { const F = magF(M.gap + M.d); M.v += F / .5 * dt; M.d += M.v * dt; }
+  } else {
+    const A = s2.apple;
+    if (A.falling && !A.landed) { A.v += 9.8 * dt; A.y += A.v * dt; if (A.y >= 1.36) { A.y = 1.36; A.landed = true; } }
+  }
+}
+function cartShape(ctx, x, y, w, h, color) {
+  ctx.fillStyle = color; rrect(ctx, x, y, w, h, 6); ctx.fill();
+  ctx.fillStyle = C.text; [x + 12, x + w - 12].forEach(wx => { ctx.beginPath(); ctx.arc(wx, y + h + 6, 7, 0, TAU); ctx.fill(); });
+}
+function drawS2() {
+  const [ctx, W, H] = prep($('c2'));
+  const floor = 250, sc = s2.sc;
+  ctx.strokeStyle = C.border; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, floor + 13); ctx.lineTo(W, floor + 13); ctx.stroke();
+  if (sc === 0) {
+    const c = s2.cart, x = 60 + c.x * 60, hx = 60 + c.hand * 60;
+    cartShape(ctx, x, floor - 40, 90, 40, C.accent);
+    label(ctx, '2 kg', x + 45, floor - 20, '#fff', 13, 'center', 800);
+    const touching = s2.F > 0;
+    label(ctx, '✋', hx - 16, floor - 22, C.text, 26);
+    if (touching) {
+      const L = 10 + s2.F * 9;
+      arrow(ctx, x + 2, floor - 52, x + 2 + L, floor - 52, C.red, 4);
+      label(ctx, `hand on cart: ${f(s2.F, 1)} N`, x + 2, floor - 70, C.red, 12, 'left', 800);
+      arrow(ctx, x - 6, floor - 8, x - 6 - L, floor - 8, C.purple, 4);
+      label(ctx, `cart on hand: ${f(s2.F, 1)} N`, x - 10 - L, floor + 32, C.purple, 12, 'left', 800);
+    } else label(ctx, 'no force: the cart keeps its speed', x + 45, floor - 62, C.green, 13, 'center', 800);
+    label(ctx, `speed ${f(c.v, 2)} m/s`, 14, 22, C.text, 15, 'left', 800);
+    label(ctx, 'frictionless floor', W - 12, 22, C.muted, 11, 'right', 600);
+  } else if (sc === 1) {
+    const wallX = 50, L0 = 200, px = 600, end = wallX + L0 + s2.spr.x * px, cy = 150;
+    ctx.fillStyle = C.muted; ctx.fillRect(wallX - 16, cy - 70, 16, 140);
+    for (let i = 0; i < 7; i++) { ctx.strokeStyle = C.bg; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(wallX - 16, cy - 60 + i * 20); ctx.lineTo(wallX, cy - 70 + i * 20); ctx.stroke(); }
+    spring(ctx, wallX, cy, end, cy, 14, 13 - s2.spr.x * 18, C.amber, 2.6);
+    label(ctx, '✋', end + 16, cy + 2, C.text, 28);
+    const L = 10 + s2.F * 9;
+    if (s2.F > 0.05) {
+      arrow(ctx, end, cy - 34, end + L, cy - 34, C.red, 4);
+      label(ctx, `hand on spring: ${f(s2.F, 1)} N`, end + L + 6, cy - 34, C.red, 12, 'left', 800);
+      arrow(ctx, end + 30, cy + 34, end + 30 - L, cy + 34, C.purple, 4);
+      label(ctx, `spring on hand: ${f(s2.F, 1)} N`, end + 34, cy + 52, C.purple, 12, 'left', 800);
+    }
+    // ruler for the stretch
+    const ry = 235; ctx.strokeStyle = C.muted; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(wallX + L0, ry); ctx.lineTo(wallX + L0 + 160, ry); ctx.stroke();
+    for (let i = 0; i <= 25; i++) { const tx = wallX + L0 + i * .01 * px; ctx.beginPath(); ctx.moveTo(tx, ry); ctx.lineTo(tx, ry - (i % 5 ? 4 : 9)); ctx.stroke(); if (i % 5 === 0) label(ctx, i + ' cm', tx, ry + 11, C.muted, 10, 'center', 600); }
+    ctx.strokeStyle = C.red; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(end, ry - 14); ctx.lineTo(end, ry + 2); ctx.stroke();
+    label(ctx, `stretch ${f(s2.spr.x * 100, 1)} cm`, 14, 22, C.text, 15, 'left', 800);
+    label(ctx, 'rest length', wallX + L0, ry - 22, C.muted, 10, 'center', 600);
+  } else if (sc === 2) {
+    const M = s2.mag, px = 1000, gapPx = (M.gap + M.d) * px, cx = W / 2, y = floor - 40;
+    const x1 = cx - gapPx / 2, x2 = cx + gapPx / 2;
+    [[x1 - 110, -1], [x2, 1]].forEach(([x, s]) => {
+      cartShape(ctx, x, y, 110, 40, C.surface2); ctx.strokeStyle = C.border; ctx.lineWidth = 1; rrect(ctx, x, y, 110, 40, 6); ctx.stroke();
+      const mx = x + 10, mw = 90;
+      ctx.fillStyle = s < 0 ? '#3b82f6' : '#ef4444'; ctx.fillRect(mx, y + 8, mw / 2, 24);
+      ctx.fillStyle = s < 0 ? '#ef4444' : '#3b82f6'; ctx.fillRect(mx + mw / 2, y + 8, mw / 2, 24);
+      label(ctx, s < 0 ? 'S' : 'N', mx + mw / 4, y + 20, '#fff', 14, 'center', 800);
+      label(ctx, s < 0 ? 'N' : 'S', mx + 3 * mw / 4, y + 20, '#fff', 14, 'center', 800);
+    });
+    const F = magF(M.gap + M.d), L = Math.min(110, 12 + F * 14);
+    if (M.gap + M.d < .26) {
+      arrow(ctx, x2 + 55, y - 18, x2 + 55 + L, y - 18, C.red, 4);
+      label(ctx, `on right magnet: ${f(F, 2)} N`, x2 + 55, y - 36, C.red, 12, 'left', 800);
+      arrow(ctx, x1 - 55, y - 18, x1 - 55 - L, y - 18, C.purple, 4);
+      label(ctx, `on left magnet: ${f(F, 2)} N`, x1 - 55, y - 36, C.purple, 12, 'right', 800);
+      // invisible "field" hint between them
+      ctx.save(); ctx.strokeStyle = C.muted; ctx.setLineDash([3, 4]); ctx.lineWidth = 1;
+      for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(x1, y + 20 + k * 3); ctx.quadraticCurveTo(cx, y + 20 + k * 22, x2, y + 20 + k * 3); ctx.stroke(); }
+      ctx.restore();
+    }
+    label(ctx, `gap ${f((M.gap + M.d) * 100, 1)} cm · not touching`, 14, 22, C.text, 15, 'left', 800);
+  } else {
+    const A = s2.apple, top = 100, px = 95, ay = top + A.y * px;
+    // Earth surface (a huge circle)
+    ctx.fillStyle = WORLDS.earth.ground; ctx.beginPath(); ctx.arc(W / 2, floor + 1400, 1400 - 2, 0, TAU); ctx.fill();
+    // tree
+    ctx.fillStyle = '#8b5a2b'; ctx.fillRect(60, top - 30, 16, floor - top + 32);
+    ctx.fillStyle = 'rgba(63,185,80,.75)'; ctx.beginPath(); ctx.arc(68, top - 22, 46, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#8b5a2b'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(68, top + 8); ctx.lineTo(300, top - 4); ctx.stroke();
+    const ax = 290;
+    ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.arc(ax, ay + 12, 11, 0, TAU); ctx.fill();
+    arrow(ctx, ax, ay + 26, ax, ay + 26 + 55, C.red, 4);
+    label(ctx, 'Earth on apple: 1 N', ax + 14, ay + 60, C.red, 12, 'left', 800);
+    const gx = ax + 120, gy = floor + 10;
+    arrow(ctx, gx, gy, gx, gy - 55, C.purple, 4);
+    label(ctx, 'apple on Earth: 1 N', gx + 12, gy - 40, C.purple, 12, 'left', 800);
+    label(ctx, '(acts on the whole Earth)', gx + 12, gy - 22, C.muted, 10, 'left', 600);
+    label(ctx, 'apple 102 g', W - 12, 22, C.text, 15, 'right', 800);
+    label(ctx, A.landed ? 'the Earth moves toward the apple at only 1.7 × 10⁻²⁵ m/s²' : A.falling ? 'falling…' : '', W - 12, 44, C.muted, 12, 'right', 700);
+  }
+}
+qHooks.sc3 = qHooks.sc2 = qHooks.sc1 = qHooks.sc0 = () => { if ([0, 1, 2, 3].every(i => P.q['sc' + i]?.done)) $('s2sum').hidden = false; };
+
+// two pushes on a box
+const s2b = { ang: 60, shown: 60 };
+$('s2ang').addEventListener('input', () => { s2b.ang = +$('s2ang').value; $('o2ang').textContent = s2b.ang + '°'; });
+$('s2ang').dispatchEvent(new Event('input'));
+function drawS2b(dt) {
+  s2b.shown += (s2b.ang - s2b.shown) * Math.min(1, dt * 8);
+  const [ctx, W, H] = prep($('c2b'));
+  const cx = 210, cy = H / 2, k = 3.2, h = s2b.shown / 2 * Math.PI / 180;
+  const a1 = [Math.cos(h) * 30 * k, -Math.sin(h) * 30 * k], a2 = [Math.cos(h) * 30 * k, Math.sin(h) * 30 * k];
+  const R = 60 * Math.cos(h);
+  ctx.fillStyle = C.amber; rrect(ctx, cx - 22, cy - 22, 44, 44, 4); ctx.fill();
+  label(ctx, '📦', cx, cy + 1, C.text, 20);
+  ctx.save(); ctx.setLineDash([4, 5]); ctx.strokeStyle = C.muted; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx + a1[0], cy + a1[1]); ctx.lineTo(cx + a1[0] + a2[0], cy + a1[1] + a2[1]); ctx.lineTo(cx + a2[0], cy + a2[1]); ctx.stroke(); ctx.restore();
+  arrow(ctx, cx, cy, cx + a1[0], cy + a1[1], C.red, 4);
+  arrow(ctx, cx, cy, cx + a2[0], cy + a2[1], C.purple, 4);
+  if (R > .5) arrow(ctx, cx, cy, cx + a1[0] + a2[0], cy, C.green, 5);
+  label(ctx, '30 N', cx + a1[0] + 8, cy + a1[1] - 8, C.red, 13, 'left', 800);
+  label(ctx, '30 N', cx + a2[0] + 8, cy + a2[1] + 10, C.purple, 13, 'left', 800);
+  label(ctx, 'Total push', W - 110, cy - 30, C.muted, 13);
+  label(ctx, f(R, 1) + ' N', W - 110, cy, C.green, 30, 'center', 800);
+  label(ctx, R > 59 ? 'same direction: they add up' : R < 1 ? 'opposite: they cancel' : 'in between', W - 110, cy + 30, C.muted, 12);
+}
+
+// ═════════════ STATION 3 · the newton on an air track ═════════════
+const s3 = { F: 2, m: 2, run: false, t: 0, x: 0, v: 0, blade: 0, ghosts: [] };
+function s3sync() {
+  if (s3.run) return;
+  s3.F = +$('s3F').value; s3.m = +$('s3m').value;
+  $('o3F').textContent = f(s3.F, 1) + ' N'; $('o3m').textContent = f(s3.m, 1) + ' kg';
+}
+['s3F', 's3m'].forEach(id => $(id).addEventListener('input', s3sync)); s3sync();
+$('s3go').onclick = () => {
+  if (s3.run) return;
+  s3.run = true; s3.t = 0; s3.x = 0; s3.v = 0; s3.trace = [[0, 0]];
+  $('s3go').disabled = true; $('s3F').disabled = $('s3m').disabled = true; $('s3msg').textContent = '';
+};
+function s3table() {
+  $('s3tb').innerHTML = P.runs.slice(-8).reverse().map(r => {
+    const a = r.F / r.m, hit = Math.abs(r.m - 1) < 1e-6 && Math.abs(r.F - 1) < 1e-6;
+    return `<tr><td>${f(r.F, 1)}</td><td>${f(r.m, 1)}</td><td>${f(2 * a, 2)} m/s</td><td class="${hit ? 'ok' : 'hl'}">${f(a, 2)} m/s${hit ? ' ✓' : ''}</td></tr>`;
+  }).join('') || '<tr><td colspan="4" style="color:var(--muted)">No runs yet</td></tr>';
+}
+s3table();
+function stepS3(dt) {
+  s3.blade += dt * (s3.run ? 30 : 2);
+  if (!s3.run) return;
+  const a = s3.F / s3.m, h = Math.min(dt, 2 - s3.t);
+  s3.t += h; s3.v = a * s3.t; s3.x = .5 * a * s3.t * s3.t;
+  s3.trace.push([s3.t, s3.v]);
+  if (s3.t >= 2 - 1e-9) {
+    s3.run = false; $('s3go').disabled = false; $('s3F').disabled = $('s3m').disabled = false;
+    P.runs.push({ F: s3.F, m: s3.m }); if (P.runs.length > 40) P.runs.shift();
+    s3.ghosts.push({ F: s3.F, m: s3.m }); if (s3.ghosts.length > 4) s3.ghosts.shift();
+    const hit = Math.abs(s3.m - 1) < 1e-6 && Math.abs(s3.F - 1) < 1e-6;
+    $('s3msg').innerHTML = hit ? '<span style="color:var(--green)">✅ Mission done: 1 N gives 1 kg an extra 1 m/s every second!</span>'
+      : `Speed gained each second: <b>${f(a, 2)} m/s</b>. ${Math.abs(s3.m - 1) > 1e-6 ? 'The mission needs a 1 kg cart.' : a > 1 ? 'Too much: use less force.' : 'Too little: use more force.'}`;
+    if (hit) $('s3def').hidden = false;
+    s3table(); touch();
+  }
+}
+function drawS3() {
+  const [ctx, W, H] = prep($('c3'));
+  const px = 110, cam = Math.max(0, s3.x - 2.6), rail = 170;
+  ctx.fillStyle = C.surface2; ctx.fillRect(0, rail, W, 14); ctx.strokeStyle = C.border; ctx.strokeRect(0, rail, W, 14);
+  for (let i = 0; i < 40; i++) { const hx = ((i * 22 - cam * px) % W + W) % W; ctx.fillStyle = C.muted; ctx.fillRect(hx, rail + 5, 2, 4); }   // air holes
+  for (let k = 0; k <= 80; k++) {
+    const mx = 40 + (k * .5 - cam) * px; if (mx < -20 || mx > W + 20) continue;
+    ctx.strokeStyle = C.muted; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(mx, rail + 14); ctx.lineTo(mx, rail + (k % 2 ? 22 : 30)); ctx.stroke();
+    if (k % 2 === 0) label(ctx, (k / 2) + ' m', mx, rail + 42, C.muted, 11, 'center', 600);
+  }
+  const cw = 70 + s3.m * 12, x = 40 + (s3.x - cam) * px, y = rail - 46;
+  // cart with blocks
+  ctx.fillStyle = C.accent; rrect(ctx, x, y + 16, cw, 30, 5); ctx.fill();
+  const nb = Math.round(s3.m / .5);
+  for (let i = 0; i < nb; i++) { const bw = (cw - 34) / Math.min(nb, 4), row = Math.floor(i / 4), col = i % 4; ctx.fillStyle = C.amber; ctx.fillRect(x + 30 + col * bw + 1, y + 2 - row * 14, bw - 2, 13); }
+  label(ctx, f(s3.m, 1) + ' kg', x + cw / 2 + 12, y + 31, '#fff', 12, 'center', 800);
+  // fan at the back, blowing backward
+  ctx.fillStyle = C.surface; ctx.strokeStyle = C.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 14, y + 14, 14, 0, TAU); ctx.fill(); ctx.stroke();
+  for (let i = 0; i < 3; i++) { const a = s3.blade + i * TAU / 3; ctx.beginPath(); ctx.moveTo(x + 14, y + 14); ctx.lineTo(x + 14 + 12 * Math.cos(a), y + 14 + 12 * Math.sin(a) * .35); ctx.stroke(); }
+  if (s3.run) { ctx.strokeStyle = C.muted; ctx.lineWidth = 1.5; for (let i = 0; i < 4; i++) { const off = (s3.blade * 6 + i * 13) % 50; ctx.beginPath(); ctx.moveTo(x - 4 - off, y + 6 + i * 6); ctx.lineTo(x - 16 - off, y + 6 + i * 6); ctx.stroke(); } }
+  const L = 14 + s3.F * 16;
+  arrow(ctx, x + cw + 4, y + 30, x + cw + 4 + L, y + 30, C.red, 4);
+  label(ctx, `F = ${f(s3.F, 1)} N`, x + cw + 6, y + 10, C.red, 13, 'left', 800);
+  label(ctx, `t = ${f(s3.t, 2)} s`, 14, 20, C.text, 14, 'left', 800);
+  label(ctx, `v = ${f(s3.v, 2)} m/s`, 14, 42, C.green, 14, 'left', 800);
+  label(ctx, 'air track: no friction', W - 12, 20, C.muted, 11, 'right', 600);
+}
+function drawS3g() {
+  const [ctx, W, H] = prep($('c3g'));
+  const x0 = 50, y0 = H - 34, gw = W - 70, gh = H - 56;
+  const vmaxRaw = Math.max(2.2, ...s3.ghosts.map(g => 2 * g.F / g.m), s3.run || s3.trace ? 2 * s3.F / s3.m : 0);
+  const step = vmaxRaw <= 4 ? 1 : vmaxRaw <= 10 ? 2 : 5, vmax = Math.ceil(vmaxRaw / step) * step;
+  const X = t => x0 + t / 2 * gw, Y = v => y0 - v / vmax * gh;
+  ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+  for (let v = 0; v <= vmax + 1e-9; v += step) { ctx.beginPath(); ctx.moveTo(x0, Y(v)); ctx.lineTo(x0 + gw, Y(v)); ctx.stroke(); label(ctx, String(v), x0 - 8, Y(v), C.muted, 11, 'right', 600); }
+  for (let t = 0; t <= 2; t += .5) { ctx.beginPath(); ctx.moveTo(X(t), y0); ctx.lineTo(X(t), y0 - gh); ctx.stroke(); label(ctx, String(t), X(t), y0 + 12, C.muted, 11, 'center', 600); }
+  label(ctx, 'time (s)', x0 + gw, y0 + 26, C.muted, 11, 'right', 700);
+  label(ctx, 'speed (m/s)', x0 - 40, 10, C.muted, 11, 'left', 700);
+  // 1 m/s per second guide
+  ctx.save(); ctx.setLineDash([5, 5]); ctx.strokeStyle = C.green; ctx.globalAlpha = .6; ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(2), Y(2)); ctx.stroke(); ctx.restore();
+  label(ctx, 'mission: +1 m/s each second', X(2) - 4, Y(2) - 10, C.green, 11, 'right', 700);
+  s3.ghosts.forEach(g => { const a = g.F / g.m; ctx.strokeStyle = C.muted; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(2), Y(2 * a)); ctx.stroke(); label(ctx, `${f(g.F, 1)} N / ${f(g.m, 1)} kg`, X(2) + 2, Y(2 * a), C.muted, 10, 'left', 600); });
+  if (s3.trace) { ctx.strokeStyle = C.accent; ctx.lineWidth = 3; ctx.beginPath(); s3.trace.forEach(([t, v], i) => i ? ctx.lineTo(X(t), Y(v)) : ctx.moveTo(X(t), Y(v))); ctx.stroke(); }
+}
+// what things weigh
+const OBJ = [{ n: 'paper clip', em: '📎', m: .001 }, { n: 'apple', em: '🍎', m: .102 }, { n: '1 L of milk', em: '🥛', m: 1.03 }, { n: 'backpack', em: '🎒', m: 6 }];
+const s3b = { o: 1, sink: 0 };
+seg('s3obj', b => { s3b.o = +b.dataset.o; });
+function drawS3b(dt) {
+  const [ctx, W, H] = prep($('c3b'));
+  const o = OBJ[s3b.o], Wn = o.m * G0, target = Math.log10(1 + Wn) * 18;
+  s3b.sink += (target - s3b.sink) * Math.min(1, dt * 5);
+  const hx = 170, hy = 120 + s3b.sink;
+  ctx.fillStyle = '#e0ac69'; rrect(ctx, hx - 60, hy, 120, 26, 12); ctx.fill();
+  ctx.fillStyle = '#c68642'; for (let i = 0; i < 4; i++) { rrect(ctx, hx - 56 + i * 28, hy - 8, 22, 14, 6); ctx.fill(); }
+  label(ctx, o.em, hx, hy - 30, C.text, 48);
+  const L = 16 + Math.log10(1 + Wn) * 40;
+  arrow(ctx, hx + 75, hy - 10, hx + 75, hy - 10 + L, C.red, 5);
+  label(ctx, 'pushes on your hand', hx + 88, hy - 4, C.muted, 12, 'left', 700);
+  label(ctx, Wn < 1 ? f(Wn, 3) + ' N' : Wn < 10 ? f(Wn, 1) + ' N' : Math.round(Wn) + ' N', hx + 88, hy + 18, C.red, 24, 'left', 800);
+  label(ctx, `${o.n}: ${o.m < 1 ? Math.round(o.m * 1000) + ' g' : f(o.m, 2).replace(/\.?0+$/, '') + ' kg'}`, 14, 20, C.text, 14, 'left', 800);
+  label(ctx, 'W = m · g = m · 9.8 N/kg', W - 12, 20, C.muted, 12, 'right', 700);
+  label(ctx, 'arrow lengths are not to scale', W - 12, H - 12, C.muted, 10, 'right', 600);
+}
+
+// ═════════════ STATION 4 · one force, two units ═════════════
+const s4 = { w: 'earth', m: 1, r: 9.8, rv: 0 };   // r: the reading in N (with a little bounce)
+function s4F() { return s4.m * WORLDS[s4.w].g; }
+function s4sync() {
+  s4.m = +$('s4m').value; $('o4m').textContent = f(s4.m, 1) + ' kg';
+  const g = WORLDS[s4.w].g, F = s4F();
+  $('r4g').innerHTML = f(g, 2) + ' <small>m/s²</small>';
+  $('r4N').innerHTML = f(F, 2) + ' <small>N</small>';
+  $('r4k').innerHTML = f(F / 9.80665, 3) + ' <small>kgf</small>';
+}
+$('s4m').addEventListener('input', s4sync);
+seg('s4w', b => { s4.w = b.dataset.w; P.kgfPlanets[s4.w] = true; touch(); s4sync(); });
+P.kgfPlanets.earth = true;
+s4sync();
+function stepS4(dt) {
+  const a = -60 * (s4.r - Math.min(41, s4F())) - 6 * s4.rv;
+  s4.rv += a * dt; s4.r += s4.rv * dt;
+}
+function drawS4() {
+  const [ctx, W, H] = prep($('c4'));
+  const Wd = WORLDS[s4.w];
+  ctx.fillStyle = Wd.tint; ctx.fillRect(0, 0, W, H);
+  label(ctx, `${Wd.name} · g = ${Wd.g} m/s²`, 14, 20, C.text, 15, 'left', 800);
+  ctx.fillStyle = C.muted; ctx.fillRect(90, 34, 380, 8);
+  const top = 72, pxN = 5.2, over = s4F() > 40.5;
+  [[170, 'N', 40, 1, 5, v => v], [390, 'kgf', 4, .1, .5, v => v * 9.80665]].forEach(([x, unit, max, minor, major, toN]) => {
+    ctx.strokeStyle = C.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, 42); ctx.lineTo(x, top - 14); ctx.stroke();
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.border; rrect(ctx, x - 34, top - 14, 68, 40 * pxN + 30, 8); ctx.fill(); ctx.stroke();
+    for (let k = 0; k <= Math.round(max / minor); k++) {
+      const v = k * minor, y = top + toN(v) * pxN, big = Math.abs(v / major - Math.round(v / major)) < 1e-6;
+      ctx.strokeStyle = C.text; ctx.lineWidth = big ? 1.6 : .8;
+      ctx.beginPath(); ctx.moveTo(x + 6, y); ctx.lineTo(x + (big ? 20 : 13), y); ctx.stroke();
+      if (big) label(ctx, unit === 'N' ? String(Math.round(v)) : f(v, 1), x + 24, y, C.text, 10, 'left', 700);
+    }
+    label(ctx, unit, x + 10, top + 40 * pxN + 7, C.accent, 12, 'center', 800);
+    // spring and pointer
+    const yp = top + Math.max(0, s4.r) * pxN;
+    spring(ctx, x - 12, top + 2, x - 12, yp, 10, 6, C.amber, 1.8);
+    ctx.strokeStyle = C.red; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 24, yp); ctx.lineTo(x + 14, yp); ctx.stroke();
+    // rod, hook and mass
+    ctx.strokeStyle = C.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 12, yp); ctx.lineTo(x - 12, top + 40 * pxN + 30); ctx.stroke();
+    const by = top + 40 * pxN + 16 + Math.max(0, s4.r) * .4;
+    ctx.beginPath(); ctx.moveTo(x - 12, top + 40 * pxN + 16); ctx.lineTo(x - 12, by + 10); ctx.arc(x - 6, by + 10, 6, Math.PI, 0, true); ctx.stroke();
+    const mw = 26 + Math.sqrt(s4.m) * 14;
+    ctx.fillStyle = C.muted; rrect(ctx, x - 6 - mw / 2, by + 22, mw, 26 + s4.m * 4, 4); ctx.fill();
+    label(ctx, f(s4.m, 1) + ' kg', x - 6, by + 35 + s4.m * 2, C.bg, 12, 'center', 800);
+    // reading in this unit
+    const reading = Math.min(40.5, s4F()) / toN(1);
+    label(ctx, over ? 'over the range!' : (unit === 'N' ? f(reading, 1) : f(reading, 2)) + ' ' + unit, x + (unit === 'N' ? -44 : 60), Math.max(top, yp), C.red, 15, unit === 'N' ? 'right' : 'left', 800);
+  });
+  label(ctx, 'same spring · same stretch · different labels', W / 2, H - 10, C.muted, 11, 'center', 600);
+}
+// conversions, the numbers fixed for this pair
+const cr = rng(S.id + 'conv');
+const CONV = [
+  (() => { const M = [0.4, 0.6, 1.5, 2.5, 3.2, 4.5, 7][Math.floor(cr() * 7)]; return { q: `A ${M} kg mass hangs on Earth. Its weight in newtons:`, ans: M * 9.8, unit: 'N', dir: 'mul' }; })(),
+  (() => { const X = [2, 3.5, 5, 12, 20, 25, 40][Math.floor(cr() * 7)]; return { q: `A hand dynamometer at the gym reads ${X} kgf. In newtons:`, ans: X * 9.8, unit: 'N', dir: 'mul' }; })(),
+  (() => { const Y = [49, 98, 147, 245, 490, 686][Math.floor(cr() * 6)]; return { q: `A force of ${Y} N in kilograms-force:`, ans: Y / 9.8, unit: 'kgf', dir: 'div' }; })(),
+];
+$('conv').innerHTML = CONV.map((c, i) => `<div class="numq"><span>${c.q}</span><input class="num" id="cv${i}" inputmode="decimal"><span class="unit">${c.unit} <button class="btn" data-cv="${i}" style="padding:4px 10px">✓</button></span><div class="st" id="cv${i}St"></div></div>`).join('');
+function convCheck(i, quiet) {
+  const c = CONV[i], v = num($('cv' + i).value), st = $('cv' + i + 'St'), inp = $('cv' + i);
+  if (!isFinite(v)) { if (!quiet) st.textContent = 'Write a number.'; return; }
+  const ok = Math.abs(v / c.ans - 1) < .015;
+  if (!quiet) { P.conv[i] = P.conv[i] || { tries: 0, first: v }; P.conv[i].tries++; P.conv[i].ok = P.conv[i].ok || ok; P.conv[i].val = v; touch(); }
+  inp.classList.toggle('okv', ok); inp.classList.toggle('badv', !ok);
+  if (ok) { st.innerHTML = '<span style="color:var(--green)">✓ Right.</span>'; return; }
+  const g10 = c.dir === 'mul' ? c.ans / 9.8 * 10 : c.ans * 9.8 / 10;
+  const inv = c.dir === 'mul' ? c.ans / 9.8 / 9.8 : c.ans * 9.8 * 9.8;
+  st.innerHTML = Math.abs(v / g10 - 1) < .015 ? 'Close! Use 1 kgf = <b>9.8 N</b>, not 10 N.'
+    : Math.abs(v / inv - 1) < .02 ? (c.dir === 'mul' ? 'You divided. Going to newtons, <b>multiply</b> by 9.8.' : 'You multiplied. Going from N to kgf, <b>divide</b> by 9.8.')
+    : 'Not yet. Remember: 1 kgf = 9.8 N, and on Earth 1 kg weighs 1 kgf.';
+}
+document.querySelectorAll('[data-cv]').forEach(b => b.onclick = () => convCheck(+b.dataset.cv));
+CONV.forEach((c, i) => $('cv' + i).addEventListener('keydown', e => { if (e.key === 'Enter') convCheck(i); }));
+$('scaleBtn').onclick = () => { $('scaleAnsBox').hidden = false; $('scaleBtn').hidden = true; P.rv.scale = true; touch(); };
+
+// ═════════════ STATION 5 · inside the dynamometer ═════════════
+// The scale: 0 N at y = TOP, 1.5 cm… drawn 15 px per newton. The spring stretches 1 cm per newton (k = 100 N/m).
+const D = { TOP: 92, PX: 15, MAX: 10, DIV: .2 };
+const s5 = { masses: [], off0: 0, r: 0, rv: 0, damaged: false, kf: 1 };
+function s5newDyn() {
+  const r = Math.random();
+  s5.off0 = (r < .5 ? 1 : -1) * (.24 + Math.random() * .36);
+  s5.damaged = false; s5.kf = 1; $('s5z').value = 0; $('o5z').textContent = '0';
+  $('s5new').hidden = true; s5msg('A new dynamometer. Does it read 0 N with nothing on it?');
+}
+function s5off() { return s5.off0 + +$('s5z').value; }
+function s5load() { return s5.masses.reduce((a, b) => a + b, 0) * G0; }
+function s5target() { return Math.min(11.6, s5off() + s5load() * s5.kf); }
+function s5zeroed() { return !s5.damaged && Math.abs(s5off()) <= .03; }
+function s5msg(t, c) { $('s5msg').innerHTML = c ? `<span style="color:var(--${c})">${t}</span>` : t; }
+$('s5z').addEventListener('input', () => {
+  $('o5z').textContent = (+$('s5z').value > 0 ? '+' : '') + f(+$('s5z').value, 2);
+  if (!s5.masses.length) s5msg(s5zeroed() ? '✅ Zeroed: it reads 0 N with nothing on it.' : 'Turn until the pointer sits exactly on 0.', s5zeroed() ? 'green' : null);
+});
+document.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
+  if (s5.masses.length >= 14) return;
+  s5.masses.push(+b.dataset.add);
+  if (!s5.damaged && s5off() + s5load() > 10.6) {
+    s5.damaged = true; s5.off0 += 1.1; s5.kf = 1.15; P.dyn.over = (P.dyn.over || 0) + 1; touch();
+    $('s5new').hidden = false;
+    s5msg('⚠ Over the range! The spring is damaged: take the masses off and look at the zero.', 'red');
+  } else if (!s5.damaged) s5msg(`Hanging ${Math.round(s5.masses.reduce((a, b) => a + b, 0) * 1000)} g. Wait for the pointer to stop, then record.`);
+});
+$('s5pop').onclick = () => { s5.masses.pop(); };
+$('s5clear').onclick = () => { s5.masses = []; };
+$('s5new').onclick = () => { s5.masses = []; s5newDyn(); };
+$('s5rec').onclick = () => {
+  if (!s5.masses.length) return s5msg('Hang some masses first.');
+  if (Math.abs(s5.rv) > .15 || Math.abs(s5.r - s5target()) > .05) return s5msg('Wait until the pointer stops moving.');
+  const F = +s5load().toFixed(3), x = +s5.r.toFixed(2), z = s5zeroed();
+  P.dyn.pts = (P.dyn.pts || []).filter(p => Math.abs(p.F - F) > 1e-6 || p.z !== z);
+  P.dyn.pts.push({ F, x, z }); touch();
+  s5msg(z ? `📍 Recorded: ${f(F, 2)} N → ${f(x, 1)} cm.` : s5.damaged ? '📍 Recorded, but the spring is damaged: these points don\'t count.' : '📍 Recorded, but it wasn\'t zeroed: see how the points miss 0? Zero it and record again.', z ? 'green' : 'amber');
+};
+$('s5chk').onclick = () => {
+  const r = num($('s5range').value), d = num($('s5div').value);
+  const rok = Math.abs(r - 10) < 1e-6, dok = Math.abs(d - .2) < 1e-6;
+  P.dyn.range = P.dyn.range || rok; P.dyn.div = P.dyn.div || dok; touch();
+  $('s5range').classList.toggle('okv', rok); $('s5range').classList.toggle('badv', !rok);
+  $('s5div').classList.toggle('okv', dok); $('s5div').classList.toggle('badv', !dok);
+  $('s5rangeSt').innerHTML = rok ? '<span style="color:var(--green)">✓ The biggest force it can measure.</span>' : isFinite(r) ? 'Look at the last number on the scale.' : '';
+  $('s5divSt').innerHTML = dok ? '<span style="color:var(--green)">✓ 1 N is split into 5 parts.</span>' : !isFinite(d) ? '' : Math.abs(d - 1) < 1e-6 ? 'That is between two <b>numbers</b>. Count the small marks between 0 and 1 in the magnifier.' : 'Count how many small gaps there are between 0 and 1 N, and divide.';
+};
+s5newDyn();
+function stepS5(dt) {
+  const a = -70 * (s5.r - s5target()) - 5 * s5.rv;
+  s5.rv += a * dt; s5.r += s5.rv * dt;
+}
+function drawScale5(ctx, x, yp) {
+  // the printed scale and the pointer (used in the main view and in the magnifier)
+  for (let k = 0; k <= 50; k++) {
+    const v = k * D.DIV, y = D.TOP + v * D.PX, big = k % 5 === 0;
+    ctx.strokeStyle = C.text; ctx.lineWidth = big ? 1.2 : .6;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (big ? 12 : 7), y); ctx.stroke();
+    if (big) label(ctx, String(Math.round(v)), x + 15, y, C.text, 9, 'left', 700);
+  }
+  ctx.strokeStyle = C.red; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 26, yp); ctx.lineTo(x + 10, yp); ctx.stroke();
+}
+function drawS5() {
+  const [ctx, W, H] = prep($('c5'));
+  const tx = 110, tw = 64, yp = D.TOP + s5.r * D.PX;
+  // support and ring
+  ctx.fillStyle = C.muted; ctx.fillRect(60, 10, 160, 7);
+  ctx.strokeStyle = C.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tx + tw / 2, 30, 9, 0, TAU); ctx.stroke();
+  // tube
+  ctx.fillStyle = C.surface; ctx.strokeStyle = C.border; ctx.lineWidth = 2; rrect(ctx, tx, 40, tw, 230, 10); ctx.fill(); ctx.stroke();
+  // zero screw
+  const zc = [tx + tw / 2, 52], za = +$('s5z').value * Math.PI * 1.5;
+  ctx.fillStyle = C.surface2; ctx.beginPath(); ctx.arc(zc[0], zc[1], 8, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = C.text; ctx.beginPath(); ctx.moveTo(zc[0] - 6 * Math.cos(za), zc[1] - 6 * Math.sin(za)); ctx.lineTo(zc[0] + 6 * Math.cos(za), zc[1] + 6 * Math.sin(za)); ctx.stroke();
+  label(ctx, 'zero screw', tx - 6, 52, C.muted, 10, 'right', 700);
+  // spring from the screw down to the pointer (slightly offset from zero: the zero error)
+  spring(ctx, tx + 22, 60, tx + 22, yp, 12, 8, s5.damaged ? C.red : C.amber, 2);
+  drawScale5(ctx, tx + 40, yp);
+  // rod, hook, masses
+  const hookY = yp + 190;
+  ctx.strokeStyle = C.text; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(tx + 22, yp); ctx.lineTo(tx + 22, hookY); ctx.stroke();
+  ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tx + 28, hookY + 4, 6, Math.PI, .2 * Math.PI, true); ctx.stroke();
+  let y = hookY + 12;
+  s5.masses.forEach(m => { const h = 4 + Math.sqrt(m) * 24, w = 30 + Math.sqrt(m) * 20; ctx.fillStyle = C.muted; rrect(ctx, tx + 28 - w / 2, y, w, h - 1, 3); ctx.fill(); if (h > 12) label(ctx, Math.round(m * 1000) + ' g', tx + 28, y + h / 2, C.bg, 9, 'center', 800); y += h; });
+  // magnifier
+  const mx = 258, my = Math.max(90, Math.min(250, yp)), mr = 56, z = 3;
+  ctx.strokeStyle = C.muted; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(tx + 54, yp); ctx.lineTo(mx - mr, my); ctx.stroke();
+  ctx.save(); ctx.beginPath(); ctx.arc(mx, my, mr, 0, TAU); ctx.fillStyle = C.surface; ctx.fill(); ctx.clip();
+  ctx.translate(mx, my); ctx.scale(z, z); ctx.translate(-(tx + 52), -yp);
+  drawScale5(ctx, tx + 40, yp); ctx.restore();
+  ctx.strokeStyle = C.text; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(mx, my, mr, 0, TAU); ctx.stroke();
+  label(ctx, '🔍 ×3', mx, my + mr + 12, C.muted, 11, 'center', 700);
+  label(ctx, `pointer: ${f(s5.r, 2)} N`, mx, my - mr - 12, C.red, 12, 'center', 800);
+  // graph
+  const gx = 350, gy = 470, gw = 230, gh = 220, Xs = Fv => gx + Fv / 12 * gw, Ys = x => gy - x / 12 * gh;
+  label(ctx, 'stretch (cm) vs weight hung (N)', gx + gw / 2, gy - gh - 18, C.text, 12, 'center', 800);
+  ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+  for (let v = 0; v <= 12; v += 2) {
+    ctx.beginPath(); ctx.moveTo(Xs(v), gy); ctx.lineTo(Xs(v), gy - gh); ctx.moveTo(gx, Ys(v)); ctx.lineTo(gx + gw, Ys(v)); ctx.stroke();
+    label(ctx, String(v), Xs(v), gy + 11, C.muted, 10, 'center', 600); label(ctx, String(v), gx - 6, Ys(v), C.muted, 10, 'right', 600);
+  }
+  const zp = (P.dyn.pts || []).filter(p => p.z);
+  if (zp.length >= 2) {
+    const k = zp.reduce((a, p) => a + p.F * p.x, 0) / zp.reduce((a, p) => a + p.F * p.F, 0);
+    ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = C.green; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(Xs(0), Ys(0)); ctx.lineTo(Xs(12), Ys(12 * k)); ctx.stroke(); ctx.restore();
+    label(ctx, `${f(k, 2)} cm per N`, gx + gw - 4, Ys(12 * k) + 14, C.green, 11, 'right', 800);
+  }
+  (P.dyn.pts || []).forEach(p => { ctx.fillStyle = p.z ? C.accent : C.amber; ctx.beginPath(); ctx.arc(Xs(p.F), Ys(p.x), 5, 0, TAU); ctx.fill(); });
+  if ((P.dyn.pts || []).some(p => !p.z)) label(ctx, '● not zeroed / damaged', gx, gy + 28, C.amber, 10, 'left', 700);
+  label(ctx, `weight hung: ${f(s5load(), 2)} N`, W - 12, 24, C.text, 14, 'right', 800);
+  if (s5.damaged) label(ctx, 'spring damaged', W - 12, 44, C.red, 13, 'right', 800);
+  else if (!s5.masses.length) label(ctx, s5zeroed() ? 'zeroed ✓' : 'not zeroed', W - 12, 44, s5zeroed() ? C.green : C.amber, 13, 'right', 800);
+}
+
+// ═════════════ STATION 6 · reading it right ═════════════
+let sub6 = 'A';
+seg('sub6', b => { sub6 = b.dataset.s; document.querySelectorAll('[data-st="6"] > div[data-s]').forEach(x => x.hidden = x.dataset.s !== sub6); });
+
+// A · read a magnified scale
+const SCALES = [{ max: 1, div: .02, lab: .2 }, { max: 2.5, div: .05, lab: .5 }, { max: 5, div: .1, lab: 1 }, { max: 10, div: .2, lab: 2 }, { max: 20, div: .5, lab: 5 }];
+const s6a = { sc: null, val: 0, shown: 0, done: false };
+function s6newScale() {
+  const okMax = (P.reads || []).filter(r => r.ok).map(r => r.max);
+  const pool = SCALES.filter(s => !okMax.includes(s.max) && s !== s6a.sc);
+  const sc = (pool.length ? pool : SCALES)[Math.floor(Math.random() * (pool.length || SCALES.length))];
+  const halves = Math.round(sc.max / (sc.div / 2));
+  s6a.sc = sc; s6a.val = Math.round((.1 + .85 * Math.random()) * halves) * sc.div / 2; s6a.shown = 0; s6a.done = false;
+  $('s6val').value = ''; $('s6unc').value = ''; $('s6msg').textContent = '';
+}
+function s6chips() {
+  const ok = (P.reads || []).filter(r => r.ok).length;
+  $('s6chips').innerHTML = [0, 1, 2].map(i => `<span class="${i < ok ? 'ok' : ''}">${i < ok ? '✓' : '○'} reading ${i + 1}</span>`).join('');
+}
+$('s6newA').onclick = s6newScale;
+$('s6chk').onclick = () => {
+  if (s6a.done) return;
+  const sc = s6a.sc, v = num($('s6val').value), u = num($('s6unc').value), half = sc.div / 2;
+  if (!isFinite(v) || !isFinite(u)) { $('s6msg').textContent = 'Write the reading and the uncertainty.'; return; }
+  const vok = Math.abs(v - s6a.val) <= half + 1e-9, uok = Math.abs(u - half) < 1e-9;
+  const dok = decimals(v) <= decimals(half) && Math.abs(v / half - Math.round(v / half)) < 1e-6;
+  const ok = vok && uok;
+  P.reads.push({ max: sc.max, div: sc.div, truth: s6a.val, val: v, unc: u, ok }); if (P.reads.length > 30) P.reads.shift(); touch();
+  let msg;
+  if (ok) {
+    s6a.done = true;
+    msg = `<span style="color:var(--green)">✅ (${f(s6a.val, decimals(half))} ± ${f(half, decimals(half))}) N is a good reading.</span> ${dok ? '' : 'Tip: give the value with the same decimals as the uncertainty.'} Press <b>Another scale</b>.`;
+  } else if (!uok && Math.abs(u - sc.div) < 1e-9) msg = (vok ? 'The reading is fine, but the' : 'Check the reading again. And the') + ' uncertainty: for an analog scale use <b>half</b> the smallest division.';
+  else if (!uok) msg = (vok ? 'Good reading. ' : '') + 'The uncertainty is wrong. First find the smallest division: how much is one small gap?';
+  else msg = 'The uncertainty is right, but the pointer is somewhere else. Count the small marks from the nearest number.';
+  $('s6msg').innerHTML = msg; s6chips();
+};
+s6newScale(); s6chips();
+function drawS6a(dt) {
+  const [ctx, W, H] = prep($('c6a'));
+  const sc = s6a.sc, x0 = 30, x1 = W - 30, y = 110, X = v => x0 + v / sc.max * (x1 - x0);
+  s6a.shown += (s6a.val - s6a.shown) * Math.min(1, dt * 3);
+  ctx.fillStyle = C.surface; rrect(ctx, 10, 40, W - 20, 120, 10); ctx.fill(); ctx.strokeStyle = C.border; ctx.stroke();
+  const n = Math.round(sc.max / sc.div);
+  for (let k = 0; k <= n; k++) {
+    const v = k * sc.div, lab = Math.abs(v / sc.lab - Math.round(v / sc.lab)) < 1e-6, mid = k % 5 === 0;
+    ctx.strokeStyle = C.text; ctx.lineWidth = lab ? 1.6 : 1;
+    ctx.beginPath(); ctx.moveTo(X(v), y); ctx.lineTo(X(v), y - (lab ? 30 : mid ? 22 : 14)); ctx.stroke();
+    if (lab) label(ctx, String(+v.toFixed(2)), X(v), y - 42, C.text, 13, 'center', 800);
+  }
+  ctx.strokeStyle = C.text; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+  const px = X(s6a.shown);
+  ctx.strokeStyle = C.red; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(px, y - 36); ctx.lineTo(px, y + 10); ctx.stroke();
+  ctx.fillStyle = C.red; ctx.beginPath(); ctx.moveTo(px, y + 6); ctx.lineTo(px - 9, y + 26); ctx.lineTo(px + 9, y + 26); ctx.closePath(); ctx.fill();
+  label(ctx, `0 – ${sc.max} N dynamometer`, 16, 20, C.muted, 12, 'left', 700);
+  label(ctx, 'N', x1 + 14, y - 15, C.muted, 12, 'center', 800);
+}
+
+// B · parallax
+const s6b = { eye: 60, min: 999, max: -999 };
+$('s6eye').addEventListener('input', () => {
+  s6b.eye = +$('s6eye').value; s6b.min = Math.min(s6b.min, s6b.eye); s6b.max = Math.max(s6b.max, s6b.eye);
+  if (!P.eyeMoved && s6b.max - s6b.min > 100) { P.eyeMoved = true; touch(); }
+  $('o6eye').textContent = Math.abs(s6b.eye - 130) < 4 ? 'level ✓' : s6b.eye < 130 ? 'above' : 'below';
+});
+$('s6eye').dispatchEvent(new Event('input'));
+function drawS6b() {
+  const [ctx, W, H] = prep($('c6b'));
+  const top = 50, pxN = 20, plateX = 390, tipX = 412, ptrY = top + 4 * pxN, eyeX = 570, eyeY = s6b.eye;
+  // side view
+  label(ctx, 'side view', 480, 18, C.muted, 11, 'center', 700);
+  ctx.fillStyle = C.surface2; ctx.fillRect(plateX - 10, top - 10, 10, 10 * pxN + 20);
+  for (let v = 0; v <= 10; v++) { const y = top + v * pxN; ctx.strokeStyle = C.text; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(plateX, y); ctx.lineTo(plateX + 6, y); ctx.stroke(); }
+  ctx.strokeStyle = C.red; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(plateX + 2, ptrY); ctx.lineTo(tipX, ptrY); ctx.stroke();
+  const yApp = eyeY + (ptrY - eyeY) * (eyeX - plateX) / (eyeX - tipX), rApp = (yApp - top) / pxN;
+  ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = C.accent; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(eyeX - 10, eyeY); ctx.lineTo(plateX, yApp); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = C.accent; ctx.beginPath(); ctx.arc(plateX, yApp, 4, 0, TAU); ctx.fill();
+  label(ctx, '👁', eyeX, eyeY, C.text, 26);
+  label(ctx, 'pointer sticks out', tipX + 6, ptrY - 12, C.red, 10, 'left', 700);
+  // front view: what the eye sees
+  label(ctx, 'what you see', 140, 18, C.muted, 11, 'center', 700);
+  ctx.fillStyle = C.surface; rrect(ctx, 60, top - 14, 160, 10 * pxN + 28, 8); ctx.fill(); ctx.strokeStyle = C.border; ctx.stroke();
+  for (let k = 0; k <= 50; k++) {
+    const v = k * .2, y = top + v * pxN, big = k % 5 === 0;
+    ctx.strokeStyle = C.text; ctx.lineWidth = big ? 1.4 : .7; ctx.beginPath(); ctx.moveTo(120, y); ctx.lineTo(120 + (big ? 16 : 9), y); ctx.stroke();
+    if (big) label(ctx, String(v), 144, y, C.text, 11, 'left', 700);
+  }
+  ctx.strokeStyle = C.red; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(84, yApp); ctx.lineTo(132, yApp); ctx.stroke();
+  const level = Math.abs(eyeY - ptrY) < 4;
+  label(ctx, `you read ${f(Math.max(0, rApp), 2)} N`, 300, H - 40, level ? C.green : C.red, 16, 'center', 800);
+  label(ctx, level ? 'eye level with the pointer: the true reading' : `parallax error: ${rApp > 4 ? '+' : '−'}${f(Math.abs(rApp - 4), 2)} N`, 300, H - 18, level ? C.green : C.muted, 12, 'center', 700);
+}
+
+// C · two dynamometers, same weight
+let s6cT = 0;
+function drawS6c(dt) {
+  s6cT += dt;
+  const [ctx, W, H] = prep($('c6c'));
+  const top = 64, len = 160, wob = Math.sin(s6cT * 2.2) * .6;
+  [[170, 1, .02, .2, '0 – 1 N'], [430, 10, .2, 2, '0 – 10 N']].forEach(([x, max, div, lab, name]) => {
+    ctx.fillStyle = C.surface; rrect(ctx, x - 36, top - 16, 92, len + 32, 8); ctx.fill(); ctx.strokeStyle = C.border; ctx.stroke();
+    for (let k = 0; k <= Math.round(max / div); k++) {
+      const v = k * div, y = top + v / max * len, big = Math.abs(v / lab - Math.round(v / lab)) < 1e-6;
+      ctx.strokeStyle = C.text; ctx.lineWidth = big ? 1.3 : .6; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (big ? 14 : 7), y); ctx.stroke();
+      if (big) label(ctx, String(+v.toFixed(1)), x + 18, y, C.text, 10, 'left', 700);
+    }
+    const yp = top + .8 / max * len + wob;
+    spring(ctx, x - 16, top - 4, x - 16, yp, 9, 5, C.amber, 1.6);
+    ctx.strokeStyle = C.red; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(x - 28, yp); ctx.lineTo(x + 10, yp); ctx.stroke();
+    ctx.strokeStyle = C.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 16, yp); ctx.lineTo(x - 16, top + len + 30); ctx.stroke();
+    ctx.fillStyle = C.muted; rrect(ctx, x - 30, top + len + 30, 28, 22, 4); ctx.fill();
+    label(ctx, '0.80 N', x - 16, top + len + 62, C.muted, 10, 'center', 700);
+    label(ctx, name, x + 10, 14, C.text, 14, 'center', 800);
+    label(ctx, `divisions of ${div} N`, x + 10, 32, C.muted, 11, 'center', 600);
+  });
+  label(ctx, 'uses 80 % of the scale', 170 + 70, top + .8 * len, C.green, 11, 'left', 700);
+  label(ctx, 'uses 8 %', 430 + 70, top + .08 * len, C.amber, 11, 'left', 700);
+}
+$('s6rchk').onclick = () => {
+  const a = num($('s6ra').value), b = num($('s6rb').value);
+  const aok = Math.abs(a / 1.25 - 1) < .04, bok = Math.abs(b / 12.5 - 1) < .04;
+  P.rel.a = P.rel.a || aok; P.rel.b = P.rel.b || bok; touch();
+  [['s6ra', aok, a, 1.25], ['s6rb', bok, b, 12.5]].forEach(([id, ok, v, ans]) => {
+    $(id).classList.toggle('okv', ok); $(id).classList.toggle('badv', !ok);
+    $(id + 'St').innerHTML = ok ? '<span style="color:var(--green)">✓</span>' : !isFinite(v) ? '' : Math.abs(v / (ans / 100) - 1) < .04 ? 'That is the fraction: multiply by 100 to get a percent.' : 'Divide the uncertainty by the value, then × 100.';
+  });
+  $('s6rnote').hidden = !(P.rel.a && P.rel.b);
+};
+
+// D · precise or accurate
+const TYPES = [
+  { k: 'both', t: 'precise and accurate', sd: .025, bias: 0 },
+  { k: 'prec', t: 'precise, not accurate', sd: .025, bias: .32 },
+  { k: 'acc', t: 'accurate, not precise', sd: .17, bias: 0 },
+  { k: 'none', t: 'neither precise nor accurate', sd: .17, bias: -.3 },
+];
+const tOrder = shuffle([0, 1, 2, 3], rng(S.id + 'tgt'));   // which type each of A–D is
+const s6d = { t: 0, rows: [] };
+function s6measure() {
+  s6d.t = 0;
+  s6d.rows = tOrder.map(ti => {
+    const T = TYPES[ti]; let vals;
+    do { vals = Array.from({ length: 10 }, () => 2 + T.bias + gauss() * T.sd); }
+    while (Math.abs(vals.reduce((a, b) => a + b, 0) / 10 - 2 - T.bias) > T.sd * .35);   // keep each set typical
+    return vals.map(v => Math.max(1.42, Math.min(2.58, v)));
+  });
+}
+$('s6again').onclick = s6measure; s6measure();
+$('s6sel').innerHTML = ['A', 'B', 'C', 'D'].map((L, i) => `<div class="inrow"><b style="width:120px">Dynamometer ${L}</b><select class="pick" id="tg${i}"><option value="">choose…</option>${TYPES.map(T => `<option value="${T.k}">${T.t}</option>`).join('')}</select></div>`).join('');
+$('s6tchk').onclick = () => {
+  let all = true, any = false;
+  tOrder.forEach((ti, i) => {
+    const v = $('tg' + i).value, ok = v === TYPES[ti].k; if (v) any = true; all = all && ok;
+    $('tg' + i).classList.toggle('okv', ok); $('tg' + i).classList.toggle('badv', !!v && !ok);
+  });
+  if (!any) return;
+  P.tgtTries = (P.tgtTries || 0) + 1;
+  if (all) P.target = true;
+  touch();
+  $('s6tmsg').innerHTML = all ? '<span style="color:var(--green)">✅ All four right.</span>' : 'Not all yet. For each one ask: are the dots <b>close together</b>? Is their <b>middle</b> on the dashed line?';
+};
+function drawS6d(dt) {
+  s6d.t += dt;
+  const [ctx, W, H] = prep($('c6d'));
+  const x0 = 120, x1 = W - 24, X = v => x0 + (v - 1.4) / 1.2 * (x1 - x0);
+  ctx.save(); ctx.setLineDash([6, 5]); ctx.strokeStyle = C.green; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X(2), 20); ctx.lineTo(X(2), H - 30); ctx.stroke(); ctx.restore();
+  label(ctx, 'true 2.00 N', X(2), 12, C.green, 11, 'center', 800);
+  s6d.rows.forEach((vals, r) => {
+    const y = 60 + r * 68;
+    ctx.strokeStyle = C.border; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+    for (let v = 1.4; v <= 2.601; v += .2) { ctx.beginPath(); ctx.moveTo(X(v), y - 4); ctx.lineTo(X(v), y + 4); ctx.stroke(); if (r === 3) label(ctx, f(v, 1), X(v), y + 18, C.muted, 10, 'center', 600); }
+    label(ctx, 'Dynamometer ' + 'ABCD'[r], 12, y, C.text, 13, 'left', 800);
+    vals.forEach((v, i) => {
+      const t0 = i * .16 + r * .05, k = Math.min(1, Math.max(0, (s6d.t - t0) / .35)); if (k <= 0) return;
+      const yy = y - 40 * (1 - k * k);
+      ctx.globalAlpha = .25 + .6 * k; ctx.fillStyle = C.accent; ctx.beginPath(); ctx.arc(X(v), yy - 8, 6, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+    });
+  });
+  label(ctx, 'force (N)', x1, H - 8, C.muted, 11, 'right', 700);
+}
+
+// ═════════════ STATION 7 · exit check ═════════════
+const exR = rng(S.id + 'exit');
+const exOrder = {}; FORCE.exit.forEach(q => exOrder[q.id] = shuffle([0, 1, 2, 3], exR));
+function renderExit() {
+  const done = !!(P.exit && P.exit.at), sel = done ? P.exit.ans : P.exitDraft;
+  $('exit').innerHTML = FORCE.exit.map((q, n) => `<div class="exitq" data-x="${q.id}">
+    <div class="qq">${n + 1}. ${q.ic} ${q.q}</div>
+    <div class="opts">${exOrder[q.id].map(oi => {
+      const cls = done ? (oi === 0 ? 'right' : sel[q.id] === oi ? 'wrong' : '') : sel[q.id] === oi ? 'sel' : '';
+      return `<button data-o="${oi}" class="${cls}" ${done ? 'disabled' : ''}>${q.o[oi]}</button>`;
+    }).join('')}</div>
+    ${done ? `<div class="why">${sel[q.id] === 0 ? '✅' : '❌'} ${q.e}</div>` : ''}</div>`).join('');
+  if (!done) $('exit').querySelectorAll('.exitq').forEach(box => box.querySelectorAll('button').forEach(b => b.onclick = () => {
+    P.exitDraft[box.dataset.x] = +b.dataset.o; touch(); renderExit();
+  }));
+  const n = Object.keys(P.exitDraft).length;
+  $('exitGo').hidden = done;
+  $('exitGo').disabled = n < FORCE.exit.length;
+  $('exitMsg').textContent = done ? '' : n < FORCE.exit.length ? `${n} of ${FORCE.exit.length} answered` : 'All answered. Check them once more, then hand in.';
+  $('exitDone').hidden = !done;
+  if (done) {
+    const tot = FORCE.checkpoints.length, d = doneCount();
+    $('exitDone').innerHTML = `<div class="score">${P.exit.score}<small> / ${FORCE.exit.length}</small></div>
+      <p style="text-align:center">Exit check handed in at ${new Date(P.exit.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. The explanations are under each question.</p>
+      <p style="text-align:center;color:var(--muted)">Checkpoints: <b>${d}/${tot}</b>${d < tot ? '. If you still have time, go back to the stations that aren\'t full in the bar at the top.' : '. Everything done. Well done!'}</p>`;
+  }
+}
+$('exitGo').onclick = () => {
+  if (Object.keys(P.exitDraft).length < FORCE.exit.length || (P.exit && P.exit.at)) return;
+  if (!confirm('Hand in the exit check? You can only do it once.')) return;
+  const ans = { ...P.exitDraft };
+  P.exit = { ans, score: FORCE.exit.filter(q => ans[q.id] === 0).length, at: new Date().toISOString() };
+  touch(); sendNow(); renderExit();
+};
+renderExit();
+
+// ═════════════ sending to the teacher's sheet ═════════════
+// The class link (from the teacher page) carries ?api=…&session=…&mode=…. Without it the page works
+// the same, but nothing is sent. Every change is saved on this computer; a few seconds after the last
+// change the whole progress object is sent, with the same id, so the sheet keeps one row per pair.
+function syncLine() {
+  const el = $('sync'); if (!el) return;
+  el.hidden = false;
+  el.classList.toggle('warn', !API || !!closedMsg);
+  el.innerHTML = `<b>${doneCount()}/${FORCE.checkpoints.length} ✓</b> · ` + (!API ? 'not connected to your teacher'
+    : closedMsg ? closedMsg
+    : sending ? 'sending…' : lastSent ? 'teacher updated ' + new Date(lastSent).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'not sent yet');
+}
+async function sendNow() {
+  if (!API || !named() || sending) return;
+  if (!dirty && lastSent) return;
+  sending = true; dirty = false; syncLine();
+  const body = JSON.stringify({ ...S, lastSent: undefined, done: doneCount(), submittedAt: new Date().toISOString(), client: 'measuring_force_class/1' });
+  let ok = false;
+  try {
+    const j = await (await fetch(API, { method: 'POST', body })).json();
+    if (j.closed) { closedMsg = 'your teacher has closed this activity'; }
+    else if (j.ok) ok = true;
+    else if (j.busy) dirty = true;
+  } catch (e) {
+    try { await fetch(API, { method: 'POST', mode: 'no-cors', body }); ok = true; } catch (e2) { dirty = true; }
+  }
+  sending = false;
+  if (ok) { lastSent = S.lastSent = new Date().toISOString(); persist(); }
+  syncLine();
+}
+setInterval(() => { if (dirty) sendNow(); }, 30000);   // retry a send that failed
+
+// Text answers
+function wcLine(id) {
+  const el = document.querySelector(`[data-wc="${id}"]`), n = FORCE.words(P[id]), min = +el.dataset.min;
+  el.textContent = `${n} word${n === 1 ? '' : 's'} · at least ${min}`; el.classList.toggle('ok', n >= min);
+  if (id === 'scaleAns' && !$('scaleBtn').hidden) { $('scaleBtn').disabled = n < min; $('scaleBtn').textContent = n < min ? 'Show the answer (write first)' : 'Show the answer'; }
+}
+document.querySelectorAll('[data-say]').forEach(t => {
+  const id = t.dataset.say; t.value = P[id] || ''; wcLine(id);
+  t.addEventListener('input', () => { P[id] = t.value; wcLine(id); touch(); });
+});
+
+// Put back what this computer already did
+restoreQs();
+s1chips();
+if (P.rv.scale) { $('scaleAnsBox').hidden = false; $('scaleBtn').hidden = true; }
+if (P.runs.some(r => Math.abs(r.m - 1) < 1e-6 && Math.abs(r.F - 1) < 1e-6)) $('s3def').hidden = false;
+CONV.forEach((c, i) => { if (P.conv[i] && P.conv[i].val != null) { $('cv' + i).value = P.conv[i].val; convCheck(i, true); } });
+if (P.dyn.range) $('s5range').value = 10;
+if (P.dyn.div) $('s5div').value = .2;
+if (P.dyn.range || P.dyn.div) $('s5chk').click();
+if (P.rel.a) $('s6ra').value = 1.25;
+if (P.rel.b) $('s6rb').value = 12.5;
+if (P.rel.a || P.rel.b) $('s6rchk').click();
+if (P.target) { tOrder.forEach((ti, i) => { $('tg' + i).value = TYPES[ti].k; $('tg' + i).classList.add('okv'); }); $('s6tmsg').innerHTML = '<span style="color:var(--green)">✅ All four right.</span>'; }
+
+// Who is working here (only with the class link)
+function whoInit() {
+  const box = $('who'); box.hidden = !API || named();
+  document.body.classList.toggle('needs-who', !box.hidden);
+  $('wSession').value = S.session; $('wSession').readOnly = !!LINK_SESSION;
+  $('wGroup').value = S.group; $('wS1').value = S.students[0]; $('wS2').value = S.students[1];
+  const check = () => {
+    const ok = $('wSession').value.trim() && $('wGroup').value.trim() && $('wS1').value.trim();
+    $('wGo').disabled = !ok; $('wMsg').textContent = ok ? '' : 'Write the session, your pair number and at least one name.';
+  };
+  ['wSession', 'wGroup', 'wS1', 'wS2'].forEach(id => $(id).addEventListener('input', check)); check();
+  $('wGo').onclick = () => {
+    S.session = $('wSession').value.trim(); S.group = $('wGroup').value.trim();
+    S.students = [$('wS1').value.trim(), $('wS2').value.trim()];
+    S.mode = LINK_MODE || (S.students[1] ? 'group' : 'individual');
+    S.startedAt = new Date().toISOString();   // the 70 minutes start now
+    box.hidden = true; document.body.classList.remove('needs-who'); touch(); sendNow();
+  };
+}
+whoInit();
+labPrivacy.init({ api: API, live: true });
+labClosing.watch(API, FORCE.classId, S.session);
+showStation(P.station || 1);
+syncLine(); planBar();
+if (API && named() && !lastSent) sendNow();
+
+// ═════════════ animation loop: only the open station is drawn ═════════════
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (station === '1') { stepS1(dt); drawS1(); }
+  else if (station === '2') { stepS2(dt); drawS2(); drawS2b(dt); }
+  else if (station === '3') { stepS3(dt); drawS3(); drawS3g(); drawS3b(dt); }
+  else if (station === '4') { stepS4(dt); drawS4(); }
+  else if (station === '5') { stepS5(dt); drawS5(); }
+  else if (station === '6') {
+    if (sub6 === 'A') drawS6a(dt); else if (sub6 === 'B') drawS6b(); else if (sub6 === 'C') drawS6c(dt); else drawS6d(dt);
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
