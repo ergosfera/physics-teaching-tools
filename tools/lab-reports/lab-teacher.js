@@ -28,6 +28,7 @@
 //   csv: { head: [...], rows: G => [[...], …] }  CSV export
 //   demo() → [report, …]                         demo class (session DEMO)
 //   backendVersion?, backendWhy?                 minimum Apps Script version this lab needs, and why (shown if older)
+//   linkOptions?: [{ param, label, options: [[value, text], …] }]   extra choices for the student link (first = default)
 
 // ── Helpers shared with the lab pages ───────────────────────
 const num = s => { const v = parseFloat(String(s ?? '').trim().replace(',', '.')); return isFinite(v) ? v : NaN; };
@@ -132,6 +133,7 @@ function buildPage() {
           <option value="group">One report per group</option>
           <option value="individual">One report per student</option>
         </select></div>
+      <div id="link-extra"></div>
       <div class="link-box">
         <div style="display:grid;gap:8px">
           <input type="text" id="student-link" readonly class="mono">
@@ -417,6 +419,7 @@ function renderLink() {
   const sess = $('link-session').value.trim();
   if (sess) u.searchParams.set('session', sess);
   if ($('link-mode').value) u.searchParams.set('mode', $('link-mode').value);
+  (LAB.linkOptions || []).forEach(o => { const v = $('link-opt-' + o.param).value; if (v) u.searchParams.set(o.param, v); });
   if (CONN.api) u.searchParams.set('api', CONN.api);
   const link = u.toString();
   $('student-link').value = link;
@@ -640,6 +643,14 @@ function LabTeacher(lab) {
   $('link-session').addEventListener('input', renderLink);
   $('link-mode').value = CFG.mode || '';
   $('link-mode').addEventListener('change', () => { CFG.mode = $('link-mode').value; saveCfg(); renderLink(); });
+  $('link-extra').innerHTML = (LAB.linkOptions || []).map(o => `<div class="form-row"><label for="link-opt-${o.param}">${esc(o.label)}</label>
+    <select id="link-opt-${o.param}">${o.options.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('')}</select></div>`).join('');
+  CFG.linkOpts = CFG.linkOpts || {};
+  (LAB.linkOptions || []).forEach(o => {
+    const el = $('link-opt-' + o.param);
+    if (CFG.linkOpts[o.param] != null) el.value = CFG.linkOpts[o.param];
+    el.addEventListener('change', () => { CFG.linkOpts[o.param] = el.value; saveCfg(); renderLink(); });
+  });
   $('copy-link').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText($('student-link').value); } catch (e) { $('student-link').select(); }
   });

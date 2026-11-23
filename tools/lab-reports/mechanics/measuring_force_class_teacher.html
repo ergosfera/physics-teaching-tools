@@ -58,6 +58,10 @@ LabTeacher({
   title: 'Measuring Force',
   icon: '💪',
   studentPage: 'measuring_force_class.html',
+  linkOptions: [{ param: 'lock', label: 'Stations', options: [
+    ['', 'Open: pairs move freely between stations'],
+    ['1', 'In order: a station opens when the one before it is finished'],
+  ] }],
   tagline: '70 minutes of autonomous work: the newton, the kilogram-force and reading a dynamometer with its uncertainty',
   titleExtra: () => GROUPS.length ? ` · median ${fmt(median(GROUPS.map(G => G.n)))}/${TOT} checkpoints` : '',
 

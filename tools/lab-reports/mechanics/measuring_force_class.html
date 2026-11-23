@@ -193,7 +193,12 @@
   .plan .clock b { color: var(--text); }
   .plan .clock .late b { color: var(--amber); }
   section.station > h2 .mins { font-size: .78rem; font-weight: 700; color: var(--muted); letter-spacing: 0; text-transform: none; margin-left: 8px; }
-  .nextbar { display: flex; justify-content: flex-end; margin-top: 22px; }
+  .nextbar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
+  .nextbar .miss { font-size: .84rem; color: var(--muted); text-align: right; max-width: 620px; }
+  .nextbar .miss b { color: var(--amber); }
+  nav.stations button:disabled { opacity: .45; cursor: not-allowed; }
+  nav.stations button:disabled:hover { color: var(--muted); border-color: var(--border); }
+  .plan .seg2.locked { opacity: .45; cursor: not-allowed; }
   .qbox { display: grid; gap: 8px; }
   .qbox .qq { font-weight: 700; font-size: .95rem; }
   .qbox .qq .em { font-size: 1.3rem; margin-right: 6px; }
@@ -263,7 +268,7 @@
 <main>
 <div class="card" id="who" hidden>
   <h3><span class="tag">Before you start</span>Who is working on this computer?</h3>
-  <p style="font-size:.9rem;color:var(--muted)">Work in pairs (or alone if your teacher says so). You have <b>70 minutes</b> for seven stations. The bar at the top shows how long each one should take and how much of it you have done. Your teacher sees your progress live.</p>
+  <p style="font-size:.9rem;color:var(--muted)">Work in pairs (or alone if your teacher says so). You have <b>70 minutes</b> for seven stations. The bar at the top shows how long each one should take and how much of it you have done. Your teacher sees your progress live.<span id="lockNote" hidden> Each station opens when you have finished the one before it.</span></p>
   <div class="grid">
     <label>Session <input type="text" id="wSession"></label>
     <label>Pair / group number <input type="text" id="wGroup" inputmode="numeric"></label>
@@ -679,7 +684,7 @@ let dirty = false, sending = false, sendTimer = null, lastSent = S.lastSent || n
 function doneCount() { return FORCE.checkpoints.filter(c => c.done(P)).length; }
 function persist() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
 function touch() {
-  persist(); dirty = true; syncLine(); planBar();
+  persist(); dirty = true; syncLine(); planBar(); renderLocks();
   if (API && named()) { clearTimeout(sendTimer); sendTimer = setTimeout(sendNow, 4000); }
 }
 function named() { return !!(S.students[0].trim() && String(S.group).trim() && String(S.session).trim()); }
@@ -692,7 +697,29 @@ function track(id, text, right) {
 
 // ── stations nav and the 70-minute plan bar ───────
 let station = '1';
+// With ?lock=1 in the class link, a station opens only when every checkpoint of the stations before it is done
+const LOCK = params.get('lock') === '1';
+const missingIn = st => FORCE.checkpoints.filter(c => c.st === st && !c.done(P));
+function unlocked(st) { if (!LOCK) return true; for (let k = 1; k < st; k++) if (missingIn(k).length) return false; return true; }
+function renderLocks() {
+  if (!LOCK) return;
+  document.querySelectorAll('#nav button').forEach(b => {
+    if (!b.dataset.label) b.dataset.label = b.textContent;
+    const open = unlocked(+b.dataset.st);
+    b.disabled = !open; b.textContent = (open ? '' : '🔒 ') + b.dataset.label;
+    b.title = open ? '' : 'Finish the station before this one first';
+  });
+  document.querySelectorAll('#planBar .seg2').forEach(d => d.classList.toggle('locked', !unlocked(+d.dataset.st)));
+  document.querySelectorAll('[data-next]').forEach(b => {
+    const from = +b.dataset.next - 1, miss = missingIn(from);
+    let m = b.parentElement.querySelector('.miss');
+    if (!m) { m = document.createElement('span'); m.className = 'miss'; b.before(m); }
+    b.disabled = !unlocked(+b.dataset.next);
+    m.innerHTML = b.disabled ? `🔒 To open the next station, finish: <b>${miss.map(c => c.long).join('</b> · <b>')}</b>` : '';
+  });
+}
 function showStation(s) {
+  if (!unlocked(+s)) { let k = +s; while (k > 1 && !unlocked(k)) k--; s = k; }
   station = String(s);
   P.station = +station; touch();
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.st === station));
@@ -710,7 +737,7 @@ function planBar() {
   const mins = (Date.now() - new Date(S.startedAt)) / 60000, sug = suggestedStation(mins);
   if (!bar.children.length) {
     bar.innerHTML = FORCE.stations.map((n, i) => `<div class="seg2" data-st="${i + 1}" style="flex:${MIN[i]}" title="Station ${i + 1} · ${n} · ${MIN[i]} min"><i></i><span>${i + 1} · ${n}</span></div>`).join('');
-    bar.querySelectorAll('.seg2').forEach(d => d.onclick = () => showStation(d.dataset.st));
+    bar.querySelectorAll('.seg2').forEach(d => d.onclick = () => { if (unlocked(+d.dataset.st)) showStation(d.dataset.st); });
   }
   bar.querySelectorAll('.seg2').forEach(d => {
     const st = +d.dataset.st, ck = FORCE.checkpoints.filter(c => c.st === st);
@@ -1639,10 +1666,11 @@ function whoInit() {
   };
 }
 whoInit();
+$('lockNote').hidden = !LOCK;
 labPrivacy.init({ api: API, live: true });
 labClosing.watch(API, FORCE.classId, S.session);
 showStation(P.station || 1);
-syncLine(); planBar();
+syncLine(); planBar(); renderLocks();
 if (API && named() && !lastSent) sendNow();
 
 // ═════════════ animation loop: only the open station is drawn ═════════════
