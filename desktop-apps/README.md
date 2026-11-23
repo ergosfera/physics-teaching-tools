@@ -2,7 +2,7 @@
 
 Small, free desktop apps for Windows and macOS, made for teaching:
 
-- **Countdown Timer**: a compact countdown whose bar and numbers turn from green to yellow to red.
+- **Countdown Timer**: compact countdowns whose bar and numbers turn from green to yellow to red. Run several at once, each with a note and links saying what it counts down to.
 - **Physics Calculator**: the calculator from the Ergosfera *Notebook & Physics Calculator* web tool, where numbers carry units.
 - **Field**: the Ergosfera *Field* dot timer, a field of dots that go dark as time runs out, with big numbers drawn in dots. A tribute to Untime by Perceptor.
 - **Sticky Notes**: sticky notes on your desktop that sync between your Mac and Windows computers through Google Drive.
@@ -49,6 +49,9 @@ macOS may block them. Open **System Settings → Privacy & Security** and click 
 - A bar shrinks as time runs out and turns from green to yellow to red, at percentages you choose.
 - Optional "always on top" keeps the timer visible over other windows.
 - Optional sound when the time is up.
+- Several timers at once, each with its own time and settings.
+- A note under each timer says what it counts down to. Web addresses in the note become links, and `[name](address)` shows a short name that opens the address.
+- Timers come back when the app opens again: a countdown that was running keeps counting to the same moment while the app is closed.
 
 | Action | Mouse | Keyboard |
 |---|---|---|
@@ -58,11 +61,16 @@ macOS may block them. Open **System Settings → Privacy & Security** and click 
 | Reset | **Reset** button | R |
 | Always on top | Pin button in the top bar | — |
 | Settings (time, color levels, sound) | Gear button or right-click → Settings | ⌘, on Mac |
+| Add or edit the note | Pencil button, double-click the note, or right-click → Add note | N |
+| New timer | Right-click → New timer; on Mac also the Dock icon menu; on Windows also open the app again | ⌘N on Mac, Ctrl+N on Windows |
+| Close one timer | × button or right-click → Close this timer | ⌘W on Mac, Ctrl+W on Windows |
 | About and license | Right-click → About | — |
 
 A countdown to an end time ends at that time whenever you press **Start**. A time that has already passed today means tomorrow. Pausing lets go of the end time: resuming continues from what was left.
 
 Move the window by dragging any empty area.
+
+Closing a timer that has a note or a countdown going asks first. Closing the last timer quits the app and keeps it for next time; Quit (Mac) or Exit (Windows) keeps every open timer for next time.
 
 ## Physics Calculator
 

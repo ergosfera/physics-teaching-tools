@@ -18,6 +18,8 @@ enum Palette {
     static let segSelected = rgb(52, 55, 64)
     static let closeHover = rgb(196, 43, 28)
     static let text = rgb(235, 236, 240)
+    static let note = rgb(205, 208, 216)
+    static let link = rgb(110, 175, 255)
     // Pure, saturated signal colors (no amber/sepia).
     static let green = rgb(34, 197, 94)
     static let yellow = rgb(255, 230, 0)
@@ -32,34 +34,112 @@ final class FlippedView: NSView {
     override var isFlipped: Bool { true }
 }
 
-// MARK: - Settings
+// MARK: - Timer data (every timer window has its own)
 
-final class Settings {
-    private let d = UserDefaults.standard
+final class TimerModel {
+    let id: String
+    var hours = 0, minutes = 5, seconds = 0
+    var yellowPct = 30, redPct = 10
+    var topMost = true, sound = true
+    var note = ""
 
-    init() {
-        d.register(defaults: ["hours": 0, "minutes": 5, "seconds": 0,
-                              "yellowPct": 30, "redPct": 10,
-                              "topMost": true, "sound": true])
-    }
-
-    var hours: Int { get { d.integer(forKey: "hours") } set { d.set(clamp(newValue, 0, 99), forKey: "hours") } }
-    var minutes: Int { get { d.integer(forKey: "minutes") } set { d.set(clamp(newValue, 0, 59), forKey: "minutes") } }
-    var seconds: Int { get { d.integer(forKey: "seconds") } set { d.set(clamp(newValue, 0, 59), forKey: "seconds") } }
-    var yellowPct: Int { get { d.integer(forKey: "yellowPct") } set { d.set(clamp(newValue, 1, 100), forKey: "yellowPct") } }
-    var redPct: Int { get { d.integer(forKey: "redPct") } set { d.set(clamp(newValue, 0, 99), forKey: "redPct") } }
-    var topMost: Bool { get { d.bool(forKey: "topMost") } set { d.set(newValue, forKey: "topMost") } }
-    var sound: Bool { get { d.bool(forKey: "sound") } set { d.set(newValue, forKey: "sound") } }
+    init(id: String = UUID().uuidString) { self.id = id }
 
     subscript(seg: Int) -> Int {
         get { seg == 0 ? hours : seg == 1 ? minutes : seconds }
-        set { if seg == 0 { hours = newValue } else if seg == 1 { minutes = newValue } else { seconds = newValue } }
+        set {
+            let v = clamp(newValue, 0, seg == 0 ? 99 : 59)
+            if seg == 0 { hours = v } else if seg == 1 { minutes = v } else { seconds = v }
+        }
     }
 
     var duration: TimeInterval { TimeInterval(hours * 3600 + minutes * 60 + seconds) }
+
+    /// A new timer starts with the same time and settings as the one it came from, but no note.
+    func copy() -> TimerModel {
+        let m = TimerModel()
+        m.hours = hours; m.minutes = minutes; m.seconds = seconds
+        m.yellowPct = yellowPct; m.redPct = redPct
+        m.topMost = topMost; m.sound = sound
+        return m
+    }
+
+    var dict: [String: Any] {
+        ["id": id, "hours": hours, "minutes": minutes, "seconds": seconds,
+         "yellowPct": yellowPct, "redPct": redPct, "topMost": topMost, "sound": sound, "note": note]
+    }
+
+    convenience init(dict d: [String: Any]) {
+        self.init(id: d["id"] as? String ?? UUID().uuidString)
+        func int(_ k: String, _ def: Int, _ lo: Int, _ hi: Int) -> Int { clamp(d[k] as? Int ?? def, lo, hi) }
+        hours = int("hours", 0, 0, 99)
+        minutes = int("minutes", 5, 0, 59)
+        seconds = int("seconds", 0, 0, 59)
+        yellowPct = int("yellowPct", 30, 1, 100)
+        redPct = int("redPct", 10, 0, 99)
+        if redPct >= yellowPct { redPct = max(0, yellowPct - 1) }
+        topMost = d["topMost"] as? Bool ?? true
+        sound = d["sound"] as? Bool ?? true
+        note = d["note"] as? String ?? ""
+    }
 }
 
 func clamp(_ v: Int, _ lo: Int, _ hi: Int) -> Int { min(hi, max(lo, v)) }
+
+// MARK: - Note text: plain text with links
+
+enum NoteText {
+    // [name](address), or a bare web address.
+    static let pattern = try! NSRegularExpression(
+        pattern: #"\[([^\]\n]+)\]\(([^()\s]+)\)|(?:https?://|www\.)[^\s<>"]+"#, options: [.caseInsensitive])
+
+    static func url(_ s: String) -> URL? {
+        let hasScheme = s.range(of: #"^[a-z][a-z0-9+.-]*:"#, options: [.regularExpression, .caseInsensitive]) != nil
+        return URL(string: hasScheme ? s : "https://" + s)
+    }
+
+    /// Long bare addresses are shown short; the link still opens the full address.
+    static func shortLabel(_ raw: String) -> String {
+        var s = raw
+        for p in ["https://", "http://"] where s.lowercased().hasPrefix(p) { s.removeFirst(p.count) }
+        if s.hasSuffix("/") { s.removeLast() }
+        return s.count > 36 ? String(s.prefix(35)) + "…" : s
+    }
+
+    /// The text to show, and where the links are in it.
+    static func parse(_ source: String) -> (String, [(NSRange, URL)]) {
+        let ns = source as NSString
+        var out = ""
+        var links: [(NSRange, URL)] = []
+        var last = 0
+        for m in pattern.matches(in: source, range: NSRange(location: 0, length: ns.length)) {
+            out += ns.substring(with: NSRange(location: last, length: m.range.location - last))
+            last = m.range.location + m.range.length
+            var label: String, target: String, trailing = ""
+            if m.range(at: 1).location != NSNotFound {
+                label = ns.substring(with: m.range(at: 1))
+                target = ns.substring(with: m.range(at: 2))
+            } else {
+                // Punctuation right after an address belongs to the sentence, not the address.
+                var raw = ns.substring(with: m.range)
+                while let c = raw.last, ".,;:!?'\"".contains(c) ||
+                        (c == ")" && raw.filter({ $0 == "(" }).count < raw.filter({ $0 == ")" }).count) {
+                    trailing = String(c) + trailing
+                    raw.removeLast()
+                }
+                label = shortLabel(raw)
+                target = raw
+            }
+            guard let u = url(target) else { out += ns.substring(with: m.range); continue }
+            let start = (out as NSString).length
+            out += label
+            links.append((NSRange(location: start, length: (label as NSString).length), u))
+            out += trailing
+        }
+        out += ns.substring(from: last)
+        return (out, links)
+    }
+}
 
 // MARK: - Window
 
@@ -71,10 +151,13 @@ final class TimerWindow: NSWindow {
 // MARK: - Timer view
 
 final class TimerView: NSView, NSViewToolTipOwner {
-    enum Hit: Equatable { case none, close, min, pin, gear, end, seg(Int), main, reset }
+    enum Hit: Equatable { case none, close, min, pin, gear, end, noteBtn, seg(Int), main, reset, note, link(Int) }
     enum State { case idle, running, paused, finished }
 
-    let cfg: Settings
+    let cfg: TimerModel
+    var onChange: (() -> Void)?            // something worth saving changed
+    var onClose: ((TimerView) -> Void)?
+    var onNew: ((TimerView) -> Void)?
     var state = State.idle
     var total: TimeInterval = 0
     var banked: TimeInterval = 0       // time already counted before the current run
@@ -93,7 +176,19 @@ final class TimerView: NSView, NSViewToolTipOwner {
     let digitFont = NSFont.monospacedDigitSystemFont(ofSize: 44, weight: .semibold)
     let uiFont = NSFont.systemFont(ofSize: 13)
     let titleFont = NSFont.systemFont(ofSize: 12)
+    let noteFont = NSFont.systemFont(ofSize: 13)
 
+    // The note sits under the buttons; the window grows to fit it.
+    static let baseHeight: CGFloat = 130
+    let noteTop: CGFloat = 136
+    let noteStorage = NSTextStorage()
+    let noteLayout = NSLayoutManager()
+    let noteContainer = NSTextContainer(size: NSSize(width: 252, height: 220))
+    var noteLinks: [(NSRange, URL)] = []
+    var noteHeight: CGFloat = 0
+    var noteRect: NSRect { NSRect(x: 14, y: noteTop, width: 252, height: noteHeight) }
+
+    let rcNoteBtn = NSRect(x: 112, y: 0, width: 28, height: 26)
     let rcClose = NSRect(x: 252, y: 0, width: 28, height: 26)
     let rcMin = NSRect(x: 224, y: 0, width: 28, height: 26)
     let rcPin = NSRect(x: 196, y: 0, width: 28, height: 26)
@@ -107,9 +202,12 @@ final class TimerView: NSView, NSViewToolTipOwner {
     var textX: CGFloat = 0
     var segRects = [NSRect](repeating: .zero, count: 3)
 
-    init(settings: Settings) {
-        cfg = settings
-        super.init(frame: NSRect(x: 0, y: 0, width: 280, height: 130))
+    init(model: TimerModel) {
+        cfg = model
+        super.init(frame: NSRect(x: 0, y: 0, width: 280, height: Self.baseHeight))
+        noteContainer.lineFragmentPadding = 0
+        noteLayout.addTextContainer(noteContainer)
+        noteStorage.addLayoutManager(noteLayout)
         computeLayout()
         ticker = Timer(timeInterval: 0.04, target: self, selector: #selector(tick), userInfo: nil, repeats: true)
         RunLoop.main.add(ticker!, forMode: .common)
@@ -136,6 +234,146 @@ final class TimerView: NSView, NSViewToolTipOwner {
             segRects[i] = NSRect(x: a - 5, y: digitsTop, width: b - a + 10, height: digitsHeight)
         }
     }
+
+    // MARK: Note
+
+    func changed() { onChange?() }
+
+    /// Lays out the note, resizes the window to fit it and names the window after it.
+    func layoutNote() {
+        let (text, links) = NoteText.parse(cfg.note.trimmingCharacters(in: .whitespacesAndNewlines))
+        noteLinks = links
+        let para = NSMutableParagraphStyle()
+        para.lineBreakMode = .byWordWrapping
+        para.paragraphSpacing = 2
+        let a = NSMutableAttributedString(string: text, attributes: [.font: noteFont, .foregroundColor: Palette.note,
+                                                                     .paragraphStyle: para])
+        for (r, _) in links {
+            a.addAttributes([.foregroundColor: Palette.link, .underlineStyle: NSUnderlineStyle.single.rawValue], range: r)
+        }
+        noteStorage.setAttributedString(a)
+        noteLayout.ensureLayout(for: noteContainer)
+        noteHeight = text.isEmpty ? 0 : ceil(noteLayout.usedRect(for: noteContainer).height)
+
+        let h = noteHeight > 0 ? noteTop + noteHeight + 12 : Self.baseHeight
+        if let w = window, w.frame.height != h {
+            var f = w.frame
+            f.origin.y += f.height - h      // keep the top edge where it is
+            f.size.height = h
+            w.setFrame(f, display: true)
+            w.invalidateShadow()
+        } else if window == nil {
+            setFrameSize(NSSize(width: 280, height: h))
+        }
+        let first = text.split(separator: "\n").first.map(String.init) ?? ""
+        window?.title = first.isEmpty ? "Countdown Timer" : first
+        updateTrackingAreas()
+        needsDisplay = true
+    }
+
+    func linkIndex(at p: NSPoint) -> Int? {
+        guard noteHeight > 0, noteRect.contains(p) else { return nil }
+        let local = NSPoint(x: p.x - noteRect.minX, y: p.y - noteRect.minY)
+        var frac: CGFloat = 0
+        let gi = noteLayout.glyphIndex(for: local, in: noteContainer, fractionOfDistanceThroughGlyph: &frac)
+        guard noteLayout.boundingRect(forGlyphRange: NSRange(location: gi, length: 1), in: noteContainer)
+                .insetBy(dx: -1, dy: -1).contains(local) else { return nil }
+        let ci = noteLayout.characterIndexForGlyph(at: gi)
+        return noteLinks.firstIndex { NSLocationInRange(ci, $0.0) }
+    }
+
+    @objc func openNote() {
+        let box = FlippedView(frame: NSRect(x: 0, y: 0, width: 340, height: 168))
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 340, height: 130))
+        scroll.hasVerticalScroller = true
+        scroll.borderType = .bezelBorder
+        let size = scroll.contentSize
+        let tv = NSTextView(frame: NSRect(origin: .zero, size: size))
+        tv.isRichText = false
+        tv.allowsUndo = true
+        tv.font = NSFont.systemFont(ofSize: 13)
+        tv.isAutomaticQuoteSubstitutionEnabled = false
+        tv.isAutomaticDashSubstitutionEnabled = false
+        tv.isAutomaticLinkDetectionEnabled = false
+        tv.minSize = NSSize(width: 0, height: size.height)
+        tv.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        tv.isVerticallyResizable = true
+        tv.autoresizingMask = [.width]
+        tv.textContainer?.widthTracksTextView = true
+        tv.string = cfg.note
+        scroll.documentView = tv
+        box.addSubview(scroll)
+        let hint = NSTextField(wrappingLabelWithString:
+            "Paste a web address to make a link, or write [name](address).\n⌘Return saves.")
+        hint.font = NSFont.systemFont(ofSize: 11)
+        hint.textColor = .secondaryLabelColor
+        hint.frame = NSRect(x: 0, y: 136, width: 340, height: 32)
+        box.addSubview(hint)
+
+        let alert = NSAlert()
+        alert.messageText = "Note"
+        alert.informativeText = "What this timer is counting down to. It shows under the timer."
+        let ok = alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+        // Return makes a new line in the note; ⌘Return saves.
+        ok.keyEquivalent = "\r"
+        ok.keyEquivalentModifierMask = [.command]
+        alert.accessoryView = box
+        alert.window.initialFirstResponder = tv
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        cfg.note = tv.string.trimmingCharacters(in: .whitespacesAndNewlines)
+        layoutNote()
+        changed()
+    }
+
+    // MARK: Saving and restoring
+
+    func snapshot() -> [String: Any] {
+        var d = cfg.dict
+        if let f = window?.frame { d["x"] = Double(f.minX); d["top"] = Double(f.maxY) }
+        switch state {
+        case .running:
+            // Saved as the moment it ends, so it keeps counting while the app is closed.
+            d["run"] = "running"
+            d["endsAt"] = Date().addingTimeInterval(remaining()).timeIntervalSince1970
+            d["total"] = total
+        case .paused:
+            d["run"] = "paused"
+            d["total"] = total
+            d["banked"] = banked
+        case .idle:
+            if let e = endDate { d["run"] = "until"; d["endsAt"] = e.timeIntervalSince1970 }
+        case .finished:
+            break
+        }
+        return d
+    }
+
+    func restoreRun(_ d: [String: Any]) {
+        let t = d["total"] as? Double ?? 0
+        let ends = (d["endsAt"] as? Double).map { Date(timeIntervalSince1970: $0) }
+        switch d["run"] as? String {
+        case "running":
+            guard let e = ends, t > 0 else { break }
+            total = t
+            banked = 0
+            runStart = now
+            if e.timeIntervalSinceNow > 0 { endDate = e; state = .running } else { finish() }
+        case "paused":
+            guard t > 0 else { break }
+            total = t
+            banked = min(t, max(0, d["banked"] as? Double ?? 0))
+            state = .paused
+        case "until":
+            if let e = ends, e.timeIntervalSinceNow > 0 { endDate = e }
+        default:
+            break
+        }
+        needsDisplay = true
+    }
+
+    /// A timer with a note or a countdown going is worth a question before closing it.
+    var worthKeeping: Bool { !cfg.note.isEmpty || state == .running || state == .paused || endDate != nil }
 
     // MARK: Timer logic
 
@@ -178,6 +416,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         state = .running
         sel = -1
         beepsLeft = 0
+        changed()
     }
 
     func mainAction() {
@@ -190,6 +429,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         case .paused: runStart = now; state = .running
         }
         needsDisplay = true
+        changed()
     }
 
     func reset() {
@@ -198,6 +438,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         endDate = nil
         state = .idle
         needsDisplay = true
+        changed()
     }
 
     func finish() {
@@ -207,6 +448,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         beepsLeft = cfg.sound ? 3 : 0
         nextBeep = 0
         if !NSApp.isActive { NSApp.requestUserAttention(.informationalRequest) }
+        changed()
     }
 
     @objc func tick() {
@@ -236,12 +478,15 @@ final class TimerView: NSView, NSViewToolTipOwner {
         window?.level = on ? .floating : .normal
         window?.collectionBehavior = on ? [.canJoinAllSpaces, .fullScreenAuxiliary] : []
         needsDisplay = true
+        changed()
     }
 
     @objc func toggleTopMost() { setTopMost(!cfg.topMost) }
-    @objc func toggleSound() { cfg.sound = !cfg.sound }
+    @objc func toggleSound() { cfg.sound = !cfg.sound; changed() }
     @objc func minimizeWindow() { window?.miniaturize(nil) }
     @objc func quit() { NSApp.terminate(nil) }
+    @objc func closeTimer() { onClose?(self) }
+    @objc func newTimer() { onNew?(self) }
 
     @objc func showAbout() {
         let credits = NSMutableAttributedString(
@@ -254,7 +499,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         NSApp.activate(ignoringOtherApps: true)
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "Countdown Timer",
-            .applicationVersion: "1.1",
+            .applicationVersion: "1.2",
             .version: "",
             .credits: credits,
             NSApplication.AboutPanelOptionKey(rawValue: "Copyright"): "© 2026 Mauricio Mendivelso · MIT License",
@@ -321,6 +566,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
             setTopMost(cTop.state == .on)
             if state == .finished { reset() }
             needsDisplay = true
+            changed()
             return
         }
     }
@@ -360,6 +606,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
                                matchingPolicy: .nextTime)
         sel = -1
         needsDisplay = true
+        changed()
     }
 
     // MARK: Editing the time (only before starting)
@@ -382,6 +629,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         if v < 0 { v = maxV }
         cfg[s] = v
         needsDisplay = true
+        changed()
     }
 
     func typeDigit(_ d: Int) {
@@ -394,6 +642,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
             if sel < 2 { sel += 1 }
         }
         needsDisplay = true
+        changed()
     }
 
     override func keyDown(with e: NSEvent) {
@@ -406,6 +655,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         }
         if ch.lowercased() == "r" { reset(); return }
         if ch.lowercased() == "e" { openEndTime(); return }
+        if ch.lowercased() == "n" { openNote(); return }
         guard state == .idle else { super.keyDown(with: e); return }
         if ch.count == 1, let d = Int(ch) { typeDigit(d); return }
         let shift = e.modifierFlags.contains(.shift)
@@ -415,7 +665,7 @@ final class TimerView: NSView, NSViewToolTipOwner {
         case 123: sel = max(0, sel - 1); typed = 0                                     // left
         case 124: sel = sel < 0 ? 0 : min(2, sel + 1); typed = 0                       // right
         case 48: sel = shift ? max(0, sel - 1) : (sel < 0 ? 0 : min(2, sel + 1)); typed = 0  // tab
-        case 51, 117: if sel >= 0 { releaseEndTime(); cfg[sel] = 0; typed = 0 }        // delete
+        case 51, 117: if sel >= 0 { releaseEndTime(); cfg[sel] = 0; typed = 0; changed() }  // delete
         default: super.keyDown(with: e); return
         }
         needsDisplay = true
@@ -429,11 +679,14 @@ final class TimerView: NSView, NSViewToolTipOwner {
         if rcPin.contains(p) { return .pin }
         if rcGear.contains(p) { return .gear }
         if rcEnd.contains(p) { return .end }
+        if rcNoteBtn.contains(p) { return .noteBtn }
         if rcMain.contains(p) { return .main }
         if rcReset.contains(p) { return .reset }
         if state == .idle {
             for i in 0..<3 where segRects[i].contains(p) { return .seg(i) }
         }
+        if let i = linkIndex(at: p) { return .link(i) }
+        if noteHeight > 0 && noteRect.contains(p) { return .note }
         return .none
     }
 
@@ -446,14 +699,14 @@ final class TimerView: NSView, NSViewToolTipOwner {
                                        options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
                                        owner: self, userInfo: nil))
         removeAllToolTips()
-        for r in [rcClose, rcMin, rcPin, rcGear, rcEnd, rcMain, rcReset] + segRects {
+        for r in [rcClose, rcMin, rcPin, rcGear, rcEnd, rcNoteBtn, rcMain, rcReset, noteRect] + segRects where !r.isEmpty {
             addToolTip(r, owner: self, userData: nil)
         }
     }
 
     func view(_ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint, userData data: UnsafeMutableRawPointer?) -> String {
         switch region(at: point) {
-        case .close: return "Quit"
+        case .close: return "Close this timer"
         case .min: return "Minimize"
         case .pin: return cfg.topMost ? "Always on top: ON (click to turn off)" : "Always on top: OFF (click to turn on)"
         case .gear: return "Settings"
@@ -461,16 +714,24 @@ final class TimerView: NSView, NSViewToolTipOwner {
         case .seg: return "Scroll, or click and type, to set the time"
         case .main: return mainLabel + " (Space)"
         case .reset: return "Reset (R)"
+        case .noteBtn: return cfg.note.isEmpty ? "Add a note (N)" : "Edit the note (N)"
+        case .link(let i): return noteLinks[i].1.absoluteString
+        case .note: return "Double-click to edit the note"
         case .none: return ""
         }
     }
 
     override func mouseMoved(with e: NSEvent) {
         let h = region(at: point(e))
-        if h != hover { hover = h; needsDisplay = true }
+        if h != hover {
+            if case .link = h { NSCursor.pointingHand.set() } else if case .link = hover { NSCursor.arrow.set() }
+            hover = h
+            needsDisplay = true
+        }
     }
 
     override func mouseExited(with e: NSEvent) {
+        if case .link = hover { NSCursor.arrow.set() }
         hover = .none
         needsDisplay = true
     }
@@ -481,7 +742,9 @@ final class TimerView: NSView, NSViewToolTipOwner {
         switch h {
         case .seg(let i):
             sel = i; typed = 0; needsDisplay = true
-        case .none:
+        case .note where e.clickCount == 2:
+            openNote()
+        case .none, .note:
             sel = -1; needsDisplay = true
             window?.performDrag(with: e)
         default:
@@ -496,11 +759,13 @@ final class TimerView: NSView, NSViewToolTipOwner {
         needsDisplay = true
         guard region(at: point(e)) == p else { return }
         switch p {
-        case .close: quit()
+        case .close: closeTimer()
         case .min: minimizeWindow()
         case .pin: toggleTopMost()
         case .gear: openSettings()
         case .end: openEndTime()
+        case .noteBtn: openNote()
+        case .link(let i): if i < noteLinks.count { NSWorkspace.shared.open(noteLinks[i].1) }
         case .main: sel = -1; mainAction()
         case .reset: reset()
         default: break
@@ -523,6 +788,17 @@ final class TimerView: NSView, NSViewToolTipOwner {
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let m = NSMenu()
+        if case .link(let i) = region(at: point(event)), i < noteLinks.count {
+            let url = noteLinks[i].1
+            let open = m.addItem(withTitle: "Open Link", action: #selector(openLinkItem(_:)), keyEquivalent: "")
+            open.representedObject = url
+            let copy = m.addItem(withTitle: "Copy Link", action: #selector(copyLinkItem(_:)), keyEquivalent: "")
+            copy.representedObject = url
+            m.addItem(.separator())
+        }
+        m.addItem(withTitle: "New Timer", action: #selector(newTimer), keyEquivalent: "")
+        m.addItem(withTitle: cfg.note.isEmpty ? "Add Note…" : "Edit Note…", action: #selector(openNote), keyEquivalent: "")
+        m.addItem(.separator())
         if state == .idle || state == .finished {
             m.addItem(withTitle: "Set End Time…", action: #selector(openEndTime), keyEquivalent: "")
         }
@@ -533,9 +809,20 @@ final class TimerView: NSView, NSViewToolTipOwner {
         m.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: "")
         m.addItem(withTitle: "About Countdown Timer", action: #selector(showAbout), keyEquivalent: "")
         m.addItem(.separator())
+        m.addItem(withTitle: "Close This Timer", action: #selector(closeTimer), keyEquivalent: "")
         m.addItem(withTitle: "Quit", action: #selector(quit), keyEquivalent: "")
         for item in m.items { item.target = self }
         return m
+    }
+
+    @objc func openLinkItem(_ item: NSMenuItem) {
+        if let u = item.representedObject as? URL { NSWorkspace.shared.open(u) }
+    }
+
+    @objc func copyLinkItem(_ item: NSMenuItem) {
+        guard let u = item.representedObject as? URL else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(u.absoluteString, forType: .string)
     }
 
     var mainLabel: String {
@@ -592,8 +879,9 @@ final class TimerView: NSView, NSViewToolTipOwner {
 
         // Title bar
         let title = endDate.map { "Until " + Self.clockFormat.string(from: $0) }
-            ?? (state == .idle ? "Timer" : "Timer  ·  " + Self.fmt(total))
-        drawText(title, font: titleFont, color: Palette.dim, in: NSRect(x: 12, y: 0, width: 126, height: 26), alignLeft: true)
+            ?? (state == .idle ? "Timer" : "Timer · " + Self.fmt(total))
+        drawText(title, font: titleFont, color: Palette.dim, in: NSRect(x: 12, y: 0, width: 100, height: 26), alignLeft: true)
+        iconButton(rcNoteBtn, "square.and.pencil", .noteBtn, cfg.note.isEmpty ? Palette.dim : Palette.text)
         iconButton(rcEnd, "clock", .end, endDate != nil ? Palette.text : Palette.dim)
         iconButton(rcGear, "gearshape", .gear, Palette.dim)
         iconButton(rcPin, cfg.topMost ? "pin.fill" : "pin", .pin, cfg.topMost ? Palette.text : Palette.dim)
@@ -637,6 +925,14 @@ final class TimerView: NSView, NSViewToolTipOwner {
         let canStart = state != .idle || endDate != nil || cfg.duration > 0
         button(rcMain, mainLabel, .main, canStart ? Palette.text : Palette.dim)
         button(rcReset, "Reset", .reset, state == .idle && endDate == nil ? Palette.dim : Palette.text)
+
+        // Note
+        if noteHeight > 0 {
+            Palette.track.setFill()
+            NSRect(x: 14, y: noteTop - 6, width: 252, height: 1).fill()
+            let glyphs = noteLayout.glyphRange(for: noteContainer)
+            noteLayout.drawGlyphs(forGlyphRange: glyphs, at: noteRect.origin)
+        }
 
         NSGraphicsContext.restoreGraphicsState()
         Palette.border.setStroke()
@@ -755,58 +1051,178 @@ enum IconArt {
 
 // MARK: - App
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    let cfg = Settings()
-    var window: TimerWindow!
-    var view: TimerView!
+let newTimerNotice = Notification.Name("net.ergosfera.countdowntimer.newTimer")
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+    let defaults = UserDefaults.standard
+    var views: [TimerView] = []
+    var restoring = false
+
+    /// The timer the user is working with: the one in front, else the newest.
+    var currentView: TimerView? { NSApp.keyWindow?.contentView as? TimerView ?? views.last }
 
     func applicationDidFinishLaunching(_ note: Notification) {
-        view = TimerView(settings: cfg)
-        window = TimerWindow(contentRect: view.frame, styleMask: [.borderless, .miniaturizable],
-                             backing: .buffered, defer: false)
+        buildMainMenu()
+        // Opening the app again (for example with "open -n") asks this copy for a new timer.
+        DistributedNotificationCenter.default().addObserver(forName: newTimerNotice, object: nil, queue: .main) { [weak self] _ in
+            self?.newTimer(nil)
+        }
+
+        restoring = true
+        if let saved = defaults.array(forKey: "timers") as? [[String: Any]], !saved.isEmpty {
+            for t in saved {
+                var top: NSPoint?
+                if let x = t["x"] as? Double, let y = t["top"] as? Double { top = NSPoint(x: x, y: y) }
+                addTimer(TimerModel(dict: t), topLeft: top).restoreRun(t)
+            }
+        } else {
+            // First start of 1.2: carry over the single timer of earlier versions.
+            addTimer(TimerModel(dict: defaults.dictionaryRepresentation()), topLeft: nil, oldFrameName: "CountdownTimer")
+        }
+        restoring = false
+        save()
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @discardableResult
+    func addTimer(_ model: TimerModel, topLeft: NSPoint?, oldFrameName: String? = nil) -> TimerView {
+        let view = TimerView(model: model)
+        let window = TimerWindow(contentRect: view.frame, styleMask: [.borderless, .miniaturizable],
+                                 backing: .buffered, defer: false)
         window.title = "Countdown Timer"
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = true
         window.contentView = view
         window.isReleasedWhenClosed = false
+        window.delegate = self
 
-        if !window.setFrameUsingName("CountdownTimer"), let screen = NSScreen.main {
+        var placed = false
+        if let name = oldFrameName { placed = window.setFrameUsingName(name) }
+        if let p = topLeft, onScreen(NSRect(x: p.x, y: p.y - 26, width: 280, height: 26)) {
+            window.setFrameTopLeftPoint(p)
+            placed = true
+        }
+        if !placed, let screen = NSScreen.main {
             let vf = screen.visibleFrame
             window.setFrameOrigin(NSPoint(x: vf.maxX - 280 - 24, y: vf.minY + 24))
         }
-        window.setFrameAutosaveName("CountdownTimer")
-        view.setTopMost(cfg.topMost)
 
-        buildMainMenu()
+        view.onChange = { [weak self] in self?.save() }
+        view.onClose = { [weak self] v in self?.closeTimer(v) }
+        view.onNew = { [weak self] v in self?.newTimer(from: v) }
+        view.layoutNote()
+        view.setTopMost(model.topMost)
+        views.append(view)
+
         window.makeKeyAndOrderFront(nil)
         window.makeFirstResponder(view)
         window.invalidateShadow()
+        return view
+    }
+
+    /// True when the title strip of a window there would be on some screen, enough to grab it.
+    func onScreen(_ strip: NSRect) -> Bool {
+        NSScreen.screens.contains { $0.visibleFrame.intersection(strip.insetBy(dx: 20, dy: 0)).height >= 20 }
+    }
+
+    @objc func newTimer(_ sender: Any?) { newTimer(from: currentView) }
+
+    func newTimer(from source: TimerView?) {
+        var topLeft: NSPoint?
+        if let f = source?.window?.frame {
+            // Next to the timer it came from: up and to the left, or down if there is no room above.
+            let up = NSPoint(x: f.minX - 30, y: f.maxY + f.height + 10)
+            let down = NSPoint(x: f.minX - 30, y: f.minY - 10)
+            topLeft = onScreen(NSRect(x: up.x, y: up.y - 26, width: 280, height: 26)) &&
+                      NSScreen.screens.contains(where: { $0.visibleFrame.contains(NSPoint(x: up.x, y: up.y)) }) ? up : down
+        }
+        addTimer(source?.cfg.copy() ?? TimerModel(), topLeft: topLeft)
+        save()
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    func closeTimer(_ view: TimerView) {
+        // The last timer stays for next time, as before: closing it quits the app.
+        guard views.count > 1 else { NSApp.terminate(nil); return }
+        if view.worthKeeping {
+            let alert = NSAlert()
+            alert.messageText = "Close this timer?"
+            let first = view.cfg.note.split(separator: "\n").first.map(String.init) ?? ""
+            alert.informativeText = first.isEmpty ? "Its countdown will be gone." : "“\(first)” will be gone."
+            alert.addButton(withTitle: "Close Timer")
+            alert.addButton(withTitle: "Cancel")
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
+        views.removeAll { $0 === view }
+        view.ticker?.invalidate()
+        view.window?.orderOut(nil)
+        view.window?.close()
+        save()
+    }
+
+    func save() {
+        guard !restoring else { return }
+        defaults.set(views.map { $0.snapshot() }, forKey: "timers")
+    }
+
+    func windowDidMove(_ notification: Notification) { save() }
+
+    func applicationWillTerminate(_ notification: Notification) { save() }
+
     func buildMainMenu() {
         let main = NSMenu()
+
         let appItem = NSMenuItem()
         main.addItem(appItem)
         let appMenu = NSMenu()
-        let about = appMenu.addItem(withTitle: "About Countdown Timer", action: #selector(TimerView.showAbout), keyEquivalent: "")
-        about.target = view
+        appMenu.addItem(withTitle: "About Countdown Timer", action: #selector(TimerView.showAbout), keyEquivalent: "")
         appMenu.addItem(.separator())
-        let settings = appMenu.addItem(withTitle: "Settings…", action: #selector(TimerView.openSettings), keyEquivalent: ",")
-        settings.target = view
-        appMenu.addItem(.separator())
-        let minimize = appMenu.addItem(withTitle: "Minimize", action: #selector(TimerView.minimizeWindow), keyEquivalent: "m")
-        minimize.target = view
+        appMenu.addItem(withTitle: "Settings…", action: #selector(TimerView.openSettings), keyEquivalent: ",")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit Countdown Timer", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
+
+        let fileItem = NSMenuItem()
+        main.addItem(fileItem)
+        let fileMenu = NSMenu(title: "Timer")
+        fileMenu.addItem(withTitle: "New Timer", action: #selector(newTimer(_:)), keyEquivalent: "n").target = self
+        fileMenu.addItem(withTitle: "Edit Note…", action: #selector(TimerView.openNote), keyEquivalent: "")
+        fileMenu.addItem(withTitle: "Set End Time…", action: #selector(TimerView.openEndTime), keyEquivalent: "")
+        fileMenu.addItem(.separator())
+        fileMenu.addItem(withTitle: "Minimize", action: #selector(TimerView.minimizeWindow), keyEquivalent: "m")
+        fileMenu.addItem(withTitle: "Close Timer", action: #selector(TimerView.closeTimer), keyEquivalent: "w")
+        fileItem.submenu = fileMenu
+
+        // Needed so copy and paste work in the note and settings boxes.
+        let editItem = NSMenuItem()
+        main.addItem(editItem)
+        let editMenu = NSMenu(title: "Edit")
+        editMenu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = editMenu.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        editItem.submenu = editMenu
+
         NSApp.mainMenu = main
     }
 
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let m = NSMenu()
+        m.addItem(withTitle: "New Timer", action: #selector(newTimer(_:)), keyEquivalent: "").target = self
+        return m
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if window.isMiniaturized { window.deminiaturize(nil) }
-        window.makeKeyAndOrderFront(nil)
+        for v in views {
+            if v.window?.isMiniaturized == true { v.window?.deminiaturize(nil) }
+            v.window?.orderFront(nil)
+        }
+        currentView?.window?.makeKey()
         return true
     }
 
@@ -816,6 +1232,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 let args = CommandLine.arguments
 if args.count == 3 && args[1] == "--write-iconset" {
     do { try IconArt.writeIconset(to: args[2]) } catch { print("Icon error: \(error)"); exit(1) }
+    exit(0)
+}
+
+// One copy of the app holds all the timers. A second copy asks the first for a new timer and leaves.
+if let bid = Bundle.main.bundleIdentifier,
+   let first = NSRunningApplication.runningApplications(withBundleIdentifier: bid)
+       .first(where: { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) {
+    DistributedNotificationCenter.default().postNotificationName(newTimerNotice, object: nil, userInfo: nil,
+                                                                 deliverImmediately: true)
+    first.activate(options: [])
     exit(0)
 }
 

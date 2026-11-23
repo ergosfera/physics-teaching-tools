@@ -10,13 +10,17 @@ using System.IO;
 using System.Media;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Windows.Forms;
+using Timer = System.Windows.Forms.Timer;
 
 [assembly: AssemblyTitle("Countdown Timer")]
 [assembly: AssemblyProduct("Countdown Timer")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 Mauricio Mendivelso. MIT License.")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 namespace CountdownTimer
 {
@@ -32,10 +36,93 @@ namespace CountdownTimer
                 IconArt.WriteIco(args[1]);
                 return;
             }
-            try { SetProcessDPIAware(); } catch { }
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new TimerForm());
+            // One copy of the app holds all the timers. Opening it again asks that copy for a new timer.
+            var newTimerSignal = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\Ergosfera.CountdownTimer.NewTimer");
+            bool first;
+            using (var mutex = new Mutex(true, @"Local\Ergosfera.CountdownTimer", out first))
+            {
+                if (!first) { newTimerSignal.Set(); return; }
+                try { SetProcessDPIAware(); } catch { }
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                var app = new TimerApp();
+                var listener = new Thread(delegate ()
+                {
+                    while (newTimerSignal.WaitOne()) app.PostNewTimer();
+                }) { IsBackground = true };
+                listener.Start();
+                Application.Run(app);
+                GC.KeepAlive(mutex);
+            }
+        }
+    }
+
+    // Holds every open timer and saves them all to one file.
+    class TimerApp : ApplicationContext
+    {
+        readonly List<TimerForm> forms = new List<TimerForm>();
+        readonly SynchronizationContext sync;
+        bool loading;
+        public bool Exiting;
+        public TimerForm Current;
+
+        public TimerApp()
+        {
+            loading = true;
+            var saved = Store.Load();
+            if (saved.Count == 0) saved.Add(new TimerData());
+            foreach (var d in saved) Add(d);
+            loading = false;
+            Save();
+            sync = SynchronizationContext.Current;
+        }
+
+        public int Count { get { return forms.Count; } }
+
+        TimerForm Add(TimerData d)
+        {
+            var f = new TimerForm(this, d);
+            forms.Add(f);
+            f.Show();
+            return f;
+        }
+
+        public void PostNewTimer()
+        {
+            if (sync != null) sync.Post(delegate { NewTimer(Current); }, null);
+        }
+
+        public void NewTimer(TimerForm source)
+        {
+            if (source == null || source.IsDisposed) source = forms.Count > 0 ? forms[forms.Count - 1] : null;
+            var d = source != null ? source.Data.Copy() : new TimerData();
+            if (source != null) d.PlaceNear(source.Bounds, source.BaseHeight);
+            var f = Add(d);
+            f.Activate();
+            Save();
+        }
+
+        public void Save()
+        {
+            if (loading) return;
+            var list = new List<TimerData>();
+            foreach (var f in forms) list.Add(f.Snapshot());
+            Store.Save(list);
+        }
+
+        public void ExitAll()
+        {
+            Exiting = true;
+            Save();
+            foreach (var f in forms.ToArray()) f.Close();
+        }
+
+        // Called when a timer window has closed. "removed" means the user closed that one timer for good.
+        public void Gone(TimerForm f, bool removed)
+        {
+            forms.Remove(f);
+            if (removed) Save();
+            if (forms.Count == 0) ExitThread();
         }
     }
 
@@ -77,18 +164,18 @@ namespace CountdownTimer
         }
     }
 
-    class Settings
+    // Everything about one timer that is kept between runs.
+    class TimerData
     {
+        public string Id = Guid.NewGuid().ToString("N");
         public int Hours = 0, Minutes = 5, Seconds = 0;
         public int YellowPct = 30, RedPct = 10;
         public bool TopMost = true, Sound = true;
+        public string Note = "";
         public int X = int.MinValue, Y = int.MinValue;
-
-        static string Dir
-        {
-            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CountdownTimer"); }
-        }
-        static string FilePath { get { return Path.Combine(Dir, "settings.ini"); } }
+        // How the countdown stood when it was saved (times in UTC ticks).
+        public string Run = "";
+        public long EndsAt, Total, Banked;
 
         public int this[int seg]
         {
@@ -102,58 +189,202 @@ namespace CountdownTimer
 
         public TimeSpan Duration { get { return new TimeSpan(Hours, Minutes, Seconds); } }
 
-        static int Clamp(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
+        public static int Clamp(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
 
-        public static Settings Load()
+        // A new timer starts with the same time and settings as the one it came from, but no note.
+        public TimerData Copy()
         {
-            var s = new Settings();
-            try
+            return new TimerData
             {
-                if (!File.Exists(FilePath)) return s;
-                foreach (string line in File.ReadAllLines(FilePath))
-                {
-                    int i = line.IndexOf('=');
-                    if (i < 0) continue;
-                    string key = line.Substring(0, i).Trim(), val = line.Substring(i + 1).Trim();
-                    int n; bool b;
-                    bool isInt = int.TryParse(val, out n), isBool = bool.TryParse(val, out b);
-                    switch (key)
-                    {
-                        case "Hours": if (isInt) s.Hours = Clamp(n, 0, 99); break;
-                        case "Minutes": if (isInt) s.Minutes = Clamp(n, 0, 59); break;
-                        case "Seconds": if (isInt) s.Seconds = Clamp(n, 0, 59); break;
-                        case "YellowPct": if (isInt) s.YellowPct = Clamp(n, 1, 100); break;
-                        case "RedPct": if (isInt) s.RedPct = Clamp(n, 0, 99); break;
-                        case "TopMost": if (isBool) s.TopMost = b; break;
-                        case "Sound": if (isBool) s.Sound = b; break;
-                        case "X": if (isInt) s.X = n; break;
-                        case "Y": if (isInt) s.Y = n; break;
-                    }
-                }
-                if (s.RedPct >= s.YellowPct) s.RedPct = Math.Max(0, s.YellowPct - 1);
-            }
-            catch { }
-            return s;
+                Hours = Hours, Minutes = Minutes, Seconds = Seconds,
+                YellowPct = YellowPct, RedPct = RedPct, TopMost = TopMost, Sound = Sound
+            };
         }
 
-        public void Save()
+        // Next to the timer it came from: above and to the left, or below if there is no room above.
+        public void PlaceNear(Rectangle src, int newHeight)
+        {
+            X = src.X - 30;
+            int up = src.Y - 10 - newHeight;
+            bool fits = false;
+            foreach (var scr in Screen.AllScreens)
+                if (scr.WorkingArea.Contains(X + 40, up)) fits = true;
+            Y = fits ? up : src.Bottom + 10;
+        }
+
+        public void Set(string key, string val)
+        {
+            int n; bool b; long l;
+            bool isInt = int.TryParse(val, out n), isBool = bool.TryParse(val, out b), isLong = long.TryParse(val, out l);
+            switch (key)
+            {
+                case "Id": if (val.Length > 0) Id = val; break;
+                case "Hours": if (isInt) Hours = Clamp(n, 0, 99); break;
+                case "Minutes": if (isInt) Minutes = Clamp(n, 0, 59); break;
+                case "Seconds": if (isInt) Seconds = Clamp(n, 0, 59); break;
+                case "YellowPct": if (isInt) YellowPct = Clamp(n, 1, 100); break;
+                case "RedPct": if (isInt) RedPct = Clamp(n, 0, 99); break;
+                case "TopMost": if (isBool) TopMost = b; break;
+                case "Sound": if (isBool) Sound = b; break;
+                case "Note": Note = Unescape(val); break;
+                case "X": if (isInt) X = n; break;
+                case "Y": if (isInt) Y = n; break;
+                case "Run": Run = val; break;
+                case "EndsAt": if (isLong) EndsAt = l; break;
+                case "Total": if (isLong) Total = l; break;
+                case "Banked": if (isLong) Banked = l; break;
+            }
+        }
+
+        public void Fix() { if (RedPct >= YellowPct) RedPct = Math.Max(0, YellowPct - 1); }
+
+        public IEnumerable<string> Lines()
+        {
+            return new[] {
+                "Id=" + Id, "Hours=" + Hours, "Minutes=" + Minutes, "Seconds=" + Seconds,
+                "YellowPct=" + YellowPct, "RedPct=" + RedPct, "TopMost=" + TopMost, "Sound=" + Sound,
+                "Note=" + Escape(Note), "X=" + X, "Y=" + Y,
+                "Run=" + Run, "EndsAt=" + EndsAt, "Total=" + Total, "Banked=" + Banked };
+        }
+
+        static string Escape(string s) { return s.Replace("\\", "\\\\").Replace("\r", "").Replace("\n", "\\n"); }
+
+        static string Unescape(string s)
+        {
+            var sb = new StringBuilder();
+            for (int i = 0; i < s.Length; i++)
+            {
+                if (s[i] == '\\' && i + 1 < s.Length) { i++; sb.Append(s[i] == 'n' ? '\n' : s[i]); }
+                else sb.Append(s[i]);
+            }
+            return sb.ToString();
+        }
+    }
+
+    static class Store
+    {
+        static string Dir
+        {
+            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CountdownTimer"); }
+        }
+        static string TimersPath { get { return Path.Combine(Dir, "timers.ini"); } }
+        static string OldPath { get { return Path.Combine(Dir, "settings.ini"); } }   // version 1.1 and earlier: one timer
+
+        public static List<TimerData> Load()
+        {
+            var list = new List<TimerData>();
+            try
+            {
+                bool old = !File.Exists(TimersPath);
+                if (old && !File.Exists(OldPath)) return list;
+                TimerData cur = old ? new TimerData() : null;
+                if (old) list.Add(cur);
+                foreach (string line in File.ReadAllLines(old ? OldPath : TimersPath))
+                {
+                    if (line.Trim() == "[timer]") { cur = new TimerData(); list.Add(cur); continue; }
+                    int i = line.IndexOf('=');
+                    if (i < 0 || cur == null) continue;
+                    cur.Set(line.Substring(0, i).Trim(), line.Substring(i + 1));
+                }
+            }
+            catch { }
+            foreach (var d in list) d.Fix();
+            return list;
+        }
+
+        public static void Save(List<TimerData> timers)
         {
             try
             {
                 Directory.CreateDirectory(Dir);
-                File.WriteAllLines(FilePath, new[] {
-                    "Hours=" + Hours, "Minutes=" + Minutes, "Seconds=" + Seconds,
-                    "YellowPct=" + YellowPct, "RedPct=" + RedPct,
-                    "TopMost=" + TopMost, "Sound=" + Sound,
-                    "X=" + X, "Y=" + Y });
+                var lines = new List<string>();
+                foreach (var t in timers)
+                {
+                    lines.Add("[timer]");
+                    lines.AddRange(t.Lines());
+                    lines.Add("");
+                }
+                File.WriteAllLines(TimersPath, lines.ToArray(), new UTF8Encoding(false));
             }
             catch { }
         }
     }
 
+    // A note is plain text; web addresses and [name](address) become links.
+    static class NoteText
+    {
+        static readonly Regex Pattern = new Regex(@"\[([^\]\n]+)\]\(([^()\s]+)\)|(?:https?://|www\.)[^\s<>""]+", RegexOptions.IgnoreCase);
+
+        public class Link { public int Start, Length; public string Url; }
+
+        public static string Url(string s)
+        {
+            return Regex.IsMatch(s, @"^[a-z][a-z0-9+.-]*:", RegexOptions.IgnoreCase) ? s : "https://" + s;
+        }
+
+        // Long bare addresses are shown short; the link still opens the full address.
+        static string ShortLabel(string raw)
+        {
+            string s = raw;
+            foreach (string p in new[] { "https://", "http://" })
+                if (s.StartsWith(p, StringComparison.OrdinalIgnoreCase)) s = s.Substring(p.Length);
+            if (s.EndsWith("/")) s = s.Substring(0, s.Length - 1);
+            return s.Length > 36 ? s.Substring(0, 35) + "\u2026" : s;
+        }
+
+        static int Count(string s, char c) { int n = 0; foreach (char x in s) if (x == c) n++; return n; }
+
+        // Returns the text to show and fills in where the links are in it.
+        public static string Parse(string src, List<Link> links)
+        {
+            var sb = new StringBuilder();
+            int last = 0;
+            foreach (Match m in Pattern.Matches(src))
+            {
+                sb.Append(src, last, m.Index - last);
+                last = m.Index + m.Length;
+                string label, target, trailing = "";
+                if (m.Groups[1].Success)
+                {
+                    label = m.Groups[1].Value;
+                    target = m.Groups[2].Value;
+                }
+                else
+                {
+                    // Punctuation right after an address belongs to the sentence, not the address.
+                    string raw = m.Value;
+                    while (raw.Length > 0)
+                    {
+                        char c = raw[raw.Length - 1];
+                        if (".,;:!?'\"".IndexOf(c) < 0 && !(c == ')' && Count(raw, '(') < Count(raw, ')'))) break;
+                        trailing = c + trailing;
+                        raw = raw.Substring(0, raw.Length - 1);
+                    }
+                    label = ShortLabel(raw);
+                    target = raw;
+                }
+                if (label.Length == 0) { sb.Append(m.Value); continue; }
+                links.Add(new Link { Start = sb.Length, Length = label.Length, Url = Url(target) });
+                sb.Append(label).Append(trailing);
+            }
+            sb.Append(src, last, src.Length - last);
+            return sb.ToString();
+        }
+    }
+
+    // A LinkLabel that can tell whether a point is on a link.
+    class NoteLabel : LinkLabel
+    {
+        public string LinkAt(Point p)
+        {
+            var l = PointInLink(p.X, p.Y);
+            return l == null ? null : l.LinkData as string;
+        }
+    }
+
     class TimerForm : Form
     {
-        enum Hit { None, Close, Min, Pin, Gear, End, Seg0, Seg1, Seg2, Main, Reset }
+        enum Hit { None, Close, Min, Pin, Gear, End, NoteBtn, Seg0, Seg1, Seg2, Main, Reset }
         enum State { Idle, Running, Paused, Finished }
 
         [DllImport("user32.dll")] static extern bool ReleaseCapture();
@@ -166,10 +397,16 @@ namespace CountdownTimer
 
         const string GlyphClose = "", GlyphMin = "", GlyphPin = "", GlyphPinned = "", GlyphGear = "";
 
+        const string GlyphNote = "\uE70F";   // Edit (pencil)
         const string GlyphClock = "";
 
-        readonly Settings cfg;
+        readonly TimerApp app;
+        readonly TimerData cfg;
         readonly float k;
+        readonly NoteLabel noteLabel;
+        bool removed;          // the user closed this timer for good
+        DateTime lastNoteClick;
+        Point lastNoteClickAt;
         State state = State.Idle;
         readonly Stopwatch sw = new Stopwatch();
         readonly Stopwatch finishClock = new Stopwatch();
@@ -187,11 +424,17 @@ namespace CountdownTimer
         readonly Timer tick;
         readonly ToolTip tip;
         string tipText = "";
-        ToolStripMenuItem miTop, miSound;
+        ToolStripMenuItem miTop, miSound, miNote, miOpenLink, miCopyLink;
+        ToolStripSeparator sepLink;
+        string menuLink;
 
-        public TimerForm()
+        public TimerData Data { get { return cfg; } }
+        public int BaseHeight { get { return S(130); } }
+
+        public TimerForm(TimerApp owner, TimerData data)
         {
-            cfg = Settings.Load();
+            app = owner;
+            cfg = data;
             Text = "Countdown Timer";
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.Manual;
@@ -213,10 +456,41 @@ namespace CountdownTimer
 
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             TopMost = cfg.TopMost;
-            PlaceWindow();
 
             tip = new ToolTip { InitialDelay = 600, ReshowDelay = 200 };
+
+            // The note sits under the buttons; the window grows to fit it.
+            noteLabel = new NoteLabel
+            {
+                AutoSize = false,
+                Location = new Point(S(14), S(136)),
+                Width = S(252),
+                BackColor = Palette.Bg,
+                ForeColor = Color.FromArgb(205, 208, 216),
+                LinkColor = Color.FromArgb(110, 175, 255),
+                ActiveLinkColor = Color.FromArgb(160, 205, 255),
+                VisitedLinkColor = Color.FromArgb(110, 175, 255),
+                LinkBehavior = LinkBehavior.AlwaysUnderline,
+                Font = new Font("Segoe UI", 13 * k, GraphicsUnit.Pixel),
+                Padding = Padding.Empty,
+                Margin = Padding.Empty,
+                Visible = false
+            };
+            noteLabel.LinkClicked += delegate (object s, LinkLabelLinkClickedEventArgs e) { OpenLink(e.Link.LinkData as string); };
+            noteLabel.MouseDown += NoteMouseDown;
+            noteLabel.MouseMove += delegate (object s, MouseEventArgs e)
+            {
+                string url = noteLabel.LinkAt(e.Location);
+                string t = url ?? "Double-click to edit the note";
+                if (tip.GetToolTip(noteLabel) != t) tip.SetToolTip(noteLabel, t);
+            };
+            Controls.Add(noteLabel);
+
             BuildMenu();
+            noteLabel.ContextMenuStrip = ContextMenuStrip;
+            LayoutNote();
+            PlaceWindow();
+            RestoreRun();
 
             tick = new Timer { Interval = 40 };
             tick.Tick += OnTick;
@@ -255,6 +529,7 @@ namespace CountdownTimer
         Rectangle RcPin { get { return R(196, 0, 28, 26); } }
         Rectangle RcGear { get { return R(168, 0, 28, 26); } }
         Rectangle RcEnd { get { return R(140, 0, 28, 26); } }
+        Rectangle RcNote { get { return R(112, 0, 28, 26); } }
         Rectangle RcBar { get { return R(14, 86, 252, 8); } }
         Rectangle RcMain { get { return R(46, 100, 90, 24); } }
         Rectangle RcReset { get { return R(144, 100, 90, 24); } }
@@ -298,9 +573,25 @@ namespace CountdownTimer
         void BuildMenu()
         {
             var menu = new ContextMenuStrip();
+            miOpenLink = new ToolStripMenuItem("Open link", null, delegate { OpenLink(menuLink); });
+            miCopyLink = new ToolStripMenuItem("Copy link", null, delegate { try { Clipboard.SetText(menuLink); } catch { } });
+            sepLink = new ToolStripSeparator();
+            menu.Items.Add(miOpenLink);
+            menu.Items.Add(miCopyLink);
+            menu.Items.Add(sepLink);
+            menu.Items.Add(new ToolStripMenuItem("New timer", null, delegate { app.NewTimer(this); }) { ShortcutKeyDisplayString = "Ctrl+N" });
+            miNote = new ToolStripMenuItem("Add note...", null, delegate { OpenNote(); }) { ShortcutKeyDisplayString = "N" };
+            menu.Items.Add(miNote);
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Opening += delegate
+            {
+                menuLink = noteLabel.Visible ? noteLabel.LinkAt(noteLabel.PointToClient(Cursor.Position)) : null;
+                miOpenLink.Visible = miCopyLink.Visible = sepLink.Visible = menuLink != null;
+                miNote.Text = cfg.Note.Length == 0 ? "Add note..." : "Edit note...";
+            };
             miTop = new ToolStripMenuItem("Always on top", null, delegate { SetTopMost(!TopMost); });
             miTop.Checked = TopMost;
-            miSound = new ToolStripMenuItem("Sound at the end", null, delegate { cfg.Sound = !cfg.Sound; miSound.Checked = cfg.Sound; cfg.Save(); });
+            miSound = new ToolStripMenuItem("Sound at the end", null, delegate { cfg.Sound = !cfg.Sound; miSound.Checked = cfg.Sound; app.Save(); });
             miSound.Checked = cfg.Sound;
             var miEnd = new ToolStripMenuItem("Set end time...", null, delegate { OpenEndTime(); });
             menu.Opening += delegate { miEnd.Enabled = state == State.Idle || state == State.Finished; };
@@ -313,8 +604,150 @@ namespace CountdownTimer
                 using (var about = new AboutForm()) about.ShowDialog(this);
             }));
             menu.Items.Add(new ToolStripSeparator());
-            menu.Items.Add(new ToolStripMenuItem("Exit", null, delegate { Close(); }));
+            menu.Items.Add(new ToolStripMenuItem("Close this timer", null, delegate { Close(); }) { ShortcutKeyDisplayString = "Ctrl+W" });
+            menu.Items.Add(new ToolStripMenuItem("Exit (keeps all timers for next time)", null, delegate { app.ExitAll(); }));
             ContextMenuStrip = menu;
+        }
+
+        // ---- Note ----
+
+        void LayoutNote()
+        {
+            string src = cfg.Note.Trim().Replace("\r\n", "\n").Replace("\n", "\r\n");
+            var links = new List<NoteText.Link>();
+            string text = NoteText.Parse(src, links);
+            noteLabel.Text = text;
+            noteLabel.Links.Clear();   // after the text: setting the text makes it all one link again
+            foreach (var l in links) noteLabel.Links.Add(l.Start, l.Length, l.Url);
+            if (text.Length == 0)
+            {
+                noteLabel.Visible = false;
+                ClientSize = new Size(S(280), S(130));
+            }
+            else
+            {
+                int h = Math.Min(S(220), noteLabel.GetPreferredSize(new Size(S(252), 0)).Height);
+                noteLabel.Height = h;
+                noteLabel.Visible = true;
+                ClientSize = new Size(S(280), S(136) + h + S(12));
+            }
+            int nl = text.IndexOf('\r');
+            string first = nl >= 0 ? text.Substring(0, nl) : text;
+            Text = first.Length > 0 ? first : "Countdown Timer";
+            Invalidate();
+        }
+
+        void OpenLink(string url)
+        {
+            if (string.IsNullOrEmpty(url)) return;
+            try { Process.Start(url); }
+            catch { MessageBox.Show(this, "Could not open " + url, "Countdown Timer", MessageBoxButtons.OK, MessageBoxIcon.Information); }
+        }
+
+        void NoteMouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left || noteLabel.LinkAt(e.Location) != null) return;
+            // A second click soon after, in about the same place, edits the note.
+            var now = DateTime.Now;
+            var d = SystemInformation.DoubleClickSize;
+            if ((now - lastNoteClick).TotalMilliseconds <= SystemInformation.DoubleClickTime &&
+                Math.Abs(e.X - lastNoteClickAt.X) <= d.Width && Math.Abs(e.Y - lastNoteClickAt.Y) <= d.Height)
+            {
+                lastNoteClick = DateTime.MinValue;
+                OpenNote();
+                return;
+            }
+            lastNoteClick = now;
+            lastNoteClickAt = e.Location;
+            sel = -1;
+            Invalidate();
+            ReleaseCapture();
+            SendMessage(Handle, 0xA1 /* WM_NCLBUTTONDOWN */, (IntPtr)2 /* HTCAPTION */, IntPtr.Zero);
+        }
+
+        void OpenNote()
+        {
+            using (var dlg = new NoteForm(cfg.Note))
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                cfg.Note = dlg.Note.Replace("\r\n", "\n").Trim();
+                LayoutNote();
+                app.Save();
+            }
+        }
+
+        // ---- Saving and restoring ----
+
+        public TimerData Snapshot()
+        {
+            var loc = WindowState == FormWindowState.Normal ? Location : RestoreBounds.Location;
+            cfg.X = loc.X;
+            cfg.Y = loc.Y;
+            cfg.Run = "";
+            cfg.EndsAt = cfg.Total = cfg.Banked = 0;
+            switch (state)
+            {
+                case State.Running:
+                    // Saved as the moment it ends, so it keeps counting while the app is closed.
+                    cfg.Run = "running";
+                    cfg.EndsAt = (DateTime.UtcNow + Remaining()).Ticks;
+                    cfg.Total = total.Ticks;
+                    break;
+                case State.Paused:
+                    cfg.Run = "paused";
+                    cfg.Total = total.Ticks;
+                    cfg.Banked = banked.Ticks;
+                    break;
+                case State.Idle:
+                    if (endUtc.HasValue) { cfg.Run = "until"; cfg.EndsAt = endUtc.Value.Ticks; }
+                    break;
+            }
+            return cfg;
+        }
+
+        void RestoreRun()
+        {
+            var now = DateTime.UtcNow;
+            switch (cfg.Run)
+            {
+                case "running":
+                    if (cfg.Total <= 0 || cfg.EndsAt <= 0) break;
+                    total = new TimeSpan(cfg.Total);
+                    banked = TimeSpan.Zero;
+                    sw.Reset();
+                    sw.Start();
+                    state = State.Running;
+                    if (cfg.EndsAt > now.Ticks) endUtc = new DateTime(cfg.EndsAt, DateTimeKind.Utc);
+                    else Finish();
+                    break;
+                case "paused":
+                    if (cfg.Total <= 0) break;
+                    total = new TimeSpan(cfg.Total);
+                    banked = new TimeSpan(Math.Max(0, Math.Min(cfg.Total, cfg.Banked)));
+                    state = State.Paused;
+                    break;
+                case "until":
+                    if (cfg.EndsAt > now.Ticks) endUtc = new DateTime(cfg.EndsAt, DateTimeKind.Utc);
+                    break;
+            }
+        }
+
+        // A timer with a note or a countdown going is worth a question before closing it.
+        bool WorthKeeping
+        {
+            get { return cfg.Note.Length > 0 || state == State.Running || state == State.Paused || endUtc.HasValue; }
+        }
+
+        protected override void OnActivated(EventArgs e)
+        {
+            base.OnActivated(e);
+            app.Current = this;
+        }
+
+        protected override void OnResizeEnd(EventArgs e)
+        {
+            base.OnResizeEnd(e);
+            app.Save();   // the window was moved
         }
 
         // ---- Timer logic ----
@@ -360,7 +793,7 @@ namespace CountdownTimer
             state = State.Running;
             sel = -1;
             beepsLeft = 0;
-            cfg.Save();
+            app.Save();
         }
 
         void MainAction()
@@ -386,6 +819,7 @@ namespace CountdownTimer
             }
             UpdateTip();
             Invalidate();
+            app.Save();
         }
 
         void DoReset()
@@ -397,6 +831,7 @@ namespace CountdownTimer
             state = State.Idle;
             UpdateTip();
             Invalidate();
+            app.Save();
         }
 
         void Finish()
@@ -410,6 +845,7 @@ namespace CountdownTimer
             nextBeepMs = 0;
             FlashTaskbar();
             UpdateTip();
+            app.Save();
         }
 
         void OnTick(object sender, EventArgs e)
@@ -456,7 +892,7 @@ namespace CountdownTimer
             TopMost = on;
             cfg.TopMost = on;
             miTop.Checked = on;
-            cfg.Save();
+            app.Save();
             UpdateTip();
             Invalidate();
         }
@@ -492,6 +928,7 @@ namespace CountdownTimer
                 sel = -1;
                 UpdateTip();
                 Invalidate();
+                app.Save();
             }
         }
 
@@ -517,6 +954,7 @@ namespace CountdownTimer
             if (v < 0) v = max;
             cfg[s] = v;
             Invalidate();
+            app.Save();
         }
 
         void TypeDigit(int d)
@@ -531,6 +969,7 @@ namespace CountdownTimer
                 if (sel < 2) sel++;
             }
             Invalidate();
+            app.Save();
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -541,6 +980,9 @@ namespace CountdownTimer
             if (keyData == Keys.Space || keyData == Keys.Enter) { sel = -1; MainAction(); return true; }
             if (keyData == Keys.R) { DoReset(); return true; }
             if (keyData == Keys.E) { OpenEndTime(); return true; }
+            if (keyData == Keys.N) { OpenNote(); return true; }
+            if (keyData == (Keys.Control | Keys.N)) { app.NewTimer(this); return true; }
+            if (keyData == (Keys.Control | Keys.W)) { Close(); return true; }
             if (keyData == Keys.Escape) { sel = -1; Invalidate(); return true; }
             if (!idle) return base.ProcessCmdKey(ref msg, keyData);
 
@@ -558,7 +1000,7 @@ namespace CountdownTimer
                 case Keys.Tab: sel = sel < 0 ? 0 : Math.Min(2, sel + 1); typed = 0; Invalidate(); return true;
                 case Keys.Shift | Keys.Tab: sel = sel <= 0 ? 0 : sel - 1; typed = 0; Invalidate(); return true;
                 case Keys.Back:
-                case Keys.Delete: if (sel >= 0) { ReleaseEndTime(); cfg[sel] = 0; typed = 0; Invalidate(); } return true;
+                case Keys.Delete: if (sel >= 0) { ReleaseEndTime(); cfg[sel] = 0; typed = 0; Invalidate(); app.Save(); } return true;
             }
             return base.ProcessCmdKey(ref msg, keyData);
         }
@@ -572,6 +1014,7 @@ namespace CountdownTimer
             if (RcPin.Contains(p)) return Hit.Pin;
             if (RcGear.Contains(p)) return Hit.Gear;
             if (RcEnd.Contains(p)) return Hit.End;
+            if (RcNote.Contains(p)) return Hit.NoteBtn;
             if (RcMain.Contains(p)) return Hit.Main;
             if (RcReset.Contains(p)) return Hit.Reset;
             if (state == State.Idle)
@@ -635,6 +1078,7 @@ namespace CountdownTimer
                 case Hit.Pin: SetTopMost(!TopMost); break;
                 case Hit.Gear: OpenSettings(); break;
                 case Hit.End: OpenEndTime(); break;
+                case Hit.NoteBtn: OpenNote(); break;
                 case Hit.Main: sel = -1; MainAction(); break;
                 case Hit.Reset: DoReset(); break;
             }
@@ -666,7 +1110,8 @@ namespace CountdownTimer
             string t = "";
             switch (hover)
             {
-                case Hit.Close: t = "Close"; break;
+                case Hit.Close: t = "Close this timer"; break;
+                case Hit.NoteBtn: t = cfg.Note.Length == 0 ? "Add a note (N)" : "Edit the note (N)"; break;
                 case Hit.Min: t = "Minimize"; break;
                 case Hit.Pin: t = TopMost ? "Always on top: ON (click to turn off)" : "Always on top: OFF (click to turn on)"; break;
                 case Hit.Gear: t = "Settings"; break;
@@ -697,9 +1142,10 @@ namespace CountdownTimer
 
             // Title bar
             string title = endUtc.HasValue ? "Until " + endUtc.Value.ToLocalTime().ToString("t")
-                : state == State.Idle ? "Timer" : "Timer  ·  " + Fmt(total);
-            TextRenderer.DrawText(g, title, fTitle, new Rectangle(S(10), 0, S(128), S(26)), Palette.Dim,
+                : state == State.Idle ? "Timer" : "Timer · " + Fmt(total);
+            TextRenderer.DrawText(g, title, fTitle, new Rectangle(S(10), 0, S(100), S(26)), Palette.Dim,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis);
+            DrawIconButton(g, RcNote, GlyphNote, Hit.NoteBtn, cfg.Note.Length > 0 ? Palette.Text : Palette.Dim);
             DrawIconButton(g, RcEnd, GlyphClock, Hit.End, endUtc.HasValue ? Palette.Text : Palette.Dim);
             DrawIconButton(g, RcGear, GlyphGear, Hit.Gear, Palette.Dim);
             DrawIconButton(g, RcPin, TopMost ? GlyphPinned : GlyphPin, Hit.Pin, TopMost ? Palette.Text : Palette.Dim);
@@ -743,6 +1189,10 @@ namespace CountdownTimer
             bool canStart = state != State.Idle || endUtc.HasValue || cfg.Duration > TimeSpan.Zero;
             DrawButton(g, RcMain, MainLabel(), Hit.Main, canStart ? Palette.Text : Palette.Dim);
             DrawButton(g, RcReset, "Reset", Hit.Reset, state == State.Idle && !endUtc.HasValue ? Palette.Dim : Palette.Text);
+
+            if (noteLabel.Visible)
+                using (var b = new SolidBrush(Palette.Track))
+                    g.FillRectangle(b, S(14), S(130), S(252), Math.Max(1, S(1)));
         }
 
         void DrawIconButton(Graphics g, Rectangle r, string glyph, Hit h, Color fg)
@@ -775,11 +1225,35 @@ namespace CountdownTimer
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            var loc = WindowState == FormWindowState.Normal ? Location : RestoreBounds.Location;
-            cfg.X = loc.X;
-            cfg.Y = loc.Y;
-            cfg.Save();
+            if (!app.Exiting)
+            {
+                if (e.CloseReason == CloseReason.UserClosing && app.Count > 1)
+                {
+                    if (WorthKeeping)
+                    {
+                        int nl = cfg.Note.IndexOf('\n');
+                        string first = nl >= 0 ? cfg.Note.Substring(0, nl) : cfg.Note;
+                        string what = first.Length > 0 ? "\u201C" + first + "\u201D will be gone." : "Its countdown will be gone.";
+                        if (MessageBox.Show(this, what, "Close this timer?", MessageBoxButtons.OKCancel,
+                                MessageBoxIcon.Question) != DialogResult.OK) { e.Cancel = true; return; }
+                    }
+                    removed = true;
+                }
+                else
+                {
+                    // The last timer, or Windows is shutting down: keep everything for next time.
+                    app.Exiting = true;
+                    app.Save();
+                }
+            }
             base.OnFormClosing(e);
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            tick.Stop();
+            base.OnFormClosed(e);
+            app.Gone(this, removed);
         }
     }
 
@@ -790,7 +1264,7 @@ namespace CountdownTimer
 
         public bool AlwaysOnTop { get { return cTop.Checked; } }
 
-        public SettingsForm(Settings s, bool topMost)
+        public SettingsForm(TimerData s, bool topMost)
         {
             SuspendLayout();
             AutoScaleDimensions = new SizeF(96F, 96F);
@@ -854,7 +1328,7 @@ namespace CountdownTimer
             return n;
         }
 
-        public void ApplyTo(Settings s)
+        public void ApplyTo(TimerData s)
         {
             s.Hours = (int)nH.Value;
             s.Minutes = (int)nM.Value;
@@ -863,7 +1337,6 @@ namespace CountdownTimer
             s.RedPct = (int)nR.Value;
             s.Sound = cSound.Checked;
             s.TopMost = cTop.Checked;
-            s.Save();
         }
     }
 
@@ -910,6 +1383,61 @@ namespace CountdownTimer
         }
     }
 
+    class NoteForm : Form
+    {
+        readonly TextBox box;
+
+        public string Note { get { return box.Text; } }
+
+        public NoteForm(string note)
+        {
+            SuspendLayout();
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            Font = new Font("Segoe UI", 9F);
+            Text = "Note";
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            ShowInTaskbar = false;
+            StartPosition = FormStartPosition.CenterParent;
+            ClientSize = new Size(380, 268);
+
+            Controls.Add(new Label { Text = "What this timer is counting down to. It shows under the timer.", Location = new Point(14, 12), AutoSize = true });
+            box = new TextBox
+            {
+                Multiline = true, AcceptsReturn = true, WordWrap = true, ScrollBars = ScrollBars.Vertical,
+                Location = new Point(14, 36), Size = new Size(352, 140),
+                Text = (note ?? "").Replace("\r\n", "\n").Replace("\n", "\r\n")
+            };
+            box.KeyDown += delegate (object s, KeyEventArgs e)
+            {
+                if (e.KeyCode == Keys.Enter && e.Control) { e.SuppressKeyPress = true; DialogResult = DialogResult.OK; }
+                if (e.KeyCode == Keys.A && e.Control) { e.SuppressKeyPress = true; box.SelectAll(); }
+            };
+            Controls.Add(box);
+            Controls.Add(new Label
+            {
+                Text = "Paste a web address to make a link, or write [name](address).\r\nCtrl+Enter saves.",
+                Location = new Point(14, 182), Size = new Size(352, 36), ForeColor = SystemColors.GrayText
+            });
+
+            var ok = new Button { Text = "OK", Location = new Point(204, 228), Size = new Size(80, 28), DialogResult = DialogResult.OK };
+            var cancel = new Button { Text = "Cancel", Location = new Point(290, 228), Size = new Size(80, 28), DialogResult = DialogResult.Cancel };
+            Controls.Add(ok);
+            Controls.Add(cancel);
+            CancelButton = cancel;
+            ResumeLayout(false);
+        }
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            box.Focus();
+            box.SelectionStart = box.TextLength;
+        }
+    }
+
     class AboutForm : Form
     {
         const string License =
@@ -952,7 +1480,7 @@ namespace CountdownTimer
             Controls.Add(icon);
 
             Controls.Add(new Label { Text = "Countdown Timer", Location = new Point(76, 16), AutoSize = true, Font = new Font("Segoe UI Semibold", 12F) });
-            Controls.Add(new Label { Text = "Version 1.1  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
+            Controls.Add(new Label { Text = "Version 1.2  ·  © 2026 Mauricio Mendivelso", Location = new Point(77, 44), AutoSize = true });
             Controls.Add(new Label
             {
                 Text = "Free software, provided \"as is\", without warranty of any kind.\r\n" +
