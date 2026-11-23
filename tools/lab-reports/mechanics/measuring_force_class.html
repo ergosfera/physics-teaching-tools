@@ -181,6 +181,18 @@
   .guide-body ol, .guide-body ul { padding-left: 22px; display: grid; gap: 6px; }
   footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 10px 16px 40px; }
   /* ── Measuring Force additions ── */
+  /* iPad and other tablets: station buttons on their own row, no double-tap zoom, bigger slider handles */
+  @media (max-width: 1180px) {
+    header h1 { flex: 1; }
+    nav.stations { order: 3; flex-basis: 100%; }
+    nav.stations button { padding: 6px 11px; }
+  }
+  button, input, select, a, .seg2, canvas { touch-action: manipulation; }
+  @media (pointer: coarse) {
+    input[type=range] { height: 34px; }
+    .seg button { padding: 9px 14px; }
+    .btn { padding: 10px 16px; }
+  }
   .plan { position: sticky; top: var(--hh, 56px); z-index: 9; background: var(--surface); border-bottom: 1px solid var(--border); padding: 6px 16px 8px; }
   @media (max-width: 760px) { .plan { position: static; } }
   .plan .bar { display: flex; gap: 3px; max-width: 1200px; margin: 0 auto; }
@@ -831,7 +843,7 @@ function renderQ(box) {
   box._solve = solve;
 }
 document.querySelectorAll('.qbox[data-qid]').forEach(renderQ);
-function restoreQs() { document.querySelectorAll('.qbox[data-qid]').forEach(b => { if (P.q[b.dataset.qid]?.done) b._solve(); }); }
+function restoreQs() { document.querySelectorAll('.qbox[data-qid]').forEach(b => { if (P.q[b.dataset.qid] && P.q[b.dataset.qid].done) b._solve(); }); }
 
 // ═════════════ STATION 1 · bathroom scale on four worlds ═════════════
 const s1 = { w: 'earth', m: 60, needle: 60, nv: 0, y: 0, vy: 0, air: false, impact: 0, bt: 9 };
@@ -1052,7 +1064,7 @@ function drawS2() {
     label(ctx, A.landed ? 'the Earth moves toward the apple at only 1.7 × 10⁻²⁵ m/s²' : A.falling ? 'falling…' : '', W - 12, 44, C.muted, 12, 'right', 700);
   }
 }
-qHooks.sc3 = qHooks.sc2 = qHooks.sc1 = qHooks.sc0 = () => { if ([0, 1, 2, 3].every(i => P.q['sc' + i]?.done)) $('s2sum').hidden = false; };
+qHooks.sc3 = qHooks.sc2 = qHooks.sc1 = qHooks.sc0 = () => { if ([0, 1, 2, 3].every(i => P.q['sc' + i] && P.q['sc' + i].done)) $('s2sum').hidden = false; };
 
 // two pushes on a box
 const s2b = { ang: 60, shown: 60 };
