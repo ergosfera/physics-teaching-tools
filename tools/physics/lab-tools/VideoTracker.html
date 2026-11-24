@@ -1109,6 +1109,12 @@ function seriesOf(track) {
     }
     segs.push([start, n - 1]);
 
+    // Which piece each row belongs to (a point exactly at a contact belongs to both)
+    segs.forEach(([s, e], k) => {
+        for (let i = s; i <= e; i++) { if (!rows[i].pieces) rows[i].pieces = []; rows[i].pieces.push(k); }
+    });
+    rows.pieceCount = segs.length;
+
     segs.forEach(([s, e]) => {
         if (e - s < 2) return;                                // fewer than 3 points
         const tri = k => { const j = Math.max(s, Math.min(e - 2, k - 1)); return [j, j + 1, j + 2]; };
@@ -2748,33 +2754,51 @@ function renderGraph(ctx, W, H, gi, opts) {
         ctx.stroke();
     }
 
-    // Fit curve
-    let fitResult = null;
-    if (g.fit !== 'none' && pts.length >= 2) {
-        fitResult = computeFit(g.fit, xs, vals);
-        if (fitResult) {
+    // Fit. With bounces every piece between two bounces gets its own fit, drawn over that
+    // piece only; the equation shown belongs to the piece under the current frame (move the
+    // frame or click a dot to read another piece). Without bounces: one fit over everything.
+    let fitShown = null;
+    if (g.fit !== 'none') {
+        const groups = [];
+        for (let k = 0; k < (rows.pieceCount || 1); k++) {
+            const idx = [];
+            pts.forEach((r, i) => { if (r.pieces && r.pieces.includes(k)) idx.push(i); });
+            if (idx.length >= 2) groups.push(idx);
+        }
+        const tc = tOf(S.frameIndex);
+        let cur = null, best = Infinity;
+        groups.forEach(idx => {                          // piece containing (or nearest to) the current frame
+            const ta = pts[idx[0]].t, tb = pts[idx[idx.length - 1]].t;
+            const d = tc < ta ? ta - tc : tc > tb ? tc - tb : 0;
+            if (d <= best) { best = d; cur = idx; }      // on a contact point: the piece after it
+        });
+        groups.forEach((idx, gi2) => {
+            const gx = idx.map(i => xs[i]), gy = idx.map(i => vals[i]);
+            const fit = computeFit(g.fit, gx, gy);
+            if (!fit) return;
+            const single = groups.length === 1;
+            const lo = single ? x0 : Math.min(...gx), hi = single ? x1 : Math.max(...gx);
             ctx.save();
             ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
             ctx.strokeStyle = col;
-            ctx.globalAlpha = 0.65;
+            ctx.globalAlpha = (idx === cur || single) ? 0.7 : 0.3;
             ctx.lineWidth = 2;
             ctx.setLineDash([5,3]);
             ctx.beginPath();
             let started = false;
-            const N = Math.max(80, Math.floor(pw));
+            const N = Math.max(40, Math.floor((tx(hi) - tx(lo)) / 2));
             for (let i = 0; i <= N; i++) {
-                const xVal = x0 + (x1-x0)*i/N;
-                const yVal = fitResult.fn(xVal);
+                const xVal = lo + (hi - lo) * i / N;
+                const yVal = fit.fn(xVal);
                 if (!isFinite(yVal)) { started = false; continue; }
-                const sx = pad.l + i*(pw/N);
-                const sy = ty(yVal);
-                if (!started) { ctx.moveTo(sx, sy); started = true; }
-                else ctx.lineTo(sx, sy);
+                if (!started) { ctx.moveTo(tx(xVal), ty(yVal)); started = true; }
+                else ctx.lineTo(tx(xVal), ty(yVal));
             }
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.restore();
-        }
+            if (idx === cur) fitShown = { fit, gx, gy, k: gi2 + 1, of: groups.length };
+        });
     }
 
     // Dots (the one on the current frame is ringed)
@@ -2792,10 +2816,10 @@ function renderGraph(ctx, W, H, gi, opts) {
     });
 
     // Fit equation + R^2
-    if (fitResult) {
-        const r2  = rSquared(xs, vals, fitResult.fn);
-        const eq  = fitResult.label.replace(/^y =/, V.sym + ' =').replace(/\*t\b/g, '·' + Hv.sym);
-        const lbl = `${eq}   R² = ${r2.toFixed(4)}`;
+    if (fitShown) {
+        const r2  = rSquared(fitShown.gx, fitShown.gy, fitShown.fit.fn);
+        const eq  = fitShown.fit.label.replace(/^y =/, V.sym + ' =').replace(/\*t\b/g, '·' + Hv.sym);
+        const lbl = `${fitShown.of > 1 ? `Piece ${fitShown.k} of ${fitShown.of}:  ` : ''}${eq}   R² = ${r2.toFixed(4)}`;
         ctx.font = `${fs + 1}px sans-serif`;
         ctx.textAlign = 'right'; ctx.textBaseline = 'top';
         const tw = Math.min(pw, ctx.measureText(lbl).width + 10);
