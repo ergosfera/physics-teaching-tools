@@ -218,7 +218,7 @@ LabTeacher({
     if (G.areaPts.length < 4) out.push(['Only ' + G.areaPts.length + ' overlaps', 'red']);
     if (isFinite(G.kSep) && isFinite(G.kArea) && Math.abs(G.kArea - G.kSep) / G.kSep > 0.25) out.push(['κ (area) ≠ κ (separation)', '']);
     const ok = G.mats.filter(m => isFinite(m.kappa));
-    if (ok.length < 3) out.push(['Only ' + ok.length + ' materials', '']);
+    if (ok.length < 2) out.push(['Only ' + ok.length + ' material', '']);
     if (ok.some(m => m.kappa < 1)) out.push(['A material with κ < 1', 'red']);
     const c = s.conclusion || {}, kr = num(c.kappa);
     if (isFinite(kr) && isFinite(G.kSep)) {
@@ -227,8 +227,10 @@ LabTeacher({
       else if (Math.abs(r / EPS0 - 1) < 0.15) out.push(['Reported ε, not κ = ε/ε₀', 'red']);
       else if (Math.abs(r - 1) > 0.15) out.push(['Reported κ ≠ graph', '']);
     }
-    if (G.sepFit && !(num(c.dkappa) > 0)) out.push(['No uncertainty', '']);
+    if (G.sepFit && !isFinite(num(c.dkappa))) out.push(['No uncertainty', '']);
     if (!s.test?.locked) out.push(['Model test not done', '']);
+    // The same problems the student page warns about while students type
+    CAP.problems(s, G).forEach(p => out.push([p.flag, p.red ? 'red' : '']));
     return out;
   },
 

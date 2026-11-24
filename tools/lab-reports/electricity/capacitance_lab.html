@@ -388,6 +388,7 @@
     <div class="step-body">
       <ol class="howto">
         <li>Put the bottom plate on the table, then <b>1 sheet</b> of paper, then the top plate <b>exactly on top</b> (full overlap). The paper must stick out on every side, so the plates never touch.</li>
+        <li>Clip each lead to the <b>edge of its plate, outside the overlap</b>: a clip between the plates lifts the top plate, and then the clip, not the paper, sets the separation. The clip must bite <b>bare metal</b>: if the plate has a coating or film, scrape a small spot clean.</li>
         <li>Put the <b>book</b> on top and press it the same way every time: the air between the sheets changes the reading.</li>
         <li>Wait until the reading is steady and type it. Then use <b>2, 3, 4, 6 and 8 sheets</b>, the same way. Separation d = number of sheets × t.</li>
         <li>Keep <b>5 sheets unused</b>: you'll need it in step 7.</li>
@@ -468,8 +469,9 @@
       <ol class="howto">
         <li>Plates exactly on top of each other (full overlap). Put <b>one layer</b> of a material between them: glass, plastic sheet, fabric, cardboard… It must cover the whole plate.</li>
         <li>Measure the <b>thickness t</b> of that layer with the caliper. For a thin sheet, measure a folded stack of several layers and divide.</li>
-        <li>Book on top (for glass, press gently with your hand instead), read C. Do <b>at least 3 materials</b>, including <b>1 sheet of paper</b>.</li>
+        <li>Book on top (for glass, press gently with your hand instead), read C. Do <b>1 sheet of paper</b> and <b>every other material you have</b> (at least one).</li>
       </ol>
+      <div class="note warn">Type only what you really measured. If a material isn't available, leave it out: a made-up row is worse than a missing one.</div>
       <div class="note">The materials have different thicknesses, so comparing the readings is not enough. The page finds the <b>dielectric constant</b> κ of each material: how many times bigger C is than with <b>vacuum</b> (or air) of the same thickness, using C = κ·ε₀·A/d with ε₀ = 8.85 pF/m.</div>
       <div class="table-wrap">
         <table class="data">
@@ -505,6 +507,7 @@
         <li>Use your formula, the κ of paper from step 4 and your measurements to <b>calculate</b> the reading the meter will show, in <span data-unit>nF</span>. Remember that the meter also shows C₀.</li>
         <li><b>Lock your prediction before</b> you build it. Then build it and read the meter.</li>
       </ol>
+      <div class="note">The measured reading must be <b>a real reading of the meter</b>. If the prediction misses, that is a result too: a model test that fails, explained well, is worth more than one that was not measured.</div>
       <div class="grid2">
         <label class="f">Sheets n<input type="text" inputmode="numeric" data-bind="test.n" id="test-n"></label>
         <label class="f">Overlap x (cm)<input type="text" inputmode="decimal" data-bind="test.x" id="test-x"></label>
@@ -514,6 +517,7 @@
       <div id="test-measure" hidden>
         <label class="f">Now build it. Measured reading (<span data-unit>nF</span>)<input type="text" inputmode="decimal" data-bind="test.meas"></label>
       </div>
+      <div id="test-warn"></div>
       <div id="test-result"></div>
       <div class="note">When you finish: turn the multimeter off, put the paper back in its stack and the glass in its box.</div>
     </div>
@@ -687,7 +691,7 @@ const LINK_SESSION = params.get('session') || '';
 const LINK_MODE = ['group', 'individual'].includes(params.get('mode')) ? params.get('mode') : '';
 const STORE = 'lab_' + LAB_ID + '_' + (LINK_SESSION || 'default');
 
-const MIN_SEP = 5, MIN_AREA = 4, MIN_MATS = 3;
+const MIN_SEP = 5, MIN_AREA = 4, MIN_MATS = 2;
 const ERRORS = [
   ['air', 'Air gaps between the sheets (not pressed the same every time)'],
   ['leads', 'Leads moved, so C₀ changed'],
@@ -760,7 +764,7 @@ const DONE = {
   5: () => A().areaPts.length >= MIN_AREA && words(S.answers.area) >= 15,
   6: () => A().mats.filter(m => isFinite(m.kappa)).length >= MIN_MATS && words(S.answers.diel) >= 15 && S.answers.law.trim().length >= 3,
   7: () => S.test.locked && isFinite(num(S.test.meas)),
-  8: () => isFinite(num(S.conclusion.kappa)) && isFinite(num(S.conclusion.dkappa)) && words(S.answers.predcheck) >= 15 && words(S.answers.others) >= 15 && words(S.conclusion.text) >= 30 && words(S.conclusion.roles) >= 5,
+  8: () => isFinite(num(S.conclusion.kappa)) && num(S.conclusion.dkappa) > 0 && words(S.answers.predcheck) >= 15 && words(S.answers.others) >= 15 && words(S.conclusion.text) >= 30 && words(S.conclusion.roles) >= 5,
   9: () => !!S.sent,
 };
 const NSTEPS = 9;
@@ -797,6 +801,7 @@ function refresh() {
   document.getElementById('pcb-note').hidden = S.plates.metal !== 'pcb';
 
   const a = A();
+  PROBS = CAP.problems(S, a);
   refreshSetup(a);
   refreshSep(a);
   refreshArea(a);
@@ -848,6 +853,9 @@ ERRORS.forEach(([id, text]) => {
 
 document.getElementById('setup-fig').innerHTML = document.getElementById('guide-fig').innerHTML;
 const warnHtml = list => list.map(w => `<div class="note warn">${w}</div>`).join('');
+// The problems of this report (capacitance_common.js), worked out on every refresh; each step shows its own
+let PROBS = [];
+const stepProbs = step => PROBS.filter(p => p.step === step).map(p => p.msg);
 
 // ── Step 3 ──────────────────────────────────────────────────
 function refreshSetup(a) {
@@ -940,7 +948,7 @@ function epsNote(eps, what) {
 function refreshSep(a) {
   sepT.fill(r => netPF(r.C) < 0 || num(r.n) < 0);
   const pts = a.sepPts, warns = [];
-  if (S.sep.some(r => netPF(r.C) < 0)) warns.push('A reading smaller than C₀. Check the unit and the value of C₀ in step 3.');
+  warns.push(...stepProbs(4));
   const ns = S.sep.map(r => num(r.n)).filter(isFinite);
   if (new Set(ns).size < ns.length) warns.push('Two rows have the same number of sheets. That\'s fine for a repeat, but you need 5 <b>different</b> separations.');
   if (!(a.t > 0) || !isFinite(a.C0)) warns.push('Finish step 3 (paper thickness and C₀) to see the calculated columns.');
@@ -981,7 +989,7 @@ function refreshArea(a) {
   areaT.fill(r => netPF(r.C) < 0 || num(r.x) > num(S.setup.L) + 0.05);
   const warns = [];
   if (!(num(S.area.n) > 0)) warns.push('Type the number of sheets you use in this part.');
-  if (S.area.rows.some(r => num(r.x) > num(S.setup.L) + 0.05)) warns.push(`An overlap longer than the plate (L = ${esc(S.setup.L)} cm)? Check x.`);
+  warns.push(...stepProbs(5));
   document.getElementById('area-warn').innerHTML = warnHtml(warns);
   const pts = a.areaPts, f = a.areaFit;
   document.getElementById('area-n').textContent = pts.length + ' valid measurement' + (pts.length === 1 ? '' : 's') + (pts.length < MIN_AREA ? ` · at least ${MIN_AREA} needed` : '');
@@ -1013,6 +1021,7 @@ function refreshMats(a) {
   if (ok.some(m => m.kappa < 1)) warns.push('κ smaller than 1 means less than vacuum, which is impossible. Check the thickness (in <b>mm</b>), the unit of C, and that the material covers the whole plate.');
   if (S.mats.some(r => r.mat && num(r.C) > 0 && !(num(r.t) > 0))) warns.push('Type the thickness of each material to get its κ.');
   if (!ok.some(m => m.mat === 'paper')) warns.push('Include one sheet of paper: it links this part to steps 4 and 5.');
+  warns.push(...stepProbs(6));
   document.getElementById('mat-warn').innerHTML = warnHtml(warns);
   document.getElementById('mat-n').textContent = ok.length + ' material' + (ok.length === 1 ? '' : 's') + ' with κ' + (ok.length < MIN_MATS ? ` · at least ${MIN_MATS} needed` : '');
   CAP.barsKappa(document.getElementById('plot-mat'), ok.map(m => ({ name: (CAP.MATS[m.mat] || m.mat) + (m.name ? ' · ' + m.name : ''), v: m.kappa })));
@@ -1027,7 +1036,9 @@ function refreshTest(a) {
   const t = S.test, pred = num(t.pred), meas = num(t.meas), locked = t.locked;
   ['test-n', 'test-x', 'test-pred'].forEach(id => { document.getElementById(id).readOnly = locked; });
   const lockBtn = document.getElementById('lock-pred');
-  lockBtn.disabled = locked || !(num(t.n) > 0 && num(t.x) > 0 && pred > 0);
+  const longX = num(S.setup.L) > 0 && num(t.x) > num(S.setup.L) + 0.05;
+  lockBtn.disabled = locked || longX || !(num(t.n) > 0 && num(t.x) > 0 && pred > 0);
+  document.getElementById('test-warn').innerHTML = warnHtml(stepProbs(7));
   lockBtn.hidden = locked;
   document.getElementById('lock-msg').textContent = locked ? '🔒 Prediction locked' : '';
   document.getElementById('test-measure').hidden = !locked;
@@ -1053,6 +1064,7 @@ function refreshConclusion(a) {
     else if (Math.abs(r - 1) > 0.15) msgs.push(`Your graph of C against 1/d gives κ = ${fmt(kg)}. Check your value.`);
   }
   if (isFinite(k) && k < 1) msgs.push('κ can\'t be smaller than 1.');
+  msgs.push(...stepProbs(8));
   document.getElementById('k-hint').innerHTML = warnHtml(msgs);
 }
 

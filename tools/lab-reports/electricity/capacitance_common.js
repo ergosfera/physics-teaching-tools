@@ -68,6 +68,64 @@ const CAP = (() => {
     return { cu, L, W, A, t, C0, sepPts, sepFit, epsSep, kSep: epsSep / EPS0, dkSep, dArea, areaPts, areaFit, epsArea, kArea: epsArea / EPS0, mats };
   }
 
+  // Problems in one report: what the student page warns about while students type, and what the
+  // teacher page flags. Each: { step, msg (HTML for students), flag (short, for the teacher), red }.
+  // a: the result of analyze(s) (the teacher page passes its group, which has the same fields).
+  const NEAR_C0 = 3;   // pF: a reading this close to C₀ is the leads, not the plates
+  function problems(s, a = analyze(s)) {
+    const out = [], st = s.setup || {}, L = num(st.L), unit = st.cunit || 'nF';
+    const net = C => { const c = num(C); return isFinite(c) && isFinite(a.C0) ? c * a.cu - a.C0 : NaN; };
+    const atC0 = (rows, step, what) => {
+      const bad = rows.map((r, i) => ({ i, y: net(r.C) })).filter(r => isFinite(r.y) && r.y <= NEAR_C0);
+      if (bad.length) out.push({ step, red: true, flag: `Readings at C₀ (${what})`,
+        msg: `Row${bad.length > 1 ? 's' : ''} ${bad.map(r => r.i + 1).join(', ')}: the reading is at C₀ (${fmt(a.C0)} pF) or below, so the meter is reading only the leads, not the plates. Check that each clip bites <b>bare metal</b> on its own plate (scrape off any coating), then measure again.` });
+    };
+    atC0(s.sep || [], 4, 'separation');
+    atC0((s.area || {}).rows || [], 5, 'area');
+    atC0((s.mats || []).filter(r => r.mat), 6, 'materials');
+
+    // Step 4: with 1 sheet C should be about twice C with 2 sheets
+    const at = n => { const r = (s.sep || []).find(r => num(r.n) === n); return r ? net(r.C) : NaN; };
+    const ratio = at(1) / at(2);
+    if (at(1) > NEAR_C0 && at(2) > NEAR_C0 && ratio < 1.5) out.push({ step: 4, flag: `C(1 sheet)/C(2 sheets) = ${fmt(ratio, 2)}: gap not set by the paper`,
+      msg: `With 1 sheet, C is only ${fmt(ratio, 2)} times C with 2 sheets. Twice the separation should give about half: 2 times. Something besides the paper is setting the gap: a clip between the plates, a bent plate, or the book pressing differently each time. Fix it and measure the sheets again.` });
+
+    // Step 5: overlap longer than the plate
+    const longX = ((s.area || {}).rows || []).map((r, i) => ({ i, x: num(r.x) })).filter(r => L > 0 && r.x > L + 0.05);
+    if (longX.length) out.push({ step: 5, flag: 'Overlap longer than the plate', red: true,
+      msg: `Row${longX.length > 1 ? 's' : ''} ${longX.map(r => r.i + 1).join(', ')}: an overlap longer than the plate (L = ${fmt(L)} cm) is not possible. Check x.` });
+    // Step 5: full overlap should read about what step 4 read with the same sheets
+    const nA = num((s.area || {}).n), fullA = ((s.area || {}).rows || []).find(r => L > 0 && Math.abs(num(r.x) - L) <= 0.05), sameN = at(nA);
+    if (fullA && net(fullA.C) > NEAR_C0 && sameN > NEAR_C0 && Math.abs(net(fullA.C) / sameN - 1) > 0.3) out.push({ step: 5, flag: 'Full overlap ≠ step 4',
+      msg: `At full overlap (x = L) with ${fmt(nA)} sheets you read ${fmt(net(fullA.C))} pF, but in step 4 the same ${fmt(nA)} sheets gave ${fmt(sameN)} pF. It is the same capacitor, so they should be close: check the decimal point, or measure again.` });
+
+    // Step 6: paper against step 3 and step 4; κ too large
+    const paper = (s.mats || []).find(r => r.mat === 'paper' && isFinite(net(r.C)));
+    if (paper) {
+      const tp = num(paper.t) * 1e-3;
+      if (tp > 0 && a.t > 0 && Math.abs(tp / a.t - 1) > 0.3) out.push({ step: 6, flag: 'Paper thickness ≠ step 3',
+        msg: `The paper here is ${fmt(tp * 1e3)} mm thick, but in step 3 one sheet was ${fmt(a.t * 1e3)} mm. Use the same value for 1 sheet.` });
+      if (net(paper.C) > NEAR_C0 && at(1) > NEAR_C0 && Math.abs(net(paper.C) / at(1) - 1) > 0.3) out.push({ step: 6, flag: '1 sheet: step 6 ≠ step 4',
+        msg: `One sheet of paper gives ${fmt(net(paper.C))} pF here but ${fmt(at(1))} pF in step 4. It is the same capacitor, so they should be close: check the decimal point, or find what changed (clips, pressing) and measure both again.` });
+    }
+    a.mats.forEach((m, i) => {
+      if (m.kappa > 15) out.push({ step: 6, flag: `κ = ${fmt(m.kappa)} (${MATS[m.mat] || m.mat})?`,
+        msg: `Row ${i + 1}: κ = ${fmt(m.kappa)} is unusually large (most solids are between 2 and 10). Check the decimal point of the reading (in ${unit}) and the thickness (in <b>mm</b>).` });
+    });
+
+    // Step 7: model test
+    const t = s.test || {}, tx = num(t.x), meas = num(t.meas);
+    if (L > 0 && tx > L + 0.05) out.push({ step: 7, flag: 'Test overlap longer than the plate', red: true,
+      msg: `An overlap of ${fmt(tx)} cm is longer than your plate (L = ${fmt(L)} cm), so that capacitor can't be built. Choose an x smaller than L.` });
+    if (isFinite(meas) && isFinite(a.C0) && meas * a.cu <= a.C0 + NEAR_C0) out.push({ step: 7, flag: 'Test reading at or below C₀', red: true,
+      msg: `A reading of ${fmt(meas)} ${unit} is at C₀ (${fmt(a.C0 / a.cu)} ${unit}) or below: the meter would be reading only the leads. Check the clips and measure again.` });
+
+    // Step 8: uncertainty
+    const dk = num((s.conclusion || {}).dkappa);
+    if (isFinite(dk) && dk <= 0) out.push({ step: 8, flag: 'Uncertainty ≤ 0', msg: 'An uncertainty is always <b>positive</b>: it says how far the true value may be, either way.' });
+    return out;
+  }
+
   // ── Student page plots (use the .plot classes of the lab page) ──
   // pts in SI (x shown as x·o.xs); fit in SI. Both axes include the origin.
   function plot(svg, pts, fit, o) {
@@ -115,5 +173,5 @@ const CAP = (() => {
     svg.innerHTML = s;
   }
 
-  return { EPS0, UNIT, MATS, num, fmt, linfit, niceStep, analyze, plot, barsKappa };
+  return { EPS0, UNIT, MATS, num, fmt, linfit, niceStep, analyze, problems, plot, barsKappa };
 })();
