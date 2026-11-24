@@ -316,6 +316,12 @@
   }
   .var-sel{font-family:var(--ui);font-size:12px;font-weight:700;padding:1px 2px;flex-shrink:0}
   .vs-t{white-space:nowrap;flex-shrink:0}
+  .h-sel{font-weight:400}
+  .graph-section-header .obj-label{flex:1 1 0;min-width:0}
+  .png-btn{font-size:12px;line-height:1;padding:1px 4px;border:0;background:var(--face);cursor:pointer;flex-shrink:0;
+           box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--light)}
+  .png-btn:active{box-shadow:inset 1px 1px 0 var(--shadow),inset 2px 2px 0 var(--dark)}
+  .graph-wrap canvas.clickable{cursor:pointer}
   .mass-box{display:none;align-items:center;gap:2px;font-size:11px;white-space:nowrap;flex-shrink:0}
   .mass-box.on{display:inline-flex}
   .mass-box input{width:56px;font-size:11px;padding:1px 3px}
@@ -345,7 +351,7 @@
   #table-footer{
     flex-shrink:0;padding:4px 6px;background:var(--face);
     border-top:1px solid var(--shadow);box-shadow:0 1px 0 var(--hi);
-    display:flex;justify-content:flex-end;
+    display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;
   }
   .graph-section.collapsed #table-footer{display:none}
   #data-scroll::-webkit-scrollbar{width:16px}
@@ -399,6 +405,9 @@
                inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
   }
   .modal-buttons{display:flex;gap:6px;justify-content:flex-end}
+  #export-overlay .dlg{max-width:440px}
+  .exp-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 12px}
+  .exp-grid label{font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer}
   .modal-buttons button{min-width:80px}
 
   /* ---- taskbar ---- */
@@ -486,9 +495,13 @@
     #step-2 button.b95{padding:8px 8px}
     .graph-section-header{flex-wrap:nowrap}
     .var-sel,.fit-sel{min-width:0;flex-shrink:1;font-size:13px}
-    .var-sel{max-width:60%}
-    .fit-sel{max-width:38%}
-    .graph-collapse{display:none}
+    .var-sel{max-width:38%}
+    .h-sel{max-width:26%}
+    .fit-sel{max-width:30%}
+    .graph-collapse,.png-btn{display:none}
+    #btn-export,label[for=track-step],#step-5 .step-hint,#step-5 .tb-sep{display:none}
+    .mass-box input{width:44px}
+    #table-footer button.b95{padding:6px 10px;min-height:34px}
     .status div:nth-child(n+3):not(:last-child){display:none}
   }
   @media (max-width:700px){
@@ -540,6 +553,10 @@
         <button class="b95" onclick="document.getElementById('file-input').click()">&#128194; Load</button>
         <label class="tb-label">FPS:</label>
         <input type="number" id="fps-input" value="30" min="1" max="240" step="0.001">
+        <div class="tb-sep"></div>
+        <button class="b95" onclick="document.getElementById('project-input').click()" title="Continue a saved analysis (.json)">&#128450; Open project</button>
+        <input type="file" id="project-input" accept=".json,application/json" style="display:none">
+        <span class="step-hint" id="project-hint"></span>
       </fieldset>
     </div>
 
@@ -610,6 +627,11 @@
       <fieldset class="step-body" id="step-5-body" disabled>
         <span class="step-hint" id="active-obj-hint">Click object each frame</span>
         <div class="tb-sep"></div>
+        <label class="tb-label" for="track-step" title="How many frames to move forward after each click">Next:</label>
+        <select id="track-step" title="How many frames to move forward after each click">
+          <option value="1">+1 frame</option><option value="2">+2 frames</option><option value="3">+3 frames</option>
+          <option value="5">+5 frames</option><option value="10">+10 frames</option>
+        </select>
         <button class="b95" id="btn-undo" onclick="undoLastPoint()" disabled>&#8630; Undo</button>
         <button class="b95" id="btn-clear" onclick="clearTracking()" disabled>&#128465; Clear</button>
         <button class="b95" id="btn-export" onclick="exportCSV()" disabled>&#11015; CSV</button>
@@ -670,7 +692,8 @@
         <div class="graph-section-header" onclick="collapseGraph(0,event)">
           <div class="graph-dot" style="background:var(--gx)"></div>
           <select class="var-sel" id="var-0" title="Quantity on the vertical axis"></select>
-          <span class="vs-t">vs. t</span>
+          <span class="vs-t">vs.</span>
+          <select class="var-sel h-sel" id="hvar-0" title="Quantity on the horizontal axis"></select>
           <span class="mass-box" id="mass-box-0">m=<input type="number" class="mass-in" min="0" step="any" inputmode="decimal" placeholder="?">kg</span>
           <span class="obj-label" id="obj-label-g1"></span>
           <select class="fit-sel" id="fit-0">
@@ -679,6 +702,7 @@
             <option value="quad">Quadratic</option>
             <option value="exp">Exponential</option>
           </select>
+          <button class="png-btn" onclick="saveGraphImage(0,event)" title="Save this graph as a picture (PNG)">&#128247;</button>
           <span class="graph-collapse"></span>
         </div>
         <div class="graph-wrap" id="graph-wrap-0">
@@ -690,7 +714,8 @@
         <div class="graph-section-header" onclick="collapseGraph(1,event)">
           <div class="graph-dot" style="background:var(--gy)"></div>
           <select class="var-sel" id="var-1" title="Quantity on the vertical axis"></select>
-          <span class="vs-t">vs. t</span>
+          <span class="vs-t">vs.</span>
+          <select class="var-sel h-sel" id="hvar-1" title="Quantity on the horizontal axis"></select>
           <span class="mass-box" id="mass-box-1">m=<input type="number" class="mass-in" min="0" step="any" inputmode="decimal" placeholder="?">kg</span>
           <span class="obj-label" id="obj-label-g2"></span>
           <select class="fit-sel" id="fit-1">
@@ -699,6 +724,7 @@
             <option value="quad">Quadratic</option>
             <option value="exp">Exponential</option>
           </select>
+          <button class="png-btn" onclick="saveGraphImage(1,event)" title="Save this graph as a picture (PNG)">&#128247;</button>
           <span class="graph-collapse"></span>
         </div>
         <div class="graph-wrap" id="graph-wrap-1">
@@ -724,6 +750,7 @@
           <textarea id="notes" placeholder="Write notes here: names, date, what was filmed, mass, observations&hellip;&#10;They can be added at the end of the exported CSV."></textarea>
         </div>
         <div id="table-footer">
+          <button class="b95" id="btn-save-project" onclick="saveProject()" disabled title="Save points, calibration, trim and notes to continue later">&#128190; Save project</button>
           <button class="b95" id="btn-export-table" onclick="exportCSV()" disabled>&#11015; Export CSV&hellip;</button>
         </div>
       </div>
@@ -784,17 +811,23 @@
         <select id="exp-track-sel" style="width:100%;margin-top:3px"></select>
       </label>
       <p style="font-size:13px">Select variables to export:</p>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-frame" checked> Frame number</label>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-time" checked> Time (s)</label>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-x" checked> X position</label>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-y" checked> Y position</label>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-vx"> vx, vy (velocity)</label>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-v"> v (speed)</label>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-ax"> ax, ay (acceleration)</label>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-a"> a (acceleration magnitude)</label>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-K"> K (kinetic energy, needs mass)</label>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-px"> Pixel X</label>
-      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-py"> Pixel Y</label>
+      <div class="exp-grid">
+        <label><input type="checkbox" id="exp-frame" checked> Frame number</label>
+        <label><input type="checkbox" id="exp-time" checked> Time t (s)</label>
+        <label><input type="checkbox" id="exp-x" checked> x position</label>
+        <label><input type="checkbox" id="exp-y" checked> y position</label>
+        <label><input type="checkbox" id="exp-vx"> vx, vy velocity</label>
+        <label><input type="checkbox" id="exp-v"> v speed</label>
+        <label><input type="checkbox" id="exp-ax"> ax, ay acceleration</label>
+        <label><input type="checkbox" id="exp-a"> a |acceleration|</label>
+        <label><input type="checkbox" id="exp-K"> K kinetic energy *</label>
+        <label><input type="checkbox" id="exp-UE"> U and E = K + U *</label>
+        <label><input type="checkbox" id="exp-p"> px, py, p momentum *</label>
+        <label><input type="checkbox" id="exp-tot"> Σpx, Σpy, ΣK all objects *</label>
+        <label><input type="checkbox" id="exp-px"> Pixel x</label>
+        <label><input type="checkbox" id="exp-py"> Pixel y</label>
+      </div>
+      <p style="font-size:11px;color:#404040">* needs the object's mass (kg)</p>
       <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-notes"> Add notes at the end</label>
       <p style="font-size:11px;color:#404040">Only points between In and Out are exported. Time starts at 0 on the In frame.</p>
       <div class="modal-buttons">
@@ -925,7 +958,8 @@ const S = {
     lastCursorPos: null,
     CW: 640, CH: 480,
     // The two graphs: which quantity each plots against t, its fit, and whether it is open
-    graphs: [{ v: 'x', fit: 'none', show: true }, { v: 'y', fit: 'none', show: true }],
+    graphs: [{ v: 'x', h: 't', fit: 'none', show: true }, { v: 'y', h: 't', fit: 'none', show: true }],
+    trackStep: 1,
     loop: false,
     showAxes: false,
     showCal: false,
@@ -935,40 +969,67 @@ const S = {
 // ═══════════════════════════════════════════════════════
 //  QUANTITIES THAT CAN BE GRAPHED / TABULATED / EXPORTED
 // ═══════════════════════════════════════════════════════
+const G = 9.8;   // m/s², for U = m·g·y
 const VARS = {
-    x:  { menu: 'x  position',      sym: 'x',   unit: () => S.unit },
-    y:  { menu: 'y  position',      sym: 'y',   unit: () => S.unit },
-    vx: { menu: 'vx  velocity',     sym: 'vx',  unit: () => S.unit + '/s' },
-    vy: { menu: 'vy  velocity',     sym: 'vy',  unit: () => S.unit + '/s' },
-    v:  { menu: 'v  speed',         sym: 'v',   unit: () => S.unit + '/s' },
-    ax: { menu: 'ax  acceleration', sym: 'ax',  unit: () => S.unit + '/s²' },
-    ay: { menu: 'ay  acceleration', sym: 'ay',  unit: () => S.unit + '/s²' },
-    a:  { menu: 'a  |acceleration|',sym: 'a',   unit: () => S.unit + '/s²' },
-    K:  { menu: 'K  kinetic energy',sym: 'K',   unit: () => 'J' },
+    t:   { menu: 't',            sym: 't',   unit: () => 's' },
+    x:   { menu: 'x',            sym: 'x',   unit: () => S.unit },
+    y:   { menu: 'y',            sym: 'y',   unit: () => S.unit },
+    vx:  { menu: 'vx',           sym: 'vx',  unit: () => S.unit + '/s' },
+    vy:  { menu: 'vy',           sym: 'vy',  unit: () => S.unit + '/s' },
+    v:   { menu: 'v  speed',     sym: 'v',   unit: () => S.unit + '/s' },
+    ax:  { menu: 'ax',           sym: 'ax',  unit: () => S.unit + '/s²' },
+    ay:  { menu: 'ay',           sym: 'ay',  unit: () => S.unit + '/s²' },
+    a:   { menu: 'a  |a|',       sym: 'a',   unit: () => S.unit + '/s²' },
+    K:   { menu: 'K  kinetic',   sym: 'K',   unit: () => 'J',      mass: true },
+    U:   { menu: 'U  potential', sym: 'U',   unit: () => 'J',      mass: true },
+    E:   { menu: 'E = K + U',    sym: 'E',   unit: () => 'J',      mass: true },
+    px:  { menu: 'px',           sym: 'px',  unit: () => 'kg·m/s', mass: true },
+    py:  { menu: 'py',           sym: 'py',  unit: () => 'kg·m/s', mass: true },
+    p:   { menu: 'p  |p|',       sym: 'p',   unit: () => 'kg·m/s', mass: true },
+    Px:  { menu: 'Σpx',          sym: 'Σpx', unit: () => 'kg·m/s', mass: true, total: true },
+    Py:  { menu: 'Σpy',          sym: 'Σpy', unit: () => 'kg·m/s', mass: true, total: true },
+    Kt:  { menu: 'ΣK',           sym: 'ΣK',  unit: () => 'J',      mass: true, total: true },
 };
-const GRAPH_VARS_ORDER = ['x', 'y', 'vx', 'vy', 'v', 'ax', 'ay', 'a', 'K'];
+const GRAPH_VARS_ORDER = ['x', 'y', 'vx', 'vy', 'v', 'ax', 'ay', 'a', 'K', 'U', 'E', 'px', 'py', 'p', 'Px', 'Py', 'Kt'];
+const VAR_GROUPS = [
+    ['Time',                    ['t']],
+    ['Position',                ['x', 'y']],
+    ['Velocity',                ['vx', 'vy', 'v']],
+    ['Acceleration',            ['ax', 'ay', 'a']],
+    ['Energy (needs mass)',     ['K', 'U', 'E']],
+    ['Momentum (needs mass)',   ['px', 'py', 'p']],
+    ['All objects together',    ['Px', 'Py', 'Kt']],
+];
 
-// Rows for one object: only points between In and Out, sorted by frame (one per frame),
-// with velocity and acceleration from central differences (they work with skipped frames).
-// The first and last row have no velocity, the first two and last two no acceleration.
+// Rows for one object: only points between In and Out, sorted by frame (one per frame).
+// Velocity: central difference, v_i = (x_{i+1} − x_{i−1}) / (t_{i+1} − t_{i−1}).
+// Acceleration: the same applied to the velocities, a_i = (v_{i+1} − v_{i−1}) / (t_{i+1} − t_{i−1}).
+// Both use the real times, so skipped frames are fine. The first and last row have no
+// velocity, the first two and last two no acceleration.
 function seriesOf(track) {
     const byFrame = new Map();
     track.points.forEach(p => { if (inTrim(p)) byFrame.set(p.frame, p); });   // later click wins
     const rows = [...byFrame.values()].sort((a, b) => a.frame - b.frame)
         .map(p => ({ p, frame: p.frame, t: tOf(p.frame), x: p.wx, y: p.wy }));
     const n = rows.length;
+    const m = track.mass > 0 ? track.mass : null;
+    const toM = S.unit === 'cm' ? 0.01 : 1;                  // energy and momentum need metres
     for (let i = 0; i < n; i++) {
         const r = rows[i];
-        r.vx = r.vy = r.v = r.ax = r.ay = r.a = r.K = null;
+        r.vx = r.vy = r.v = r.ax = r.ay = r.a = r.K = r.E = r.px = r.py = r.p = null;
+        r.U = m ? m * G * r.y * toM : null;
         if (i === 0 || i === n - 1) continue;
         const A = rows[i - 1], B = rows[i + 1];
         const dt = B.t - A.t;
         r.vx = (B.x - A.x) / dt;
         r.vy = (B.y - A.y) / dt;
         r.v  = Math.hypot(r.vx, r.vy);
-        if (track.mass > 0) {
-            const vm = r.v * (S.unit === 'cm' ? 0.01 : 1);   // K needs m/s
-            r.K = 0.5 * track.mass * vm * vm;
+        if (m) {
+            r.px = m * r.vx * toM;
+            r.py = m * r.vy * toM;
+            r.p  = m * r.v * toM;
+            r.K  = 0.5 * m * (r.v * toM) ** 2;
+            r.E  = r.K + r.U;
         }
     }
     for (let i = 2; i < n - 2; i++) {
@@ -978,6 +1039,36 @@ function seriesOf(track) {
         r.ay = (B.vy - A.vy) / dt;
         r.a  = Math.hypot(r.ax, r.ay);
     }
+    return rows;
+}
+
+// Totals over every object that has points, on frames where all of them have a value.
+// Returns null when an object with points has no mass yet.
+function totalsByFrame() {
+    const used = S.tracks.filter(t => t.points.length);
+    if (!used.length || used.some(t => !(t.mass > 0))) return null;
+    const maps = used.map(t => new Map(seriesOf(t).filter(r => r.px != null).map(r => [r.frame, r])));
+    const out = new Map();
+    for (const [frame] of maps[0]) {
+        if (!maps.every(mp => mp.has(frame))) continue;
+        const rs = maps.map(mp => mp.get(frame));
+        out.set(frame, {
+            Px: rs.reduce((s, r) => s + r.px, 0),
+            Py: rs.reduce((s, r) => s + r.py, 0),
+            Kt: rs.reduce((s, r) => s + r.K, 0),
+        });
+    }
+    return out;
+}
+
+// seriesOf plus the all-object totals on each row
+function rowsFor(track) {
+    const rows = seriesOf(track);
+    const tot = totalsByFrame();
+    rows.forEach(r => {
+        const T = tot && tot.get(r.frame);
+        r.Px = T ? T.Px : null; r.Py = T ? T.Py : null; r.Kt = T ? T.Kt : null;
+    });
     return rows;
 }
 
@@ -1059,6 +1150,7 @@ function initVideo() {
     ['btn-rew','btn-play-pause','btn-loop','btn-prev','btn-next'].forEach(id =>
         document.getElementById(id).disabled = false);
     setStepSummary(1, video._fileName || '');
+    document.getElementById('btn-save-project').disabled = false;
     afterTrimChange();
 
     resizeVideoCanvas();
@@ -1068,6 +1160,13 @@ function initVideo() {
     updateZoomDisplay();
     completeStep(1);
     seekTo(0);
+    if (pendingProject) {
+        const want = pendingProject.video && pendingProject.video.name;
+        if (!want || want === video._fileName ||
+            confirm(`The project was made with "${want}", but this video is "${video._fileName}". Use the project anyway?`))
+            applyProject(pendingProject);
+        else { pendingProject = null; document.getElementById('project-hint').textContent = ''; }
+    }
     // iOS Safari may not decode any frame until the video has played once (seeks then
     // draw blank). A brief muted play/pause primes the decoder.
     video.play().then(() => {
@@ -1421,25 +1520,34 @@ notesEl.addEventListener('input', () => {
     document.getElementById('note-dot').hidden = !notesEl.value.trim();
 });
 
-// Quantity selectors for the two graphs
-GRAPH_VARS_ORDER.forEach(k => [0, 1].forEach(i => {
-    const o = document.createElement('option');
-    o.value = k; o.textContent = VARS[k].menu;
-    document.getElementById('var-' + i).appendChild(o);
-}));
+// Quantity selectors for the two graphs (vertical and horizontal axis)
 [0, 1].forEach(i => {
-    const sel = document.getElementById('var-' + i);
-    sel.value = S.graphs[i].v;
-    sel.addEventListener('change', () => {
-        S.graphs[i].v = sel.value;
-        updateMassBoxes();
-        refreshData();
-    });
+    const vSel = document.getElementById('var-' + i), hSel = document.getElementById('hvar-' + i);
+    VAR_GROUPS.forEach(([label, keys]) => [vSel, hSel].forEach(sel => {
+        if (sel === vSel && keys[0] === 't') return;          // time only on the horizontal axis
+        const og = document.createElement('optgroup');
+        og.label = label;
+        keys.forEach(k => og.appendChild(new Option(VARS[k].menu, k)));
+        sel.appendChild(og);
+    }));
+    vSel.addEventListener('change', () => { S.graphs[i].v = vSel.value; updateMassBoxes(); refreshData(); });
+    hSel.addEventListener('change', () => { S.graphs[i].h = hSel.value; updateMassBoxes(); refreshData(); });
     document.getElementById('fit-' + i).addEventListener('change', e => {
         S.graphs[i].fit = e.target.value;
         drawGraphs();
     });
 });
+// Put the graph menus in line with S.graphs (also used after opening a project)
+function syncGraphControls() {
+    [0, 1].forEach(i => {
+        const g = S.graphs[i];
+        document.getElementById('var-' + i).value = g.v;
+        document.getElementById('hvar-' + i).value = g.h;
+        document.getElementById('fit-' + i).value = g.fit;
+        document.getElementById('section-g' + (i + 1)).classList.toggle('collapsed', !g.show);
+    });
+    updateMassBoxes();
+}
 document.querySelectorAll('.mass-in').forEach(inp => {
     inp.addEventListener('click', e => e.stopPropagation());
     inp.addEventListener('input', () => {
@@ -1449,12 +1557,14 @@ document.querySelectorAll('.mass-in').forEach(inp => {
         refreshData();
     });
 });
-// The mass field appears next to any graph showing K; it belongs to the selected object.
+// The mass field appears next to any graph that needs it (K, U, E, momentum);
+// it belongs to the selected object.
 function updateMassBoxes(except) {
     const m = activeTrack().mass;
     [0, 1].forEach(i => {
+        const g = S.graphs[i];
         const box = document.getElementById('mass-box-' + i);
-        box.classList.toggle('on', S.graphs[i].v === 'K');
+        box.classList.toggle('on', !!(VARS[g.v].mass || VARS[g.h].mass));
         box.classList.toggle('missing', !(m > 0));
         const inp = box.querySelector('input');
         if (inp !== except) inp.value = m > 0 ? m : '';
@@ -1855,6 +1965,7 @@ function updateTrackButtons() {
     const hasAny = S.tracks.some(t => t.points.length > 0);
     ['btn-undo','btn-clear'].forEach(id => document.getElementById(id).disabled = !hasActive);
     ['btn-export','btn-export-table'].forEach(id => document.getElementById(id).disabled = !hasAny);
+    document.getElementById('btn-save-project').disabled = !S.videoLoaded;
 }
 
 function afterTrackChange() {
@@ -1881,8 +1992,12 @@ function addTrackPoint(cp) {
     t.points.push(p);
     updateTrackButtons();
     refreshData({ reveal: p });
-    seekTo(S.frameIndex + 1);
+    seekTo(S.frameIndex + S.trackStep);
 }
+
+document.getElementById('track-step').addEventListener('change', e => {
+    S.trackStep = parseInt(e.target.value, 10) || 1;
+});
 
 function undoLastPoint() {
     activeTrack().points.pop();
@@ -1914,10 +2029,11 @@ function exportCSV() {
         sel.appendChild(allOpt);
     }
     // Pre-tick whatever the graphs currently show
-    S.graphs.forEach(g => {
-        const id = { vx: 'exp-vx', vy: 'exp-vx', v: 'exp-v', ax: 'exp-ax', ay: 'exp-ax', a: 'exp-a', K: 'exp-K' }[g.v];
-        if (id) document.getElementById(id).checked = true;
-    });
+    const boxFor = { vx: 'exp-vx', vy: 'exp-vx', v: 'exp-v', ax: 'exp-ax', ay: 'exp-ax', a: 'exp-a', K: 'exp-K',
+                     U: 'exp-UE', E: 'exp-UE', px: 'exp-p', py: 'exp-p', p: 'exp-p', Px: 'exp-tot', Py: 'exp-tot', Kt: 'exp-tot' };
+    S.graphs.forEach(g => [g.v, g.h].forEach(k => {
+        if (boxFor[k]) document.getElementById(boxFor[k]).checked = true;
+    }));
     const notesBox = document.getElementById('exp-notes');
     notesBox.checked = !!notesEl.value.trim();
     notesBox.disabled = !notesEl.value.trim();
@@ -1940,6 +2056,9 @@ function doExportCSV() {
         ['exp-ax',    [['ax_'+u+'_s2',    r => num(r.ax, 4)], ['ay_'+u+'_s2', r => num(r.ay, 4)]]],
         ['exp-a',     [['a_'+u+'_s2',     r => num(r.a, 4)]]],
         ['exp-K',     [['K_J',            r => num(r.K, 6)]]],
+        ['exp-UE',    [['U_J',            r => num(r.U, 6)], ['E_J', r => num(r.E, 6)]]],
+        ['exp-p',     [['px_kg_m_s',      r => num(r.px, 6)], ['py_kg_m_s', r => num(r.py, 6)], ['p_kg_m_s', r => num(r.p, 6)]]],
+        ['exp-tot',   [['sum_px_kg_m_s',  r => num(r.Px, 6)], ['sum_py_kg_m_s', r => num(r.Py, 6)], ['sum_K_J', r => num(r.Kt, 6)]]],
         ['exp-px',    [['px_x',           r => r.p.cx.toFixed(1)]]],
         ['exp-py',    [['px_y',           r => r.p.cy.toFixed(1)]]],
     ];
@@ -1953,13 +2072,13 @@ function doExportCSV() {
     if (sel === '__all__') {
         hdr = 'object,' + cols.map(c => c.hdr).join(',') + '\n';
         rows = S.tracks.flatMap(t =>
-            seriesOf(t).map(r => escapeCsv(t.name) + ',' + cols.map(c => c.fn(r)).join(','))
+            rowsFor(t).map(r => escapeCsv(t.name) + ',' + cols.map(c => c.fn(r)).join(','))
         ).join('\n');
         filename = 'tracking_data_all_objects.csv';
     } else {
         const t = S.tracks[parseInt(sel, 10)];
         hdr = cols.map(c => c.hdr).join(',') + '\n';
-        rows = seriesOf(t).map(r => cols.map(c => c.fn(r)).join(',')).join('\n');
+        rows = rowsFor(t).map(r => cols.map(c => c.fn(r)).join(',')).join('\n');
         filename = `tracking_data_${t.name.replace(/[^a-z0-9]+/gi,'_')}.csv`;
     }
     let notes = '';
@@ -1973,6 +2092,136 @@ function doExportCSV() {
 }
 function escapeCsv(s) {
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+// ═══════════════════════════════════════════════════════
+//  PROJECT FILES — save everything except the video, open it later to continue
+// ═══════════════════════════════════════════════════════
+// Positions are stored as fractions of the frame (and the scale per frame width),
+// so a project opens correctly whatever the window size is.
+function saveProject() {
+    if (!S.videoLoaded) return;
+    const W = S.CW, H = S.CH;
+    const proj = {
+        app: 'VideoTracker', version: 1, saved: new Date().toISOString(),
+        video: { name: video._fileName || '', duration: S.videoDuration },
+        fps: S.fps, rotation: S.videoRotation,
+        trim: [S.trimStart, S.trimEnd],
+        origin: { x: S.origin.x / W, y: S.origin.y / H },
+        angleDeg: +(S.angle * 180 / Math.PI).toFixed(4),
+        calibrated: S.calibrated, unit: S.unit, calDist: S.calDist,
+        scalePerWidth: S.scale / W,
+        calPts: S.calPts.map(p => ({ x: p.x / W, y: p.y / H })),
+        tracks: S.tracks.map(t => ({
+            name: t.name, color: t.color, mass: t.mass,
+            points: t.points.map(p => ({ f: p.frame, x: +(p.cx / W).toFixed(6), y: +(p.cy / H).toFixed(6) })),
+        })),
+        graphs: S.graphs, trackStep: S.trackStep,
+        notes: notesEl.value,
+    };
+    const base = (video._fileName || 'video').replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/gi, '_');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(proj, null, 1)], { type: 'application/json' }));
+    a.download = `tracking_${base}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+let pendingProject = null;
+
+document.getElementById('project-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    file.text().then(txt => {
+        let proj;
+        try { proj = JSON.parse(txt); } catch (err) { proj = null; }
+        if (!proj || proj.app !== 'VideoTracker' || !Array.isArray(proj.tracks)) {
+            alert('This file is not a Video Tracker project.');
+            return;
+        }
+        if (S.videoLoaded) {
+            const cur = video._fileName || '';
+            if (proj.video && proj.video.name && proj.video.name !== cur &&
+                !confirm(`This project was made with "${proj.video.name}", but the open video is "${cur}". Open it anyway?`)) return;
+            if (S.tracks.some(t => t.points.length) &&
+                !confirm('Replace the points you have now with the ones in the project?')) return;
+            applyProject(proj);
+        } else {
+            // Wait for the video; it is applied as soon as the video loads
+            pendingProject = proj;
+            document.getElementById('fps-input').value = proj.fps || 30;
+            document.getElementById('project-hint').textContent =
+                `Project ready. Now load the video${proj.video && proj.video.name ? ': ' + proj.video.name : ''}`;
+        }
+    });
+});
+
+function applyProject(proj) {
+    pendingProject = null;
+    document.getElementById('project-hint').textContent = '';
+    if (S.isPlaying) pausePlayback();
+
+    // Frame rate and rotation first: they decide frame numbers and the frame size
+    if (proj.fps && proj.fps !== S.fps) {
+        S.fps = proj.fps;
+        document.getElementById('fps-input').value = proj.fps;
+    }
+    const total = totalFrames();
+    ['trim-s-in', 'trim-e-in'].forEach(id => document.getElementById(id).max = total);
+    S.videoRotation = [0, 90, 180, 270].includes(proj.rotation) ? proj.rotation : 0;
+    resizeVideoCanvas();
+    S.vp = { zoom: 1, panX: 0, panY: 0 };
+    updateZoomDisplay();
+    const W = S.CW, H = S.CH;
+
+    S.origin = { x: proj.origin.x * W, y: proj.origin.y * H };
+    const deg = Math.max(-180, Math.min(180, +proj.angleDeg || 0));
+    S.angle = deg * Math.PI / 180;
+    document.getElementById('angle-slider').value = deg;
+    document.getElementById('angle-num').value = deg;
+    S.unit = proj.unit === 'm' ? 'm' : 'cm';
+    document.getElementById('unit-sel').value = S.unit;
+    S.calibrated = !!proj.calibrated;
+    S.calDist = proj.calDist || 0;
+    S.scale = proj.scalePerWidth ? proj.scalePerWidth * W : 1;
+
+    S.tracks = proj.tracks.map((t, i) => ({
+        name: String(t.name || 'Object ' + (i + 1)).slice(0, 24),
+        color: /^#[0-9a-f]{6}$/i.test(t.color) ? t.color : TRACK_COLORS[i % TRACK_COLORS.length],
+        mass: t.mass > 0 ? t.mass : null,
+        points: (t.points || []).map(p => ({ frame: p.f, cx: p.x * W, cy: p.y * H, wx: 0, wy: 0 })),
+    }));
+    if (!S.tracks.length) S.tracks = [{ name: 'Object 1', color: TRACK_COLORS[0], points: [], mass: null }];
+    S.active = 0;
+    _trackSeq = S.tracks.length + 1;
+
+    const okG = g => g && VARS[g.v] && VARS[g.h || 't'] && g.v !== 't';
+    if (Array.isArray(proj.graphs) && proj.graphs.length === 2 && proj.graphs.every(okG))
+        S.graphs = proj.graphs.map(g => ({ v: g.v, h: g.h || 't', fit: g.fit || 'none', show: g.show !== false }));
+    S.trackStep = [1, 2, 3, 5, 10].includes(proj.trackStep) ? proj.trackStep : 1;
+    document.getElementById('track-step').value = S.trackStep;
+    notesEl.value = proj.notes || '';
+    document.getElementById('note-dot').hidden = !notesEl.value.trim();
+
+    // Steps: everything up to tracking is done (calibration only if it was)
+    S.trimStart = Math.max(0, Math.min(total - 1, (proj.trim && proj.trim[0]) || 0));
+    S.trimEnd   = Math.max(S.trimStart + 1, Math.min(total, (proj.trim && proj.trim[1]) || total));
+    completeStep(2);
+    if (S.calibrated) {
+        completeStep(3);
+        completeStep(4);
+        document.getElementById('cal-hint').textContent = S.calDist + ' ' + S.unit + ' set';
+        setStepSummary(3, S.calDist + ' ' + S.unit);
+    }
+    setStepSummary(4, deg ? `axis ${deg}°` : '');
+    S.calPts = (proj.calPts || []).slice(0, 2).map(p => ({ x: p.x * W, y: p.y * H }));
+
+    recomputeWorldCoords();
+    syncGraphControls();
+    afterTrimChange();
+    afterTrackChange();
+    seekTo(S.trimStart);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2260,102 +2509,128 @@ const GRAPH_COLORS = ['#800000', '#000080'];
 
 function drawGraphs() { drawGraph(0); drawGraph(1); }
 
+// On-screen graph; remembers where each dot is so a click can jump to its frame
 function drawGraph(gi) {
-    const can = gcans[gi], ctx = can.getContext('2d');
-    const g = S.graphs[gi];
-    if (!g.show) return;
+    const can = gcans[gi];
+    if (!S.graphs[gi].show) return;
     const dpr = can._dpr || 1;
     const W = can.width / dpr, H = can.height / dpr;
     if (!W || !H) return;
+    const ctx = can.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const pad = { t:16, r:12, b:32, l:56 };
+    can._hits = renderGraph(ctx, W, H, gi, {});
+    can.classList.toggle('clickable', can._hits.length > 0);
+}
+
+// Draws graph gi into ctx (W×H in CSS px). opts.title adds a heading (used for the PNG).
+// Returns the dots' positions: [{x, y, frame}].
+function renderGraph(ctx, W, H, gi, opts) {
+    const g = S.graphs[gi];
+    const big = !!opts.title;
+    const fs = big ? 15 : 11;                           // base font size
+    const pad = { t: big ? 46 : 16, r: big ? 24 : 12, b: big ? 46 : 32, l: big ? 80 : 56 };
     const pw  = W - pad.l - pad.r;
     const ph  = H - pad.t - pad.b;
     const col = GRAPH_COLORS[gi];
-    const V   = VARS[g.v];
+    const V   = VARS[g.v], Hv = VARS[g.h];
 
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, W, H);
-
-    const message = txt => {
-        ctx.fillStyle = '#808080'; ctx.font = '12px sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(txt, W/2, H/2);
-    };
-    const track = activeTrack();
-    const rows = seriesOf(track);
-    const pts = rows.filter(r => r[g.v] != null && isFinite(r[g.v]));
-    if (!pts.length) {
-        if (g.v === 'K' && !(track.mass > 0) && rows.length) message('Type the mass (kg) above to see K');
-        else if (!rows.length && track.points.length) message('No points between In and Out');
-        else if (rows.length && g.v.length > 1 && g.v[0] === 'a') message('Acceleration needs 5 points or more');
-        else if (rows.length && g.v !== 'x' && g.v !== 'y') message('Needs 3 points or more');
-        else message('No data yet');
-        return;
+    if (big) {
+        ctx.fillStyle = '#000'; ctx.font = `bold ${fs + 3}px sans-serif`;
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillText(opts.title, pad.l, 12);
     }
 
-    const times = pts.map(r => r.t);
-    const vals  = pts.map(r => r[g.v]);
+    const message = txt => {
+        ctx.fillStyle = '#808080'; ctx.font = `${fs + 1}px sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(txt, W/2, H/2);
+        return [];
+    };
+    const track = activeTrack();
+    const rows = rowsFor(track);
+    const ok = v => v != null && isFinite(v);
+    const pts = rows.filter(r => ok(r[g.v]) && ok(r[g.h]));
+    if (!pts.length) {
+        const needs = k => VARS[g.v][k] || VARS[g.h][k];
+        if (!rows.length) return message(track.points.length ? 'No points between In and Out' : 'No data yet');
+        if (needs('mass') && !(track.mass > 0)) return message('Type the mass (kg) above');
+        if (needs('total') && !totalsByFrame()) return message('Every object needs its mass: select each one');
+        if (needs('total')) return message('Track all objects on the same frames');
+        if (/^a/.test(g.v) || /^a/.test(g.h)) return message('Acceleration needs 5 points or more');
+        return message('Needs 3 points or more');
+    }
 
-    const tMin = Math.min(...times), tMax = Math.max(...times);
-    const vMin = Math.min(...vals),  vMax = Math.max(...vals);
-    const tSpan = tMax - tMin || 1,  vSpan = vMax - vMin || Math.abs(vMax) || 1;
-    const t0 = tMin - tSpan*.04, t1 = tMax + tSpan*.04;
+    const xs   = pts.map(r => r[g.h]);
+    const vals = pts.map(r => r[g.v]);
+
+    const xMin = Math.min(...xs),   xMax = Math.max(...xs);
+    const vMin = Math.min(...vals), vMax = Math.max(...vals);
+    // Never zoom in below 1 % of the values (a constant quantity would otherwise show rounding noise)
+    const span = (lo, hi) => Math.max(hi - lo, 1e-2 * Math.max(Math.abs(lo), Math.abs(hi))) || 1;
+    const xSpan = span(xMin, xMax), vSpan = span(vMin, vMax);
+    const x0 = xMin - xSpan*.04, x1 = xMax + xSpan*.04;
     const v0 = vMin - vSpan*.10, v1 = vMax + vSpan*.22;   // room on top for the fit equation
 
-    const tx = t => pad.l + (t-t0)/(t1-t0)*pw;
+    const tx = x => pad.l + (x-x0)/(x1-x0)*pw;
     const ty = v => pad.t + (1-(v-v0)/(v1-v0))*ph;
 
     // Grid and tick labels at round values
-    const tTicks = niceTicks(t0, t1, Math.max(3, Math.floor(pw / 60)));
-    const vTicks = niceTicks(v0, v1, Math.max(3, Math.floor(ph / 35)));
+    const xTicks = niceTicks(x0, x1, Math.max(3, Math.floor(pw / (big ? 90 : 60))));
+    const vTicks = niceTicks(v0, v1, Math.max(3, Math.floor(ph / (big ? 50 : 35))));
     ctx.strokeStyle = '#E4E4E4'; ctx.lineWidth = 1;
-    tTicks.forEach(t => { ctx.beginPath(); ctx.moveTo(tx(t), pad.t); ctx.lineTo(tx(t), pad.t+ph); ctx.stroke(); });
+    xTicks.forEach(x => { ctx.beginPath(); ctx.moveTo(tx(x), pad.t); ctx.lineTo(tx(x), pad.t+ph); ctx.stroke(); });
     vTicks.forEach(v => { ctx.beginPath(); ctx.moveTo(pad.l, ty(v)); ctx.lineTo(pad.l+pw, ty(v)); ctx.stroke(); });
 
-    // Zero line
-    if (v0 < 0 && v1 > 0) {
-        const zy = ty(0);
-        ctx.strokeStyle = '#808080'; ctx.setLineDash([3,3]);
-        ctx.beginPath(); ctx.moveTo(pad.l, zy); ctx.lineTo(pad.l+pw, zy); ctx.stroke();
-        ctx.setLineDash([]);
-    }
+    // Zero lines
+    ctx.strokeStyle = '#808080'; ctx.setLineDash([3,3]);
+    if (v0 < 0 && v1 > 0) { ctx.beginPath(); ctx.moveTo(pad.l, ty(0)); ctx.lineTo(pad.l+pw, ty(0)); ctx.stroke(); }
+    if (g.h !== 't' && x0 < 0 && x1 > 0) { ctx.beginPath(); ctx.moveTo(tx(0), pad.t); ctx.lineTo(tx(0), pad.t+ph); ctx.stroke(); }
+    ctx.setLineDash([]);
 
     // Border
     ctx.strokeStyle = '#808080'; ctx.lineWidth = 1;
     ctx.strokeRect(pad.l, pad.t, pw, ph);
 
     // Tick labels
-    ctx.fillStyle = '#000'; ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#000'; ctx.font = `${fs}px sans-serif`;
     ctx.textBaseline = 'middle'; ctx.textAlign = 'right';
     vTicks.forEach(v => ctx.fillText(fmtTick(v, vTicks), pad.l-4, ty(v)));
     ctx.textBaseline = 'top'; ctx.textAlign = 'center';
-    tTicks.forEach(t => ctx.fillText(fmtTick(t, tTicks), tx(t), pad.t+ph+3));
+    xTicks.forEach(x => ctx.fillText(fmtTick(x, xTicks), tx(x), pad.t+ph+3));
 
     // Axis labels
-    ctx.font = '11px sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-    ctx.fillText('t (s)', pad.l+pw/2, H-1);
+    ctx.fillText(`${Hv.sym} (${Hv.unit()})`, pad.l+pw/2, H-1);
     ctx.save();
-    ctx.translate(12, pad.t+ph/2); ctx.rotate(-Math.PI/2);
+    ctx.translate(big ? 16 : 12, pad.t+ph/2); ctx.rotate(-Math.PI/2);
     ctx.textBaseline = 'middle';
     ctx.fillText(`${V.sym} (${V.unit()})`, 0, 0);
     ctx.restore();
 
-    // Current frame
-    if (S.videoLoaded) {
+    // Current frame (time graphs only; the ringed dot shows it on the others)
+    if (S.videoLoaded && g.h === 't' && !big) {
         const tc = tOf(S.frameIndex);
-        if (tc >= t0 && tc <= t1) {
+        if (tc >= x0 && tc <= x1) {
             ctx.strokeStyle = 'rgba(255,0,0,0.45)'; ctx.lineWidth = 1;
             ctx.beginPath(); ctx.moveTo(tx(tc), pad.t); ctx.lineTo(tx(tc), pad.t+ph); ctx.stroke();
         }
     }
 
+    // When the horizontal axis is not time, join the dots in time order (shows the path)
+    if (g.h !== 't' && pts.length > 1) {
+        ctx.strokeStyle = hexToRgba(col, 0.25); ctx.lineWidth = 1;
+        ctx.beginPath();
+        pts.forEach((r, i) => i ? ctx.lineTo(tx(xs[i]), ty(vals[i])) : ctx.moveTo(tx(xs[i]), ty(vals[i])));
+        ctx.stroke();
+    }
+
     // Fit curve
     let fitResult = null;
     if (g.fit !== 'none' && pts.length >= 2) {
-        fitResult = computeFit(g.fit, times, vals);
+        fitResult = computeFit(g.fit, xs, vals);
         if (fitResult) {
             ctx.save();
             ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
@@ -2367,8 +2642,8 @@ function drawGraph(gi) {
             let started = false;
             const N = Math.max(80, Math.floor(pw));
             for (let i = 0; i <= N; i++) {
-                const tVal = t0 + (t1-t0)*i/N;
-                const yVal = fitResult.fn(tVal);
+                const xVal = x0 + (x1-x0)*i/N;
+                const yVal = fitResult.fn(xVal);
                 if (!isFinite(yVal)) { started = false; continue; }
                 const sx = pad.l + i*(pw/N);
                 const sy = ty(yVal);
@@ -2382,27 +2657,77 @@ function drawGraph(gi) {
     }
 
     // Dots (the one on the current frame is ringed)
+    const hits = [];
+    const dot = big ? 4 : 3;
     ctx.fillStyle = col;
     pts.forEach((r, i) => {
-        ctx.beginPath(); ctx.arc(tx(r.t), ty(vals[i]), 3, 0, Math.PI*2); ctx.fill();
-        if (r.frame === S.frameIndex) {
+        const px = tx(xs[i]), py = ty(vals[i]);
+        hits.push({ x: px, y: py, frame: r.frame });
+        ctx.beginPath(); ctx.arc(px, py, dot, 0, Math.PI*2); ctx.fill();
+        if (r.frame === S.frameIndex && !big) {
             ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.arc(tx(r.t), ty(vals[i]), 6, 0, Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI*2); ctx.stroke();
         }
     });
 
     // Fit equation + R^2
     if (fitResult) {
-        const r2  = rSquared(times, vals, fitResult.fn);
-        const lbl = `${fitResult.label.replace(/^y =/, V.sym + ' =')}   R² = ${r2.toFixed(4)}`;
-        ctx.font = '12px sans-serif';
+        const r2  = rSquared(xs, vals, fitResult.fn);
+        const eq  = fitResult.label.replace(/^y =/, V.sym + ' =').replace(/\*t\b/g, '·' + Hv.sym);
+        const lbl = `${eq}   R² = ${r2.toFixed(4)}`;
+        ctx.font = `${fs + 1}px sans-serif`;
         ctx.textAlign = 'right'; ctx.textBaseline = 'top';
         const tw = Math.min(pw, ctx.measureText(lbl).width + 10);
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.fillRect(pad.l + pw - tw, pad.t + 2, tw, 18);
+        ctx.fillRect(pad.l + pw - tw, pad.t + 2, tw, fs + 7);
         ctx.fillStyle = col;
         ctx.fillText(lbl, pad.l + pw - 3, pad.t + 5, pw - 6);
     }
+    return hits;
+}
+
+// Click (or tap) a dot to show that frame in the video
+gcans.forEach(can => {
+    const nearest = e => {
+        const r = can.getBoundingClientRect();
+        const x = e.clientX - r.left, y = e.clientY - r.top;
+        let best = null, bd = e.pointerType === 'touch' ? 22 : 10;
+        (can._hits || []).forEach(h => {
+            const d = Math.hypot(h.x - x, h.y - y);
+            if (d < bd) { bd = d; best = h; }
+        });
+        return best;
+    };
+    can.addEventListener('pointerup', e => {
+        const h = nearest(e);
+        if (!h || !S.videoLoaded) return;
+        if (S.isPlaying) pausePlayback();
+        seekTo(h.frame);
+    });
+    can.addEventListener('pointermove', e => {
+        if (e.pointerType !== 'mouse') return;
+        can.style.cursor = nearest(e) ? 'pointer' : 'default';
+    });
+});
+
+// Save a graph as a PNG picture (bigger than on screen, with a title)
+function saveGraphImage(gi, e) {
+    if (e) e.stopPropagation();
+    const g = S.graphs[gi], t = activeTrack();
+    const W = 1000, H = 620, k = 2;
+    const can = document.createElement('canvas');
+    can.width = W * k; can.height = H * k;
+    const ctx = can.getContext('2d');
+    ctx.scale(k, k);
+    const title = `${VARS[g.v].sym} vs. ${VARS[g.h].sym} — ${t.name}`;
+    renderGraph(ctx, W, H, gi, { title });
+    can.toBlob(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `graph_${g.v}_vs_${g.h}_${t.name.replace(/[^a-z0-9]+/gi, '_')}.png`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    }, 'image/png');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2422,14 +2747,15 @@ function removePoint(i) {
 // Columns: t, x, y, plus whatever else the two graphs show
 function tableVars() {
     const vs = ['x', 'y'];
-    S.graphs.forEach(g => { if (!vs.includes(g.v)) vs.push(g.v); });
+    S.graphs.forEach(g => [g.v, g.h].forEach(k => { if (k !== 't' && !vs.includes(k)) vs.push(k); }));
     return vs;
 }
 
 function fmtCell(v) {
     if (v == null || !isFinite(v)) return '—';
     const a = Math.abs(v);
-    if (a !== 0 && (a < 0.001 || a >= 1e6)) return v.toExponential(2);
+    if (a < 1e-6) return '0.000';                       // rounding noise, e.g. at the origin
+    if (a < 0.001 || a >= 1e6) return v.toExponential(2);
     return v.toFixed(a >= 1000 ? 1 : 3);
 }
 
@@ -2444,7 +2770,7 @@ function updateDataTable(opts = {}) {
         vs.map(k => `<th>${VARS[k].sym} (${VARS[k].unit()})</th>`).join('') + '<th></th>';
     const tbody = document.getElementById('data-tbody');
     tbody.innerHTML = '';
-    _tableRows = seriesOf(activeTrack());
+    _tableRows = rowsFor(activeTrack());
     let revealTr = null;
     _tableRows.forEach((r, i) => {
         const tr = document.createElement('tr');
@@ -2509,12 +2835,14 @@ function niceTicks(lo, hi, count) {
 function fmtTick(v, ticks) {
     if (v === 0) return '0';
     const step = ticks.length > 1 ? Math.abs(ticks[1] - ticks[0]) : Math.abs(v);
-    if (Math.abs(v) >= 1e5 || step < 1e-4) return v.toExponential(1);
-    return v.toFixed(Math.max(0, -Math.floor(Math.log10(step) + 1e-9)));
+    const dec = Math.max(0, -Math.floor(Math.log10(step) + 1e-9));
+    if (Math.abs(v) >= 1e5 || dec > 6)
+        return v.toExponential(Math.max(1, Math.floor(Math.log10(Math.abs(v))) - Math.floor(Math.log10(step))));
+    return v.toFixed(dec);
 }
 
 // Init
 if (TOUCH) document.getElementById('cal-hint').textContent = 'Tap 2 points on video';
-renderObjectsBar(); updateTrackButtons(); updateMassBoxes();
+renderObjectsBar(); updateTrackButtons(); syncGraphControls();
 refreshData(); updateScrubber();
 </script>
