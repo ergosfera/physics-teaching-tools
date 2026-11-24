@@ -378,6 +378,9 @@
   tbody td{padding:2px 6px;text-align:right;border-bottom:1px solid var(--light);color:#000}
   tbody td:first-child{text-align:left}
   tbody tr:hover{background:var(--light)}
+  thead th.bnc-h{text-align:center;cursor:help}
+  td.bnc{text-align:center !important;cursor:pointer;color:#B0B0B0;padding:2px 4px}
+  td.bnc.on{color:#C00000;font-weight:700}
 
   /* ---- status bar ---- */
   .status{display:flex;gap:3px;padding:3px 3px 0;flex-shrink:0}
@@ -632,6 +635,10 @@
           <option value="1">+1 frame</option><option value="2">+2 frames</option><option value="3">+3 frames</option>
           <option value="5">+5 frames</option><option value="10">+10 frames</option>
         </select>
+        <label class="tb-label" style="display:flex;align-items:center;gap:3px;cursor:pointer"
+               title="Find bounces and hits automatically; velocity is never calculated across one">
+          <input type="checkbox" id="cb-bounce" checked> Bounces
+        </label>
         <button class="b95" id="btn-undo" onclick="undoLastPoint()" disabled>&#8630; Undo</button>
         <button class="b95" id="btn-clear" onclick="clearTracking()" disabled>&#128465; Clear</button>
         <button class="b95" id="btn-export" onclick="exportCSV()" disabled>&#11015; CSV</button>
@@ -960,6 +967,7 @@ const S = {
     // The two graphs: which quantity each plots against t, its fit, and whether it is open
     graphs: [{ v: 'x', h: 't', fit: 'none', show: true }, { v: 'y', h: 't', fit: 'none', show: true }],
     trackStep: 1,
+    detectBounces: true,
     loop: false,
     showAxes: false,
     showCal: false,
@@ -1001,44 +1009,133 @@ const VAR_GROUPS = [
     ['All objects together',    ['Px', 'Py', 'Kt']],
 ];
 
+// Derivative at time t of the parabola through three points. It is exact for constant
+// acceleration whatever the spacing (skipped frames); with equal spacing and t at the
+// middle point it is the usual central difference (y2 − y0) / (t2 − t0).
+function deriv3(t0, t1, t2, y0, y1, y2, t) {
+    return y0 * ((t - t1) + (t - t2)) / ((t0 - t1) * (t0 - t2))
+         + y1 * ((t - t0) + (t - t2)) / ((t1 - t0) * (t1 - t2))
+         + y2 * ((t - t0) + (t - t1)) / ((t2 - t0) * (t2 - t1));
+}
+
+function median(arr) {
+    if (!arr.length) return 0;
+    const a = [...arr].sort((p, q) => p - q), h = a.length >> 1;
+    return a.length % 2 ? a[h] : (a[h - 1] + a[h]) / 2;
+}
+
+// Automatic bounce detection.
+// At each point, compare the velocity just before with the velocity just after; subtract
+// the steady change every point shares (gravity). What is left is the "unexpected" jump.
+// Contact usually happens between two frames, which splits the jump over two neighbouring
+// points, so the test adds each pair: the total jump across the gap between them.
+// A gap holds a bounce when that total is far above the typical one (4×, which rules out
+// tracking noise) and also large compared with the typical speed (30 %). In tests with
+// simulated hand-tracking noise up to 2 px this found every bounce and no false ones.
+// Then: one point carries almost all of the jump → contact at that point;
+// otherwise contact happened between the two points.
+function detectBounces(rows) {
+    const n = rows.length, auto = new Array(n).fill(false);
+    if (n < 6) return auto;
+    const jx = new Array(n).fill(0), jy = new Array(n).fill(0), h = new Array(n).fill(0), speeds = [];
+    const ax = [], ay = [];
+    for (let i = 1; i < n - 1; i++) {
+        const A = rows[i - 1], B = rows[i], C = rows[i + 1];
+        const db = B.t - A.t, df = C.t - B.t;
+        const vbx = (B.x - A.x) / db, vby = (B.y - A.y) / db;
+        const vfx = (C.x - B.x) / df, vfy = (C.y - B.y) / df;
+        h[i] = (db + df) / 2;
+        jx[i] = vfx - vbx; jy[i] = vfy - vby;
+        ax.push(jx[i] / h[i]); ay.push(jy[i] / h[i]);
+        speeds.push(Math.hypot(vbx, vby));
+    }
+    const mx = median(ax), my = median(ay);
+    for (let i = 1; i < n - 1; i++) { jx[i] -= mx * h[i]; jy[i] -= my * h[i]; }   // unexpected part
+    const J = i => Math.hypot(jx[i], jy[i]);
+    const D = [];                                        // total jump across the gap i → i+1
+    for (let i = 1; i < n - 2; i++) D[i] = Math.hypot(jx[i] + jx[i + 1], jy[i] + jy[i + 1]);
+    const thr = Math.max(4 * median(D.filter(d => d !== undefined)), 0.3 * median(speeds));
+    for (let i = 1; i < n - 2; i++) {
+        if (!(D[i] > thr)) continue;
+        let c = i;                                       // the strongest gap of this run
+        while (i + 1 < n - 2 && D[i + 1] > thr) { i++; if (D[i] > D[c]) c = i; }
+        const a = J(c), b = J(c + 1);
+        if (a > 3 * b) auto[c] = true;                   // contact at point c
+        else if (b > 3 * a) auto[c + 1] = true;          // contact at point c+1
+        else auto[c] = auto[c + 1] = true;               // contact between them
+    }
+    return auto;
+}
+
 // Rows for one object: only points between In and Out, sorted by frame (one per frame).
-// Velocity: central difference, v_i = (x_{i+1} − x_{i−1}) / (t_{i+1} − t_{i−1}).
-// Acceleration: the same applied to the velocities, a_i = (v_{i+1} − v_{i−1}) / (t_{i+1} − t_{i−1}).
-// Both use the real times, so skipped frames are fine. The first and last row have no
-// velocity, the first two and last two no acceleration.
+// The motion is cut into pieces at the bounces and velocity/acceleration are never
+// calculated across a bounce:
+//  · velocity: derivative of the parabola through each point and its two neighbours
+//    (the central difference); the first and last point of a piece use the parabola
+//    through their own three points, so the graph reaches the bounce;
+//  · acceleration: the same applied to the velocities, inside each piece;
+//  · a point exactly at a bounce belongs to both pieces and has no velocity.
+// A piece needs 3 points. Clicking ↯ in the table adds or removes a bounce (p.bounce).
 function seriesOf(track) {
     const byFrame = new Map();
     track.points.forEach(p => { if (inTrim(p)) byFrame.set(p.frame, p); });   // later click wins
     const rows = [...byFrame.values()].sort((a, b) => a.frame - b.frame)
-        .map(p => ({ p, frame: p.frame, t: tOf(p.frame), x: p.wx, y: p.wy }));
+        .map(p => ({ pt: p, frame: p.frame, t: tOf(p.frame), x: p.wx, y: p.wy }));   // pt = the tracked point (p is momentum)
     const n = rows.length;
     const m = track.mass > 0 ? track.mass : null;
     const toM = S.unit === 'cm' ? 0.01 : 1;                  // energy and momentum need metres
-    for (let i = 0; i < n; i++) {
-        const r = rows[i];
+    rows.forEach(r => {
         r.vx = r.vy = r.v = r.ax = r.ay = r.a = r.K = r.E = r.px = r.py = r.p = null;
         r.U = m ? m * G * r.y * toM : null;
-        if (i === 0 || i === n - 1) continue;
-        const A = rows[i - 1], B = rows[i + 1];
-        const dt = B.t - A.t;
-        r.vx = (B.x - A.x) / dt;
-        r.vy = (B.y - A.y) / dt;
-        r.v  = Math.hypot(r.vx, r.vy);
-        if (m) {
-            r.px = m * r.vx * toM;
-            r.py = m * r.vy * toM;
-            r.p  = m * r.v * toM;
-            r.K  = 0.5 * m * (r.v * toM) ** 2;
-            r.E  = r.K + r.U;
+    });
+
+    const auto = S.detectBounces ? detectBounces(rows) : new Array(n).fill(false);
+    rows.forEach((r, i) => {
+        r.autoBounce = auto[i];
+        r.bounce = r.pt.bounce === true || (r.pt.bounce !== false && auto[i]);
+    });
+
+    // Pieces: a run of bounce points a..b ends one piece at a and starts the next at b
+    const segs = [], shared = new Set(), bounceTimes = [];
+    let start = 0;
+    for (let i = 0; i < n; i++) {
+        if (!rows[i].bounce) continue;
+        let b = i;
+        while (b + 1 < n && rows[b + 1].bounce) b++;
+        segs.push([start, i]);
+        if (b === i) shared.add(i);
+        bounceTimes.push((rows[i].t + rows[b].t) / 2);
+        start = b; i = b;
+    }
+    segs.push([start, n - 1]);
+
+    segs.forEach(([s, e]) => {
+        if (e - s < 2) return;                                // fewer than 3 points
+        const tri = k => { const j = Math.max(s, Math.min(e - 2, k - 1)); return [j, j + 1, j + 2]; };
+        const d = (k, key) => { const [i0, i1, i2] = tri(k), R = rows;
+            return deriv3(R[i0].t, R[i1].t, R[i2].t, R[i0][key], R[i1][key], R[i2][key], R[k].t); };
+        const vx = [], vy = [];
+        for (let k = s; k <= e; k++) { vx[k] = d(k, 'x'); vy[k] = d(k, 'y'); }
+        for (let k = s; k <= e; k++) {
+            if (shared.has(k)) continue;
+            const r = rows[k];
+            r.vx = vx[k]; r.vy = vy[k]; r.v = Math.hypot(r.vx, r.vy);
+            if (m) {
+                r.px = m * r.vx * toM;
+                r.py = m * r.vy * toM;
+                r.p  = m * r.v * toM;
+                r.K  = 0.5 * m * (r.v * toM) ** 2;
+                r.E  = r.K + r.U;
+            }
         }
-    }
-    for (let i = 2; i < n - 2; i++) {
-        const A = rows[i - 1], B = rows[i + 1], r = rows[i];
-        const dt = B.t - A.t;
-        r.ax = (B.vx - A.vx) / dt;
-        r.ay = (B.vy - A.vy) / dt;
-        r.a  = Math.hypot(r.ax, r.ay);
-    }
+        for (let k = s + 1; k < e; k++) {
+            const A = rows[k - 1], B = rows[k], C = rows[k + 1];
+            B.ax = deriv3(A.t, B.t, C.t, vx[k - 1], vx[k], vx[k + 1], B.t);
+            B.ay = deriv3(A.t, B.t, C.t, vy[k - 1], vy[k], vy[k + 1], B.t);
+            B.a  = Math.hypot(B.ax, B.ay);
+        }
+    });
+    rows.bounceTimes = bounceTimes;
     return rows;
 }
 
@@ -1995,6 +2092,10 @@ function addTrackPoint(cp) {
     seekTo(S.frameIndex + S.trackStep);
 }
 
+document.getElementById('cb-bounce').addEventListener('change', e => {
+    S.detectBounces = e.target.checked;
+    refreshData();
+});
 document.getElementById('track-step').addEventListener('change', e => {
     S.trackStep = parseInt(e.target.value, 10) || 1;
 });
@@ -2059,8 +2160,8 @@ function doExportCSV() {
         ['exp-UE',    [['U_J',            r => num(r.U, 6)], ['E_J', r => num(r.E, 6)]]],
         ['exp-p',     [['px_kg_m_s',      r => num(r.px, 6)], ['py_kg_m_s', r => num(r.py, 6)], ['p_kg_m_s', r => num(r.p, 6)]]],
         ['exp-tot',   [['sum_px_kg_m_s',  r => num(r.Px, 6)], ['sum_py_kg_m_s', r => num(r.Py, 6)], ['sum_K_J', r => num(r.Kt, 6)]]],
-        ['exp-px',    [['px_x',           r => r.p.cx.toFixed(1)]]],
-        ['exp-py',    [['px_y',           r => r.p.cy.toFixed(1)]]],
+        ['exp-px',    [['px_x',           r => r.pt.cx.toFixed(1)]]],
+        ['exp-py',    [['px_y',           r => r.pt.cy.toFixed(1)]]],
     ];
     ids.forEach(([id, list]) => {
         if (document.getElementById(id).checked) list.forEach(([hdr, fn]) => cols.push({ hdr, fn }));
@@ -2114,9 +2215,13 @@ function saveProject() {
         calPts: S.calPts.map(p => ({ x: p.x / W, y: p.y / H })),
         tracks: S.tracks.map(t => ({
             name: t.name, color: t.color, mass: t.mass,
-            points: t.points.map(p => ({ f: p.frame, x: +(p.cx / W).toFixed(6), y: +(p.cy / H).toFixed(6) })),
+            points: t.points.map(p => {
+                const o = { f: p.frame, x: +(p.cx / W).toFixed(6), y: +(p.cy / H).toFixed(6) };
+                if (typeof p.bounce === 'boolean') o.b = p.bounce;
+                return o;
+            }),
         })),
-        graphs: S.graphs, trackStep: S.trackStep,
+        graphs: S.graphs, trackStep: S.trackStep, detectBounces: S.detectBounces,
         notes: notesEl.value,
     };
     const base = (video._fileName || 'video').replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/gi, '_');
@@ -2190,7 +2295,11 @@ function applyProject(proj) {
         name: String(t.name || 'Object ' + (i + 1)).slice(0, 24),
         color: /^#[0-9a-f]{6}$/i.test(t.color) ? t.color : TRACK_COLORS[i % TRACK_COLORS.length],
         mass: t.mass > 0 ? t.mass : null,
-        points: (t.points || []).map(p => ({ frame: p.f, cx: p.x * W, cy: p.y * H, wx: 0, wy: 0 })),
+        points: (t.points || []).map(p => {
+            const q = { frame: p.f, cx: p.x * W, cy: p.y * H, wx: 0, wy: 0 };
+            if (typeof p.b === 'boolean') q.bounce = p.b;
+            return q;
+        }),
     }));
     if (!S.tracks.length) S.tracks = [{ name: 'Object 1', color: TRACK_COLORS[0], points: [], mass: null }];
     S.active = 0;
@@ -2201,6 +2310,8 @@ function applyProject(proj) {
         S.graphs = proj.graphs.map(g => ({ v: g.v, h: g.h || 't', fit: g.fit || 'none', show: g.show !== false }));
     S.trackStep = [1, 2, 3, 5, 10].includes(proj.trackStep) ? proj.trackStep : 1;
     document.getElementById('track-step').value = S.trackStep;
+    S.detectBounces = proj.detectBounces !== false;
+    document.getElementById('cb-bounce').checked = S.detectBounces;
     notesEl.value = proj.notes || '';
     document.getElementById('note-dot').hidden = !notesEl.value.trim();
 
@@ -2619,6 +2730,16 @@ function renderGraph(ctx, W, H, gi, opts) {
         }
     }
 
+    // Bounces (time graphs): nothing is differentiated across these lines
+    if (g.h === 't' && rows.bounceTimes) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1; ctx.setLineDash([2,3]);
+        rows.bounceTimes.forEach(tb => {
+            if (tb < x0 || tb > x1) return;
+            ctx.beginPath(); ctx.moveTo(tx(tb), pad.t); ctx.lineTo(tx(tb), pad.t+ph); ctx.stroke();
+        });
+        ctx.setLineDash([]);
+    }
+
     // When the horizontal axis is not time, join the dots in time order (shows the path)
     if (g.h !== 't' && pts.length > 1) {
         ctx.strokeStyle = hexToRgba(col, 0.25); ctx.lineWidth = 1;
@@ -2739,8 +2860,17 @@ function removePoint(i) {
     const r = _tableRows[i];
     if (!r) return;
     const t = activeTrack();
-    t.points = t.points.filter(p => p !== r.p);
+    t.points = t.points.filter(p => p !== r.pt);
     updateTrackButtons();
+    refreshData();
+}
+
+// Add or remove a bounce at a table row. Back to automatic when it matches what detection finds.
+function toggleBounce(i) {
+    const r = _tableRows[i];
+    if (!r) return;
+    const want = !r.bounce;
+    if (want === r.autoBounce) delete r.pt.bounce; else r.pt.bounce = want;
     refreshData();
 }
 
@@ -2767,7 +2897,8 @@ function updateDataTable(opts = {}) {
     const vs = tableVars();
     document.getElementById('data-thead').innerHTML =
         '<th>#</th><th>t (s)</th>' +
-        vs.map(k => `<th>${VARS[k].sym} (${VARS[k].unit()})</th>`).join('') + '<th></th>';
+        vs.map(k => `<th>${VARS[k].sym} (${VARS[k].unit()})</th>`).join('') +
+        '<th class="bnc-h" title="Bounces: velocity is never calculated across one. Click a row to add or remove.">↯</th><th></th>';
     const tbody = document.getElementById('data-tbody');
     tbody.innerHTML = '';
     _tableRows = rowsFor(activeTrack());
@@ -2776,9 +2907,11 @@ function updateDataTable(opts = {}) {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${i+1}</td><td>${r.t.toFixed(3)}</td>` +
             vs.map(k => `<td>${fmtCell(r[k])}</td>`).join('') +
+            `<td class="bnc${r.bounce ? ' on' : ''}" onclick="toggleBounce(${i})" ` +
+            `title="${r.bounce ? (r.autoBounce && r.pt.bounce !== true ? 'Bounce found automatically' : 'Bounce marked by hand') + ' — click to remove' : 'Click to mark a bounce here'}">${r.bounce ? '↯' : '·'}</td>` +
             `<td style="text-align:center;padding:0 4px"><span class="del-pt" onclick="removePoint(${i})" ` +
             `style="cursor:pointer;color:#800000;font-size:13px;line-height:1" title="Remove point">×</span></td>`;
-        if (r.p === opts.reveal) revealTr = tr;
+        if (r.pt === opts.reveal) revealTr = tr;
         tbody.appendChild(tr);
     });
     ds.scrollTop = keep;
