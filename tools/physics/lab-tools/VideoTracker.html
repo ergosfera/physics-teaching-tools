@@ -134,6 +134,9 @@
   .step-hint{font-size:10px;color:var(--shadow);font-style:italic}
   .ctrl-group{display:flex;align-items:center;gap:3px;flex-shrink:0}
   .step-done-btn{margin-top:auto;align-self:flex-end}
+  /* Axis rotation: the slider takes the free width of the Origin step */
+  .ctrl-group.axis-group{flex:1 1 360px;min-width:0}
+  #angle-slider{flex:1 1 auto;min-width:220px}
 
   /* sunken field inputs */
   input[type=number],select{
@@ -354,6 +357,13 @@
     display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;
   }
   .graph-section.collapsed #table-footer{display:none}
+  .student-box{margin-right:auto;display:flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap}
+  #student-name{
+    font-family:var(--ui);font-size:12px;color:#000;width:140px;padding:3px 5px;
+    background:var(--field);border:0;user-select:text;-webkit-user-select:text;
+    box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
+  }
   #data-scroll::-webkit-scrollbar{width:16px}
   #data-scroll::-webkit-scrollbar-track{
     background-color:var(--hi);
@@ -408,6 +418,10 @@
                inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
   }
   .modal-buttons{display:flex;gap:6px;justify-content:flex-end}
+  .save-opt{display:flex;align-items:flex-start;gap:6px;font-size:13px;line-height:1.35;cursor:pointer}
+  .save-opt input{margin-top:3px}
+  .save-opt small{color:#404040;font-size:11px}
+  #save-overlay .dlg{max-width:400px}
   #export-overlay .dlg{max-width:440px}
   .exp-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 12px}
   .exp-grid label{font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer}
@@ -471,7 +485,10 @@
     tbody tr:hover{background:transparent}
     .status{flex-wrap:wrap}
     .status div{font-size:12px}
-    #modal-overlay,#export-overlay{align-items:flex-start !important;padding-top:8vh}
+    #modal-overlay,#export-overlay,#save-overlay{align-items:flex-start !important;padding-top:8vh}
+    .save-opt small{font-size:13px}
+    .student-box{font-size:14px}
+    #student-name{font-size:16px;min-height:36px;width:150px}
     #modal-input{font-size:18px}
     .dlg label input[type=checkbox]{margin-right:4px}
   }
@@ -558,8 +575,8 @@
         <label class="tb-label">FPS:</label>
         <input type="number" id="fps-input" value="30" min="1" max="240" step="0.001">
         <div class="tb-sep"></div>
-        <button class="b95" onclick="document.getElementById('project-input').click()" title="Continue a saved analysis (.json)">&#128450; Open project</button>
-        <input type="file" id="project-input" accept=".json,application/json" style="display:none">
+        <button class="b95" onclick="document.getElementById('project-input').click()" title="Continue a saved analysis (.zip with the video, or .json)">&#128450; Open project</button>
+        <input type="file" id="project-input" accept=".zip,.json,application/zip,application/json" style="display:none">
         <span class="step-hint" id="project-hint"></span>
       </fieldset>
     </div>
@@ -606,9 +623,9 @@
         <span class="ctrl-group">
           <span class="step-hint">Drag origin on video</span>
         </span>
-        <span class="ctrl-group">
+        <span class="ctrl-group axis-group">
           <label class="tb-label">Axis:</label>
-          <input type="range" id="angle-slider" min="-180" max="180" value="0" style="width:50px">
+          <input type="range" id="angle-slider" min="-180" max="180" value="0" step="0.5" title="Rotate the axes">
           <input type="number" id="angle-num" value="0" min="-180" max="180" step="0.5" style="width:44px">
           <label class="tb-label">&#176;</label>
           <label class="tb-label" style="display:flex;align-items:center;gap:3px;cursor:pointer">
@@ -758,7 +775,10 @@
           <textarea id="notes" placeholder="Write notes here: names, date, what was filmed, mass, observations&hellip;&#10;They can be added at the end of the exported CSV."></textarea>
         </div>
         <div id="table-footer">
-          <button class="b95" id="btn-save-project" onclick="saveProject()" disabled title="Save points, calibration, trim and notes to continue later">&#128190; Save project</button>
+          <label class="student-box" title="Added to the name of every file you save">Student:
+            <input type="text" id="student-name" placeholder="name" maxlength="40" autocomplete="off" spellcheck="false">
+          </label>
+          <button class="b95" id="btn-save-project" onclick="saveProject()" disabled title="Save the video, points, calibration, trim and notes to continue later">&#128190; Save project</button>
           <button class="b95" id="btn-export-table" onclick="exportCSV()" disabled>&#11015; Export CSV&hellip;</button>
         </div>
       </div>
@@ -796,6 +816,34 @@
       <div class="modal-buttons">
         <button class="b95" onclick="cancelCalibration()">Cancel</button>
         <button class="b95" onclick="confirmCalibration()">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SAVE PROJECT DIALOG ═══ -->
+<div id="save-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:100;align-items:center;justify-content:center">
+  <div class="dlg raised">
+    <div class="titlebar">
+      <svg width="17" height="17" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+        <rect x="2" y="2" width="12" height="12" fill="#000080"/>
+        <rect x="4" y="2" width="8" height="5" fill="#C0C0C0"/>
+        <rect x="9" y="3" width="2" height="3" fill="#000080"/>
+        <rect x="4" y="9" width="8" height="4" fill="#FFFFFF"/>
+      </svg>
+      <span class="t">Save Project</span>
+    </div>
+    <div class="dlgbody">
+      <label class="save-opt"><input type="radio" name="save-kind" id="save-zip" checked>
+        <span><b>Video and project in one file</b> (.zip, <span id="save-size"></span>)<br>
+        <small>Open it with Open project and everything comes back in one step.</small></span></label>
+      <label class="save-opt"><input type="radio" name="save-kind" id="save-json">
+        <span><b>Project only</b> (.json, a few kB)<br>
+        <small>Smaller, but you will also need to open the video.</small></span></label>
+      <p id="save-progress" style="font-size:12px;min-height:16px"></p>
+      <div class="modal-buttons">
+        <button class="b95" id="save-cancel" onclick="closeSaveDialog()">Cancel</button>
+        <button class="b95" id="save-go" onclick="doSaveProject()">Save</button>
       </div>
     </div>
   </div>
@@ -1201,13 +1249,17 @@ document.getElementById('file-input').addEventListener('change', e => {
 function handleDrop(e) {
     e.preventDefault();
     videoPanel.style.outline = '';
-    if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+    const f = e.dataTransfer.files[0];
+    if (!f) return;
+    if (/\.(zip|json)$/i.test(f.name)) openProjectFile(f);   // a saved project
+    else loadFile(f);
 }
 
 function loadFile(file) {
     formatErr.style.display = 'none';
     video._fileExt = file.name.split('.').pop().toLowerCase();
     video._fileName = file.name;
+    video._file = file;                       // kept so it can be saved inside a project .zip
     video.removeEventListener('error', onVideoError);
     video.removeEventListener('loadedmetadata', initVideo);
     if (video._objectUrl) URL.revokeObjectURL(video._objectUrl);
@@ -2182,12 +2234,12 @@ function doExportCSV() {
         rows = S.tracks.flatMap(t =>
             rowsFor(t).map(r => escapeCsv(t.name) + ',' + cols.map(c => c.fn(r)).join(','))
         ).join('\n');
-        filename = 'tracking_data_all_objects.csv';
+        filename = withStudent('tracking_data_all_objects') + '.csv';
     } else {
         const t = S.tracks[parseInt(sel, 10)];
         hdr = cols.map(c => c.hdr).join(',') + '\n';
         rows = rowsFor(t).map(r => cols.map(c => c.fn(r)).join(',')).join('\n');
-        filename = `tracking_data_${t.name.replace(/[^a-z0-9]+/gi,'_')}.csv`;
+        filename = withStudent('tracking_data_' + fileSafe(t.name)) + '.csv';
     }
     let notes = '';
     if (document.getElementById('exp-notes').checked && notesEl.value.trim())
@@ -2203,14 +2255,15 @@ function escapeCsv(s) {
 }
 
 // ═══════════════════════════════════════════════════════
-//  PROJECT FILES — save everything except the video, open it later to continue
+//  PROJECT FILES
 // ═══════════════════════════════════════════════════════
+// Two ways to save: one .zip holding the video and project.json (opens in one step), or
+// project.json alone (small; the video is opened separately).
 // Positions are stored as fractions of the frame (and the scale per frame width),
 // so a project opens correctly whatever the window size is.
-function saveProject() {
-    if (!S.videoLoaded) return;
+function buildProject() {
     const W = S.CW, H = S.CH;
-    const proj = {
+    return {
         app: 'VideoTracker', version: 1, saved: new Date().toISOString(),
         video: { name: video._fileName || '', duration: S.videoDuration },
         fps: S.fps, rotation: S.videoRotation,
@@ -2230,13 +2283,160 @@ function saveProject() {
         })),
         graphs: S.graphs, trackStep: S.trackStep, detectBounces: S.detectBounces,
         notes: notesEl.value,
+        student: studentName(),
     };
-    const base = (video._fileName || 'video').replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/gi, '_');
+}
+
+// Student name: added to every saved file name, e.g. tracking_ball_Ana_Pérez.zip
+function studentName() { return document.getElementById('student-name').value.trim(); }
+// A piece of file name: letters (accents kept) and digits, anything else becomes _
+function fileSafe(str) { return String(str).trim().replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, ''); }
+function withStudent(base) { const n = fileSafe(studentName()); return n ? base + '_' + n : base; }
+
+function downloadBlob(blob, name) {
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(proj, null, 1)], { type: 'application/json' }));
-    a.download = `tracking_${base}.json`;
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
     a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+}
+function fmtBytes(n) {
+    return n >= 1e9 ? (n / 1e9).toFixed(1) + ' GB' : n >= 1e6 ? Math.round(n / 1e6) + ' MB' : Math.max(1, Math.round(n / 1e3)) + ' kB';
+}
+function videoMime(name) {
+    const ext = String(name).split('.').pop().toLowerCase();
+    return { mp4: 'video/mp4', m4v: 'video/x-m4v', mov: 'video/quicktime', webm: 'video/webm', ogv: 'video/ogg',
+             mkv: 'video/x-matroska', avi: 'video/x-msvideo', mpg: 'video/mpeg', mpeg: 'video/mpeg', '3gp': 'video/3gpp' }[ext] || '';
+}
+
+// Save dialog
+function saveProject() {
+    if (!S.videoLoaded) return;
+    const f = video._file;
+    document.getElementById('save-size').textContent = f ? fmtBytes(f.size) : '';
+    document.getElementById('save-zip').disabled = !f;
+    document.getElementById(f ? 'save-zip' : 'save-json').checked = true;
+    document.getElementById('save-progress').textContent = '';
+    ['save-go', 'save-cancel'].forEach(id => document.getElementById(id).disabled = false);
+    document.getElementById('save-overlay').style.display = 'flex';
+}
+function closeSaveDialog() {
+    document.getElementById('save-overlay').style.display = 'none';
+}
+async function doSaveProject() {
+    const json = JSON.stringify(buildProject(), null, 1);
+    const base = withStudent('tracking_' + fileSafe((video._fileName || 'video').replace(/\.[^.]+$/, '')));
+    if (!document.getElementById('save-zip').checked) {
+        downloadBlob(new Blob([json], { type: 'application/json' }), base + '.json');
+        closeSaveDialog();
+        return;
+    }
+    const f = video._file;
+    if (f.size > 4e9) { alert('This video is too big to go in one file (over 4 GB). Choose "Project only".'); return; }
+    const prog = document.getElementById('save-progress');
+    ['save-go', 'save-cancel'].forEach(id => document.getElementById(id).disabled = true);
+    try {
+        const zip = await makeZip([
+            { name: 'project.json', blob: new Blob([json], { type: 'application/json' }) },
+            { name: f.name, blob: f },
+        ], fr => { prog.textContent = `Preparing the file… ${Math.round(fr * 100)} %`; });
+        downloadBlob(zip, base + '.zip');
+        closeSaveDialog();
+    } catch (err) {
+        prog.textContent = 'Could not prepare the file: ' + err.message;
+        ['save-go', 'save-cancel'].forEach(id => document.getElementById(id).disabled = false);
+    }
+}
+
+// ─── Minimal ZIP: entries are stored, not compressed (video is already compressed),
+//     so the video inside stays an exact copy and any unzip tool gives it back.
+const CRC_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+        t[n] = c >>> 0;
+    }
+    return t;
+})();
+async function crc32Blob(blob, onProgress) {
+    let crc = 0xFFFFFFFF;
+    const CHUNK = 4 << 20;                                   // read 4 MB at a time
+    for (let off = 0; off < blob.size; off += CHUNK) {
+        const buf = new Uint8Array(await blob.slice(off, off + CHUNK).arrayBuffer());
+        for (let i = 0; i < buf.length; i++) crc = CRC_TABLE[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
+        if (onProgress) onProgress(Math.min(1, (off + CHUNK) / blob.size));
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+// entries: [{ name, blob }] → Blob of a .zip (the video is referenced, not copied into memory)
+async function makeZip(entries, onProgress) {
+    const enc = new TextEncoder(), parts = [], central = [];
+    const d = new Date();
+    const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    const total = entries.reduce((sum, e) => sum + e.blob.size, 0) || 1;
+    let offset = 0, done = 0;
+    for (const e of entries) {
+        const name = enc.encode(e.name), size = e.blob.size;
+        const crc = await crc32Blob(e.blob, f => onProgress && onProgress((done + f * size) / total));
+        done += size;
+        const lh = new DataView(new ArrayBuffer(30));              // local file header
+        lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+        lh.setUint16(8, 0, true); lh.setUint16(10, time, true); lh.setUint16(12, date, true);
+        lh.setUint32(14, crc, true); lh.setUint32(18, size, true); lh.setUint32(22, size, true);
+        lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+        parts.push(lh, name, e.blob);
+        const ch = new DataView(new ArrayBuffer(46));              // central directory entry
+        ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true);
+        ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true); ch.setUint16(12, time, true); ch.setUint16(14, date, true);
+        ch.setUint32(16, crc, true); ch.setUint32(20, size, true); ch.setUint32(24, size, true);
+        ch.setUint16(28, name.length, true);
+        ch.setUint32(42, offset, true);
+        central.push(ch, name);
+        offset += 30 + name.length + size;
+    }
+    const cdSize = central.reduce((sum, p) => sum + p.byteLength, 0);
+    const end = new DataView(new ArrayBuffer(22));                 // end of central directory
+    end.setUint32(0, 0x06054b50, true);
+    end.setUint16(8, entries.length, true); end.setUint16(10, entries.length, true);
+    end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+    return new Blob([...parts, ...central, end], { type: 'application/zip' });
+}
+// List the entries of a .zip (name, method, sizes, where the data starts)
+async function readZip(file) {
+    const tailLen = Math.min(file.size, 22 + 65535);
+    const tail = new DataView(await file.slice(file.size - tailLen).arrayBuffer());
+    let eo = -1;
+    for (let i = tailLen - 22; i >= 0; i--) if (tail.getUint32(i, true) === 0x06054b50) { eo = i; break; }
+    if (eo < 0) throw new Error('not a zip');
+    const count = tail.getUint16(eo + 10, true), cdSize = tail.getUint32(eo + 12, true), cdOff = tail.getUint32(eo + 16, true);
+    const cd = new DataView(await file.slice(cdOff, cdOff + cdSize).arrayBuffer());
+    const dec = new TextDecoder(), out = [];
+    for (let p = 0, k = 0; k < count && p + 46 <= cd.byteLength; k++) {
+        if (cd.getUint32(p, true) !== 0x02014b50) break;
+        const nl = cd.getUint16(p + 28, true), xl = cd.getUint16(p + 30, true), cl = cd.getUint16(p + 32, true);
+        out.push({
+            name: dec.decode(new Uint8Array(cd.buffer, cd.byteOffset + p + 46, nl)),
+            method: cd.getUint16(p + 10, true), csize: cd.getUint32(p + 20, true), lho: cd.getUint32(p + 42, true),
+        });
+        p += 46 + nl + xl + cl;
+    }
+    for (const e of out) {
+        const lh = new DataView(await file.slice(e.lho, e.lho + 30).arrayBuffer());
+        e.start = e.lho + 30 + lh.getUint16(26, true) + lh.getUint16(28, true);
+    }
+    return out;
+}
+async function zipEntryBlob(file, e, type) {
+    const raw = file.slice(e.start, e.start + e.csize, type);
+    if (e.method === 0) return raw;
+    // Re-zipped by another program (compressed): unpack where the browser can
+    if (e.method === 8 && 'DecompressionStream' in window) {
+        const stream = raw.stream().pipeThrough(new DecompressionStream('deflate-raw'));
+        return new Blob([await new Response(stream).blob()], { type });
+    }
+    throw new Error('compressed');
 }
 
 let pendingProject = null;
@@ -2244,30 +2444,62 @@ let pendingProject = null;
 document.getElementById('project-input').addEventListener('change', e => {
     const file = e.target.files[0];
     e.target.value = '';
-    if (!file) return;
-    file.text().then(txt => {
-        let proj;
-        try { proj = JSON.parse(txt); } catch (err) { proj = null; }
-        if (!proj || proj.app !== 'VideoTracker' || !Array.isArray(proj.tracks)) {
-            alert('This file is not a Video Tracker project.');
-            return;
-        }
-        if (S.videoLoaded) {
-            const cur = video._fileName || '';
-            if (proj.video && proj.video.name && proj.video.name !== cur &&
-                !confirm(`This project was made with "${proj.video.name}", but the open video is "${cur}". Open it anyway?`)) return;
-            if (S.tracks.some(t => t.points.length) &&
-                !confirm('Replace the points you have now with the ones in the project?')) return;
-            applyProject(proj);
-        } else {
-            // Wait for the video; it is applied as soon as the video loads
-            pendingProject = proj;
-            document.getElementById('fps-input').value = proj.fps || 30;
-            document.getElementById('project-hint').textContent =
-                `Project ready. Now load the video${proj.video && proj.video.name ? ': ' + proj.video.name : ''}`;
-        }
-    });
+    if (file) openProjectFile(file);
 });
+
+// Open a project: a .zip (video + project, one step) or a .json (video opened separately)
+async function openProjectFile(file) {
+    const hint = document.getElementById('project-hint');
+    const isZip = /\.zip$/i.test(file.name) || /zip/i.test(file.type);
+    let proj = null, vid = null;
+    try {
+        if (isZip) {
+            hint.textContent = 'Opening the project…';
+            const entries = (await readZip(file))
+                .filter(en => !en.name.endsWith('/') && !/(^|\/)(__MACOSX\/|\._)/.test(en.name));
+            const je = entries.find(en => /\.json$/i.test(en.name));
+            if (!je) throw new Error('no project');
+            proj = JSON.parse(await (await zipEntryBlob(file, je, 'application/json')).text());
+            const want = proj && proj.video && proj.video.name;
+            const base = en => en.name.split('/').pop();
+            const ve = entries.find(en => want && base(en) === want) || entries.find(en => en !== je && videoMime(en.name));
+            if (ve) {
+                const type = videoMime(ve.name);
+                vid = new File([await zipEntryBlob(file, ve, type)], base(ve), { type });
+            }
+        } else {
+            proj = JSON.parse(await file.text());
+        }
+    } catch (err) {
+        hint.textContent = '';
+        alert(err.message === 'compressed'
+            ? 'This zip was compressed again by another program, and this browser cannot unpack it. Unzip it and open the video and the .json file separately.'
+            : 'This file is not a Video Tracker project.');
+        return;
+    }
+    hint.textContent = '';
+    if (!proj || proj.app !== 'VideoTracker' || !Array.isArray(proj.tracks)) {
+        alert('This file is not a Video Tracker project.');
+        return;
+    }
+    if (S.tracks.some(t => t.points.length) &&
+        !confirm('Replace the points you have now with the ones in the project?')) return;
+
+    if (vid) {                       // video inside: load it; the project is applied once it is ready
+        pendingProject = proj;
+        document.getElementById('fps-input').value = proj.fps || 30;
+        loadFile(vid);
+    } else if (S.videoLoaded) {
+        const cur = video._fileName || '';
+        if (proj.video && proj.video.name && proj.video.name !== cur &&
+            !confirm(`This project was made with "${proj.video.name}", but the open video is "${cur}". Open it anyway?`)) return;
+        applyProject(proj);
+    } else {                         // wait for the video; applied as soon as it loads
+        pendingProject = proj;
+        document.getElementById('fps-input').value = proj.fps || 30;
+        hint.textContent = `Project ready. Now load the video${proj.video && proj.video.name ? ': ' + proj.video.name : ''}`;
+    }
+}
 
 function applyProject(proj) {
     pendingProject = null;
@@ -2320,6 +2552,7 @@ function applyProject(proj) {
     S.detectBounces = proj.detectBounces !== false;
     document.getElementById('cb-bounce').checked = S.detectBounces;
     notesEl.value = proj.notes || '';
+    if (proj.student) document.getElementById('student-name').value = String(proj.student).slice(0, 40);
     document.getElementById('note-dot').hidden = !notesEl.value.trim();
 
     // Steps: everything up to tracking is done (calibration only if it was)
@@ -2900,12 +3133,13 @@ function saveGraphImage(gi, e) {
     can.width = W * k; can.height = H * k;
     const ctx = can.getContext('2d');
     ctx.scale(k, k);
-    const title = `${VARS[g.v].sym} vs. ${VARS[g.h].sym} — ${t.name}`;
+    const who = studentName();
+    const title = `${VARS[g.v].sym} vs. ${VARS[g.h].sym} — ${t.name}${who ? ' — ' + who : ''}`;
     renderGraph(ctx, W, H, gi, { title });
     can.toBlob(blob => {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `graph_${g.v}_vs_${g.h}_${t.name.replace(/[^a-z0-9]+/gi, '_')}.png`;
+        a.download = withStudent(`graph_${g.v}_vs_${g.h}_${fileSafe(t.name)}`) + '.png';
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     }, 'image/png');
