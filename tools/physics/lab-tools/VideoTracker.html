@@ -202,6 +202,11 @@
   #tl-info{font-family:var(--fixed);font-size:11px;white-space:nowrap;padding:3px 6px;min-width:150px;text-align:center;
            box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow)}
 
+  #fps-warning{flex-shrink:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+               margin:0 3px 2px;padding:4px 6px;font-size:12px;background:#FFFFE1;border:1px solid #000}
+  #fps-warning[hidden],#fps-warning button[hidden]{display:none}
+  #fps-warning span:nth-child(2){flex:1 1 220px}
+
   /* ---- drag handle between video and graphs ---- */
   #splitter{flex:0 0 6px;cursor:col-resize;background:var(--face);touch-action:none;position:relative}
   #splitter::after{content:'';position:absolute;left:2px;top:50%;height:30px;margin-top:-15px;width:2px;
@@ -689,6 +694,14 @@
           Free tools: <strong>HandBrake</strong> (desktop) &middot; <strong>CloudConvert.com</strong> (browser)</div>
         <div class="fe-close" onclick="dismissFormatError()">&#10005; Dismiss and try another file</div>
       </div>
+    </div>
+
+    <!-- Frame rate warning (shown when the video's frame rate differs from the FPS box) -->
+    <div id="fps-warning" hidden>
+      <span>&#9888;&#65039;</span>
+      <span id="fps-warning-text"></span>
+      <button class="b95" id="fps-warning-use">Use</button>
+      <button class="b95" id="fps-warning-keep" onclick="hideFpsWarning()">Keep</button>
     </div>
 
     <!-- Timeline: frame slider as wide as the video -->
@@ -1260,6 +1273,8 @@ function loadFile(file) {
     video._fileExt = file.name.split('.').pop().toLowerCase();
     video._fileName = file.name;
     video._file = file;                       // kept so it can be saved inside a project .zip
+    S.videoLoaded = false;
+    hideFpsWarning();
     video.removeEventListener('error', onVideoError);
     video.removeEventListener('loadedmetadata', initVideo);
     if (video._objectUrl) URL.revokeObjectURL(video._objectUrl);
@@ -1285,9 +1300,38 @@ function dismissFormatError() {
     dropHint.style.display = 'flex';
 }
 
-function initVideo() {
+// A length the browser can trust (some files report 0, a few ms, or "infinite")
+function goodDuration(d) { return isFinite(d) && d > 0.1; }
+
+// Some files (Chromebook / browser / screen recorders, files still syncing) do not say how
+// long they are, so the browser first reports 0 or "infinite". Ask it to look for the
+// end of the file (seeking far past it makes it find the real length), then come back.
+async function readDuration() {
+    if (goodDuration(video.duration)) return video.duration;
+    document.getElementById('tl-info').textContent = 'Reading the video length…';
+    const found = await new Promise(resolve => {
+        const check = () => { if (goodDuration(video.duration)) { stop(); resolve(true); } };
+        const stop = () => {
+            clearTimeout(timer);
+            ['durationchange', 'seeked', 'timeupdate'].forEach(ev => video.removeEventListener(ev, check));
+        };
+        const timer = setTimeout(() => { stop(); resolve(false); }, 8000);
+        ['durationchange', 'seeked', 'timeupdate'].forEach(ev => video.addEventListener(ev, check));
+        try { video.currentTime = 1e101; } catch (e) { stop(); resolve(false); }
+    });
+    try { video.currentTime = 0; } catch (e) {}
+    if (found) return video.duration;
+    const sk = video.seekable;                     // last resort: how far the browser can seek
+    if (sk && sk.length && goodDuration(sk.end(sk.length - 1))) return sk.end(sk.length - 1);
+    return 0;
+}
+
+async function initVideo() {
+    const myFile = video._file;
+    const dur = await readDuration();
+    if (video._file !== myFile) return;           // another video was opened meanwhile
     S.videoLoaded   = true;
-    S.videoDuration = video.duration;
+    S.videoDuration = dur;
     S.fps           = parseFloat(document.getElementById('fps-input').value) || 30;
     S.frameIndex    = 0;
     S.videoRotation = 0;
@@ -1323,14 +1367,91 @@ function initVideo() {
             applyProject(pendingProject);
         else { pendingProject = null; document.getElementById('project-hint').textContent = ''; }
     }
+    if (!dur) showNotice('This video does not say how long it is, so its frames cannot be counted yet. ' +
+                         'Press ▶ Play and let it play to the end once.');
     // iOS Safari may not decode any frame until the video has played once (seeks then
-    // draw blank). A brief muted play/pause primes the decoder.
-    video.play().then(() => {
+    // draw blank). A brief muted play/pause primes the decoder; while it plays, the
+    // frame rate is measured and compared with the FPS box.
+    video.play().then(async () => {
         if (S.isPlaying) return;
+        const measured = await measureFps();
+        if (S.isPlaying || video._file !== myFile) return;
         video.pause();
         seekTo(S.frameIndex);
+        if (measured) checkFps(measured);
     }).catch(() => {});
 }
+
+// When the browser finds out (or corrects) the length later, e.g. after playing to the
+// end, update the number of frames. A trim that reached the end follows the new end.
+video.addEventListener('durationchange', () => {
+    if (!S.videoLoaded || !goodDuration(video.duration)) return;
+    if (Math.abs(video.duration - S.videoDuration) * S.fps < 0.5) return;   // same number of frames
+    const oldTotal = totalFrames();
+    S.videoDuration = video.duration;
+    const total = totalFrames();
+    if (S.trimEnd >= oldTotal || S.trimEnd > total) S.trimEnd = total;
+    if (S.trimStart >= S.trimEnd) S.trimStart = 0;
+    ['trim-s-in', 'trim-e-in'].forEach(id => document.getElementById(id).max = total);
+    if (document.getElementById('fps-warning').dataset.kind === 'length') hideFpsWarning();
+    afterTrimChange();
+    updateStatus();
+});
+
+// ─── Frame rate check ───
+// While the video plays for a moment, the browser reports the time of every frame it
+// shows; the usual gap between frames gives the frame rate.
+function measureFps() {
+    if (!video.requestVideoFrameCallback) return Promise.resolve(null);
+    return new Promise(resolve => {
+        const times = [], t0 = performance.now();
+        const onFrame = (now, md) => {
+            times.push(md.mediaTime);
+            if (times.length >= 14 || performance.now() - t0 > 900) return finish();
+            video.requestVideoFrameCallback(onFrame);
+        };
+        const finish = () => {
+            const gaps = [];
+            for (let i = 1; i < times.length; i++) if (times[i] - times[i - 1] > 1e-4) gaps.push(times[i] - times[i - 1]);
+            if (gaps.length < 4) return resolve(null);
+            gaps.sort((a, b) => a - b);
+            const gap = gaps[Math.floor(gaps.length * 0.25)];   // low quartile: ignores dropped frames
+            resolve(1 / gap);
+        };
+        video.requestVideoFrameCallback(onFrame);
+        setTimeout(() => { if (times.length < 14) finish(); }, 1000);
+    });
+}
+const COMMON_FPS = [10, 12, 15, 20, 23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 90, 100, 120, 240];
+function niceFps(f) {
+    const c = COMMON_FPS.reduce((a, b) => Math.abs(b - f) < Math.abs(a - f) ? b : a);
+    return Math.abs(c - f) / f < 0.04 ? c : Math.round(f * 10) / 10;
+}
+function checkFps(measured) {
+    const f = niceFps(measured);
+    if (Math.abs(f - S.fps) / S.fps < 0.03) return;
+    showNotice(`This video seems to have ${f} frames per second, but FPS is set to ${S.fps}. ` +
+               `Some frames will repeat or be skipped, and times will be off.`,
+               `Use ${f} fps`, () => {
+                   const inp = document.getElementById('fps-input');
+                   inp.value = f;
+                   inp.dispatchEvent(new Event('change'));
+               }, 'fps');
+}
+
+// Yellow bar above the timeline: a message, an optional action button, and Keep/OK
+function showNotice(text, actionLabel, action, kind) {
+    const bar = document.getElementById('fps-warning');
+    document.getElementById('fps-warning-text').textContent = text;
+    const use = document.getElementById('fps-warning-use');
+    use.hidden = !actionLabel;
+    use.textContent = actionLabel || '';
+    use.onclick = () => { if (action) action(); hideFpsWarning(); };
+    document.getElementById('fps-warning-keep').textContent = actionLabel ? 'Keep' : 'OK';
+    bar.dataset.kind = kind || (actionLabel ? '' : 'length');
+    bar.hidden = false;
+}
+function hideFpsWarning() { document.getElementById('fps-warning').hidden = true; }
 
 // ═══════════════════════════════════════════════════════
 //  CANVAS SIZING
@@ -1367,11 +1488,14 @@ function fitCanvasToPanel() {
 new ResizeObserver(fitCanvasToPanel).observe(videoPanel);
 
 // ═══════════════════════════════════════════════════════
-//  FRAME SEEKING — Safari-safe with timeout fallback
+//  FRAME SEEKING — wait until the requested frame is really there
 // ═══════════════════════════════════════════════════════
-let _seekTimer   = null;
-let _seekHandler = null;
-let _seekGen     = 0;
+// On a slow computer or with a heavy video (4K, phone video) finding a frame can take
+// seconds. The picture is drawn as soon as the browser has the frame (its "frame shown"
+// notice, the 'seeked' event, or a check every 40 ms); until then "Loading frame…" is
+// shown and clicks on the video are ignored, so no point is placed on an old picture.
+let _seekGen = 0;
+S.framePending = false;
 
 function totalFrames() { return S.videoLoaded ? Math.round(S.videoDuration * S.fps) : 0; }
 // While the Trim step is open the slider spans the whole video (so In/Out can be moved
@@ -1383,28 +1507,37 @@ function scrubHi() { return trimEditing() ? totalFrames() : S.trimEnd; }
 function seekTo(frameIdx) {
     frameIdx = Math.max(scrubLo(), Math.min(scrubHi(), frameIdx));
     S.frameIndex = frameIdx;
-    const t = frameIdx / S.fps;
-    if (t > S.videoDuration) return;
-
-    if (_seekTimer)   { clearTimeout(_seekTimer); _seekTimer = null; }
-    if (_seekHandler) { video.removeEventListener('seeked', _seekHandler); _seekHandler = null; }
-
+    const t = Math.max(0, Math.min(frameIdx / S.fps, S.videoDuration - 0.001));   // last frame: just before the end
     const gen = ++_seekGen;
-    let fired = false;
-
+    let done = false;
+    S.framePending = true;
+    setTimeout(() => {                                    // say so only if it takes a while
+        if (gen === _seekGen && S.framePending) {
+            document.getElementById('tl-info').textContent = 'Loading frame…';
+            ocan.style.cursor = 'progress';
+        }
+    }, 200);
     const finish = () => {
-        if (fired || gen !== _seekGen) return;
-        fired = true;
-        if (_seekTimer)   { clearTimeout(_seekTimer); _seekTimer = null; }
-        video.removeEventListener('seeked', finish);
-        _seekHandler = null;
-        onSeeked();
+        if (gen !== _seekGen) return;
+        onSeeked();                                       // (re)drawing twice is harmless
+        if (!done) { done = true; S.framePending = false; ocan.style.cursor = ''; }
     };
-
-    _seekHandler = finish;
-    video.addEventListener('seeked', finish, { once: true });
-    _seekTimer = setTimeout(finish, 500);
+    const ready = () => !video.seeking && video.readyState >= 2;
+    video.addEventListener('seeked', () => { if (ready()) finish(); }, { once: true });
+    if (video.requestVideoFrameCallback) {
+        video.requestVideoFrameCallback((now, md) => {
+            if (Math.abs(md.mediaTime - t) <= 1 / S.fps + 0.02) finish();
+        });
+    }
+    const started = performance.now();
+    const poll = () => {
+        if (gen !== _seekGen || done) return;
+        if (ready()) return finish();
+        if (performance.now() - started > 10000) return finish();   // give up waiting: show what there is
+        setTimeout(poll, 40);
+    };
     video.currentTime = t;
+    setTimeout(poll, 40);
 }
 
 function onSeeked() {
@@ -1492,6 +1625,8 @@ function startPlayback() {
     S._playStart = inside ? S.trimStart : scrubLo();
     S._playEnd   = inside ? S.trimEnd   : scrubHi();
     if (S.frameIndex >= S._playEnd) S.frameIndex = S._playStart;
+    _seekGen++;                                            // forget any frame still loading
+    S.framePending = false; ocan.style.cursor = '';
     S.isPlaying = true;
     updatePlayBtn();
     video.currentTime = S.frameIndex / S.fps;
@@ -1856,6 +1991,12 @@ function onPtrMove(cx, cy) {
 }
 function onPtrUp(cx, cy) {
     if (S.dragging) { S.dragging = false; return; }
+    if (S.framePending && (S.mode === 'calibration' || S.mode === 'tracking')) {
+        const st = document.getElementById('st-mode');            // the picture is not the right frame yet
+        st.textContent = 'Wait: frame loading';
+        setTimeout(updateStepStatus, 1200);
+        return;
+    }
     const p = canvasPos(cx, cy);
     if (S.mode === 'calibration') {
         if (S.calPts.length < 2) { S.calPts.push(p); drawOverlay(); }
