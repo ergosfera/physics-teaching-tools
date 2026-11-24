@@ -86,7 +86,7 @@
   /* ---- toolbar ---- */
   #toolbar{
     background:var(--face);
-    padding:12px 4px 4px;
+    padding:4px;
     display:flex;align-items:stretch;gap:4px;flex-wrap:nowrap;flex-shrink:0;
     border-bottom:1px solid var(--shadow);
   }
@@ -95,14 +95,21 @@
   label.tb-label{font-size:11px;color:#000;white-space:nowrap}
 
   /* ---- step panels ---- */
+  /* Steps are tabs: the active step gets the whole width for its controls,
+     the others shrink to their title (plus a short summary once done). */
   .step-panel{
     position:relative;
     border:1px solid var(--shadow);
     box-shadow:1px 1px 0 var(--hi);
-    padding:14px 6px 4px;
-    flex:1 1 0;min-width:0;
+    padding:16px 6px 4px;
+    flex:1 1 auto;min-width:0;
     display:flex;flex-direction:column;
   }
+  .step-panel:not(.step-active){flex:0 0 auto;padding:0;justify-content:center;cursor:pointer}
+  .step-panel:not(.step-active) .step-body{display:none}
+  .step-panel:not(.step-active) .step-head{position:static;padding:4px 8px;height:100%}
+  .step-sum{font-weight:400;color:#404040;font-size:10px;max-width:130px;overflow:hidden;text-overflow:ellipsis}
+  .step-sum:empty,.step-active .step-sum{display:none}
   .step-head{
     position:absolute;top:-8px;left:6px;
     background:var(--face);padding:0 4px;
@@ -137,15 +144,69 @@
   }
   input[type=number]{width:52px}
   input[type=range]{cursor:pointer}
-  #scrubber{width:100px}
   #zoom-display{font-family:var(--fixed);font-size:11px;min-width:36px;text-align:center;display:inline-block}
 
   /* ---- main ---- */
   #main{flex:1;display:flex;overflow:hidden;min-height:0}
+  #left-col{flex:1 1 0;min-width:0;display:flex;flex-direction:column}
+
+  /* ---- timeline (full width under the video) ---- */
+  #timeline{
+    flex-shrink:0;display:flex;align-items:center;gap:4px;
+    padding:2px 3px 4px;
+  }
+  #timeline button.b95{padding:3px 8px;min-height:26px}
+  #scrub-wrap{flex:1;min-width:80px;display:flex;align-items:center}
+  #scrubber{
+    --tw:14px;--a:0;--b:0;
+    -webkit-appearance:none;appearance:none;
+    width:100%;height:28px;margin:0;background:transparent;
+  }
+  #scrubber:disabled{cursor:default;opacity:.5}
+  #scrubber::-webkit-slider-runnable-track{
+    height:12px;
+    background:linear-gradient(to right,
+      var(--field) calc(var(--tw)/2 + (100% - var(--tw))*var(--a)),
+      #6f8fce    calc(var(--tw)/2 + (100% - var(--tw))*var(--a)),
+      #6f8fce    calc(var(--tw)/2 + (100% - var(--tw))*var(--b)),
+      var(--field) calc(var(--tw)/2 + (100% - var(--tw))*var(--b)));
+    box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
+  }
+  #scrubber::-moz-range-track{
+    height:12px;
+    background:linear-gradient(to right,
+      var(--field) calc(var(--tw)/2 + (100% - var(--tw))*var(--a)),
+      #6f8fce    calc(var(--tw)/2 + (100% - var(--tw))*var(--a)),
+      #6f8fce    calc(var(--tw)/2 + (100% - var(--tw))*var(--b)),
+      var(--field) calc(var(--tw)/2 + (100% - var(--tw))*var(--b)));
+    box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
+  }
+  #scrubber::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:var(--tw);height:24px;margin-top:-6px;border:0;border-radius:0;
+    background:var(--face);
+    box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--light);
+  }
+  #scrubber::-moz-range-thumb{
+    width:var(--tw);height:24px;border:0;border-radius:0;
+    background:var(--face);
+    box-shadow:inset -1px -1px 0 var(--dark),inset 1px 1px 0 var(--hi),
+               inset -2px -2px 0 var(--shadow),inset 2px 2px 0 var(--light);
+  }
+  #tl-info{font-family:var(--fixed);font-size:11px;white-space:nowrap;padding:3px 6px;min-width:150px;text-align:center;
+           box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow)}
+
+  /* ---- drag handle between video and graphs ---- */
+  #splitter{flex:0 0 6px;cursor:col-resize;background:var(--face);touch-action:none;position:relative}
+  #splitter::after{content:'';position:absolute;left:2px;top:50%;height:30px;margin-top:-15px;width:2px;
+                   border-left:1px solid var(--hi);border-right:1px solid var(--shadow)}
 
   /* ---- video panel ---- */
   #video-panel{
-    flex:7;position:relative;
+    flex:1 1 0;min-height:0;position:relative;
     background:var(--face);
     display:flex;align-items:center;justify-content:center;
     overflow:hidden;
@@ -185,7 +246,7 @@
 
   /* ---- right panel ---- */
   #right-panel{
-    flex:3;min-width:220px;
+    flex:0 0 36%;min-width:260px;max-width:75%;
     background:var(--face);
     border-left:1px solid var(--shadow);
     display:flex;flex-direction:column;
@@ -227,7 +288,7 @@
     padding:2px 6px;font-size:13px;color:#000;
     flex-shrink:0;background:var(--face);
     border-bottom:1px solid var(--shadow);
-    display:flex;align-items:center;gap:4px;
+    display:flex;align-items:center;gap:2px 4px;flex-wrap:wrap;
     cursor:pointer;user-select:none;
   }
   .graph-collapse{font-size:10px;margin-left:auto;font-weight:700;color:var(--shadow)}
@@ -253,6 +314,32 @@
                inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
     flex-shrink:0;
   }
+  .var-sel{font-family:var(--ui);font-size:12px;font-weight:700;padding:1px 2px;flex-shrink:0}
+  .vs-t{white-space:nowrap;flex-shrink:0}
+  .mass-box{display:none;align-items:center;gap:2px;font-size:11px;white-space:nowrap;flex-shrink:0}
+  .mass-box.on{display:inline-flex}
+  .mass-box input{width:56px;font-size:11px;padding:1px 3px}
+  .mass-box.missing input{background:#ffffc0}
+
+  /* Data table / notes tabs */
+  .sec-tab{
+    font-size:12px;padding:1px 8px;cursor:pointer;color:#000;
+    border:1px solid transparent;border-bottom:0;margin-bottom:-3px;
+  }
+  .sec-tab.on{background:var(--face);border-color:var(--hi) var(--shadow) transparent var(--hi);font-weight:700}
+  .note-dot{display:inline-block;width:6px;height:6px;background:#800000;margin-left:3px;vertical-align:middle}
+  .note-dot[hidden]{display:none}
+  #notes-wrap{flex:1;min-height:0;display:flex;flex-direction:column;margin:2px}
+  #notes-wrap[hidden]{display:none}
+  #notes{
+    flex:1;min-height:0;resize:none;width:100%;
+    font-family:var(--ui);font-size:13px;line-height:1.4;padding:6px;color:#000;
+    background:var(--field);border:0;user-select:text;-webkit-user-select:text;
+    box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow),
+               inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
+  }
+  .table-only[hidden]{display:none !important}
+  #trim-info{font-family:var(--fixed);font-size:11px;white-space:nowrap}
 
   #data-scroll{flex:1;overflow-y:auto;min-height:0;background:var(--field);margin:0 2px 2px}
   #table-footer{
@@ -331,19 +418,23 @@
     box-shadow:inset -1px -1px 0 var(--hi),inset 1px 1px 0 var(--shadow),
                inset -2px -2px 0 var(--light),inset 2px 2px 0 var(--dark);
   }
-  .frame-nav{display:none}
 
   /* ════ TOUCH / TABLET ════ */
-  @media (pointer:coarse), (max-width:1100px){
-    /* Steps become tabs: only the active step shows its controls. */
-    #toolbar{padding:4px}
-    .step-panel:not(.step-active){flex:0 0 auto;padding:0;justify-content:center;cursor:pointer}
-    .step-panel:not(.step-active) .step-body{display:none}
-    .step-panel:not(.step-active) .step-head{position:static;padding:4px 8px;height:100%}
-    .step-panel.step-active{padding-top:16px}
-    .frame-nav{display:flex}
+  @media (max-width:1100px){
+    .step-sum{display:none}
   }
   @media (pointer:coarse){
+    #scrubber{--tw:24px;height:40px}
+    #scrubber::-webkit-slider-runnable-track{height:16px}
+    #scrubber::-webkit-slider-thumb{height:36px;margin-top:-10px}
+    #scrubber::-moz-range-thumb{height:36px}
+    #timeline button.b95{min-height:40px;padding:6px 12px}
+    #tl-info{font-size:12px;min-width:0}
+    #splitter{flex-basis:14px}
+    .var-sel{font-size:14px;min-height:30px}
+    .mass-box input{font-size:14px;width:64px;min-height:30px}
+    .sec-tab{font-size:14px;padding:4px 10px}
+    #notes{font-size:16px}
     body{font-size:15px}
     button.b95{font-size:14px;min-height:40px;padding:8px 14px}
     button.b95:active,button.b95.pressed{padding:9px 13px 7px 15px}
@@ -374,9 +465,10 @@
   /* Portrait tablets / phones: video on top, graphs underneath. */
   @media (max-width:900px) and (orientation:portrait){
     #main{flex-direction:column}
-    #video-panel{flex:3 1 0;min-height:200px}
+    #left-col{flex:3 1 0;min-height:240px}
+    #splitter{display:none}
     #right-panel{
-      flex:2 1 0;min-width:0;border-left:0;border-top:1px solid var(--shadow);
+      flex:2 1 0;min-width:0;max-width:none;border-left:0;border-top:1px solid var(--shadow);
       display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto minmax(0,1fr);
     }
     #objects-bar{grid-column:1/-1}
@@ -387,8 +479,17 @@
   @media (max-width:600px) and (orientation:portrait){
     #right-panel{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto minmax(0,1fr) minmax(0,1fr)}
     #table-section{grid-column:1/-1}
-    #video-panel{flex:1 1 0}
+    #left-col{flex:1 1 0}
     #right-panel{flex:1.3 1 0}
+    #tl-info,#btn-rew,#btn-loop,.vs-t,#step-2 .step-hint,#trim-info{display:none}
+    #step-2 input[type=number]{width:52px}
+    #step-2 button.b95{padding:8px 8px}
+    .graph-section-header{flex-wrap:nowrap}
+    .var-sel,.fit-sel{min-width:0;flex-shrink:1;font-size:13px}
+    .var-sel{max-width:60%}
+    .fit-sel{max-width:38%}
+    .graph-collapse{display:none}
+    .status div:nth-child(n+3):not(:last-child){display:none}
   }
   @media (max-width:700px){
     /* Inactive step tabs show just their number */
@@ -434,7 +535,7 @@
 
     <!-- STEP 1 — Load Video -->
     <div class="step-panel step-active" id="step-1">
-      <div class="step-head" onclick="activateStep(1)"><span class="step-num" id="sn-1">1</span> Load Video</div>
+      <div class="step-head" onclick="activateStep(1)"><span class="step-num" id="sn-1">1</span> Load Video <span class="step-sum" id="sum-1"></span></div>
       <fieldset class="step-body" id="step-1-body">
         <button class="b95" onclick="document.getElementById('file-input').click()">&#128194; Load</button>
         <label class="tb-label">FPS:</label>
@@ -444,21 +545,17 @@
 
     <!-- STEP 2 — Trim & Preview -->
     <div class="step-panel" id="step-2">
-      <div class="step-head" onclick="activateStep(2)"><span class="step-num" id="sn-2">2</span> Trim</div>
+      <div class="step-head" onclick="activateStep(2)"><span class="step-num" id="sn-2">2</span> Trim <span class="step-sum" id="sum-2"></span></div>
       <fieldset class="step-body" id="step-2-body" disabled>
+        <span class="step-hint">Move the slider under the video, then mark</span>
         <span class="ctrl-group">
-          <button class="b95" id="btn-rew" onclick="rewindToStart()" title="Rewind">&#9664;&#9664;</button>
-          <button class="b95" id="btn-play-pause" onclick="togglePlayback()">&#9654; Play</button>
-          <button class="b95" id="btn-stop" onclick="stopPlayback()">&#9632; Stop</button>
-          <button class="b95" id="btn-loop" onclick="toggleLoop()" title="Loop">&#128260; Loop</button>
+          <button class="b95" id="btn-trim-s" onclick="setTrimStart()" title="Start the analysis at the current frame">&#9654;In</button>
+          <input type="number" id="trim-s-in" value="0" min="0" step="1" style="width:56px">
+          <button class="b95" id="btn-trim-e" onclick="setTrimEnd()" title="End the analysis at the current frame">Out&#9664;</button>
+          <input type="number" id="trim-e-in" value="0" min="0" step="1" style="width:56px">
+          <button class="b95" onclick="resetTrim()" title="Use the whole video">Full</button>
         </span>
-        <input type="range" id="scrubber" min="0" max="100" value="0" step="1" style="flex:1 1 40px;min-width:40px">
-        <span class="ctrl-group">
-          <button class="b95" id="btn-trim-s" onclick="setTrimStart()" title="Set start">&#9654;In</button>
-          <input type="number" id="trim-s-in" value="0" min="0" step="1" style="width:44px">
-          <button class="b95" id="btn-trim-e" onclick="setTrimEnd()" title="Set end">Out&#9664;</button>
-          <input type="number" id="trim-e-in" value="0" min="0" step="1" style="width:44px">
-        </span>
+        <span id="trim-info"></span>
         <span class="ctrl-group">
           <button class="b95" id="btn-rot-ccw" onclick="rotateVideo(-90)" title="Rotate CCW">&#8630; Rot</button>
           <button class="b95" id="btn-rot-cw" onclick="rotateVideo(+90)" title="Rotate CW">Rot &#8631;</button>
@@ -469,15 +566,11 @@
 
     <!-- STEP 3 — Calibrate -->
     <div class="step-panel" id="step-3">
-      <div class="step-head" onclick="activateStep(3)"><span class="step-num" id="sn-3">3</span> Calibrate</div>
+      <div class="step-head" onclick="activateStep(3)"><span class="step-num" id="sn-3">3</span> Calibrate <span class="step-sum" id="sum-3"></span></div>
       <fieldset class="step-body" id="step-3-body" disabled>
         <label class="tb-label">Unit:</label>
         <select id="unit-sel"><option value="cm">cm</option><option value="m">m</option></select>
         <div class="tb-sep"></div>
-        <span class="ctrl-group frame-nav">
-          <button class="b95" onclick="stepFrame(-1)" title="Previous frame">&#9664; Frame</button>
-          <button class="b95" onclick="stepFrame(+1)" title="Next frame">Frame &#9654;</button>
-        </span>
         <span class="step-hint" id="cal-hint">Click 2 points on video</span>
         <label class="tb-label" style="display:flex;align-items:center;gap:3px;cursor:pointer">
           <input type="checkbox" id="cb-cal-overlay" onchange="S.showCal=this.checked;drawOverlay()"> Show
@@ -487,7 +580,7 @@
 
     <!-- STEP 4 — Set Origin -->
     <div class="step-panel" id="step-4">
-      <div class="step-head" onclick="activateStep(4)"><span class="step-num" id="sn-4">4</span> Origin</div>
+      <div class="step-head" onclick="activateStep(4)"><span class="step-num" id="sn-4">4</span> Origin <span class="step-sum" id="sum-4"></span></div>
       <fieldset class="step-body" id="step-4-body" disabled>
         <span class="ctrl-group">
           <span class="step-hint">Drag origin on video</span>
@@ -517,10 +610,6 @@
       <fieldset class="step-body" id="step-5-body" disabled>
         <span class="step-hint" id="active-obj-hint">Click object each frame</span>
         <div class="tb-sep"></div>
-        <span class="ctrl-group frame-nav">
-          <button class="b95" onclick="stepFrame(-1)" title="Previous frame">&#9664; Frame</button>
-          <button class="b95" onclick="stepFrame(+1)" title="Next frame">Frame &#9654;</button>
-        </span>
         <button class="b95" id="btn-undo" onclick="undoLastPoint()" disabled>&#8630; Undo</button>
         <button class="b95" id="btn-clear" onclick="clearTracking()" disabled>&#128465; Clear</button>
         <button class="b95" id="btn-export" onclick="exportCSV()" disabled>&#11015; CSV</button>
@@ -530,6 +619,7 @@
 
   <!-- ═══ MAIN ═══ -->
   <div id="main">
+   <div id="left-col">
     <div id="video-panel"
          ondragover="event.preventDefault();this.style.outline='2px solid #000080'"
          ondragleave="this.style.outline=''"
@@ -554,6 +644,20 @@
       </div>
     </div>
 
+    <!-- Timeline: frame slider as wide as the video -->
+    <div id="timeline">
+      <button class="b95" id="btn-rew" onclick="rewindToStart()" title="Go to the In frame" disabled>&#9198;</button>
+      <button class="b95" id="btn-play-pause" onclick="togglePlayback()" title="Play / pause (space)" disabled>&#9654; Play</button>
+      <button class="b95" id="btn-loop" onclick="toggleLoop()" title="Loop between In and Out" disabled>&#128260;</button>
+      <button class="b95" id="btn-prev" onclick="stepFrame(-1)" title="Previous frame (&larr;)" disabled>&#9664;</button>
+      <div id="scrub-wrap"><input type="range" id="scrubber" min="0" max="100" value="0" step="1" disabled></div>
+      <button class="b95" id="btn-next" onclick="stepFrame(+1)" title="Next frame (&rarr;)" disabled>&#9654;</button>
+      <span id="tl-info">No video</span>
+    </div>
+   </div>
+
+    <div id="splitter" title="Drag to resize"></div>
+
     <div id="right-panel">
       <!-- Object selector -->
       <div id="objects-bar">
@@ -561,13 +665,15 @@
         <button class="b95" id="btn-add-object" onclick="addTrack()" title="Track a new object">&#43; Object</button>
       </div>
 
-      <!-- X vs t -->
-      <div class="graph-section" id="section-x">
-        <div class="graph-section-header" onclick="collapseGraph('x',event)">
+      <!-- Two graphs; each can show any quantity against time -->
+      <div class="graph-section" id="section-g1">
+        <div class="graph-section-header" onclick="collapseGraph(0,event)">
           <div class="graph-dot" style="background:var(--gx)"></div>
-          X position vs. Time
-          <span class="obj-label" id="obj-label-x"></span>
-          <select class="fit-sel" id="fit-x" onclick="event.stopPropagation()" onchange="S.fitX=this.value;drawGraphX()">
+          <select class="var-sel" id="var-0" title="Quantity on the vertical axis"></select>
+          <span class="vs-t">vs. t</span>
+          <span class="mass-box" id="mass-box-0">m=<input type="number" class="mass-in" min="0" step="any" inputmode="decimal" placeholder="?">kg</span>
+          <span class="obj-label" id="obj-label-g1"></span>
+          <select class="fit-sel" id="fit-0">
             <option value="none">No fit</option>
             <option value="linear">Linear</option>
             <option value="quad">Quadratic</option>
@@ -575,18 +681,19 @@
           </select>
           <span class="graph-collapse"></span>
         </div>
-        <div class="graph-wrap" id="graph-x-wrap">
-          <canvas id="graph-x-canvas"></canvas>
+        <div class="graph-wrap" id="graph-wrap-0">
+          <canvas id="graph-canvas-0"></canvas>
         </div>
       </div>
 
-      <!-- Y vs t -->
-      <div class="graph-section" id="section-y">
-        <div class="graph-section-header" onclick="collapseGraph('y',event)">
+      <div class="graph-section" id="section-g2">
+        <div class="graph-section-header" onclick="collapseGraph(1,event)">
           <div class="graph-dot" style="background:var(--gy)"></div>
-          Y position vs. Time
-          <span class="obj-label" id="obj-label-y"></span>
-          <select class="fit-sel" id="fit-y" onclick="event.stopPropagation()" onchange="S.fitY=this.value;drawGraphY()">
+          <select class="var-sel" id="var-1" title="Quantity on the vertical axis"></select>
+          <span class="vs-t">vs. t</span>
+          <span class="mass-box" id="mass-box-1">m=<input type="number" class="mass-in" min="0" step="any" inputmode="decimal" placeholder="?">kg</span>
+          <span class="obj-label" id="obj-label-g2"></span>
+          <select class="fit-sel" id="fit-1">
             <option value="none">No fit</option>
             <option value="linear">Linear</option>
             <option value="quad">Quadratic</option>
@@ -594,23 +701,27 @@
           </select>
           <span class="graph-collapse"></span>
         </div>
-        <div class="graph-wrap" id="graph-y-wrap">
-          <canvas id="graph-y-canvas"></canvas>
+        <div class="graph-wrap" id="graph-wrap-1">
+          <canvas id="graph-canvas-1"></canvas>
         </div>
       </div>
 
-      <!-- Data table -->
+      <!-- Data table and notes share one section -->
       <div class="graph-section" id="table-section">
         <div class="graph-section-header" onclick="collapseGraph('table',event)">
-          <div class="graph-dot" style="background:var(--gt)"></div>Data Table
-          <span class="obj-label" id="obj-label-table"></span>
+          <span class="sec-tab on" id="tab-table" onclick="showBottomTab('table',event)">Data Table</span>
+          <span class="sec-tab" id="tab-notes" onclick="showBottomTab('notes',event)">Notes<span class="note-dot" id="note-dot" hidden></span></span>
+          <span class="obj-label table-only" id="obj-label-table"></span>
           <span class="graph-collapse"></span>
         </div>
-        <div id="data-scroll">
+        <div id="data-scroll" class="table-only">
           <table>
-            <thead><tr><th>#</th><th>t (s)</th><th id="th-x">X</th><th id="th-y">Y</th><th></th></tr></thead>
+            <thead><tr id="data-thead"></tr></thead>
             <tbody id="data-tbody"></tbody>
           </table>
+        </div>
+        <div id="notes-wrap" hidden>
+          <textarea id="notes" placeholder="Write notes here: names, date, what was filmed, mass, observations&hellip;&#10;They can be added at the end of the exported CSV."></textarea>
         </div>
         <div id="table-footer">
           <button class="b95" id="btn-export-table" onclick="exportCSV()" disabled>&#11015; Export CSV&hellip;</button>
@@ -677,8 +788,15 @@
       <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-time" checked> Time (s)</label>
       <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-x" checked> X position</label>
       <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-y" checked> Y position</label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-vx"> vx, vy (velocity)</label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-v"> v (speed)</label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-ax"> ax, ay (acceleration)</label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-a"> a (acceleration magnitude)</label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-K"> K (kinetic energy, needs mass)</label>
       <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-px"> Pixel X</label>
       <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-py"> Pixel Y</label>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="exp-notes"> Add notes at the end</label>
+      <p style="font-size:11px;color:#404040">Only points between In and Out are exported. Time starts at 0 on the In frame.</p>
       <div class="modal-buttons">
         <button class="b95" onclick="closeExportDialog()">Cancel</button>
         <button class="b95" onclick="doExportCSV()">Export</button>
@@ -746,15 +864,23 @@ function activateStep(n) {
     } else if (n === 5) S.mode = 'tracking';
     else S.mode = 'setup';
     updateStepStatus();
+    updateScrubRange();
     drawOverlay();
 }
 
-// In the compact (tablet) layout inactive steps shrink to tabs; make the whole tab tappable.
+// Inactive steps shrink to tabs; make the whole tab clickable.
+// Capture phase: this must run before a Done button's own onclick. Otherwise Done
+// activates the next step and the click, bubbling up, re-activates this one.
 for (let i = 1; i <= 5; i++) {
     const panel = document.getElementById('step-' + i);
     panel.addEventListener('click', e => {
         if (!panel.classList.contains('step-active') && !e.target.closest('.step-head')) activateStep(i);
-    });
+    }, true);
+}
+
+function setStepSummary(n, text) {
+    const el = document.getElementById('sum-' + n);
+    if (el) el.textContent = text ? '· ' + text : '';
 }
 
 function completeStep(n) {
@@ -793,15 +919,13 @@ const S = {
     calibrated: false,
     calPts: [],
     calDist: 0,
-    tracks: [{ name: 'Object 1', color: '#ffd700', points: [] }],
+    tracks: [{ name: 'Object 1', color: '#ffd700', points: [], mass: null }],
     active: 0,
     dragging: false,
     lastCursorPos: null,
     CW: 640, CH: 480,
-    showX: true,
-    showY: true,
-    fitX: 'none',
-    fitY: 'none',
+    // The two graphs: which quantity each plots against t, its fit, and whether it is open
+    graphs: [{ v: 'x', fit: 'none', show: true }, { v: 'y', fit: 'none', show: true }],
     loop: false,
     showAxes: false,
     showCal: false,
@@ -809,17 +933,63 @@ const S = {
 };
 
 // ═══════════════════════════════════════════════════════
+//  QUANTITIES THAT CAN BE GRAPHED / TABULATED / EXPORTED
+// ═══════════════════════════════════════════════════════
+const VARS = {
+    x:  { menu: 'x  position',      sym: 'x',   unit: () => S.unit },
+    y:  { menu: 'y  position',      sym: 'y',   unit: () => S.unit },
+    vx: { menu: 'vx  velocity',     sym: 'vx',  unit: () => S.unit + '/s' },
+    vy: { menu: 'vy  velocity',     sym: 'vy',  unit: () => S.unit + '/s' },
+    v:  { menu: 'v  speed',         sym: 'v',   unit: () => S.unit + '/s' },
+    ax: { menu: 'ax  acceleration', sym: 'ax',  unit: () => S.unit + '/s²' },
+    ay: { menu: 'ay  acceleration', sym: 'ay',  unit: () => S.unit + '/s²' },
+    a:  { menu: 'a  |acceleration|',sym: 'a',   unit: () => S.unit + '/s²' },
+    K:  { menu: 'K  kinetic energy',sym: 'K',   unit: () => 'J' },
+};
+const GRAPH_VARS_ORDER = ['x', 'y', 'vx', 'vy', 'v', 'ax', 'ay', 'a', 'K'];
+
+// Rows for one object: only points between In and Out, sorted by frame (one per frame),
+// with velocity and acceleration from central differences (they work with skipped frames).
+// The first and last row have no velocity, the first two and last two no acceleration.
+function seriesOf(track) {
+    const byFrame = new Map();
+    track.points.forEach(p => { if (inTrim(p)) byFrame.set(p.frame, p); });   // later click wins
+    const rows = [...byFrame.values()].sort((a, b) => a.frame - b.frame)
+        .map(p => ({ p, frame: p.frame, t: tOf(p.frame), x: p.wx, y: p.wy }));
+    const n = rows.length;
+    for (let i = 0; i < n; i++) {
+        const r = rows[i];
+        r.vx = r.vy = r.v = r.ax = r.ay = r.a = r.K = null;
+        if (i === 0 || i === n - 1) continue;
+        const A = rows[i - 1], B = rows[i + 1];
+        const dt = B.t - A.t;
+        r.vx = (B.x - A.x) / dt;
+        r.vy = (B.y - A.y) / dt;
+        r.v  = Math.hypot(r.vx, r.vy);
+        if (track.mass > 0) {
+            const vm = r.v * (S.unit === 'cm' ? 0.01 : 1);   // K needs m/s
+            r.K = 0.5 * track.mass * vm * vm;
+        }
+    }
+    for (let i = 2; i < n - 2; i++) {
+        const A = rows[i - 1], B = rows[i + 1], r = rows[i];
+        const dt = B.t - A.t;
+        r.ax = (B.vx - A.vx) / dt;
+        r.ay = (B.vy - A.vy) / dt;
+        r.a  = Math.hypot(r.ax, r.ay);
+    }
+    return rows;
+}
+
+// ═══════════════════════════════════════════════════════
 //  ELEMENT REFERENCES
 // ═══════════════════════════════════════════════════════
 const video      = document.getElementById('hv');
 const vcan       = document.getElementById('video-canvas');
 const ocan       = document.getElementById('overlay-canvas');
-const gxcan      = document.getElementById('graph-x-canvas');
-const gycan      = document.getElementById('graph-y-canvas');
+const gcans      = [0, 1].map(i => document.getElementById('graph-canvas-' + i));
 const vctx       = vcan.getContext('2d');
 const octx       = ocan.getContext('2d');
-const gxctx      = gxcan.getContext('2d');
-const gyctx      = gycan.getContext('2d');
 const dropHint   = document.getElementById('drop-hint');
 const formatErr  = document.getElementById('format-error');
 const container  = document.getElementById('canvas-container');
@@ -842,6 +1012,7 @@ function handleDrop(e) {
 function loadFile(file) {
     formatErr.style.display = 'none';
     video._fileExt = file.name.split('.').pop().toLowerCase();
+    video._fileName = file.name;
     video.removeEventListener('error', onVideoError);
     video.removeEventListener('loadedmetadata', initVideo);
     if (video._objectUrl) URL.revokeObjectURL(video._objectUrl);
@@ -883,10 +1054,12 @@ function initVideo() {
     tsIn.max = total; tsIn.value = 0;
     teIn.max = total; teIn.value = total;
 
-    scrubber.min   = 0;
-    scrubber.max   = total;
     scrubber.value = 0;
     scrubber.disabled = false;
+    ['btn-rew','btn-play-pause','btn-loop','btn-prev','btn-next'].forEach(id =>
+        document.getElementById(id).disabled = false);
+    setStepSummary(1, video._fileName || '');
+    afterTrimChange();
 
     resizeVideoCanvas();
     dropHint.style.display = 'none';
@@ -945,8 +1118,15 @@ let _seekTimer   = null;
 let _seekHandler = null;
 let _seekGen     = 0;
 
+function totalFrames() { return S.videoLoaded ? Math.round(S.videoDuration * S.fps) : 0; }
+// While the Trim step is open the slider spans the whole video (so In/Out can be moved
+// anywhere); in every other step it spans only In..Out, which gives finer control.
+function trimEditing() { return document.getElementById('step-2').classList.contains('step-active'); }
+function scrubLo() { return trimEditing() ? 0 : S.trimStart; }
+function scrubHi() { return trimEditing() ? totalFrames() : S.trimEnd; }
+
 function seekTo(frameIdx) {
-    frameIdx = Math.max(S.trimStart, Math.min(S.trimEnd, frameIdx));
+    frameIdx = Math.max(scrubLo(), Math.min(scrubHi(), frameIdx));
     S.frameIndex = frameIdx;
     const t = frameIdx / S.fps;
     if (t > S.videoDuration) return;
@@ -977,6 +1157,7 @@ function onSeeked() {
     drawOverlay();
     updateStatus();
     updateScrubber();
+    drawGraphs();
 }
 
 function drawVideoFrame() {
@@ -1012,9 +1193,9 @@ let rafId = null;
 function playbackLoop() {
     if (!S.isPlaying) return;
     const t = video.currentTime;
-    if (t >= S.trimEnd / S.fps || video.ended) {
+    if (t >= S._playEnd / S.fps || video.ended) {
         if (S.loop) {
-            video.currentTime = S.trimStart / S.fps;
+            video.currentTime = S._playStart / S.fps;
             rafId = requestAnimationFrame(playbackLoop);
             return;
         }
@@ -1022,7 +1203,7 @@ function playbackLoop() {
         S.isPlaying = false;
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
         updatePlayBtn();
-        seekTo(S.trimEnd);
+        seekTo(S._playEnd);
         return;
     }
     S.frameIndex = Math.round(t * S.fps);
@@ -1030,6 +1211,7 @@ function playbackLoop() {
     drawOverlay();
     updateStatus();
     updateScrubber();
+    drawGraphs();
     rafId = requestAnimationFrame(playbackLoop);
 }
 
@@ -1050,6 +1232,11 @@ function togglePlayback() {
 }
 
 function startPlayback() {
+    // Play to Out (loop back to In); if we are already past Out, play to the end.
+    const inside = S.frameIndex >= S.trimStart && S.frameIndex < S.trimEnd;
+    S._playStart = inside ? S.trimStart : scrubLo();
+    S._playEnd   = inside ? S.trimEnd   : scrubHi();
+    if (S.frameIndex >= S._playEnd) S.frameIndex = S._playStart;
     S.isPlaying = true;
     updatePlayBtn();
     video.currentTime = S.frameIndex / S.fps;
@@ -1091,29 +1278,67 @@ function updatePlayBtn() {
 scrubber.addEventListener('mousedown', () => { if (S.isPlaying) pausePlayback(); });
 scrubber.addEventListener('touchstart', () => { if (S.isPlaying) pausePlayback(); }, { passive: true });
 scrubber.addEventListener('input', () => { if (S.videoLoaded) seekTo(parseInt(scrubber.value)); });
-function updateScrubber() { scrubber.value = S.frameIndex; }
+
+function updateScrubber() {
+    scrubber.value = S.frameIndex;
+    const info = document.getElementById('tl-info');
+    if (!S.videoLoaded) { info.textContent = 'No video'; return; }
+    info.textContent = `Frame ${S.frameIndex} / ${totalFrames()} · t = ${tOf(S.frameIndex).toFixed(3)} s`;
+}
+
+// Slider limits and the shaded In..Out band (only drawn while trimming)
+function updateScrubRange() {
+    if (!S.videoLoaded) return;
+    const lo = scrubLo(), hi = scrubHi();
+    scrubber.min = lo; scrubber.max = hi;
+    const span = (hi - lo) || 1;
+    const band = trimEditing() && (S.trimStart > 0 || S.trimEnd < totalFrames());
+    scrubber.style.setProperty('--a', band ? (S.trimStart - lo) / span : 0);
+    scrubber.style.setProperty('--b', band ? (S.trimEnd - lo) / span : 0);
+    if (S.frameIndex < lo || S.frameIndex > hi) seekTo(S.frameIndex);
+    else updateScrubber();
+}
 
 // ═══════════════════════════════════════════════════════
-//  TRIM
+//  TRIM — points outside In..Out are kept but left out of graphs, table and export
 // ═══════════════════════════════════════════════════════
+// Time is measured from the In frame, so t = 0 where the analysed motion starts.
+function tOf(frame) { return (frame - S.trimStart) / S.fps; }
+function inTrim(p) { return p.frame >= S.trimStart && p.frame <= S.trimEnd; }
+
 function setTrimStart() {
-    S.trimStart = S.frameIndex;
-    document.getElementById('trim-s-in').value = S.trimStart;
-    scrubber.min = S.trimStart;
+    if (!S.videoLoaded) return;
+    S.trimStart = Math.min(S.frameIndex, S.trimEnd - 1);
+    afterTrimChange();
 }
 function setTrimEnd() {
-    S.trimEnd = S.frameIndex;
+    if (!S.videoLoaded) return;
+    S.trimEnd = Math.max(S.frameIndex, S.trimStart + 1);
+    afterTrimChange();
+}
+function resetTrim() {
+    if (!S.videoLoaded) return;
+    S.trimStart = 0; S.trimEnd = totalFrames();
+    afterTrimChange();
+}
+function afterTrimChange() {
+    document.getElementById('trim-s-in').value = S.trimStart;
     document.getElementById('trim-e-in').value = S.trimEnd;
-    scrubber.max = S.trimEnd;
+    const n = S.trimEnd - S.trimStart;
+    const txt = `${n} frames · ${(n / S.fps).toFixed(2)} s`;
+    document.getElementById('trim-info').textContent = txt;
+    setStepSummary(2, (S.trimStart > 0 || S.trimEnd < totalFrames()) ? `${S.trimStart}–${S.trimEnd}` : '');
+    updateScrubRange();
+    refreshData();
 }
 document.getElementById('trim-s-in').addEventListener('change', e => {
-    const v = Math.max(0, Math.min(S.trimEnd - 1, parseInt(e.target.value) || 0));
-    S.trimStart = v; e.target.value = v; scrubber.min = v;
+    S.trimStart = Math.max(0, Math.min(S.trimEnd - 1, parseInt(e.target.value) || 0));
+    afterTrimChange();
 });
 document.getElementById('trim-e-in').addEventListener('change', e => {
-    const total = Math.round(S.videoDuration * S.fps);
-    const v = Math.max(S.trimStart + 1, Math.min(total, parseInt(e.target.value) || total));
-    S.trimEnd = v; e.target.value = v; scrubber.max = v;
+    const total = totalFrames();
+    S.trimEnd = Math.max(S.trimStart + 1, Math.min(total, parseInt(e.target.value) || total));
+    afterTrimChange();
 });
 
 // ═══════════════════════════════════════════════════════
@@ -1134,19 +1359,20 @@ function rotateVideo(delta) {
 document.getElementById('fps-input').addEventListener('change', e => {
     S.fps = parseFloat(e.target.value) || 30;
     if (!S.videoLoaded) return;
-    const total = Math.round(S.videoDuration * S.fps);
+    const total = totalFrames();
     S.trimEnd    = total;
-    document.getElementById('trim-e-in').value = total;
+    S.trimStart  = Math.min(S.trimStart, total - 1);
     document.getElementById('trim-e-in').max   = total;
     document.getElementById('trim-s-in').max   = total;
-    scrubber.max = total;
     S.frameIndex = Math.round(video.currentTime * S.fps);
+    afterTrimChange();
     updateStatus();
 });
 document.getElementById('angle-slider').addEventListener('input', e => {
     const deg = parseFloat(e.target.value);
     document.getElementById('angle-num').value = deg;
     S.angle = deg * Math.PI / 180;
+    setStepSummary(4, deg ? `axis ${deg}°` : '');
     drawOverlay();
     recomputeWorldCoords();
 });
@@ -1155,29 +1381,105 @@ document.getElementById('angle-num').addEventListener('change', e => {
     document.getElementById('angle-slider').value = deg;
     document.getElementById('angle-num').value    = deg;
     S.angle = deg * Math.PI / 180;
+    setStepSummary(4, deg ? `axis ${deg}°` : '');
     drawOverlay();
     recomputeWorldCoords();
 });
 document.getElementById('unit-sel').addEventListener('change', e => {
     S.unit = e.target.value;
-    updateTableHeader();
-    drawGraphX(); drawGraphY();
-    updateStatus();
+    refreshData();
 });
 
 // ═══════════════════════════════════════════════════════
-//  GRAPH VISIBILITY TOGGLE
+//  GRAPH / TABLE SECTIONS
 // ═══════════════════════════════════════════════════════
-function collapseGraph(axis, e) {
-    if (e && e.target.tagName === 'SELECT') return;
-    const id = axis === 'table' ? 'table-section' : 'section-' + axis;
+function collapseGraph(which, e) {
+    if (e && e.target.closest('select, input')) return;
+    const id = which === 'table' ? 'table-section' : 'section-g' + (which + 1);
     const sec = document.getElementById(id);
     sec.classList.toggle('collapsed');
-    if (axis !== 'table') {
-        S['show' + axis.toUpperCase()] = !sec.classList.contains('collapsed');
-        if (axis === 'x') drawGraphX(); else drawGraphY();
+    if (which !== 'table') {
+        S.graphs[which].show = !sec.classList.contains('collapsed');
+        drawGraphs();
     }
 }
+
+// Bottom section: Data Table / Notes tabs
+function showBottomTab(tab, e) {
+    if (e) e.stopPropagation();
+    const sec = document.getElementById('table-section');
+    sec.classList.remove('collapsed');
+    const notes = tab === 'notes';
+    document.getElementById('tab-table').classList.toggle('on', !notes);
+    document.getElementById('tab-notes').classList.toggle('on', notes);
+    document.querySelectorAll('#table-section .table-only').forEach(el => el.hidden = notes);
+    document.getElementById('notes-wrap').hidden = !notes;
+    if (notes) document.getElementById('notes').focus();
+}
+const notesEl = document.getElementById('notes');
+notesEl.addEventListener('input', () => {
+    document.getElementById('note-dot').hidden = !notesEl.value.trim();
+});
+
+// Quantity selectors for the two graphs
+GRAPH_VARS_ORDER.forEach(k => [0, 1].forEach(i => {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = VARS[k].menu;
+    document.getElementById('var-' + i).appendChild(o);
+}));
+[0, 1].forEach(i => {
+    const sel = document.getElementById('var-' + i);
+    sel.value = S.graphs[i].v;
+    sel.addEventListener('change', () => {
+        S.graphs[i].v = sel.value;
+        updateMassBoxes();
+        refreshData();
+    });
+    document.getElementById('fit-' + i).addEventListener('change', e => {
+        S.graphs[i].fit = e.target.value;
+        drawGraphs();
+    });
+});
+document.querySelectorAll('.mass-in').forEach(inp => {
+    inp.addEventListener('click', e => e.stopPropagation());
+    inp.addEventListener('input', () => {
+        const m = parseFloat(inp.value);
+        activeTrack().mass = m > 0 ? m : null;
+        updateMassBoxes(inp);
+        refreshData();
+    });
+});
+// The mass field appears next to any graph showing K; it belongs to the selected object.
+function updateMassBoxes(except) {
+    const m = activeTrack().mass;
+    [0, 1].forEach(i => {
+        const box = document.getElementById('mass-box-' + i);
+        box.classList.toggle('on', S.graphs[i].v === 'K');
+        box.classList.toggle('missing', !(m > 0));
+        const inp = box.querySelector('input');
+        if (inp !== except) inp.value = m > 0 ? m : '';
+    });
+}
+
+// Drag handle between the video and the graphs
+(() => {
+    const sp = document.getElementById('splitter'), rp = document.getElementById('right-panel');
+    let drag = null;
+    sp.addEventListener('pointerdown', e => {
+        drag = { x: e.clientX, w: rp.getBoundingClientRect().width };
+        sp.setPointerCapture(e.pointerId);
+        e.preventDefault();
+    });
+    sp.addEventListener('pointermove', e => {
+        if (!drag) return;
+        const main = document.getElementById('main').clientWidth;
+        const w = Math.max(260, Math.min(main - 300, drag.w - (e.clientX - drag.x)));
+        rp.style.flexBasis = w + 'px';
+    });
+    const end = () => { drag = null; };
+    sp.addEventListener('pointerup', end);
+    sp.addEventListener('pointercancel', end);
+})();
 
 // ═══════════════════════════════════════════════════════
 //  MODE SWITCHING (driven by step activation)
@@ -1193,7 +1495,7 @@ function recomputeWorldCoords() {
         p.wx = w.x;
         p.wy = w.y;
     }));
-    drawGraphX(); drawGraphY(); updateDataTable();
+    drawGraphs(); updateDataTable();
 }
 
 function canvasToWorld(px, py) {
@@ -1465,7 +1767,7 @@ function showLoupe(clientX, clientY) {
 // Keyboard
 window.addEventListener('keydown', e => {
     if (!S.videoLoaded) return;
-    if (document.activeElement.tagName === 'INPUT') return;
+    if (document.activeElement.closest('input, textarea, select')) return;
     if (e.key === 'ArrowRight') { e.preventDefault(); stepFrame(+1); }
     if (e.key === 'ArrowLeft')  { e.preventDefault(); stepFrame(-1); }
     if (e.key === ' ')          { e.preventDefault(); togglePlayback(); }
@@ -1474,7 +1776,7 @@ window.addEventListener('keydown', e => {
 // Frame-step buttons (touch devices have no arrow keys)
 function stepFrame(d) {
     if (!S.videoLoaded || S.isPlaying) return;
-    seekTo(Math.max(S.trimStart, Math.min(S.trimEnd, S.frameIndex + d)));
+    seekTo(S.frameIndex + d);   // seekTo keeps it inside the slider's range
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1497,7 +1799,7 @@ function hexToRgba(hex, alpha) {
 
 function addTrack() {
     const color = TRACK_COLORS[S.tracks.length % TRACK_COLORS.length];
-    S.tracks.push({ name: 'Object ' + (_trackSeq++), color, points: [] });
+    S.tracks.push({ name: 'Object ' + (_trackSeq++), color, points: [], mass: null });
     S.active = S.tracks.length - 1;
     afterTrackChange();
 }
@@ -1544,7 +1846,7 @@ function renderObjectsBar() {
     const t = activeTrack();
     const hint = document.getElementById('active-obj-hint');
     hint.innerHTML = `<span class="chip-dot" style="background:${t.color}"></span> ${escapeHtml(t.name)} — ${TOUCH ? 'tap' : 'click'} each frame`;
-    ['obj-label-x','obj-label-y','obj-label-table'].forEach(id =>
+    ['obj-label-g1','obj-label-g2','obj-label-table'].forEach(id =>
         document.getElementById(id).textContent = '— ' + t.name);
 }
 
@@ -1558,7 +1860,13 @@ function updateTrackButtons() {
 function afterTrackChange() {
     renderObjectsBar();
     updateTrackButtons();
-    drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
+    updateMassBoxes();
+    refreshData();
+}
+
+// Redraw everything that depends on the tracked data (keeps the table's scroll position)
+function refreshData(tableOpts) {
+    drawOverlay(); drawGraphs(); updateDataTable(tableOpts); updateStatus();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1566,17 +1874,20 @@ function afterTrackChange() {
 // ═══════════════════════════════════════════════════════
 function addTrackPoint(cp) {
     const w = canvasToWorld(cp.x, cp.y);
-    activeTrack().points.push({ frame: S.frameIndex, time: S.frameIndex / S.fps,
-                    cx: cp.x, cy: cp.y, wx: w.x, wy: w.y });
+    const t = activeTrack();
+    // Clicking again on a frame that already has a point moves that point
+    t.points = t.points.filter(p => p.frame !== S.frameIndex);
+    const p = { frame: S.frameIndex, cx: cp.x, cy: cp.y, wx: w.x, wy: w.y };
+    t.points.push(p);
     updateTrackButtons();
-    drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
+    refreshData({ reveal: p });
     seekTo(S.frameIndex + 1);
 }
 
 function undoLastPoint() {
     activeTrack().points.pop();
     updateTrackButtons();
-    drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
+    refreshData();
 }
 
 function clearTracking() {
@@ -1585,7 +1896,7 @@ function clearTracking() {
     if (!confirm(`Clear all tracked points for "${t.name}"? Calibration and origin are not affected.`)) return;
     t.points = [];
     updateTrackButtons();
-    drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
+    refreshData();
 }
 
 function exportCSV() {
@@ -1602,23 +1913,38 @@ function exportCSV() {
         allOpt.value = '__all__'; allOpt.textContent = 'All objects (combined)';
         sel.appendChild(allOpt);
     }
+    // Pre-tick whatever the graphs currently show
+    S.graphs.forEach(g => {
+        const id = { vx: 'exp-vx', vy: 'exp-vx', v: 'exp-v', ax: 'exp-ax', ay: 'exp-ax', a: 'exp-a', K: 'exp-K' }[g.v];
+        if (id) document.getElementById(id).checked = true;
+    });
+    const notesBox = document.getElementById('exp-notes');
+    notesBox.checked = !!notesEl.value.trim();
+    notesBox.disabled = !notesEl.value.trim();
     document.getElementById('export-overlay').style.display = 'flex';
 }
 function closeExportDialog() {
     document.getElementById('export-overlay').style.display = 'none';
 }
 function doExportCSV() {
+    const u = S.unit;
+    const num = (v, d) => v == null ? '' : v.toFixed(d);
     const cols = [];
     const ids = [
-        ['exp-frame', 'frame',      p => p.frame],
-        ['exp-time',  'time_s',     p => p.time.toFixed(4)],
-        ['exp-x',     'x_'+S.unit,  p => p.wx.toFixed(4)],
-        ['exp-y',     'y_'+S.unit,  p => p.wy.toFixed(4)],
-        ['exp-px',    'px_x',       p => p.cx.toFixed(1)],
-        ['exp-py',    'px_y',       p => p.cy.toFixed(1)],
+        ['exp-frame', [['frame',          r => r.frame]]],
+        ['exp-time',  [['time_s',         r => num(r.t, 4)]]],
+        ['exp-x',     [['x_'+u,           r => num(r.x, 4)]]],
+        ['exp-y',     [['y_'+u,           r => num(r.y, 4)]]],
+        ['exp-vx',    [['vx_'+u+'_s',     r => num(r.vx, 4)], ['vy_'+u+'_s', r => num(r.vy, 4)]]],
+        ['exp-v',     [['v_'+u+'_s',      r => num(r.v, 4)]]],
+        ['exp-ax',    [['ax_'+u+'_s2',    r => num(r.ax, 4)], ['ay_'+u+'_s2', r => num(r.ay, 4)]]],
+        ['exp-a',     [['a_'+u+'_s2',     r => num(r.a, 4)]]],
+        ['exp-K',     [['K_J',            r => num(r.K, 6)]]],
+        ['exp-px',    [['px_x',           r => r.p.cx.toFixed(1)]]],
+        ['exp-py',    [['px_y',           r => r.p.cy.toFixed(1)]]],
     ];
-    ids.forEach(([id, hdr, fn]) => {
-        if (document.getElementById(id).checked) cols.push({hdr, fn});
+    ids.forEach(([id, list]) => {
+        if (document.getElementById(id).checked) list.forEach(([hdr, fn]) => cols.push({ hdr, fn }));
     });
     if (!cols.length) { alert('Select at least one variable.'); return; }
 
@@ -1627,17 +1953,20 @@ function doExportCSV() {
     if (sel === '__all__') {
         hdr = 'object,' + cols.map(c => c.hdr).join(',') + '\n';
         rows = S.tracks.flatMap(t =>
-            t.points.map(p => escapeCsv(t.name) + ',' + cols.map(c => c.fn(p)).join(','))
+            seriesOf(t).map(r => escapeCsv(t.name) + ',' + cols.map(c => c.fn(r)).join(','))
         ).join('\n');
         filename = 'tracking_data_all_objects.csv';
     } else {
         const t = S.tracks[parseInt(sel, 10)];
         hdr = cols.map(c => c.hdr).join(',') + '\n';
-        rows = t.points.map(p => cols.map(c => c.fn(p)).join(',')).join('\n');
+        rows = seriesOf(t).map(r => cols.map(c => c.fn(r)).join(',')).join('\n');
         filename = `tracking_data_${t.name.replace(/[^a-z0-9]+/gi,'_')}.csv`;
     }
+    let notes = '';
+    if (document.getElementById('exp-notes').checked && notesEl.value.trim())
+        notes = '\n\nNotes\n' + notesEl.value.trim().split(/\r?\n/).map(escapeCsv).join('\n');
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([hdr + rows], { type: 'text/csv' }));
+    a.href = URL.createObjectURL(new Blob([hdr + rows + notes], { type: 'text/csv' }));
     a.download = filename;
     a.click();
     closeExportDialog();
@@ -1671,8 +2000,9 @@ function confirmCalibration() {
     S.calibrated = true;
     document.getElementById('modal-overlay').classList.remove('open');
     document.getElementById('cal-hint').textContent = S.calDist + ' ' + S.unit + ' set';
+    setStepSummary(3, S.calDist + ' ' + S.unit);
     recomputeWorldCoords();
-    updateTableHeader(); drawOverlay(); drawGraphX(); drawGraphY(); updateStatus();
+    refreshData();
     completeStep(3);
 }
 document.getElementById('modal-input').addEventListener('keydown', e => {
@@ -1804,7 +2134,15 @@ function drawTrackPoints(z) {
     const iz = 1 / z;
     S.tracks.forEach((t, ti) => {
         const isActive = ti === S.active;
-        const pts = t.points;
+        const all = [...t.points].sort((a, b) => a.frame - b.frame);
+        // Points outside In..Out stay visible as faint ghosts (they come back if the trim widens)
+        octx.globalAlpha = 0.25;
+        all.filter(p => !inTrim(p)).forEach(p => {
+            octx.fillStyle = t.color;
+            octx.beginPath(); octx.arc(p.cx, p.cy, 3 * iz, 0, Math.PI*2); octx.fill();
+        });
+        octx.globalAlpha = 1;
+        const pts = all.filter(inTrim);
         pts.forEach((p, i) => {
             if (i > 0) {
                 const prev = pts[i-1];
@@ -1818,6 +2156,10 @@ function drawTrackPoints(z) {
             octx.beginPath(); octx.arc(p.cx, p.cy, r, 0, Math.PI*2); octx.fill();
             octx.strokeStyle = '#fff'; octx.lineWidth = iz; octx.stroke();
             octx.globalAlpha = 1;
+            if (isActive && p.frame === S.frameIndex) {       // point on the current frame
+                octx.strokeStyle = '#ff0000'; octx.lineWidth = 2 * iz;
+                octx.beginPath(); octx.arc(p.cx, p.cy, r + 4 * iz, 0, Math.PI*2); octx.stroke();
+            }
             if (i === 0 || i === pts.length-1) {
                 octx.fillStyle = '#fff'; octx.font = `${10*iz}px sans-serif`;
                 octx.textAlign = 'left'; octx.textBaseline = 'bottom';
@@ -1914,97 +2256,110 @@ function fmtC(v) {
 // ═══════════════════════════════════════════════════════
 //  GRAPHS
 // ═══════════════════════════════════════════════════════
-function graphColors(axis) {
-    return {
-        bg:     '#FFFFFF',
-        grid:   '#DFDFDF',
-        zero:   '#808080',
-        border: '#808080',
-        tick:   '#000000',
-        lbl:    '#000000',
-        nodata: '#808080',
-        data:   axis === 'x' ? '#800000' : '#000080',
-        fit_bg: 'rgba(255,255,255,0.88)',
-    };
-}
+const GRAPH_COLORS = ['#800000', '#000080'];
 
-function drawGraphSingle(ctx, can, axis, fitType) {
-    const W = can.width, H = can.height;
+function drawGraphs() { drawGraph(0); drawGraph(1); }
+
+function drawGraph(gi) {
+    const can = gcans[gi], ctx = can.getContext('2d');
+    const g = S.graphs[gi];
+    if (!g.show) return;
+    const dpr = can._dpr || 1;
+    const W = can.width / dpr, H = can.height / dpr;
     if (!W || !H) return;
-    const pad = { t:14, r:10, b:28, l:46 };
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const pad = { t:16, r:12, b:32, l:56 };
     const pw  = W - pad.l - pad.r;
     const ph  = H - pad.t - pad.b;
-    const C   = graphColors(axis);
+    const col = GRAPH_COLORS[gi];
+    const V   = VARS[g.v];
 
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = C.bg;
+    ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, W, H);
 
-    const pts = activeTrack().points;
-    if (!pts.length) {
-        ctx.fillStyle = C.nodata; ctx.font = '11px sans-serif';
+    const message = txt => {
+        ctx.fillStyle = '#808080'; ctx.font = '12px sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('No data yet', W/2, H/2);
+        ctx.fillText(txt, W/2, H/2);
+    };
+    const track = activeTrack();
+    const rows = seriesOf(track);
+    const pts = rows.filter(r => r[g.v] != null && isFinite(r[g.v]));
+    if (!pts.length) {
+        if (g.v === 'K' && !(track.mass > 0) && rows.length) message('Type the mass (kg) above to see K');
+        else if (!rows.length && track.points.length) message('No points between In and Out');
+        else if (rows.length && g.v.length > 1 && g.v[0] === 'a') message('Acceleration needs 5 points or more');
+        else if (rows.length && g.v !== 'x' && g.v !== 'y') message('Needs 3 points or more');
+        else message('No data yet');
         return;
     }
 
-    const times = pts.map(p => p.time);
-    const vals  = pts.map(p => axis === 'x' ? p.wx : p.wy);
+    const times = pts.map(r => r.t);
+    const vals  = pts.map(r => r[g.v]);
 
     const tMin = Math.min(...times), tMax = Math.max(...times);
     const vMin = Math.min(...vals),  vMax = Math.max(...vals);
-    const tSpan = tMax - tMin || 1,  vSpan = vMax - vMin || 1;
-    const t0 = tMin - tSpan*.04, t1 = tMax + tSpan*.12;
-    const v0 = vMin - vSpan*.12, v1 = vMax + vSpan*.18;
+    const tSpan = tMax - tMin || 1,  vSpan = vMax - vMin || Math.abs(vMax) || 1;
+    const t0 = tMin - tSpan*.04, t1 = tMax + tSpan*.04;
+    const v0 = vMin - vSpan*.10, v1 = vMax + vSpan*.22;   // room on top for the fit equation
 
     const tx = t => pad.l + (t-t0)/(t1-t0)*pw;
     const ty = v => pad.t + (1-(v-v0)/(v1-v0))*ph;
 
-    // Grid
-    ctx.strokeStyle = C.grid; ctx.lineWidth = 1;
-    for (let i = 0; i <= 4; i++) {
-        ctx.beginPath(); ctx.moveTo(pad.l+i*pw/4, pad.t); ctx.lineTo(pad.l+i*pw/4, pad.t+ph); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(pad.l, pad.t+i*ph/4); ctx.lineTo(pad.l+pw, pad.t+i*ph/4); ctx.stroke();
-    }
+    // Grid and tick labels at round values
+    const tTicks = niceTicks(t0, t1, Math.max(3, Math.floor(pw / 60)));
+    const vTicks = niceTicks(v0, v1, Math.max(3, Math.floor(ph / 35)));
+    ctx.strokeStyle = '#E4E4E4'; ctx.lineWidth = 1;
+    tTicks.forEach(t => { ctx.beginPath(); ctx.moveTo(tx(t), pad.t); ctx.lineTo(tx(t), pad.t+ph); ctx.stroke(); });
+    vTicks.forEach(v => { ctx.beginPath(); ctx.moveTo(pad.l, ty(v)); ctx.lineTo(pad.l+pw, ty(v)); ctx.stroke(); });
 
     // Zero line
     if (v0 < 0 && v1 > 0) {
         const zy = ty(0);
-        ctx.strokeStyle = C.zero; ctx.setLineDash([3,3]);
+        ctx.strokeStyle = '#808080'; ctx.setLineDash([3,3]);
         ctx.beginPath(); ctx.moveTo(pad.l, zy); ctx.lineTo(pad.l+pw, zy); ctx.stroke();
         ctx.setLineDash([]);
     }
 
     // Border
-    ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    ctx.strokeStyle = '#808080'; ctx.lineWidth = 1;
     ctx.strokeRect(pad.l, pad.t, pw, ph);
 
     // Tick labels
-    ctx.fillStyle = C.tick; ctx.font = '9px sans-serif';
+    ctx.fillStyle = '#000'; ctx.font = '11px sans-serif';
     ctx.textBaseline = 'middle'; ctx.textAlign = 'right';
-    for (let i = 0; i <= 3; i++)
-        ctx.fillText(fmtNum(v1-(v1-v0)*i/3), pad.l-3, pad.t+i*ph/3);
+    vTicks.forEach(v => ctx.fillText(fmtTick(v, vTicks), pad.l-4, ty(v)));
     ctx.textBaseline = 'top'; ctx.textAlign = 'center';
-    for (let i = 0; i <= 3; i++)
-        ctx.fillText((t0+(t1-t0)*i/3).toFixed(2), pad.l+i*pw/3, pad.t+ph+2);
+    tTicks.forEach(t => ctx.fillText(fmtTick(t, tTicks), tx(t), pad.t+ph+3));
 
     // Axis labels
-    ctx.fillStyle = C.lbl; ctx.font = '9px sans-serif';
+    ctx.font = '11px sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     ctx.fillText('t (s)', pad.l+pw/2, H-1);
     ctx.save();
-    ctx.translate(10, pad.t+ph/2); ctx.rotate(-Math.PI/2);
-    ctx.fillText(axis === 'x' ? `X (${S.unit})` : `Y (${S.unit})`, 0, 0);
+    ctx.translate(12, pad.t+ph/2); ctx.rotate(-Math.PI/2);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${V.sym} (${V.unit()})`, 0, 0);
     ctx.restore();
+
+    // Current frame
+    if (S.videoLoaded) {
+        const tc = tOf(S.frameIndex);
+        if (tc >= t0 && tc <= t1) {
+            ctx.strokeStyle = 'rgba(255,0,0,0.45)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(tx(tc), pad.t); ctx.lineTo(tx(tc), pad.t+ph); ctx.stroke();
+        }
+    }
 
     // Fit curve
     let fitResult = null;
-    if (fitType && fitType !== 'none' && pts.length >= 2) {
-        fitResult = computeFit(fitType, times, vals);
+    if (g.fit !== 'none' && pts.length >= 2) {
+        fitResult = computeFit(g.fit, times, vals);
         if (fitResult) {
             ctx.save();
             ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
-            ctx.strokeStyle = C.data;
+            ctx.strokeStyle = col;
             ctx.globalAlpha = 0.65;
             ctx.lineWidth = 2;
             ctx.setLineDash([5,3]);
@@ -2026,92 +2381,140 @@ function drawGraphSingle(ctx, can, axis, fitType) {
         }
     }
 
-    // Dots
-    ctx.fillStyle = C.data;
-    pts.forEach((p, i) => {
-        ctx.beginPath(); ctx.arc(tx(p.time), ty(vals[i]), 3, 0, Math.PI*2); ctx.fill();
+    // Dots (the one on the current frame is ringed)
+    ctx.fillStyle = col;
+    pts.forEach((r, i) => {
+        ctx.beginPath(); ctx.arc(tx(r.t), ty(vals[i]), 3, 0, Math.PI*2); ctx.fill();
+        if (r.frame === S.frameIndex) {
+            ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.arc(tx(r.t), ty(vals[i]), 6, 0, Math.PI*2); ctx.stroke();
+        }
     });
 
     // Fit equation + R^2
     if (fitResult) {
         const r2  = rSquared(times, vals, fitResult.fn);
-        const lbl = `${fitResult.label}   R^2 = ${r2.toFixed(4)}`;
-        ctx.font = '13px sans-serif';
+        const lbl = `${fitResult.label.replace(/^y =/, V.sym + ' =')}   R² = ${r2.toFixed(4)}`;
+        ctx.font = '12px sans-serif';
         ctx.textAlign = 'right'; ctx.textBaseline = 'top';
-        const tw = ctx.measureText(lbl).width + 10;
-        ctx.fillStyle = C.fit_bg;
+        const tw = Math.min(pw, ctx.measureText(lbl).width + 10);
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.fillRect(pad.l + pw - tw, pad.t + 2, tw, 18);
-        ctx.fillStyle = C.data;
-        ctx.fillText(lbl, pad.l + pw - 3, pad.t + 4);
+        ctx.fillStyle = col;
+        ctx.fillText(lbl, pad.l + pw - 3, pad.t + 5, pw - 6);
     }
 }
 
-function drawGraphX() { drawGraphSingle(gxctx, gxcan, 'x', S.fitX); }
-function drawGraphY() { drawGraphSingle(gyctx, gycan, 'y', S.fitY); }
+// ═══════════════════════════════════════════════════════
+//  DATA TABLE — same rows as the graphs (In..Out only, by frame)
+// ═══════════════════════════════════════════════════════
+let _tableRows = [];
 
-// ═══════════════════════════════════════════════════════
-//  DATA TABLE
-// ═══════════════════════════════════════════════════════
 function removePoint(i) {
-    activeTrack().points.splice(i, 1);
+    const r = _tableRows[i];
+    if (!r) return;
+    const t = activeTrack();
+    t.points = t.points.filter(p => p !== r.p);
     updateTrackButtons();
-    drawOverlay(); drawGraphX(); drawGraphY(); updateDataTable(); updateStatus();
+    refreshData();
 }
 
-function updateDataTable() {
+// Columns: t, x, y, plus whatever else the two graphs show
+function tableVars() {
+    const vs = ['x', 'y'];
+    S.graphs.forEach(g => { if (!vs.includes(g.v)) vs.push(g.v); });
+    return vs;
+}
+
+function fmtCell(v) {
+    if (v == null || !isFinite(v)) return '—';
+    const a = Math.abs(v);
+    if (a !== 0 && (a < 0.001 || a >= 1e6)) return v.toExponential(2);
+    return v.toFixed(a >= 1000 ? 1 : 3);
+}
+
+// opts.reveal = a point to scroll into view (a newly added one).
+// Otherwise the scroll position stays where the user left it.
+function updateDataTable(opts = {}) {
+    const ds = document.getElementById('data-scroll');
+    const keep = ds.scrollTop;
+    const vs = tableVars();
+    document.getElementById('data-thead').innerHTML =
+        '<th>#</th><th>t (s)</th>' +
+        vs.map(k => `<th>${VARS[k].sym} (${VARS[k].unit()})</th>`).join('') + '<th></th>';
     const tbody = document.getElementById('data-tbody');
     tbody.innerHTML = '';
-    activeTrack().points.forEach((p, i) => {
+    _tableRows = seriesOf(activeTrack());
+    let revealTr = null;
+    _tableRows.forEach((r, i) => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${i+1}</td><td>${p.time.toFixed(3)}</td><td>${p.wx.toFixed(3)}</td><td>${p.wy.toFixed(3)}</td>`
-            + `<td style="text-align:center;padding:0 4px"><span class="del-pt" onclick="removePoint(${i})" `
-            + `style="cursor:pointer;color:#800000;font-size:13px;line-height:1" title="Remove point">×</span></td>`;
+        tr.innerHTML = `<td>${i+1}</td><td>${r.t.toFixed(3)}</td>` +
+            vs.map(k => `<td>${fmtCell(r[k])}</td>`).join('') +
+            `<td style="text-align:center;padding:0 4px"><span class="del-pt" onclick="removePoint(${i})" ` +
+            `style="cursor:pointer;color:#800000;font-size:13px;line-height:1" title="Remove point">×</span></td>`;
+        if (r.p === opts.reveal) revealTr = tr;
         tbody.appendChild(tr);
     });
-    const ds = document.getElementById('data-scroll');
-    ds.scrollTop = ds.scrollHeight;
-}
-function updateTableHeader() {
-    document.getElementById('th-x').textContent = `X (${S.unit})`;
-    document.getElementById('th-y').textContent = `Y (${S.unit})`;
+    ds.scrollTop = keep;
+    if (revealTr) {
+        const top = revealTr.offsetTop, h = revealTr.offsetHeight, head = 24;
+        if (top - head < ds.scrollTop) ds.scrollTop = top - head;
+        else if (top + h > ds.scrollTop + ds.clientHeight) ds.scrollTop = top + h - ds.clientHeight;
+    }
 }
 
 // ═══════════════════════════════════════════════════════
 //  STATUS BAR
 // ═══════════════════════════════════════════════════════
 function updateStatus() {
-    const total = S.videoLoaded ? Math.round(S.videoDuration * S.fps) : 0;
+    const total = totalFrames();
     document.getElementById('st-frame').textContent = S.videoLoaded ? `${S.frameIndex} / ${total}` : '—';
-    document.getElementById('st-time').textContent  = S.videoLoaded ? `${(S.frameIndex/S.fps).toFixed(3)} s` : '—';
+    document.getElementById('st-time').textContent  = S.videoLoaded ? `${tOf(S.frameIndex).toFixed(3)} s` : '—';
     document.getElementById('st-scale').textContent = S.calibrated  ? `${S.scale.toFixed(2)} px/${S.unit}` : 'Not calibrated';
-    document.getElementById('st-pts').textContent   = activeTrack().points.length;
+    const pts = activeTrack().points;
+    const out = pts.filter(p => !inTrim(p)).length;
+    document.getElementById('st-pts').textContent = out ? `${pts.length - out} (+${out} outside trim)` : pts.length;
 }
 
 // ═══════════════════════════════════════════════════════
-//  RESIZE OBSERVERS
+//  RESIZE OBSERVERS — graph bitmaps follow their box (sharp on high-DPI screens)
 // ═══════════════════════════════════════════════════════
-new ResizeObserver(() => {
-    gxcan.width  = document.getElementById('graph-x-wrap').clientWidth;
-    gxcan.height = document.getElementById('graph-x-wrap').clientHeight;
-    drawGraphX();
-}).observe(document.getElementById('graph-x-wrap'));
-
-new ResizeObserver(() => {
-    gycan.width  = document.getElementById('graph-y-wrap').clientWidth;
-    gycan.height = document.getElementById('graph-y-wrap').clientHeight;
-    drawGraphY();
-}).observe(document.getElementById('graph-y-wrap'));
+[0, 1].forEach(i => {
+    const wrap = document.getElementById('graph-wrap-' + i), can = gcans[i];
+    new ResizeObserver(() => {
+        const dpr = window.devicePixelRatio || 1;
+        can._dpr = dpr;
+        can.width  = Math.round(wrap.clientWidth * dpr);
+        can.height = Math.round(wrap.clientHeight * dpr);
+        drawGraph(i);
+    }).observe(wrap);
+});
 
 // ═══════════════════════════════════════════════════════
 //  UTILITIES
 // ═══════════════════════════════════════════════════════
-function fmtNum(v) {
-    if (Math.abs(v) >= 10000 || (Math.abs(v) < 0.01 && v !== 0)) return v.toExponential(1);
-    return parseFloat(v.toPrecision(4)) + '';
+// Round tick values (1, 2 or 5 × 10^n apart) inside lo..hi, about `count` of them
+function niceTicks(lo, hi, count) {
+    const rough = (hi - lo) / count;
+    const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+    const f = rough / mag;
+    const step = (f > 7 ? 10 : f > 3.5 ? 5 : f > 1.5 ? 2 : 1) * mag;
+    const out = [];
+    for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step)
+        out.push(Math.abs(v) < step * 1e-9 ? 0 : +v.toPrecision(12));
+    return out;
+}
+
+// Tick label: as many decimals as the tick spacing needs (0.002 apart -> "0.008")
+function fmtTick(v, ticks) {
+    if (v === 0) return '0';
+    const step = ticks.length > 1 ? Math.abs(ticks[1] - ticks[0]) : Math.abs(v);
+    if (Math.abs(v) >= 1e5 || step < 1e-4) return v.toExponential(1);
+    return v.toFixed(Math.max(0, -Math.floor(Math.log10(step) + 1e-9)));
 }
 
 // Init
 if (TOUCH) document.getElementById('cal-hint').textContent = 'Tap 2 points on video';
-renderObjectsBar(); updateTrackButtons();
-drawGraphX(); drawGraphY(); updateStatus();
+renderObjectsBar(); updateTrackButtons(); updateMassBoxes();
+refreshData(); updateScrubber();
 </script>
