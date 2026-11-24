@@ -86,7 +86,7 @@
   /* ---- toolbar ---- */
   #toolbar{
     background:var(--face);
-    padding:4px;
+    padding:11px 4px 4px;             /* room for the open step's title, which sits on its top border */
     display:flex;align-items:stretch;gap:4px;flex-wrap:nowrap;flex-shrink:0;
     border-bottom:1px solid var(--shadow);
   }
@@ -457,6 +457,7 @@
     label.tb-label{font-size:13px}
     .step-head{font-size:13px}
     .step-num{min-width:18px;height:18px;font-size:11px}
+    #toolbar{padding-top:13px}
     .step-hint{font-size:12px}
     .step-panel:not(.step-active) .step-head{padding:6px 12px}
     #zoom-display{font-size:13px;min-width:44px}
@@ -2635,7 +2636,7 @@ function drawGraph(gi) {
     if (!W || !H) return;
     const ctx = can.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    can._hits = renderGraph(ctx, W, H, gi, {});
+    can._hits = renderGraph(ctx, W, H, gi, { hoverFrame: can._hoverFrame });
     can.classList.toggle('clickable', can._hits.length > 0);
 }
 
@@ -2727,12 +2728,23 @@ function renderGraph(ctx, W, H, gi, opts) {
     ctx.fillText(`${V.sym} (${V.unit()})`, 0, 0);
     ctx.restore();
 
-    // Current frame (time graphs only; the ringed dot shows it on the others)
-    if (S.videoLoaded && g.h === 't' && !big) {
-        const tc = tOf(S.frameIndex);
-        if (tc >= x0 && tc <= x1) {
-            ctx.strokeStyle = 'rgba(255,0,0,0.45)'; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(tx(tc), pad.t); ctx.lineTo(tx(tc), pad.t+ph); ctx.stroke();
+    // Cursor: crosshair through the point of the current frame, or of the dot under the
+    // mouse (opts.hoverFrame). With no point there, time graphs still show the frame's line.
+    const focusFrame = opts.hoverFrame != null ? opts.hoverFrame : S.frameIndex;
+    const fi = big || !S.videoLoaded ? -1 : pts.findIndex(r => r.frame === focusFrame);
+    if (!big && S.videoLoaded) {
+        ctx.strokeStyle = 'rgba(255,0,0,0.45)'; ctx.lineWidth = 1;
+        if (fi >= 0) {
+            const cx = tx(xs[fi]), cy = ty(vals[fi]);
+            ctx.beginPath();
+            ctx.moveTo(cx, pad.t); ctx.lineTo(cx, pad.t+ph);
+            ctx.moveTo(pad.l, cy); ctx.lineTo(pad.l+pw, cy);
+            ctx.stroke();
+        } else if (g.h === 't' && opts.hoverFrame == null) {
+            const tc = tOf(S.frameIndex);
+            if (tc >= x0 && tc <= x1) {
+                ctx.beginPath(); ctx.moveTo(tx(tc), pad.t); ctx.lineTo(tx(tc), pad.t+ph); ctx.stroke();
+            }
         }
     }
 
@@ -2809,7 +2821,7 @@ function renderGraph(ctx, W, H, gi, opts) {
         const px = tx(xs[i]), py = ty(vals[i]);
         hits.push({ x: px, y: py, frame: r.frame });
         ctx.beginPath(); ctx.arc(px, py, dot, 0, Math.PI*2); ctx.fill();
-        if (r.frame === S.frameIndex && !big) {
+        if (i === fi) {
             ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 1.5;
             ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI*2); ctx.stroke();
         }
@@ -2828,11 +2840,30 @@ function renderGraph(ctx, W, H, gi, opts) {
         ctx.fillStyle = col;
         ctx.fillText(lbl, pad.l + pw - 3, pad.t + 5, pw - 6);
     }
+
+    // Coordinates of the focused point, in a box beside it
+    if (fi >= 0) {
+        const fmtV = (k, v) => k === 't' ? v.toFixed(3) : fmtCell(v);
+        const lines = [`${Hv.sym} = ${fmtV(g.h, xs[fi])} ${Hv.unit()}`, `${V.sym} = ${fmtV(g.v, vals[fi])} ${V.unit()}`];
+        ctx.font = `${fs}px sans-serif`;
+        const lh = fs + 3, bw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 10, bh = lines.length * lh + 6;
+        const cx = tx(xs[fi]), cy = ty(vals[fi]);
+        let bx = cx + 9, by = cy - 9 - bh;                  // above right of the point…
+        if (bx + bw > pad.l + pw) bx = cx - 9 - bw;         // …left of it near the right edge
+        if (by < pad.t) by = cy + 9;                        // …below it near the top
+        bx = Math.max(pad.l, bx); by = Math.min(pad.t + ph - bh, by);
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.fillRect(bx, by, bw, bh);
+        ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 1;
+        ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+        ctx.fillStyle = '#000'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        lines.forEach((l, j) => ctx.fillText(l, bx + 5, by + 4 + j * lh));
+    }
     return hits;
 }
 
 // Click (or tap) a dot to show that frame in the video
-gcans.forEach(can => {
+gcans.forEach((can, gi) => {
     const nearest = e => {
         const r = can.getBoundingClientRect();
         const x = e.clientX - r.left, y = e.clientY - r.top;
@@ -2849,10 +2880,15 @@ gcans.forEach(can => {
         if (S.isPlaying) pausePlayback();
         seekTo(h.frame);
     });
+    // With a mouse, hovering a dot moves the crosshair and coordinates to it
+    const setHover = f => { if (f !== can._hoverFrame) { can._hoverFrame = f; drawGraph(gi); } };
     can.addEventListener('pointermove', e => {
         if (e.pointerType !== 'mouse') return;
-        can.style.cursor = nearest(e) ? 'pointer' : 'default';
+        const h = nearest(e);
+        can.style.cursor = h ? 'pointer' : 'default';
+        setHover(h ? h.frame : null);
     });
+    can.addEventListener('pointerleave', () => setHover(null));
 });
 
 // Save a graph as a PNG picture (bigger than on screen, with a title)
