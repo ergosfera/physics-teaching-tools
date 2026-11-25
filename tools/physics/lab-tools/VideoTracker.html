@@ -248,7 +248,7 @@
   }
   #format-error .fe-icon{font-size:36px}
   #format-error .fe-title{font-size:16px;color:#800000;font-weight:700}
-  #format-error .fe-msg{font-size:12px;color:#000;line-height:1.6;max-width:400px}
+  #format-error .fe-msg{font-size:13px;color:#000;line-height:1.6;max-width:480px}
   #format-error .fe-close{font-size:12px;color:var(--sel);cursor:pointer;margin-top:4px}
   #format-error .fe-close:hover{text-decoration:underline}
 
@@ -1285,14 +1285,95 @@ function loadFile(file) {
     video.addEventListener('loadedmetadata', initVideo, { once: true });
 }
 
-function onVideoError() {
-    const ext = (video._fileExt || 'This format').toUpperCase();
-    document.getElementById('fe-msg').innerHTML =
-        `<strong>${ext}</strong> files cannot be played by your browser.<br>
-         Please convert to <strong>MP4 (H.264)</strong> or <strong>WebM</strong> first.<br><br>
-         Free tools: <strong>HandBrake</strong> (desktop) &middot; <strong>CloudConvert.com</strong> (browser)`;
+// ─── Video format check ───
+// Some formats load with sound only (no error, just no picture), others fail outright.
+// Either way, say which format the file uses and how to convert it.
+function onVideoError() { showFormatProblem(false); }
+
+async function showFormatProblem(noPicture) {
+    const file = video._file;
+    const name = escapeHtml((file && file.name) || 'This video');
+    const codec = file ? await videoCodecOf(file) : null;
+    const label = codecLabel(codec);
+    const what = noPicture
+        ? (label ? `<strong>${name}</strong> uses the <strong>${escapeHtml(label)}</strong> video format. `
+                 : `<strong>${name}</strong> uses a video format this browser cannot show. `) +
+          'This browser can play its sound, but not its picture.'
+        : (label ? `<strong>${name}</strong> (<strong>${escapeHtml(label)}</strong>) cannot be played by this browser.`
+                 : `<strong>${name}</strong> cannot be played by this browser.`);
+    const where = ['mp4v', 'hvc1', 'hev1'].includes(codec)
+        ? '<br>Safari on Mac and iPad can usually show it; Chrome, Edge, Firefox and Android often cannot.' : '';
+    document.querySelector('#format-error .fe-title').textContent = noPicture ? 'Picture Not Supported' : 'Format Not Supported';
+    document.getElementById('fe-msg').innerHTML = what + where +
+        '<br><br>Convert it to <strong>MP4 (H.264)</strong>, keeping the same frame rate:<br>' +
+        'Mac: <strong>QuickTime Player</strong> &rarr; File &rarr; Export As (leave “Use HEVC” unchecked)<br>' +
+        'Any computer: <strong>HandBrake</strong>, frame rate “Same as source” and “Constant framerate”';
+    // Nothing was loaded: don't leave the previous video's picture and frame count behind
+    vctx.clearRect(0, 0, vcan.width, vcan.height);
+    octx.clearRect(0, 0, ocan.width, ocan.height);
+    S.videoLoaded = false;
+    updateScrubber();
+    updateStatus();
     formatErr.style.display = 'flex';
     dropHint.style.display = 'none';
+}
+
+// The video format (codec) stored in an MP4/MOV file, read from its header boxes:
+// 'avc1' = H.264, 'hvc1' = HEVC, 'mp4v' = MPEG-4 Part 2, … null if it cannot be read.
+async function videoCodecOf(file) {
+    try {
+        const cc = (dv, o) => String.fromCharCode(dv.getUint8(o), dv.getUint8(o + 1), dv.getUint8(o + 2), dv.getUint8(o + 3));
+        const boxSize = (dv, o, end) => {
+            let s = dv.getUint32(o), hl = 8;
+            if (s === 1) { s = dv.getUint32(o + 8) * 4294967296 + dv.getUint32(o + 12); hl = 16; }
+            else if (s === 0) s = end - o;
+            return [s, hl];
+        };
+        let pos = 0, moov = null;                          // find 'moov' among the top-level boxes
+        while (pos + 16 <= file.size) {
+            const h = new DataView(await file.slice(pos, pos + 16).arrayBuffer());
+            const [size] = boxSize(h, 0, file.size - pos);
+            if (size < 8) return null;
+            if (cc(h, 4) === 'moov') { moov = new DataView(await file.slice(pos, pos + size).arrayBuffer()); break; }
+            pos += size;
+        }
+        if (!moov) return null;
+        const kids = (start, end, cb) => {
+            for (let p = start; p + 8 <= end; ) {
+                const [s, hl] = boxSize(moov, p, end);
+                if (s < hl) return;
+                cb(cc(moov, p + 4), p + hl, p + s);
+                p += s;
+            }
+        };
+        let codec = null;
+        kids(8, moov.byteLength, (t, b, e) => {            // each track: moov > trak > mdia > minf > stbl > stsd
+            if (t !== 'trak' || codec) return;
+            let isVideo = false, entry = null;
+            const walk = (b2, e2) => kids(b2, e2, (t2, b3, e3) => {
+                if (t2 === 'mdia' || t2 === 'minf' || t2 === 'stbl') walk(b3, e3);
+                else if (t2 === 'hdlr') isVideo = cc(moov, b3 + 8) === 'vide';
+                else if (t2 === 'stsd' && e3 - b3 >= 16) entry = cc(moov, b3 + 12);
+            });
+            walk(b, e);
+            if (isVideo && entry) codec = entry;
+        });
+        return codec;
+    } catch (err) { return null; }
+}
+function codecLabel(c) {
+    if (!c) return null;
+    const k = c.trim();
+    if (k === 'mp4v') return 'MPEG-4 Part 2 (an old camera format)';
+    if (k === 'hvc1' || k === 'hev1') return 'HEVC (H.265)';
+    if (k === 'avc1' || k === 'avc3') return 'H.264';
+    if (k === 'vp09') return 'VP9';
+    if (k === 'vp08') return 'VP8';
+    if (k === 'av01') return 'AV1';
+    if (/^ap(4h|4x|cn|ch|cs|co)$/.test(k)) return 'Apple ProRes';
+    if (['jpeg', 'mjpa', 'mjpb'].includes(k)) return 'Motion JPEG';
+    if (k === 's263' || k === 'h263') return 'H.263 (an old phone format)';
+    return '“' + k + '”';
 }
 
 function dismissFormatError() {
@@ -1330,6 +1411,20 @@ async function initVideo() {
     const myFile = video._file;
     const dur = await readDuration();
     if (video._file !== myFile) return;           // another video was opened meanwhile
+    // Some formats (e.g. old camera MPEG-4, HEVC on many PCs) load with sound only:
+    // no error, but a 0×0 picture. Give the browser a moment, then explain.
+    if (!video.videoWidth || !video.videoHeight) {
+        await new Promise(res => {
+            const t = setTimeout(res, 1500);
+            video.addEventListener('loadeddata', () => { clearTimeout(t); res(); }, { once: true });
+        });
+        if (video._file !== myFile) return;
+        if (!video.videoWidth || !video.videoHeight) {
+            if (pendingProject) { pendingProject = null; document.getElementById('project-hint').textContent = ''; }
+            showFormatProblem(true);
+            return;
+        }
+    }
     S.videoLoaded   = true;
     S.videoDuration = dur;
     S.fps           = parseFloat(document.getElementById('fps-input').value) || 30;
